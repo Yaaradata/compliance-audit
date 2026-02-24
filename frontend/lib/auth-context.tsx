@@ -67,11 +67,14 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const INITIAL_STATE: AuthState = { user: null, tenant: null, selectedArchitectureId: null };
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>(loadState);
+  const [state, setState] = useState<AuthState>(INITIAL_STATE);
   const [tenants, setTenants] = useState<Tenant[]>([]);
 
   useEffect(() => {
+    setState(loadState());
     setTenants(getStoredTenants());
   }, []);
 
