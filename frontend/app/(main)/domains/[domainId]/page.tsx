@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { getArchitecture } from "@/lib/data/architectures";
-import { DOMAIN_CONFIGS } from "@/lib/data/evidence-items";
+import { api } from "@/lib/api";
 import { DomainHeader } from "@/components/layout/domain-header";
 import { DomainLeftRail } from "@/components/layout/domain-left-rail";
 import { DomainRightSidebar } from "@/components/layout/domain-right-sidebar";
@@ -14,18 +13,129 @@ import { PriorityBadge } from "@/components/ui/badge";
 import { FileUploadZone } from "@/components/ui/file-upload-zone";
 import { EvaluationResults } from "@/components/domain/evaluation-results";
 import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
+import type { DomainConfig, EvidenceItem } from "@/lib/types";
+
+interface ApiDomain {
+  id: string;
+  name: string;
+  color: string | null;
+  accent_color: string | null;
+  item_count: number;
+  sort_order: number;
+}
+
+interface ApiEvidenceItem {
+  id: string;
+  domain_id: string;
+  sort_order: number;
+  name: string;
+  priority: string;
+  evidence_type: string;
+  description: string;
+  reduction_note: string | null;
+  control_count: number;
+  per_system: boolean;
+  per_zone: boolean;
+  per_quarter: boolean;
+  per_access_point: boolean;
+  is_advisory: boolean;
+  is_conditional: boolean;
+}
+
+interface ApiSubmission {
+  id: string;
+  evidence_item_id: string;
+  status: string;
+  form_data: Record<string, string>;
+  completion_pct: number;
+}
+
+const GRADIENTS: Record<string, string> = {
+  A: "linear-gradient(135deg, #0F4C75 0%, #1B6FA0 100%)",
+  B: "linear-gradient(135deg, #1B5E20 0%, #388E3C 100%)",
+  C: "linear-gradient(135deg, #E65100 0%, #FB8C00 100%)",
+  D: "linear-gradient(135deg, #B71C1C 0%, #E53935 100%)",
+  E: "linear-gradient(135deg, #4A148C 0%, #7B1FA2 100%)",
+  F: "linear-gradient(135deg, #1565C0 0%, #1E88E5 100%)",
+  G: "linear-gradient(135deg, #F57F17 0%, #FFB300 100%)",
+  H: "linear-gradient(135deg, #BF360C 0%, #E64A19 100%)",
+};
+
+function toEvidenceItem(a: ApiEvidenceItem): EvidenceItem {
+  return {
+    id: a.id,
+    order: a.sort_order,
+    name: a.name,
+    priority: a.priority as EvidenceItem["priority"],
+    type: a.evidence_type,
+    controls: [],
+    controlCount: a.control_count,
+    description: a.description,
+    inputs: [],
+    sufficiency: [],
+    reductionNote: a.reduction_note ?? "",
+    perSystem: a.per_system,
+    perZone: a.per_zone,
+    perQuarter: a.per_quarter,
+    perAccessPoint: a.per_access_point,
+    isAdvisory: a.is_advisory,
+    conditional: a.is_conditional,
+  };
+}
 
 export default function DomainPage() {
   const params = useParams();
   const domainId = (params.domainId as string)?.toUpperCase();
-  const { selectedArchitectureId } = useAuth();
-  const arch = selectedArchitectureId ? getArchitecture(selectedArchitectureId) : null;
-  const inScope = arch?.domainIds?.includes(domainId);
-  const config = inScope ? DOMAIN_CONFIGS[domainId] : undefined;
+  const { activeCycleId } = useAuth();
 
-  const [activeItem, setActiveItem] = useState(config?.evidenceItems[0]?.id || "");
+  const [config, setConfig] = useState<DomainConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeItem, setActiveItem] = useState("");
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [evaluated, setEvaluated] = useState(false);
+
+  useEffect(() => {
+    if (!domainId) return;
+    setLoading(true);
+    api.get<{ domain: ApiDomain | null; evidence_items: ApiEvidenceItem[] }>(`/ref/domains/${domainId}`)
+      .then((res) => {
+        if (!res.domain) { setConfig(null); return; }
+        const d = res.domain;
+        const evidenceItems = res.evidence_items.map(toEvidenceItem);
+        const allControls = [...new Set(evidenceItems.flatMap((i) => i.controls.map((c) => c.id)))];
+        setConfig({
+          id: d.id,
+          name: d.name,
+          color: d.color ?? "#666",
+          gradient: GRADIENTS[d.id] ?? "linear-gradient(135deg, #666 0%, #999 100%)",
+          accentColor: d.accent_color ?? "#eee",
+          evidenceItems,
+          allControls,
+          subGroups: [],
+          weights: {},
+        });
+        if (evidenceItems.length > 0) setActiveItem(evidenceItems[0].id);
+      })
+      .catch(() => setConfig(null))
+      .finally(() => setLoading(false));
+  }, [domainId]);
+
+  useEffect(() => {
+    if (!activeCycleId || !domainId) return;
+    api.get<ApiSubmission[]>(`/assessments/${activeCycleId}/evidence?domain=${domainId}`)
+      .then((subs) => {
+        const data: Record<string, string> = {};
+        subs.forEach((s) => {
+          if (s.form_data) {
+            Object.entries(s.form_data).forEach(([k, v]) => {
+              data[`${s.evidence_item_id}_${k}`] = String(v);
+            });
+          }
+        });
+        setFormData(data);
+      })
+      .catch(() => {});
+  }, [activeCycleId, domainId]);
 
   const updateField = useCallback((key: string, value: string) => {
     setFormData((p) => ({ ...p, [key]: value }));
@@ -60,7 +170,11 @@ export default function DomainPage() {
     return scores;
   }, [config, getItemCompletion]);
 
-  if (!config || !inScope) {
+  if (loading) {
+    return <div className="text-center py-20 text-gray-400 text-sm">Loading domain…</div>;
+  }
+
+  if (!config) {
     return (
       <div className="text-center py-20 text-gray-500">
         <p>Domain not found or not in your selected architecture scope.</p>

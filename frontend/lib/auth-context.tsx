@@ -1,177 +1,146 @@
 "use client";
 
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from "react";
-import type { User, UserRole, Tenant, Architecture } from "./types";
+import { api } from "./api";
+import type { User, UserRole, Tenant } from "./types";
 
-const STORAGE_KEY = "swift_compliance_mock_auth";
-const TENANTS_KEY = "swift_compliance_mock_tenants";
+const TOKEN_KEY = "swift_compliance_token";
+const USER_KEY = "swift_compliance_user";
+const CYCLE_KEY = "active_cycle_id";
 
 interface AuthState {
   user: User | null;
   tenant: Tenant | null;
   selectedArchitectureId: string | null;
+  activeCycleId: string | null;
 }
 
-function loadState(): AuthState {
-  if (typeof window === "undefined") return { user: null, tenant: null, selectedArchitectureId: null };
+function loadCachedUser(): User | null {
+  if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { user: null, tenant: null, selectedArchitectureId: null };
-    const data = JSON.parse(raw) as AuthState;
-    return {
-      user: data.user ?? null,
-      tenant: data.tenant ?? null,
-      selectedArchitectureId: data.selectedArchitectureId ?? null,
-    };
-  } catch {
-    return { user: null, tenant: null, selectedArchitectureId: null };
-  }
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
 }
 
-function saveState(state: AuthState) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {}
+function loadActiveCycleId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(CYCLE_KEY);
 }
 
 export function getStoredTenants(): Tenant[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(TENANTS_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-function setStoredTenants(tenants: Tenant[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(TENANTS_KEY, JSON.stringify(tenants));
-  } catch {}
+  return [];
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string, role: UserRole, name?: string) => boolean;
-  signup: (email: string, password: string, role: UserRole, name: string, tenantId?: string) => boolean;
+  login: (email: string, password: string, role: UserRole, name?: string) => Promise<boolean>;
+  signup: (email: string, password: string, role: UserRole, name: string, tenantId?: string) => Promise<boolean>;
   logout: () => void;
   setArchitecture: (architectureId: string) => void;
+  setActiveCycleId: (id: string | null) => void;
   isAdmin: boolean;
   isPlatformAdmin: boolean;
   tenants: Tenant[];
-  addTenant: (tenant: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { bankAdmins?: { email: string; name: string }[] }) => void;
+  addTenant: (input: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { bankAdmins?: { email: string; name: string }[] }) => Promise<void>;
   updateTenantAdmins: (tenantId: string, admins: { email: string; name: string }[]) => void;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const INITIAL_STATE: AuthState = { user: null, tenant: null, selectedArchitectureId: null };
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>(INITIAL_STATE);
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    tenant: null,
+    selectedArchitectureId: null,
+    activeCycleId: null,
+  });
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setState(loadState());
-    setTenants(getStoredTenants());
+    const cachedUser = loadCachedUser();
+    const cycleId = loadActiveCycleId();
+    const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
+
+    if (token && cachedUser) {
+      setState({ user: cachedUser, tenant: null, selectedArchitectureId: null, activeCycleId: cycleId });
+      api.get<{ id: string; email: string; name: string; role: UserRole; tenant_id: string | null }>("/auth/me")
+        .then((u) => {
+          const user: User = { id: u.id, email: u.email, name: u.name, role: u.role, tenantId: u.tenant_id };
+          localStorage.setItem(USER_KEY, JSON.stringify(user));
+          setState((s) => ({ ...s, user }));
+        })
+        .catch(() => {
+          api.clearToken();
+          localStorage.removeItem(USER_KEY);
+          setState({ user: null, tenant: null, selectedArchitectureId: null, activeCycleId: null });
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  const persist = useCallback((next: AuthState) => {
-    setState(next);
-    saveState(next);
+  const login = useCallback(async (email: string, password: string, role: UserRole, _name?: string): Promise<boolean> => {
+    try {
+      const res = await api.post<{ token: string; user: { id: string; email: string; name: string; role: UserRole; tenant_id: string | null } }>("/auth/login", { email, password });
+      api.setToken(res.token);
+      const user: User = { id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role, tenantId: res.user.tenant_id };
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      setState({ user, tenant: null, selectedArchitectureId: null, activeCycleId: loadActiveCycleId() });
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
-  const login = useCallback(
-    (email: string, _password: string, role: UserRole, name?: string): boolean => {
-      const id = `u-${Date.now()}`;
-      let allTenants = getStoredTenants();
-      if (allTenants.length === 0 && role !== "admin") {
-        const demo: Tenant = { id: "t-demo", name: "Demo Bank", slug: "demo-bank", details: "Demo tenant for testing", bankAdmins: [], createdAt: new Date().toISOString() };
-        allTenants = [demo];
-        setStoredTenants(allTenants);
-        setTenants(allTenants);
-      }
-      const user: User = {
-        id,
-        email,
-        name: name ?? email.split("@")[0],
-        role,
-        tenantId: role === "admin" ? null : "t-demo",
-      };
-      const tenant = role === "admin" ? null : allTenants.find((t) => t.id === "t-demo") ?? allTenants[0] ?? null;
-      persist({
-        user,
-        tenant: tenant ?? null,
-        selectedArchitectureId: state.selectedArchitectureId,
-      });
+  const signup = useCallback(async (email: string, password: string, role: UserRole, name: string, tenantId?: string): Promise<boolean> => {
+    try {
+      const res = await api.post<{ token: string; user: { id: string; email: string; name: string; role: UserRole; tenant_id: string | null } }>("/auth/signup", { email, password, name, role, tenant_id: tenantId });
+      api.setToken(res.token);
+      const user: User = { id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role, tenantId: res.user.tenant_id };
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      setState({ user, tenant: null, selectedArchitectureId: null, activeCycleId: null });
       return true;
-    },
-    [persist, state.selectedArchitectureId]
-  );
-
-  const signup = useCallback(
-    (email: string, _password: string, role: UserRole, name: string, tenantId?: string): boolean => {
-      const id = `u-${Date.now()}`;
-      const user: User = {
-        id,
-        email,
-        name,
-        role,
-        tenantId: tenantId ?? (role === "admin" ? null : "t-demo"),
-      };
-      const allTenants = getStoredTenants();
-      const tenant = role === "admin" ? null : allTenants.find((t) => t.id === (tenantId ?? "t-demo")) ?? allTenants[0] ?? null;
-      persist({
-        user,
-        tenant: tenant ?? null,
-        selectedArchitectureId: null,
-      });
-      return true;
-    },
-    [persist]
-  );
+    } catch {
+      return false;
+    }
+  }, []);
 
   const logout = useCallback(() => {
-    persist({ user: null, tenant: null, selectedArchitectureId: null });
-  }, [persist]);
+    api.clearToken();
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(CYCLE_KEY);
+    setState({ user: null, tenant: null, selectedArchitectureId: null, activeCycleId: null });
+  }, []);
 
-  const setArchitecture = useCallback(
-    (architectureId: string) => {
-      setState((s) => {
-        const next = { ...s, selectedArchitectureId: architectureId };
-        saveState(next);
-        return next;
-      });
-    },
-    []
-  );
+  const setArchitecture = useCallback((architectureId: string) => {
+    setState((s) => ({ ...s, selectedArchitectureId: architectureId }));
+  }, []);
 
-  const addTenant = useCallback(
-    (input: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { bankAdmins?: { email: string; name: string }[] }) => {
-      const id = `t-${Date.now()}`;
-      const tenant: Tenant = {
-        id,
+  const setActiveCycleId = useCallback((id: string | null) => {
+    if (id) localStorage.setItem(CYCLE_KEY, id);
+    else localStorage.removeItem(CYCLE_KEY);
+    setState((s) => ({ ...s, activeCycleId: id }));
+  }, []);
+
+  const addTenant = useCallback(async (input: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { bankAdmins?: { email: string; name: string }[] }) => {
+    try {
+      const tenant = await api.post<Tenant>("/tenants", {
         name: input.name,
         slug: input.slug,
         details: input.details,
-        bankAdmins: (input.bankAdmins ?? []).map((a, i) => ({ id: `ba-${id}-${i}`, email: a.email, name: a.name })),
-        createdAt: new Date().toISOString(),
-      };
-      const next = [...getStoredTenants(), tenant];
-      setStoredTenants(next);
-      setTenants(next);
-    },
-    []
-  );
+        bank_admins: input.bankAdmins,
+      });
+      setTenants((prev) => [...prev, tenant]);
+    } catch (e) {
+      console.error("Failed to create tenant", e);
+    }
+  }, []);
 
-  const updateTenantAdmins = useCallback((tenantId: string, admins: { email: string; name: string }[]) => {
-    const next = getStoredTenants().map((t) =>
-      t.id === tenantId ? { ...t, bankAdmins: admins.map((a, i) => ({ id: `ba-${t.id}-${i}`, ...a })) } : t
-    );
-    setStoredTenants(next);
-    setTenants(next);
+  const updateTenantAdmins = useCallback((_tenantId: string, _admins: { email: string; name: string }[]) => {
+    // Placeholder for real API call
   }, []);
 
   const value = useMemo<AuthContextValue>(
@@ -181,13 +150,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signup,
       logout,
       setArchitecture,
+      setActiveCycleId,
       isAdmin: state.user?.role === "admin",
       isPlatformAdmin: state.user?.role === "admin",
       tenants,
       addTenant,
       updateTenantAdmins,
+      loading,
     }),
-    [state, login, signup, logout, setArchitecture, tenants, addTenant, updateTenantAdmins]
+    [state, login, signup, logout, setArchitecture, setActiveCycleId, tenants, addTenant, updateTenantAdmins, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

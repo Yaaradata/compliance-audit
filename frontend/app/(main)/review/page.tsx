@@ -1,41 +1,114 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { REVIEW_ITEMS } from "@/lib/data/review-items";
-import { CONTROLS } from "@/lib/data/controls";
+import { useState, useMemo, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 import { ReviewTable } from "@/components/review/review-table";
 import { ReviewPreview } from "@/components/review/review-preview";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { scoreColor, statusLabelMap } from "@/lib/utils";
-import type { ReviewItem } from "@/lib/types";
+import type { ReviewItem, Control } from "@/lib/types";
 
-const METRICS = [
-  { label: "My Queue", count: 3, color: "#2563eb", bg: "#eff6ff" },
-  { label: "Unassigned", count: 2, color: "#d97706", bg: "#fffbeb" },
-  { label: "Overdue", count: 1, color: "#dc2626", bg: "#fef2f2" },
-  { label: "Completed Today", count: 4, color: "#059669", bg: "#ecfdf5" },
-];
+interface ApiReview {
+  id: string;
+  submission_id: string;
+  reviewer_id: string;
+  level: string;
+  status: string;
+  decision: string | null;
+  assigned_at: string;
+}
+
+interface ApiControl {
+  id: string;
+  name: string;
+  control_type: string;
+  objective: number;
+  architecture_applicability: string[];
+}
+
+function toReviewItem(r: ApiReview, idx: number): ReviewItem {
+  return {
+    id: idx + 1,
+    title: `Review ${r.level} — ${r.submission_id.slice(0, 8)}`,
+    domain: "",
+    controls: [],
+    submitter: r.reviewer_id.slice(0, 8),
+    date: new Date(r.assigned_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    status: r.status as ReviewItem["status"],
+    impact: r.level === "l1" ? "HIGH" : "CRITICAL",
+  };
+}
+
+function toControl(c: ApiControl): Control {
+  return {
+    id: c.id,
+    name: c.name,
+    type: c.control_type as "M" | "A",
+    objective: c.objective,
+    score: 0,
+    evidenceCount: 0,
+    status: "partial",
+  };
+}
 
 const OBJECTIVES = [
-  { name: "Secure Your Environment", num: 1, controls: CONTROLS.filter((c) => c.objective === 1) },
-  { name: "Know & Limit Access", num: 2, controls: CONTROLS.filter((c) => c.objective === 2) },
-  { name: "Detect & Respond", num: 3, controls: CONTROLS.filter((c) => c.objective === 3) },
+  { name: "Secure Your Environment", num: 1 },
+  { name: "Know & Limit Access", num: 2 },
+  { name: "Detect & Respond", num: 3 },
 ];
 
 export default function ReviewPage() {
+  const { activeCycleId } = useAuth();
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [controls, setControls] = useState<Control[]>([]);
   const [filter, setFilter] = useState("all");
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get<ApiControl[]>("/ref/controls")
+      .then((data) => setControls(data.map(toControl)))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!activeCycleId) { setReviews([]); setLoading(false); return; }
+    setLoading(true);
+    api.get<ApiReview[]>(`/assessments/${activeCycleId}/reviews`)
+      .then((data) => setReviews(data.map(toReviewItem)))
+      .catch(() => setReviews([]))
+      .finally(() => setLoading(false));
+  }, [activeCycleId]);
+
+  const metrics = useMemo(() => {
+    const pending = reviews.filter((r) => r.status === "pending").length;
+    const inReview = reviews.filter((r) => r.status === "in_review").length;
+    const returned = reviews.filter((r) => r.status === "returned").length;
+    const approved = reviews.filter((r) => r.status === "approved").length;
+    return [
+      { label: "My Queue", count: pending, color: "#2563eb", bg: "#eff6ff" },
+      { label: "In Review", count: inReview, color: "#d97706", bg: "#fffbeb" },
+      { label: "Returned", count: returned, color: "#dc2626", bg: "#fef2f2" },
+      { label: "Approved", count: approved, color: "#059669", bg: "#ecfdf5" },
+    ];
+  }, [reviews]);
+
+  const objectiveGroups = useMemo(
+    () => OBJECTIVES.map((o) => ({ ...o, controls: controls.filter((c) => c.objective === o.num) })),
+    [controls]
+  );
 
   const filtered = useMemo(
-    () => (filter === "all" ? REVIEW_ITEMS : REVIEW_ITEMS.filter((i) => i.status === filter)),
-    [filter]
+    () => (filter === "all" ? reviews : reviews.filter((i) => i.status === filter)),
+    [filter, reviews]
   );
 
   return (
     <div className="grid grid-cols-[1fr_260px] gap-5">
       <div>
         <div className="grid grid-cols-4 gap-2.5 mb-4">
-          {METRICS.map((m) => (
+          {metrics.map((m) => (
             <div key={m.label} className="rounded-lg p-3 text-center cursor-pointer border" style={{ background: m.bg, borderColor: `${m.color}20` }}>
               <div className="text-xl font-bold" style={{ color: m.color }}>{m.count}</div>
               <div className="text-[11px] font-medium" style={{ color: m.color }}>{m.label}</div>
@@ -50,13 +123,19 @@ export default function ReviewPage() {
             </button>
           ))}
         </div>
-        <ReviewTable items={filtered} selected={selectedItem} onSelect={setSelectedItem} />
+        {loading ? (
+          <div className="text-center py-10 text-gray-400 text-sm">Loading reviews…</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-10 text-gray-400 text-sm">No reviews yet. Reviews will appear once evidence is submitted and assigned for review.</div>
+        ) : (
+          <ReviewTable items={filtered} selected={selectedItem} onSelect={setSelectedItem} />
+        )}
         {selectedItem && <ReviewPreview item={selectedItem} />}
       </div>
       <div>
         <div className="text-sm font-semibold text-gray-700 mb-2.5">Control Sufficiency</div>
-        {OBJECTIVES.map((g) => {
-          const avg = Math.round(g.controls.reduce((a, c) => a + c.score, 0) / g.controls.length);
+        {objectiveGroups.map((g) => {
+          const avg = g.controls.length > 0 ? Math.round(g.controls.reduce((a, c) => a + c.score, 0) / g.controls.length) : 0;
           return (
             <div key={g.num} className="bg-white rounded-lg border border-gray-200 p-2.5 mb-2">
               <div className="flex justify-between items-center mb-1.5">

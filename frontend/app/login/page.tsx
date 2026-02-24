@@ -20,33 +20,43 @@ function LoginForm() {
   const [role, setRole] = useState<UserRole>("compliance_officer");
   const [error, setError] = useState("");
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
       setError("");
       if (!email.trim()) {
         setError("Email is required.");
         return;
       }
+      if (!password.trim()) {
+        setError("Password is required.");
+        return;
+      }
       if (mode === "signup" && !name.trim()) {
         setError("Name is required for sign up.");
         return;
       }
-      if (mode === "login") {
-        const ok = login(email, password, role);
+      setSubmitting(true);
+      try {
+        let ok: boolean;
+        if (mode === "login") {
+          ok = await login(email, password, role);
+        } else {
+          ok = await signup(email, password, role, name.trim());
+        }
         if (!ok) {
-          setError("Login failed.");
+          setError(mode === "login" ? "Invalid credentials." : "Sign up failed.");
+          setSubmitting(false);
           return;
         }
-      } else {
-        const ok = signup(email, password, role, name.trim());
-        if (!ok) {
-          setError("Sign up failed.");
-          return;
-        }
+        if (role === "admin") router.replace("/admin");
+        else router.replace("/assessments/new");
+      } catch {
+        setError("Something went wrong.");
+        setSubmitting(false);
       }
-      if (role === "admin") router.replace("/admin");
-      else router.replace("/select-architecture");
     },
     [email, password, name, role, mode, login, signup, router]
   );
@@ -132,7 +142,7 @@ function LoginForm() {
                 placeholder="••••••••"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              <p className="mt-1 text-xs text-slate-500">Mock auth — any password works.</p>
+              <p className="mt-1 text-xs text-slate-500">Enter your account credentials.</p>
             </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
@@ -141,7 +151,7 @@ function LoginForm() {
               type="submit"
               className="w-full py-2.5 font-semibold text-white bg-[#0c2340] hover:bg-[#0f2d52] rounded-lg transition-colors"
             >
-              {mode === "login" ? "Log in" : "Create account"}
+              {submitting ? "Please wait..." : mode === "login" ? "Log in" : "Create account"}
             </button>
           </form>
 

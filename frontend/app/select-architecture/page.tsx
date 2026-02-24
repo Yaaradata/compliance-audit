@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 import { ARCHITECTURES } from "@/lib/data/architectures";
 import { AppHeader } from "@/components/layout/app-header";
 
@@ -15,18 +16,30 @@ const TYPE_COLORS: Record<string, { bg: string; border: string; badge: string }>
   B:  { bg: "#faf5ff", border: "#9333ea", badge: "#6b21a8" },
 };
 
-export default function SelectArchitecturePage() {
+function SelectArchitectureInner() {
   const router = useRouter();
-  const { user, isPlatformAdmin, selectedArchitectureId, setArchitecture } = useAuth();
+  const searchParams = useSearchParams();
+  const cycleId = searchParams.get("cycleId");
+  const { user, isPlatformAdmin, setArchitecture, setActiveCycleId } = useAuth();
+  const [selecting, setSelecting] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) router.replace("/login");
     if (isPlatformAdmin) router.replace("/admin");
   }, [user, isPlatformAdmin, router]);
 
-  const handleSelect = (architectureId: string) => {
-    setArchitecture(architectureId);
-    router.replace("/dashboard");
+  const handleSelect = async (architectureId: string) => {
+    setSelecting(architectureId);
+    try {
+      if (cycleId) {
+        await api.put(`/assessments/${cycleId}`, { architecture_type: architectureId });
+        setActiveCycleId(cycleId);
+      }
+      setArchitecture(architectureId);
+      router.replace("/dashboard");
+    } catch {
+      setSelecting(null);
+    }
   };
 
   if (!user) return null;
@@ -43,21 +56,18 @@ export default function SelectArchitecturePage() {
           <div className="space-y-4">
             {ARCHITECTURES.map((arch) => {
               const colors = TYPE_COLORS[arch.id] ?? TYPE_COLORS.A1;
-              const isSelected = selectedArchitectureId === arch.id;
+              const isSelecting = selecting === arch.id;
               const totalControls = arch.mandatoryControls.length + arch.advisoryControls.length;
 
               return (
                 <div
                   key={arch.id}
-                  onClick={() => handleSelect(arch.id)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSelect(arch.id)}
+                  onClick={() => !selecting && handleSelect(arch.id)}
+                  onKeyDown={(e) => e.key === "Enter" && !selecting && handleSelect(arch.id)}
                   role="button"
                   tabIndex={0}
-                  className={`bg-white rounded-xl border-2 p-5 cursor-pointer transition-all hover:shadow-md ${isSelected ? "ring-2 ring-offset-1" : ""}`}
-                  style={{
-                    borderColor: isSelected ? colors.border : "#e2e8f0",
-                    ...(isSelected ? { ringColor: colors.border } : {}),
-                  }}
+                  className="bg-white rounded-xl border-2 p-5 cursor-pointer transition-all hover:shadow-md"
+                  style={{ borderColor: "#e2e8f0" }}
                 >
                   <div className="flex items-start gap-4">
                     <div
@@ -119,10 +129,11 @@ export default function SelectArchitecturePage() {
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleSelect(arch.id); }}
-                      className="shrink-0 px-4 py-2 font-medium text-white rounded-lg transition-colors text-sm"
+                      disabled={!!selecting}
+                      className="shrink-0 px-4 py-2 font-medium text-white rounded-lg transition-colors text-sm disabled:opacity-50"
                       style={{ background: colors.badge }}
                     >
-                      {isSelected ? "Selected" : "Select"}
+                      {isSelecting ? "Setting up..." : "Select"}
                     </button>
                   </div>
                 </div>
@@ -135,10 +146,18 @@ export default function SelectArchitecturePage() {
           </div>
 
           <p className="mt-4 text-center text-sm text-slate-500">
-            <Link href="/dashboard" className="text-blue-600 hover:underline">Skip to dashboard</Link> (you can select architecture later)
+            <Link href="/assessments/new" className="text-blue-600 hover:underline">Back to assessment cycles</Link>
           </p>
         </div>
       </main>
     </div>
+  );
+}
+
+export default function SelectArchitecturePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="text-sm text-slate-500">Loading...</div></div>}>
+      <SelectArchitectureInner />
+    </Suspense>
   );
 }

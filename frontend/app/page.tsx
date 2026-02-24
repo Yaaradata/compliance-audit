@@ -7,21 +7,22 @@ import { LandingPage } from "@/components/landing/landing-page";
 
 export default function HomePage() {
   const router = useRouter();
-  const { user, isPlatformAdmin, selectedArchitectureId } = useAuth();
+  const { user, isPlatformAdmin, activeCycleId, loading } = useAuth();
 
   useEffect(() => {
+    if (loading) return;
     if (!user) return;
     if (isPlatformAdmin) {
       router.replace("/admin");
       return;
     }
-    if (!selectedArchitectureId) {
-      router.replace("/select-architecture");
+    if (activeCycleId) {
+      router.replace("/dashboard");
       return;
     }
-    router.replace("/dashboard");
-  }, [user, isPlatformAdmin, selectedArchitectureId, router]);
+    router.replace("/assessments/new");
+  }, [user, isPlatformAdmin, activeCycleId, loading, router]);
 
-  if (user) return null;
+  if (loading || user) return null;
   return <LandingPage />;
 }

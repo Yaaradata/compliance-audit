@@ -1,15 +1,22 @@
 "use client";
-import { DOMAINS } from "@/lib/data/domains";
-import { CONTROLS } from "@/lib/data/controls";
 
-export function OverallProgress() {
-  const totalItems = DOMAINS.reduce((a, d) => a + d.items, 0);
-  const completedItems = DOMAINS.reduce((a, d) => a + d.completed, 0);
-  const overallPct = Math.round((completedItems / totalItems) * 100);
-  const mandatoryApproved = CONTROLS.filter((c) => c.type === "M" && c.score >= 90).length;
-  const mandatoryTotal = CONTROLS.filter((c) => c.type === "M").length;
-  const gaps = DOMAINS.filter((d) => d.gap).length;
+interface OverallProgressProps {
+  overallPct?: number;
+  mandatoryApproved?: number;
+  mandatoryTotal?: number;
+  completedItems?: number;
+  totalItems?: number;
+  gaps?: number;
+}
 
+export function OverallProgress({
+  overallPct = 0,
+  mandatoryApproved = 0,
+  mandatoryTotal = 0,
+  completedItems = 0,
+  totalItems = 0,
+  gaps = 0,
+}: OverallProgressProps) {
   return (
     <div className="rounded-xl p-5 mb-5 text-white" style={{ background: "linear-gradient(135deg, #0c2340 0%, #1a5276 100%)" }}>
       <div className="flex justify-between items-center mb-3">

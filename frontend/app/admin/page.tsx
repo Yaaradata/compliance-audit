@@ -4,36 +4,70 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 import { AppHeader } from "@/components/layout/app-header";
+
+interface ApiTenant {
+  id: string;
+  name: string;
+  slug: string;
+  bic_code: string | null;
+  architecture: string | null;
+  subscription: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user, isPlatformAdmin, logout, tenants, addTenant, updateTenantAdmins } = useAuth();
+  const { user, isPlatformAdmin, logout } = useAuth();
+  const [tenants, setTenants] = useState<ApiTenant[]>([]);
+  const [loadingTenants, setLoadingTenants] = useState(true);
+
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [details, setDetails] = useState("");
   const [bankAdmins, setBankAdmins] = useState<{ email: string; name: string }[]>([{ email: "", name: "" }]);
   const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
   const [tenantAdmins, setTenantAdmins] = useState<Record<string, { email: string; name: string }[]>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (user && !isPlatformAdmin) router.replace("/dashboard");
     if (!user) router.replace("/login");
   }, [user, isPlatformAdmin, router]);
 
-  const handleAddTenant = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!isPlatformAdmin) return;
+    setLoadingTenants(true);
+    api.get<ApiTenant[]>("/tenants")
+      .then(setTenants)
+      .catch(() => setTenants([]))
+      .finally(() => setLoadingTenants(false));
+  }, [isPlatformAdmin]);
+
+  const handleAddTenant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    addTenant({
-      name: name.trim(),
-      slug: slug.trim() || name.trim().toLowerCase().replace(/\s+/g, "-"),
-      details: details.trim(),
-      bankAdmins: bankAdmins.filter((a) => a.email.trim()),
-    });
-    setName("");
-    setSlug("");
-    setDetails("");
-    setBankAdmins([{ email: "", name: "" }]);
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      const tenant = await api.post<ApiTenant>("/tenants", {
+        name: name.trim(),
+        slug: slug.trim() || name.trim().toLowerCase().replace(/\s+/g, "-"),
+        details: details.trim() || undefined,
+        bank_admins: bankAdmins.filter((a) => a.email.trim()).map((a) => ({ email: a.email.trim(), name: a.name.trim() })),
+      });
+      setTenants((prev) => [tenant, ...prev]);
+      setName("");
+      setSlug("");
+      setDetails("");
+      setBankAdmins([{ email: "", name: "" }]);
+    } catch (err) {
+      console.error("Failed to create tenant", err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const addBankAdminRow = () => setBankAdmins((prev) => [...prev, { email: "", name: "" }]);
@@ -41,12 +75,6 @@ export default function AdminPage() {
     setBankAdmins((prev) => prev.map((a, j) => (j === i ? { ...a, [field]: value } : a)));
   };
   const removeBankAdminRow = (i: number) => setBankAdmins((prev) => prev.filter((_, j) => j !== i));
-
-  const saveTenantAdmins = (tenantId: string) => {
-    const admins = tenantAdmins[tenantId];
-    if (admins) updateTenantAdmins(tenantId, admins.filter((a) => a.email.trim()));
-    setExpandedTenant(null);
-  };
 
   if (!user) return null;
 
@@ -95,13 +123,17 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
-                <button type="submit" className="px-4 py-2 font-medium text-white bg-[#0c2340] rounded-lg hover:bg-[#0f2d52]">Onboard bank</button>
+                <button type="submit" disabled={submitting} className="px-4 py-2 font-medium text-white bg-[#0c2340] rounded-lg hover:bg-[#0f2d52] disabled:opacity-50">
+                  {submitting ? "Creating…" : "Onboard bank"}
+                </button>
               </div>
             </form>
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <h2 className="font-semibold text-slate-900 p-4 border-b border-slate-200">Tenants</h2>
-              {tenants.length === 0 ? (
+              {loadingTenants ? (
+                <p className="p-4 text-sm text-slate-400">Loading tenants…</p>
+              ) : tenants.length === 0 ? (
                 <p className="p-4 text-sm text-slate-500">No tenants yet. Onboard a bank above.</p>
               ) : (
                 <ul className="divide-y divide-slate-200">
@@ -111,6 +143,7 @@ export default function AdminPage() {
                         <div>
                           <span className="font-medium text-slate-900">{t.name}</span>
                           <span className="text-slate-500 text-sm ml-2">({t.slug})</span>
+                          {!t.is_active && <span className="ml-2 text-xs text-red-500 font-medium">Inactive</span>}
                         </div>
                         <button
                           type="button"
@@ -120,8 +153,8 @@ export default function AdminPage() {
                           {expandedTenant === t.id ? "Collapse" : "Manage admins"}
                         </button>
                       </div>
-                      {t.details && <p className="text-sm text-slate-600 mt-1">{t.details}</p>}
-                      <p className="text-xs text-slate-500 mt-1">Bank admins: {t.bankAdmins.length}</p>
+                      {t.bic_code && <p className="text-xs text-slate-500 mt-0.5">BIC: {t.bic_code}</p>}
+                      <p className="text-xs text-slate-500 mt-0.5">Subscription: {t.subscription} · Created: {new Date(t.created_at).toLocaleDateString()}</p>
                       {expandedTenant === t.id && (
                         <div className="mt-4 pt-4 border-t border-slate-200">
                           <div className="flex justify-between items-center mb-2">
@@ -130,42 +163,45 @@ export default function AdminPage() {
                               type="button"
                               onClick={() => setTenantAdmins((prev) => ({
                                 ...prev,
-                                [t.id]: [...(prev[t.id] ?? t.bankAdmins.map((a) => ({ email: a.email, name: a.name }))), { email: "", name: "" }],
+                                [t.id]: [...(prev[t.id] ?? []), { email: "", name: "" }],
                               }))}
                               className="text-xs text-blue-600 hover:underline"
                             >
                               + Add
                             </button>
                           </div>
-                          {(tenantAdmins[t.id] ?? t.bankAdmins.map((a) => ({ email: a.email, name: a.name }))).map((a, i) => (
-                            <div key={i} className="flex gap-2 mb-2">
-                              <input
-                                type="text"
-                                value={a.name}
-                                onChange={(e) => setTenantAdmins((prev) => {
-                                  const list = prev[t.id] ?? t.bankAdmins.map((x) => ({ email: x.email, name: x.name }));
-                                  const next = [...list];
-                                  next[i] = { ...next[i], name: e.target.value };
-                                  return { ...prev, [t.id]: next };
-                                })}
-                                placeholder="Name"
-                                className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
-                              />
-                              <input
-                                type="email"
-                                value={a.email}
-                                onChange={(e) => setTenantAdmins((prev) => {
-                                  const list = prev[t.id] ?? t.bankAdmins.map((x) => ({ email: x.email, name: x.name }));
-                                  const next = [...list];
-                                  next[i] = { ...next[i], email: e.target.value };
-                                  return { ...prev, [t.id]: next };
-                                })}
-                                placeholder="Email"
-                                className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
-                              />
-                            </div>
-                          ))}
-                          <button type="button" onClick={() => saveTenantAdmins(t.id)} className="mt-2 text-sm font-medium text-blue-600 hover:underline">Save admins</button>
+                          {(tenantAdmins[t.id] ?? []).length === 0 ? (
+                            <p className="text-xs text-slate-400">No admin entries. Click + Add to add bank admins.</p>
+                          ) : (
+                            (tenantAdmins[t.id] ?? []).map((a, i) => (
+                              <div key={i} className="flex gap-2 mb-2">
+                                <input
+                                  type="text"
+                                  value={a.name}
+                                  onChange={(e) => setTenantAdmins((prev) => {
+                                    const list = prev[t.id] ?? [];
+                                    const next = [...list];
+                                    next[i] = { ...next[i], name: e.target.value };
+                                    return { ...prev, [t.id]: next };
+                                  })}
+                                  placeholder="Name"
+                                  className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
+                                />
+                                <input
+                                  type="email"
+                                  value={a.email}
+                                  onChange={(e) => setTenantAdmins((prev) => {
+                                    const list = prev[t.id] ?? [];
+                                    const next = [...list];
+                                    next[i] = { ...next[i], email: e.target.value };
+                                    return { ...prev, [t.id]: next };
+                                  })}
+                                  placeholder="Email"
+                                  className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
+                                />
+                              </div>
+                            ))
+                          )}
                         </div>
                       )}
                     </li>

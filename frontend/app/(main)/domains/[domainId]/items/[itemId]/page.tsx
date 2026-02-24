@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { getArchitecture } from "@/lib/data/architectures";
-import { DOMAIN_CONFIGS } from "@/lib/data/evidence-items";
+import { api } from "@/lib/api";
 import { ControlBadge } from "@/components/ui/control-badge";
 import { PriorityBadge } from "@/components/ui/badge";
 import { EvidenceInputRenderer } from "@/components/domain/evidence-input-renderer";
@@ -13,20 +12,88 @@ import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
 import { PerControlPanel } from "@/components/domain/per-control-panel";
 import { EvaluationResults } from "@/components/domain/evaluation-results";
 import { getStatusColor, getStatusIcon } from "@/lib/utils";
+import type { EvidenceItem, ControlRef } from "@/lib/types";
+
+interface ApiEvidenceItem {
+  id: string;
+  domain_id: string;
+  sort_order: number;
+  name: string;
+  priority: string;
+  evidence_type: string;
+  description: string;
+  reduction_note: string | null;
+  control_count: number;
+  per_system: boolean;
+  per_zone: boolean;
+  per_quarter: boolean;
+  per_access_point: boolean;
+  is_advisory: boolean;
+  is_conditional: boolean;
+}
+
+interface ItemDetailResponse {
+  item: ApiEvidenceItem | null;
+  controls: { evidence_item_id: string; control_id: string; is_primary: boolean }[];
+}
+
+const DOMAIN_COLORS: Record<string, { color: string; gradient: string }> = {
+  A: { color: "#0F4C75", gradient: "linear-gradient(135deg,#0F4C75,#1B6FA0)" },
+  B: { color: "#1B5E20", gradient: "linear-gradient(135deg,#1B5E20,#388E3C)" },
+  C: { color: "#E65100", gradient: "linear-gradient(135deg,#E65100,#FB8C00)" },
+  D: { color: "#B71C1C", gradient: "linear-gradient(135deg,#B71C1C,#E53935)" },
+  E: { color: "#4A148C", gradient: "linear-gradient(135deg,#4A148C,#7B1FA2)" },
+  F: { color: "#1565C0", gradient: "linear-gradient(135deg,#1565C0,#1E88E5)" },
+  G: { color: "#F57F17", gradient: "linear-gradient(135deg,#F57F17,#FFB300)" },
+  H: { color: "#BF360C", gradient: "linear-gradient(135deg,#BF360C,#E64A19)" },
+};
 
 export default function ItemIntakePage() {
   const params = useParams();
   const domainId = (params.domainId as string)?.toUpperCase();
   const itemId = (params.itemId as string)?.toUpperCase();
   const { selectedArchitectureId } = useAuth();
-  const arch = selectedArchitectureId ? getArchitecture(selectedArchitectureId) : null;
-  const inScope = arch?.domainIds?.includes(domainId);
-  const config = inScope ? DOMAIN_CONFIGS[domainId] : undefined;
-  const item = config?.evidenceItems.find((e) => e.id === itemId);
+  const domainStyle = DOMAIN_COLORS[domainId] || DOMAIN_COLORS.A;
 
+  const [item, setItem] = useState<EvidenceItem | null>(null);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, boolean>>({});
   const [evaluated, setEvaluated] = useState(false);
+
+  useEffect(() => {
+    api.get<ItemDetailResponse>(`/ref/evidence-items/${itemId}`)
+      .then((data) => {
+        if (data.item) {
+          const controls: ControlRef[] = data.controls.map((c) => ({
+            id: c.control_id,
+            name: c.control_id,
+            ma: c.is_primary ? "M" : "A",
+          }));
+          setItem({
+            id: data.item.id,
+            order: data.item.sort_order,
+            name: data.item.name,
+            priority: data.item.priority as EvidenceItem["priority"],
+            type: data.item.evidence_type,
+            controls,
+            controlCount: data.item.control_count,
+            description: data.item.description,
+            inputs: [],
+            sufficiency: [],
+            reductionNote: data.item.reduction_note || "",
+            perSystem: data.item.per_system,
+            perZone: data.item.per_zone,
+            perQuarter: data.item.per_quarter,
+            perAccessPoint: data.item.per_access_point,
+            isAdvisory: data.item.is_advisory,
+            conditional: data.item.is_conditional,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [itemId]);
 
   const updateField = useCallback((key: string, value: string) => {
     setFormData((p) => ({ ...p, [key]: value }));
@@ -51,11 +118,13 @@ export default function ItemIntakePage() {
     return scores;
   }, [item, completionPct]);
 
-  if (!config || !item || !inScope) {
+  if (loading) return <div className="text-center py-20 text-gray-500">Loading...</div>;
+
+  if (!item) {
     return (
       <div className="text-center py-20 text-gray-500">
         <p>Item not found or not in your architecture scope.</p>
-        <Link href={`/domains/${domainId}`} className="text-blue-600 text-sm mt-2 inline-block">← Back to Domain {domainId}</Link>
+        <Link href={`/domains/${domainId}`} className="text-blue-600 text-sm mt-2 inline-block">Back to Domain {domainId}</Link>
       </div>
     );
   }
@@ -67,7 +136,7 @@ export default function ItemIntakePage() {
         <span>/</span>
         <span className="font-semibold text-gray-700">{item.id} — {item.name}</span>
       </div>
-      <div className="rounded-xl p-5 text-white mb-5" style={{ background: config.gradient }}>
+      <div className="rounded-xl p-5 text-white mb-5" style={{ background: domainStyle.gradient }}>
         <div className="flex items-center gap-3 mb-2">
           <div className="relative" style={{ width: 56, height: 56 }}>
             <svg width={56} height={56} className="-rotate-90">
@@ -105,7 +174,6 @@ export default function ItemIntakePage() {
                 ))
               ) : (
                 <div className="text-center py-8 text-gray-400 text-sm">
-                  <div className="text-2xl mb-2">📋</div>
                   <p>Evidence inputs are configured at the detailed intake level.</p>
                   <p className="text-xs mt-1">Upload files and fill in evidence details to proceed.</p>
                 </div>
@@ -114,13 +182,13 @@ export default function ItemIntakePage() {
           </div>
           <button onClick={() => setEvaluated(true)}
             className="w-full py-3 rounded-lg text-white font-semibold text-sm transition-colors"
-            style={{ background: config.color }}>
-            🤖 Evaluate Evidence Sufficiency
+            style={{ background: domainStyle.color }}>
+            Evaluate Evidence Sufficiency
           </button>
           {evaluated && <EvaluationResults score={completionPct} />}
         </div>
         <div className="space-y-3">
-          <SufficiencyPanel dimensions={item.sufficiency} color={config.color} />
+          <SufficiencyPanel dimensions={item.sufficiency} color={domainStyle.color} />
           <PerControlPanel items={item.perControlSufficiency} />
           <div className="bg-white rounded-xl border border-gray-200 p-3">
             <div className="text-xs font-semibold text-gray-700 mb-2">Control Impact</div>
