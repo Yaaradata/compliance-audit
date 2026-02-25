@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 1440
 
+    VERTEX_AI_MODEL: str = "gemini-1.5-flash"
+    GOOGLE_CLOUD_PROJECT: str | None = None
+    VERTEX_AI_LOCATION: str = "us-central1"
+
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     model_config = {"env_file": str(_env_file), "env_file_encoding": "utf-8"}

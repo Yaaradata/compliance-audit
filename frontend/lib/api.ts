@@ -41,6 +41,34 @@ class ApiClient {
     return res.json();
   }
 
+  async upload<T>(path: string, file: File): Promise<T> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const headers: Record<string, string> = {};
+    const token = this.getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    if (res.status === 401) {
+      this.clearToken();
+      if (typeof window !== "undefined") window.location.href = "/login";
+      throw new Error("Unauthorized");
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Upload failed");
+    }
+
+    return res.json();
+  }
+
   get<T>(path: string) { return this.request<T>("GET", path); }
   post<T>(path: string, body?: unknown) { return this.request<T>("POST", path, body); }
   put<T>(path: string, body?: unknown) { return this.request<T>("PUT", path, body); }

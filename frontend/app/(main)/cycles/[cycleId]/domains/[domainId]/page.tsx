@@ -106,6 +106,8 @@ export default function CycleDomainPage() {
   const [evaluated, setEvaluated] = useState(false);
   const [aiEvaluationLoading, setAiEvaluationLoading] = useState(false);
   const [aiEvaluationResult, setAiEvaluationResult] = useState<AiEvalResultType | null>(null);
+  const [submissionMap, setSubmissionMap] = useState<Record<string, string>>({});
+  const [controlScores, setControlScores] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!domainId) return;
@@ -138,7 +140,9 @@ export default function CycleDomainPage() {
     api.get<ApiSubmission[]>(`/assessments/${cycleId}/evidence?domain=${domainId}`)
       .then((subs) => {
         const data: Record<string, string> = {};
+        const sMap: Record<string, string> = {};
         subs.forEach((s) => {
+          sMap[s.evidence_item_id] = s.id;
           if (s.form_data) {
             Object.entries(s.form_data).forEach(([k, v]) => {
               data[`${s.evidence_item_id}_${k}`] = String(v);
@@ -146,9 +150,33 @@ export default function CycleDomainPage() {
           }
         });
         setFormData(data);
+        setSubmissionMap(sMap);
       })
       .catch(() => {});
   }, [cycleId, domainId]);
+
+  const fetchControlScores = useCallback(async () => {
+    if (!cycleId) return;
+    try {
+      const data = await api.get<{ id: string; score: number }[]>(`/assessments/${cycleId}/controls`);
+      const scores: Record<string, number> = {};
+      data.forEach((c) => { scores[c.id] = Math.round(c.score); });
+      setControlScores(scores);
+    } catch {
+      /* ignore */
+    }
+  }, [cycleId]);
+
+  useEffect(() => {
+    fetchControlScores();
+  }, [fetchControlScores]);
+
+  const ensureSubmission = useCallback(async (itemId: string): Promise<string> => {
+    if (submissionMap[itemId]) return submissionMap[itemId];
+    const sub = await api.post<{ id: string }>(`/assessments/${cycleId}/evidence`, { evidence_item_id: itemId });
+    setSubmissionMap((prev) => ({ ...prev, [itemId]: sub.id }));
+    return sub.id;
+  }, [cycleId, submissionMap]);
 
   const updateField = useCallback((key: string, value: string) => {
     setFormData((p) => ({ ...p, [key]: value }));
@@ -157,6 +185,8 @@ export default function CycleDomainPage() {
   }, []);
 
   const currentItem = useMemo(() => config?.evidenceItems.find((e) => e.id === activeItem), [config, activeItem]);
+
+  const currentSubmissionId = activeItem ? submissionMap[activeItem] ?? null : null;
 
   const getItemCompletion = useCallback((itemId: string) => {
     const item = config?.evidenceItems.find((e) => e.id === itemId);
@@ -172,25 +202,23 @@ export default function CycleDomainPage() {
     return total > 0 ? Math.round((filled / total) * 100) : 0;
   }, [config, formData]);
 
-  const controlScores = useMemo(() => {
-    if (!config) return {};
-    const scores: Record<string, number> = {};
-    config.allControls.forEach((c) => {
-      const relevantItems = config.evidenceItems.filter((e) => e.controls.some((ctrl) => ctrl.id === c));
-      if (relevantItems.length === 0) { scores[c] = 0; return; }
-      const avg = relevantItems.reduce((a, i) => a + getItemCompletion(i.id), 0) / relevantItems.length;
-      scores[c] = Math.round(avg);
-    });
-    return scores;
-  }, [config, getItemCompletion]);
-
-  const handleEvaluateEvidence = useCallback(() => {
+  const handleEvaluateEvidence = useCallback(async () => {
     if (!currentItem || !cycleId) return;
     setAiEvaluationLoading(true);
     setEvaluated(true);
     setAiEvaluationResult(null);
-    api
-      .post<{
+
+    let subId = currentSubmissionId;
+    if (!subId) {
+      try {
+        subId = await ensureSubmission(currentItem.id);
+      } catch {
+        subId = null;
+      }
+    }
+
+    try {
+      const res = await api.post<{
         evidence_item_id: string;
         overall_met: boolean;
         sufficiency_results: { id: string; label: string; met: boolean; description?: string | null }[];
@@ -198,20 +226,24 @@ export default function CycleDomainPage() {
         summary?: string | null;
       }>(
         `/assessments/${cycleId}/evidence/evaluate`,
-        { evidence_item_id: currentItem.id, submission_id: null }
-      )
-      .then((res) => {
-        setAiEvaluationResult({
-          evidence_item_id: res.evidence_item_id,
-          overall_met: res.overall_met,
-          sufficiency_results: res.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
-          criteria: res.criteria.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })),
-          summary: res.summary ?? null,
-        });
-      })
-      .catch(() => setAiEvaluationResult(null))
-      .finally(() => setAiEvaluationLoading(false));
-  }, [currentItem, cycleId]);
+        { evidence_item_id: currentItem.id, submission_id: subId }
+      );
+
+      setAiEvaluationResult({
+        evidence_item_id: res.evidence_item_id,
+        overall_met: res.overall_met,
+        sufficiency_results: res.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
+        criteria: res.criteria.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })),
+        summary: res.summary ?? null,
+      });
+
+      fetchControlScores();
+    } catch {
+      setAiEvaluationResult(null);
+    } finally {
+      setAiEvaluationLoading(false);
+    }
+  }, [currentItem, cycleId, currentSubmissionId, ensureSubmission, fetchControlScores]);
 
   if (loading) {
     return <div className="text-center py-20 text-gray-400 text-sm">Loading domain…</div>;
@@ -274,7 +306,19 @@ export default function CycleDomainPage() {
               />
               <div className="bg-white rounded-xl border border-gray-200 p-4">
                 <div className="text-xs font-semibold text-gray-700 mb-3">Quick Evidence Upload</div>
-                <FileUploadZone label={`Upload evidence for ${currentItem.id} — ${currentItem.name}`} />
+                <FileUploadZone
+                  submissionId={currentSubmissionId}
+                  label={`Upload evidence for ${currentItem.id} — ${currentItem.name}`}
+                  onUploadComplete={() => fetchControlScores()}
+                />
+                {!currentSubmissionId && (
+                  <button
+                    onClick={() => ensureSubmission(currentItem.id)}
+                    className="mt-2 w-full py-1.5 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-200 hover:bg-blue-100 transition-colors"
+                  >
+                    Create submission to enable uploads
+                  </button>
+                )}
               </div>
               {currentItem.sufficiency.length > 0 && (
                 <SufficiencyPanel dimensions={currentItem.sufficiency} color={config.color} />
