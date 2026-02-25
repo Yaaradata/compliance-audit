@@ -65,7 +65,7 @@ export function DomainLeftRail({
                 </div>
                 <div className="flex items-center gap-1 mt-0.5">
                   <PriorityBadge priority={item.priority} />
-                  <span className="text-[10px] text-gray-400">{item.controls?.length ?? item.controlCount} ctrl{(item.controls?.length ?? item.controlCount) !== 1 ? "s" : ""}</span>
+                  <span className="text-[10px] text-gray-400">{item.controlCount} ctrl{item.controlCount !== 1 ? "s" : ""}</span>
                 </div>
               </button>
             );

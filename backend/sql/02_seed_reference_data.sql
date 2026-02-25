@@ -87,7 +87,7 @@ INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority,
 ('A2', 'A', 2, 'SWIFT Component Inventory',       'critical', 'Spreadsheet',         'Complete hardware/software list within SWIFT secure zone.',                         'Single inventory satisfies 5 control areas.',            5),
 ('A3', 'A', 3, 'Data Flow Diagrams',              'high',     'Diagram + Matrix',    'All data flows between SWIFT, back-office, and external systems.',                  'One diagram covers 3 data flow controls. 67% reduction.',3),
 ('A4', 'A', 4, 'Firewall Rule Sets',              'critical', 'Config Export',       'Firewall rule exports for every secure zone boundary.',                             'Single export satisfies 3 mandatory controls.',          3),
-('A5', 'A', 5, 'Architecture Type Declaration',   'critical', 'Document + Form',     'SWIFT architecture type declaration with scoping rationale.',                       'Foundational scoping document for all control applicability.',2),
+('A5', 'A', 5, 'Architecture Type Declaration',   'critical', 'Document + Form',     'SWIFT architecture type declaration with scoping rationale.',                       'Foundational scoping document for all control applicability.',32),
 ('A6', 'A', 6, 'Secure Zone Design Rationale',    'high',     'Document + Form',     'Zone boundary placement and segmentation rationale.',                               'Single rationale covers both 1.1 and 1.5. 50% reduction.',2)
 ON CONFLICT (id) DO NOTHING;
 
