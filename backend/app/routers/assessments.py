@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_current_user
+from ..constants import PLATFORM_ADMIN_ROLES
 from ..models.tenant import User
 from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceSubmission
 from ..models.approval import ApprovalGate
@@ -21,13 +22,18 @@ GATE_TYPES = ["evidence_complete", "internal_review", "assessment_complete", "fi
 @router.get("", response_model=list[CycleOut])
 def list_cycles(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     q = db.query(AssessmentCycle)
-    if user.role != "admin":
+    if user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
         q = q.filter(AssessmentCycle.tenant_id == user.tenant_id)
     return q.order_by(AssessmentCycle.created_at.desc()).all()
 
 
 @router.post("", response_model=CycleOut, status_code=201)
 def create_cycle(req: CreateCycleRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.tenant_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Only tenant users can create assessment cycles. Platform admins manage tenants from the admin area.",
+        )
     framework_id = req.framework_id
     if not framework_id:
         fw = db.query(AuditFramework).filter(AuditFramework.code == "SWIFT_CSCF").first()
@@ -54,8 +60,9 @@ def get_cycle(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depend
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     if not cycle:
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
-    if user.role != "admin" and cycle.tenant_id != user.tenant_id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    if user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
+        if cycle.tenant_id != user.tenant_id:
+            raise HTTPException(status_code=403, detail="Access denied")
     return cycle
 
 
@@ -64,8 +71,9 @@ def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     if not cycle:
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
-    if user.role != "admin" and cycle.tenant_id != user.tenant_id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    if user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
+        if cycle.tenant_id != user.tenant_id:
+            raise HTTPException(status_code=403, detail="Access denied")
 
     if req.architecture_type and not cycle.architecture_type:
         cycle.architecture_type = req.architecture_type

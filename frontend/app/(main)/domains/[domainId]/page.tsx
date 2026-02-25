@@ -40,6 +40,7 @@ interface ApiEvidenceItem {
   per_access_point: boolean;
   is_advisory: boolean;
   is_conditional: boolean;
+  controls?: { control_id: string; ma: string }[];
 }
 
 interface ApiSubmission {
@@ -62,13 +63,14 @@ const GRADIENTS: Record<string, string> = {
 };
 
 function toEvidenceItem(a: ApiEvidenceItem): EvidenceItem {
+  const controls = (a.controls ?? []).map((c) => ({ id: c.control_id, name: "", ma: c.ma as "M" | "A" }));
   return {
     id: a.id,
     order: a.sort_order,
     name: a.name,
     priority: a.priority as EvidenceItem["priority"],
     type: a.evidence_type,
-    controls: [],
+    controls,
     controlCount: a.control_count,
     description: a.description,
     inputs: [],

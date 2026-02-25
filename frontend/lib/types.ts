@@ -1,7 +1,9 @@
 export type UserRole =
   | "admin"
+  | "platform_admin"
   | "compliance_officer"
   | "it_sme"
+  | "tenant_admin"
   | "internal_reviewer"
   | "external_assessor"
   | "approver";

@@ -21,17 +21,29 @@ interface ApiTenant {
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user, isPlatformAdmin, logout } = useAuth();
+  const { user, isPlatformAdmin, logout, addTenant, addTenantUser } = useAuth();
   const [tenants, setTenants] = useState<ApiTenant[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(true);
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [details, setDetails] = useState("");
-  const [bankAdmins, setBankAdmins] = useState<{ email: string; name: string }[]>([{ email: "", name: "" }]);
+  const [initialUsers, setInitialUsers] = useState<{ email: string; name: string; password: string; role: string }[]>([
+    { email: "", name: "", password: "", role: "compliance_officer" },
+  ]);
   const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
-  const [tenantAdmins, setTenantAdmins] = useState<Record<string, { email: string; name: string }[]>>({});
+  const [tenantUsers, setTenantUsers] = useState<Record<string, { email: string; name: string; password: string; role: string }[]>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [addUserSubmitting, setAddUserSubmitting] = useState<string | null>(null);
+
+  const TENANT_ROLES = [
+    { value: "compliance_officer", label: "Compliance Officer" },
+    { value: "tenant_admin", label: "Tenant Admin" },
+    { value: "it_sme", label: "IT SME" },
+    { value: "internal_reviewer", label: "Internal Reviewer" },
+    { value: "external_assessor", label: "External Assessor" },
+    { value: "approver", label: "Approver" },
+  ] as const;
 
   useEffect(() => {
     if (user && !isPlatformAdmin) router.replace("/dashboard");
@@ -50,19 +62,20 @@ export default function AdminPage() {
   const handleAddTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || submitting) return;
+    const usersToSend = initialUsers.filter((u) => u.email.trim() && u.password.length >= 8);
     setSubmitting(true);
     try {
-      const tenant = await api.post<ApiTenant>("/tenants", {
+      const tenant = await addTenant({
         name: name.trim(),
         slug: slug.trim() || name.trim().toLowerCase().replace(/\s+/g, "-"),
         details: details.trim() || undefined,
-        bank_admins: bankAdmins.filter((a) => a.email.trim()).map((a) => ({ email: a.email.trim(), name: a.name.trim() })),
+        initialUsers: usersToSend.length ? usersToSend : undefined,
       });
-      setTenants((prev) => [tenant, ...prev]);
+      setTenants((prev) => [tenant as ApiTenant, ...prev]);
       setName("");
       setSlug("");
       setDetails("");
-      setBankAdmins([{ email: "", name: "" }]);
+      setInitialUsers([{ email: "", name: "", password: "", role: "compliance_officer" }]);
     } catch (err) {
       console.error("Failed to create tenant", err);
     } finally {
@@ -70,11 +83,47 @@ export default function AdminPage() {
     }
   };
 
-  const addBankAdminRow = () => setBankAdmins((prev) => [...prev, { email: "", name: "" }]);
-  const updateBankAdmin = (i: number, field: "email" | "name", value: string) => {
-    setBankAdmins((prev) => prev.map((a, j) => (j === i ? { ...a, [field]: value } : a)));
+  const addInitialUserRow = () => setInitialUsers((prev) => [...prev, { email: "", name: "", password: "", role: "compliance_officer" }]);
+  const updateInitialUser = (i: number, field: "email" | "name" | "password" | "role", value: string) => {
+    setInitialUsers((prev) => prev.map((u, j) => (j === i ? { ...u, [field]: value } : u)));
   };
-  const removeBankAdminRow = (i: number) => setBankAdmins((prev) => prev.filter((_, j) => j !== i));
+  const removeInitialUserRow = (i: number) => setInitialUsers((prev) => prev.filter((_, j) => j !== i));
+
+  const handleAddUserToTenant = async (tenantId: string) => {
+    const list = tenantUsers[tenantId] ?? [];
+    const idx = list.findIndex((x) => x.email.trim() && x.password.length >= 8);
+    if (idx < 0) return;
+    const u = list[idx];
+    setAddUserSubmitting(tenantId);
+    try {
+      await addTenantUser(tenantId, u);
+      setTenantUsers((prev) => ({
+        ...prev,
+        [tenantId]: (prev[tenantId] ?? []).filter((_, i) => i !== idx),
+      }));
+    } catch (err) {
+      console.error("Failed to add user", err);
+    } finally {
+      setAddUserSubmitting(null);
+    }
+  };
+  const addTenantUserRow = (tid: string) =>
+    setTenantUsers((prev) => ({
+      ...prev,
+      [tid]: [...(prev[tid] ?? []), { email: "", name: "", password: "", role: "compliance_officer" }],
+    }));
+  const updateTenantUser = (tid: string, i: number, field: "email" | "name" | "password" | "role", value: string) =>
+    setTenantUsers((prev) => {
+      const list = prev[tid] ?? [];
+      const next = [...list];
+      next[i] = { ...next[i], [field]: value };
+      return { ...prev, [tid]: next };
+    });
+  const removeTenantUserRow = (tid: string, i: number) =>
+    setTenantUsers((prev) => ({
+      ...prev,
+      [tid]: (prev[tid] ?? []).filter((_, j) => j !== i),
+    }));
 
   if (!user) return null;
 
@@ -112,14 +161,21 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-slate-700">Bank admins (access for this tenant)</label>
-                    <button type="button" onClick={addBankAdminRow} className="text-xs font-medium text-blue-600 hover:underline">+ Add</button>
+                    <label className="block text-sm font-medium text-slate-700">Initial users (email, name, password, role — access given by platform admin)</label>
+                    <button type="button" onClick={addInitialUserRow} className="text-xs font-medium text-blue-600 hover:underline">+ Add user</button>
                   </div>
-                  {bankAdmins.map((a, i) => (
-                    <div key={i} className="flex gap-2 mb-2">
-                      <input type="text" value={a.name} onChange={(e) => updateBankAdmin(i, "name", e.target.value)} placeholder="Name" className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm" />
-                      <input type="email" value={a.email} onChange={(e) => updateBankAdmin(i, "email", e.target.value)} placeholder="Email" className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm" />
-                      <button type="button" onClick={() => removeBankAdminRow(i)} className="text-slate-400 hover:text-red-600 px-2">×</button>
+                  <p className="text-xs text-slate-500 mb-2">Add at least one user with a password and role (e.g. Compliance Officer). They will log in with these credentials; platform admin does not log in as Compliance Officer.</p>
+                  {initialUsers.map((u, i) => (
+                    <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
+                      <input type="text" value={u.name} onChange={(e) => updateInitialUser(i, "name", e.target.value)} placeholder="Name" className="w-28 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+                      <input type="email" value={u.email} onChange={(e) => updateInitialUser(i, "email", e.target.value)} placeholder="Email" className="w-40 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+                      <input type="password" value={u.password} onChange={(e) => updateInitialUser(i, "password", e.target.value)} placeholder="Password (min 8)" className="w-32 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+                      <select value={u.role} onChange={(e) => updateInitialUser(i, "role", e.target.value)} className="rounded border border-slate-300 px-2 py-1.5 text-sm">
+                        {TENANT_ROLES.map((r) => (
+                          <option key={r.value} value={r.value}>{r.label}</option>
+                        ))}
+                      </select>
+                      <button type="button" onClick={() => removeInitialUserRow(i)} className="text-slate-400 hover:text-red-600 px-2">×</button>
                     </div>
                   ))}
                 </div>
@@ -150,7 +206,7 @@ export default function AdminPage() {
                           onClick={() => setExpandedTenant(expandedTenant === t.id ? null : t.id)}
                           className="text-xs font-medium text-blue-600 hover:underline"
                         >
-                          {expandedTenant === t.id ? "Collapse" : "Manage admins"}
+                          {expandedTenant === t.id ? "Collapse" : "Add user"}
                         </button>
                       </div>
                       {t.bic_code && <p className="text-xs text-slate-500 mt-0.5">BIC: {t.bic_code}</p>}
@@ -158,49 +214,40 @@ export default function AdminPage() {
                       {expandedTenant === t.id && (
                         <div className="mt-4 pt-4 border-t border-slate-200">
                           <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-slate-700">Bank admins</span>
+                            <span className="text-sm font-medium text-slate-700">Add user to this tenant (email, name, password, role)</span>
                             <button
                               type="button"
-                              onClick={() => setTenantAdmins((prev) => ({
-                                ...prev,
-                                [t.id]: [...(prev[t.id] ?? []), { email: "", name: "" }],
-                              }))}
+                              onClick={() => addTenantUserRow(t.id)}
                               className="text-xs text-blue-600 hover:underline"
                             >
-                              + Add
+                              + Add row
                             </button>
                           </div>
-                          {(tenantAdmins[t.id] ?? []).length === 0 ? (
-                            <p className="text-xs text-slate-400">No admin entries. Click + Add to add bank admins.</p>
-                          ) : (
-                            (tenantAdmins[t.id] ?? []).map((a, i) => (
-                              <div key={i} className="flex gap-2 mb-2">
-                                <input
-                                  type="text"
-                                  value={a.name}
-                                  onChange={(e) => setTenantAdmins((prev) => {
-                                    const list = prev[t.id] ?? [];
-                                    const next = [...list];
-                                    next[i] = { ...next[i], name: e.target.value };
-                                    return { ...prev, [t.id]: next };
-                                  })}
-                                  placeholder="Name"
-                                  className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
-                                />
-                                <input
-                                  type="email"
-                                  value={a.email}
-                                  onChange={(e) => setTenantAdmins((prev) => {
-                                    const list = prev[t.id] ?? [];
-                                    const next = [...list];
-                                    next[i] = { ...next[i], email: e.target.value };
-                                    return { ...prev, [t.id]: next };
-                                  })}
-                                  placeholder="Email"
-                                  className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
-                                />
-                              </div>
-                            ))
+                          {(tenantUsers[t.id] ?? []).length === 0 ? (
+                            <p className="text-xs text-slate-400 mb-2">Click + Add row, then fill email, name, password (min 8), and role. Then click Add user.</p>
+                          ) : null}
+                          {(tenantUsers[t.id] ?? []).map((u, i) => (
+                            <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
+                              <input type="text" value={u.name} onChange={(e) => updateTenantUser(t.id, i, "name", e.target.value)} placeholder="Name" className="w-28 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+                              <input type="email" value={u.email} onChange={(e) => updateTenantUser(t.id, i, "email", e.target.value)} placeholder="Email" className="w-40 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+                              <input type="password" value={u.password} onChange={(e) => updateTenantUser(t.id, i, "password", e.target.value)} placeholder="Password (min 8)" className="w-32 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+                              <select value={u.role} onChange={(e) => updateTenantUser(t.id, i, "role", e.target.value)} className="rounded border border-slate-300 px-2 py-1.5 text-sm">
+                                {TENANT_ROLES.map((r) => (
+                                  <option key={r.value} value={r.value}>{r.label}</option>
+                                ))}
+                              </select>
+                              <button type="button" onClick={() => removeTenantUserRow(t.id, i)} className="text-slate-400 hover:text-red-600 px-2">×</button>
+                            </div>
+                          ))}
+                          {(tenantUsers[t.id] ?? []).some((u) => u.email.trim() && u.password.length >= 8) && (
+                            <button
+                              type="button"
+                              onClick={() => handleAddUserToTenant(t.id)}
+                              disabled={addUserSubmitting === t.id}
+                              className="mt-2 px-3 py-1.5 text-sm font-medium text-white bg-[#0c2340] rounded-lg hover:bg-[#0f2d52] disabled:opacity-50"
+                            >
+                              {addUserSubmitting === t.id ? "Adding…" : "Add user"}
+                            </button>
                           )}
                         </div>
                       )}

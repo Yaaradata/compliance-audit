@@ -41,8 +41,9 @@ interface AuthContextValue extends AuthState {
   isAdmin: boolean;
   isPlatformAdmin: boolean;
   tenants: Tenant[];
-  addTenant: (input: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { bankAdmins?: { email: string; name: string }[] }) => Promise<void>;
+  addTenant: (input: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { initialUsers?: { email: string; name: string; password: string; role: string }[]; bankAdmins?: { email: string; name: string }[] }) => Promise<Tenant>;
   updateTenantAdmins: (tenantId: string, admins: { email: string; name: string }[]) => void;
+  addTenantUser: (tenantId: string, user: { email: string; name: string; password: string; role: string }) => Promise<void>;
   loading: boolean;
 }
 
@@ -125,22 +126,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, activeCycleId: id }));
   }, []);
 
-  const addTenant = useCallback(async (input: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { bankAdmins?: { email: string; name: string }[] }) => {
-    try {
-      const tenant = await api.post<Tenant>("/tenants", {
-        name: input.name,
-        slug: input.slug,
-        details: input.details,
-        bank_admins: input.bankAdmins,
-      });
-      setTenants((prev) => [...prev, tenant]);
-    } catch (e) {
-      console.error("Failed to create tenant", e);
-    }
+  const addTenant = useCallback(async (input: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { initialUsers?: { email: string; name: string; password: string; role: string }[]; bankAdmins?: { email: string; name: string }[] }) => {
+    const tenant = await api.post<Tenant>("/tenants", {
+      name: input.name,
+      slug: input.slug,
+      details: input.details,
+      initial_users: input.initialUsers?.map((u) => ({ email: u.email, name: u.name, password: u.password, role: u.role })),
+      bank_admins: input.bankAdmins,
+    });
+    setTenants((prev) => [...prev, tenant]);
+    return tenant;
   }, []);
 
   const updateTenantAdmins = useCallback((_tenantId: string, _admins: { email: string; name: string }[]) => {
     // Placeholder for real API call
+  }, []);
+
+  const addTenantUser = useCallback(async (tenantId: string, user: { email: string; name: string; password: string; role: string }) => {
+    await api.post<{ id: string; email: string; name: string; role: string }>(`/tenants/${tenantId}/users`, user);
   }, []);
 
   const value = useMemo<AuthContextValue>(
@@ -151,14 +154,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       setArchitecture,
       setActiveCycleId,
-      isAdmin: state.user?.role === "admin",
-      isPlatformAdmin: state.user?.role === "admin",
+      isAdmin: state.user?.role === "admin" || state.user?.role === "platform_admin",
+      isPlatformAdmin: state.user?.role === "admin" || state.user?.role === "platform_admin" || (state.user != null && state.user.tenantId == null),
       tenants,
       addTenant,
       updateTenantAdmins,
+      addTenantUser,
       loading,
     }),
-    [state, login, signup, logout, setArchitecture, setActiveCycleId, tenants, addTenant, updateTenantAdmins, loading]
+    [state, login, signup, logout, setArchitecture, setActiveCycleId, tenants, addTenant, updateTenantAdmins, addTenantUser, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

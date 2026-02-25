@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .middleware.auth import decode_access_token
 from .models.tenant import User
+from .constants import PLATFORM_ADMIN_ROLES
 
 security = HTTPBearer(auto_error=False)
 
@@ -48,3 +49,12 @@ def role_required(*roles: str):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Role '{user.role}' not authorized")
         return user
     return checker
+
+
+def get_platform_admin(user: User = Depends(get_current_user)) -> User:
+    """Require platform admin (no tenant). Use for tenant management, adding users, etc."""
+    if user.tenant_id is not None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform admin access required")
+    if user.role not in PLATFORM_ADMIN_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform admin access required")
+    return user

@@ -1,18 +1,24 @@
 "use client";
 
-const SUGGESTIONS = [
-  "Upload vendor risk assessments to improve Control 2.8 from 55% → ~90%",
-  "SIEM config screenshot needed for Control 6.4",
-  "Quarterly access review records will close gap on Control 5.1",
-];
+interface AiSuggestionsProps {
+  suggestions?: string[];
+}
 
-export function AiSuggestions() {
+export function AiSuggestions({ suggestions = [] }: AiSuggestionsProps) {
+  if (suggestions.length === 0) {
+    return (
+      <div className="bg-sky-50 rounded-xl p-3 border border-sky-200">
+        <div className="text-xs font-semibold text-sky-700 mb-2">🤖 AI Suggestions</div>
+        <p className="text-[11px] text-sky-600">No suggestions yet. Upload evidence to get AI-driven recommendations.</p>
+      </div>
+    );
+  }
   return (
     <div className="bg-sky-50 rounded-xl p-3 border border-sky-200">
       <div className="text-xs font-semibold text-sky-700 mb-2">🤖 AI Suggestions</div>
       <div className="space-y-0 divide-y divide-sky-200">
-        {SUGGESTIONS.map((s, i) => (
-          <div key={i} className="py-1 text-[11px] text-sky-900 leading-relaxed">{s}</div>
+        {suggestions.map((s, i) => (
+          <div key={i} className="py-1 text-[11px] text-sky-900 leading-relaxed">{typeof s === "string" ? s : (s as { text?: string }).text ?? ""}</div>
         ))}
       </div>
     </div>

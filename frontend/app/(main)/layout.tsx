@@ -17,8 +17,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       return;
     }
     if (isPlatformAdmin) {
-      const mainRoutes = ["/dashboard", "/evidence", "/review", "/approval", "/report", "/domains"];
-      if (pathname === "/" || mainRoutes.some((r) => pathname?.startsWith(r))) {
+      const tenantOnlyRoutes = ["/dashboard", "/evidence", "/review", "/approval", "/report", "/domains", "/assessments"];
+      if (pathname === "/" || tenantOnlyRoutes.some((r) => pathname?.startsWith(r))) {
         router.replace("/admin");
       }
       return;

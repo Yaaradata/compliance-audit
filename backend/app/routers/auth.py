@@ -4,11 +4,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..database import SessionLocal
 from ..dependencies import get_db, get_current_user
 from ..middleware.auth import hash_password, verify_password, create_access_token
 from ..models.tenant import User, Tenant
 from ..schemas.auth import LoginRequest, SignupRequest, TokenResponse, UserOut
+from ..constants import PLATFORM_ADMIN_ROLES, TENANT_ROLES
 
 router = APIRouter(prefix="/auth")
 
@@ -19,21 +19,38 @@ def signup(req: SignupRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    tenant_id = req.tenant_id
-    if tenant_id:
-        tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    # Platform admin: must have no tenant. Tenant users: must have a tenant.
+    if req.role in PLATFORM_ADMIN_ROLES:
+        if req.tenant_id is not None:
+            raise HTTPException(status_code=400, detail="Platform admin must not be associated with a tenant")
+        tenant_id = None
+    elif req.role in TENANT_ROLES:
+        if not req.tenant_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Tenant is required for this role. Ask your platform admin to add you to a tenant.",
+            )
+        tenant = db.query(Tenant).filter(Tenant.id == req.tenant_id).first()
         if not tenant:
-            raise HTTPException(status_code=404, detail=f"Tenant {tenant_id} not found. Create a tenant first or omit tenant_id to auto-create one.")
-    elif req.role != "admin":
-        slug = req.email.split("@")[0]
-        existing_tenant = db.query(Tenant).filter(Tenant.slug == slug).first()
-        if existing_tenant:
-            tenant_id = existing_tenant.id
+            raise HTTPException(status_code=404, detail="Tenant not found")
+        tenant_id = req.tenant_id
+    else:
+        # Unknown role: require tenant and create under it (or auto-create default tenant for backward compat)
+        tenant_id = req.tenant_id
+        if tenant_id:
+            tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+            if not tenant:
+                raise HTTPException(status_code=404, detail="Tenant not found")
         else:
-            tenant = Tenant(name="Default Tenant", slug=slug)
-            db.add(tenant)
-            db.flush()
-            tenant_id = tenant.id
+            slug = req.email.split("@")[0]
+            existing_tenant = db.query(Tenant).filter(Tenant.slug == slug).first()
+            if existing_tenant:
+                tenant_id = existing_tenant.id
+            else:
+                tenant = Tenant(name="Default Tenant", slug=slug)
+                db.add(tenant)
+                db.flush()
+                tenant_id = tenant.id
 
     user = User(
         email=req.email,

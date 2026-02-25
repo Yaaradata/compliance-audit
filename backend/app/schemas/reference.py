@@ -66,6 +66,17 @@ class MappingOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ControlRefOut(BaseModel):
+    """Control reference with id and M/A type for evidence item."""
+    control_id: str
+    ma: str  # "M" or "A" from control_type
+
+
+class EvidenceItemWithControlsOut(EvidenceItemOut):
+    """Evidence item with its control mappings for domain view."""
+    controls: list[ControlRefOut] = []
+
+
 class DependencyOut(BaseModel):
     source_item_id: str
     target_item_id: str

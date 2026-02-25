@@ -16,7 +16,7 @@ interface Cycle {
 
 export default function AssessmentsPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, setActiveCycleId } = useAuth();
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -43,13 +43,14 @@ export default function AssessmentsPage() {
     }
   };
 
+  /** Open the selected assessment project: set it as active and go to dashboard or architecture selection. */
   const handleCycleClick = (cycle: Cycle) => {
     if (cycle.phase === "setup" || !cycle.architecture_type) {
       router.push(`/select-architecture?cycleId=${cycle.id}`);
-    } else {
-      localStorage.setItem("active_cycle_id", cycle.id);
-      router.push("/dashboard");
+      return;
     }
+    setActiveCycleId(cycle.id);
+    router.push("/dashboard");
   };
 
   const phaseBadge = (phase: string) => {
@@ -83,9 +84,10 @@ export default function AssessmentsPage() {
           <div className="space-y-3 mb-6">
             {cycles.map((c) => (
               <button
+                type="button"
                 key={c.id}
                 onClick={() => handleCycleClick(c)}
-                className="w-full text-left bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-400 hover:shadow-md transition-all"
+                className="w-full text-left bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
               >
                 <div className="flex items-center justify-between">
                   <div>

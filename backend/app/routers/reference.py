@@ -6,7 +6,7 @@ from ..models.framework import (
     AuditFramework, Control, EvidenceDomain, CanonicalEvidenceItem,
     ItemControlMapping, CrossDomainDependency,
 )
-from ..schemas.reference import FrameworkOut, DomainOut, ControlOut, EvidenceItemOut, MappingOut, DependencyOut
+from ..schemas.reference import FrameworkOut, DomainOut, ControlOut, EvidenceItemOut, EvidenceItemWithControlsOut, MappingOut, ControlRefOut, DependencyOut
 
 router = APIRouter(prefix="/ref")
 
@@ -24,10 +24,22 @@ def list_domains(db: Session = Depends(get_db)):
 @router.get("/domains/{domain_id}")
 def get_domain(domain_id: str, db: Session = Depends(get_db)):
     domain = db.query(EvidenceDomain).filter(EvidenceDomain.id == domain_id).first()
+    if not domain:
+        return {"domain": None, "evidence_items": []}
     items = db.query(CanonicalEvidenceItem).filter(CanonicalEvidenceItem.domain_id == domain_id).order_by(CanonicalEvidenceItem.sort_order).all()
+    evidence_with_controls = []
+    for i in items:
+        mappings = db.query(ItemControlMapping).filter(ItemControlMapping.evidence_item_id == i.id).all()
+        control_refs = []
+        for m in mappings:
+            ctrl = db.query(Control).filter(Control.id == m.control_id).first()
+            ma = "M" if ctrl and ctrl.control_type and ctrl.control_type.lower() == "mandatory" else "A"
+            control_refs.append(ControlRefOut(control_id=m.control_id, ma=ma))
+        base = EvidenceItemOut.model_validate(i).model_dump()
+        evidence_with_controls.append(EvidenceItemWithControlsOut(**base, controls=control_refs))
     return {
-        "domain": DomainOut.model_validate(domain) if domain else None,
-        "evidence_items": [EvidenceItemOut.model_validate(i) for i in items],
+        "domain": DomainOut.model_validate(domain),
+        "evidence_items": evidence_with_controls,
     }
 
 
