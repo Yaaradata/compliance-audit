@@ -17,7 +17,7 @@ export default function HomePage() {
       return;
     }
     if (activeCycleId) {
-      router.replace("/dashboard");
+      router.replace(`/cycles/${activeCycleId}/dashboard`);
       return;
     }
     router.replace("/assessments/new");

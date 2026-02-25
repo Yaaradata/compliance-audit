@@ -1,6 +1,6 @@
 from uuid import UUID
 from datetime import date, datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 
 class CreateCycleRequest(BaseModel):
@@ -32,6 +32,13 @@ class CycleOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @computed_field
+    @property
+    def display_id(self) -> str:
+        """Human-readable cycle identifier; unique per cycle (derived from id + year)."""
+        suffix = str(self.id).replace("-", "").upper()[:6]
+        return f"CYC-{self.cycle_year}-{suffix}"
 
 
 class DomainScore(BaseModel):

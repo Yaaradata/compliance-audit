@@ -1,6 +1,17 @@
+import json
 from uuid import UUID
-from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+
+def _normalize_json_field(v: str | dict | list | None) -> str | None:
+    """Normalize JSONB/dict to JSON string for API response."""
+    if v is None:
+        return None
+    if isinstance(v, str):
+        return v
+    if isinstance(v, (dict, list)):
+        return json.dumps(v)
+    return str(v)
 
 
 class FrameworkOut(BaseModel):
@@ -56,6 +67,11 @@ class EvidenceItemOut(BaseModel):
     evaluation_criteria: str | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("sufficiency_definition", "evaluation_criteria", "evidence_description", mode="before")
+    @classmethod
+    def normalize_json_fields(cls, v: str | dict | list | None) -> str | None:
+        return _normalize_json_field(v)
 
 
 class MappingOut(BaseModel):

@@ -4,20 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
-
-interface Cycle {
-  id: string;
-  label: string;
-  cycle_year: number;
-  phase: string;
-  architecture_type: string | null;
-  created_at: string;
-}
+import type { AssessmentCycle } from "@/lib/types";
 
 export default function AssessmentsPage() {
   const router = useRouter();
-  const { user, setActiveCycleId } = useAuth();
-  const [cycles, setCycles] = useState<Cycle[]>([]);
+  const { user, setActiveCycleId, setArchitecture } = useAuth();
+  const [cycles, setCycles] = useState<AssessmentCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState("");
@@ -26,7 +18,7 @@ export default function AssessmentsPage() {
 
   useEffect(() => {
     if (!user) return;
-    api.get<Cycle[]>("/assessments").then((data) => {
+    api.get<AssessmentCycle[]>("/assessments").then((data) => {
       setCycles(data);
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -36,21 +28,26 @@ export default function AssessmentsPage() {
     if (!label.trim()) return;
     setCreating(true);
     try {
-      const cycle = await api.post<Cycle>("/assessments", { label, cycle_year: year });
+      const cycle = await api.post<AssessmentCycle>("/assessments", { label, cycle_year: year });
       router.push(`/select-architecture?cycleId=${cycle.id}`);
     } catch {
       setCreating(false);
     }
   };
 
-  /** Open the selected assessment project: set it as active and go to dashboard or architecture selection. */
-  const handleCycleClick = (cycle: Cycle) => {
+  /** Open the selected assessment: set cycle id (and meta) so all evidence/evaluations are scoped to this cycle. */
+  const handleOpenCycle = (cycle: AssessmentCycle) => {
     if (cycle.phase === "setup" || !cycle.architecture_type) {
       router.push(`/select-architecture?cycleId=${cycle.id}`);
       return;
     }
-    setActiveCycleId(cycle.id);
-    router.push("/dashboard");
+    setArchitecture(cycle.architecture_type);
+    setActiveCycleId(cycle.id, {
+      label: cycle.label,
+      cycle_year: cycle.cycle_year,
+      display_id: cycle.display_id,
+    });
+    router.push(`/cycles/${cycle.id}/dashboard`);
   };
 
   const phaseBadge = (phase: string) => {
@@ -83,27 +80,41 @@ export default function AssessmentsPage() {
         {cycles.length > 0 && (
           <div className="space-y-3 mb-6">
             {cycles.map((c) => (
-              <button
-                type="button"
+              <div
                 key={c.id}
-                onClick={() => handleCycleClick(c)}
-                className="w-full text-left bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleOpenCycle(c)}
+                onKeyDown={(e) => e.key === "Enter" && handleOpenCycle(c)}
+                className="bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-gray-900">{c.label}</div>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-gray-900">{c.label}</span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-mono" title="Cycle ID — used for all evidence and evaluations">
+                        {c.display_id}
+                      </span>
+                    </div>
                     <div className="text-xs text-gray-500 mt-0.5">
                       Year: {c.cycle_year} · Created: {new Date(c.created_at).toLocaleDateString()}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {c.architecture_type && (
                       <span className="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">{c.architecture_type}</span>
                     )}
                     <span className={`text-xs px-2 py-0.5 rounded font-medium capitalize ${phaseBadge(c.phase)}`}>{c.phase}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleOpenCycle(c); }}
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                      {c.phase === "setup" || !c.architecture_type ? "Set up" : "Collection"}
+                    </button>
                   </div>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}

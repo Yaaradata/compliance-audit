@@ -4,10 +4,11 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { scoreColor, scoreBg } from "@/lib/utils";
 import type { Domain } from "@/lib/types";
 
-export function DomainCard({ domain }: { domain: Domain }) {
+export function DomainCard({ domain, cycleId }: { domain: Domain; cycleId?: string | null }) {
   const pct = Math.round((domain.completed / domain.items) * 100);
+  const href = cycleId ? `/cycles/${cycleId}/domains/${domain.id}` : `/domains/${domain.id}`;
   return (
-    <Link href={`/domains/${domain.id}`}
+    <Link href={href}
       className="block bg-white rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">

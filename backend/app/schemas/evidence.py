@@ -39,3 +39,28 @@ class AttachmentOut(BaseModel):
     uploaded_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# --- AI evaluation (placeholder until AI integration) ---
+
+
+class AiCriterionResultOut(BaseModel):
+    id: str
+    label: str
+    met: bool
+    description: str | None = None
+
+
+class EvaluateEvidenceRequest(BaseModel):
+    evidence_item_id: str
+    submission_id: UUID | None = None
+
+
+class EvaluateEvidenceResponse(BaseModel):
+    evidence_item_id: str
+    overall_met: bool
+    """Per-item results for Sufficiency Definition (what must be present). Each met=True means that requirement is satisfied."""
+    sufficiency_results: list[AiCriterionResultOut] = []
+    """Per-item results for Evaluation Criteria (reviewer checks). description is set when met=False to explain what's missing."""
+    criteria: list[AiCriterionResultOut]
+    summary: str | None = None

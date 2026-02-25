@@ -25,6 +25,17 @@ export interface Tenant {
   createdAt: string;
 }
 
+/** Assessment cycle: one per creation; id is used for all evidence and evaluations for that cycle. */
+export interface AssessmentCycle {
+  id: string;
+  label: string;
+  cycle_year: number;
+  phase: string;
+  architecture_type: string | null;
+  display_id: string;
+  created_at: string;
+}
+
 export type ArchitectureId = "A1" | "A2" | "A3" | "A4" | "B";
 
 export interface Architecture {
@@ -99,6 +110,12 @@ export interface EvidenceItem {
   controls: ControlRef[];
   controlCount: number;
   description: string;
+  /** Full evidence description from DB (what evidence should cover). */
+  evidenceDescription?: string | null;
+  /** Sufficiency definition summary from DB (what must be present for evidence to be sufficient). */
+  sufficiencyDefinition?: string | null;
+  /** Evaluation criteria from DB (reviewer checks / how evidence is evaluated). */
+  evaluationCriteria?: string | null;
   inputs: EvidenceInput[];
   sufficiency: SufficiencyDimension[];
   perControlSufficiency?: PerControlSufficiency[];
@@ -123,6 +140,25 @@ export interface EvidenceItem {
 export interface MultiInputGuide {
   label: string;
   expectations: string[];
+}
+
+/** Single criterion from AI evaluation: met (tick) or not met (with description). */
+export interface AiCriterionResult {
+  id: string;
+  label: string;
+  met: boolean;
+  description?: string | null;
+}
+
+/** AI evaluation result for an evidence item (placeholder until AI integration). */
+export interface AiEvaluationResult {
+  evidence_item_id: string;
+  overall_met: boolean;
+  /** Per-item results for Sufficiency Definition (what must be present). */
+  sufficiency_results?: AiCriterionResult[];
+  /** Per-item results for Evaluation Criteria (reviewer checks); description = what's missing when not met. */
+  criteria: AiCriterionResult[];
+  summary?: string | null;
 }
 
 export interface SubGroup {

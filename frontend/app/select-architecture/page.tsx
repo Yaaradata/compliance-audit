@@ -33,10 +33,15 @@ function SelectArchitectureInner() {
     try {
       if (cycleId) {
         await api.put(`/assessments/${cycleId}`, { architecture_type: architectureId });
-        setActiveCycleId(cycleId);
+        const cycle = await api.get<{ id: string; label: string; cycle_year: number; display_id: string }>(`/assessments/${cycleId}`);
+        setActiveCycleId(cycleId, {
+          label: cycle.label,
+          cycle_year: cycle.cycle_year,
+          display_id: cycle.display_id,
+        });
       }
       setArchitecture(architectureId);
-      router.replace("/dashboard");
+      router.replace(`/cycles/${cycleId}/dashboard`);
     } catch {
       setSelecting(null);
     }

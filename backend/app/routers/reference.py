@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends
+import logging
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db
+
+logger = logging.getLogger(__name__)
 from ..models.framework import (
     AuditFramework, Control, EvidenceDomain, CanonicalEvidenceItem,
     ItemControlMapping, CrossDomainDependency,
@@ -23,24 +26,49 @@ def list_domains(db: Session = Depends(get_db)):
 
 @router.get("/domains/{domain_id}")
 def get_domain(domain_id: str, db: Session = Depends(get_db)):
-    domain = db.query(EvidenceDomain).filter(EvidenceDomain.id == domain_id).first()
+    # Normalize: take first char only (handles "A:1" from devtools), uppercase, default to "A"
+    raw = (domain_id or "").strip()
+    domain_id_clean = (raw.split(":")[0] or raw or "A")[:1].upper() or "A"
+
+    try:
+        domain = db.query(EvidenceDomain).filter(EvidenceDomain.id == domain_id_clean).first()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error loading domain: {str(e)}")
+
     if not domain:
         return {"domain": None, "evidence_items": []}
-    items = db.query(CanonicalEvidenceItem).filter(CanonicalEvidenceItem.domain_id == domain_id).order_by(CanonicalEvidenceItem.sort_order).all()
+
+    try:
+        items = db.query(CanonicalEvidenceItem).filter(
+            CanonicalEvidenceItem.domain_id == domain_id_clean
+        ).order_by(CanonicalEvidenceItem.sort_order).all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error loading evidence items: {str(e)}")
+
     evidence_with_controls = []
     for i in items:
-        mappings = db.query(ItemControlMapping).filter(ItemControlMapping.evidence_item_id == i.id).all()
-        control_refs = []
-        for m in mappings:
-            ctrl = db.query(Control).filter(Control.id == m.control_id).first()
-            ma = "M" if ctrl and ctrl.control_type and ctrl.control_type.lower() == "mandatory" else "A"
-            control_refs.append(ControlRefOut(control_id=m.control_id, ma=ma))
-        base = EvidenceItemOut.model_validate(i).model_dump()
-        evidence_with_controls.append(EvidenceItemWithControlsOut(**base, controls=control_refs))
-    return {
-        "domain": DomainOut.model_validate(domain),
-        "evidence_items": evidence_with_controls,
-    }
+        try:
+            mappings = db.query(ItemControlMapping).filter(
+                ItemControlMapping.evidence_item_id == i.id
+            ).all()
+            control_refs = []
+            for m in mappings:
+                ctrl = db.query(Control).filter(Control.id == m.control_id).first()
+                ma = "M" if ctrl and ctrl.control_type and str(ctrl.control_type).lower() == "mandatory" else "A"
+                control_refs.append(ControlRefOut(control_id=m.control_id, ma=ma))
+            base = EvidenceItemOut.model_validate(i).model_dump()
+            evidence_with_controls.append(EvidenceItemWithControlsOut(**base, controls=control_refs))
+        except Exception as e:
+            logger.warning("Skipping evidence item %s: %s", getattr(i, "id", "?"), str(e))
+            continue
+
+    try:
+        return {
+            "domain": DomainOut.model_validate(domain),
+            "evidence_items": evidence_with_controls,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Serialization error: {str(e)}")
 
 
 @router.get("/controls", response_model=list[ControlOut])

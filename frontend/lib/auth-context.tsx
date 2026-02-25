@@ -7,12 +7,21 @@ import type { User, UserRole, Tenant } from "./types";
 const TOKEN_KEY = "swift_compliance_token";
 const USER_KEY = "swift_compliance_user";
 const CYCLE_KEY = "active_cycle_id";
+const CYCLE_META_KEY = "active_cycle_meta";
+const ARCHITECTURE_KEY = "active_architecture_id";
+
+interface ActiveCycleMeta {
+  label: string;
+  cycle_year: number;
+  display_id: string;
+}
 
 interface AuthState {
   user: User | null;
   tenant: Tenant | null;
   selectedArchitectureId: string | null;
   activeCycleId: string | null;
+  activeCycleMeta: ActiveCycleMeta | null;
 }
 
 function loadCachedUser(): User | null {
@@ -28,6 +37,19 @@ function loadActiveCycleId(): string | null {
   return localStorage.getItem(CYCLE_KEY);
 }
 
+function loadArchitectureId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ARCHITECTURE_KEY);
+}
+
+function loadActiveCycleMeta(): ActiveCycleMeta | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CYCLE_META_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 export function getStoredTenants(): Tenant[] {
   return [];
 }
@@ -37,7 +59,7 @@ interface AuthContextValue extends AuthState {
   signup: (email: string, password: string, role: UserRole, name: string, tenantId?: string) => Promise<boolean>;
   logout: () => void;
   setArchitecture: (architectureId: string) => void;
-  setActiveCycleId: (id: string | null) => void;
+  setActiveCycleId: (id: string | null, meta?: ActiveCycleMeta) => void;
   isAdmin: boolean;
   isPlatformAdmin: boolean;
   tenants: Tenant[];
@@ -55,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     tenant: null,
     selectedArchitectureId: null,
     activeCycleId: null,
+    activeCycleMeta: null,
   });
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,17 +88,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
 
     if (token && cachedUser) {
-      setState({ user: cachedUser, tenant: null, selectedArchitectureId: null, activeCycleId: cycleId });
+      const archId = loadArchitectureId();
+      setState({ user: cachedUser, tenant: null, selectedArchitectureId: archId, activeCycleId: cycleId, activeCycleMeta: loadActiveCycleMeta() });
       api.get<{ id: string; email: string; name: string; role: UserRole; tenant_id: string | null }>("/auth/me")
         .then((u) => {
           const user: User = { id: u.id, email: u.email, name: u.name, role: u.role, tenantId: u.tenant_id };
           localStorage.setItem(USER_KEY, JSON.stringify(user));
           setState((s) => ({ ...s, user }));
+          // Restore architecture from active cycle if we have cycle but no saved architecture (e.g. return visit)
+          if (cycleId && !archId) {
+            api.get<{ architecture_type: string | null; label: string; cycle_year: number; display_id: string }>(`/assessments/${cycleId}`)
+              .then((cycle) => {
+                if (cycle.architecture_type) {
+                  localStorage.setItem(ARCHITECTURE_KEY, cycle.architecture_type);
+                  setState((s) => ({ ...s, selectedArchitectureId: cycle.architecture_type }));
+                }
+                if (cycle.label && cycle.display_id) {
+                  const meta: ActiveCycleMeta = { label: cycle.label, cycle_year: cycle.cycle_year, display_id: cycle.display_id };
+                  localStorage.setItem(CYCLE_META_KEY, JSON.stringify(meta));
+                  setState((s) => ({ ...s, activeCycleMeta: meta }));
+                }
+              })
+              .catch(() => {});
+          }
         })
         .catch(() => {
           api.clearToken();
           localStorage.removeItem(USER_KEY);
-          setState({ user: null, tenant: null, selectedArchitectureId: null, activeCycleId: null });
+          localStorage.removeItem(CYCLE_KEY);
+          localStorage.removeItem(ARCHITECTURE_KEY);
+          localStorage.removeItem(CYCLE_META_KEY);
+          setState({ user: null, tenant: null, selectedArchitectureId: null, activeCycleId: null, activeCycleMeta: null });
         })
         .finally(() => setLoading(false));
     } else {
@@ -113,17 +156,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     api.clearToken();
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(CYCLE_KEY);
-    setState({ user: null, tenant: null, selectedArchitectureId: null, activeCycleId: null });
+    localStorage.removeItem(CYCLE_META_KEY);
+    localStorage.removeItem(ARCHITECTURE_KEY);
+    setState({ user: null, tenant: null, selectedArchitectureId: null, activeCycleId: null, activeCycleMeta: null });
   }, []);
 
   const setArchitecture = useCallback((architectureId: string) => {
+    if (typeof window !== "undefined") localStorage.setItem(ARCHITECTURE_KEY, architectureId);
     setState((s) => ({ ...s, selectedArchitectureId: architectureId }));
   }, []);
 
-  const setActiveCycleId = useCallback((id: string | null) => {
-    if (id) localStorage.setItem(CYCLE_KEY, id);
-    else localStorage.removeItem(CYCLE_KEY);
-    setState((s) => ({ ...s, activeCycleId: id }));
+  const setActiveCycleId = useCallback((id: string | null, meta?: ActiveCycleMeta) => {
+    if (id) {
+      localStorage.setItem(CYCLE_KEY, id);
+      if (meta) {
+        localStorage.setItem(CYCLE_META_KEY, JSON.stringify(meta));
+        setState((s) => ({ ...s, activeCycleId: id, activeCycleMeta: meta }));
+      } else {
+        setState((s) => ({ ...s, activeCycleId: id }));
+      }
+    } else {
+      localStorage.removeItem(CYCLE_KEY);
+      localStorage.removeItem(CYCLE_META_KEY);
+      localStorage.removeItem(ARCHITECTURE_KEY);
+      setState((s) => ({ ...s, activeCycleId: null, activeCycleMeta: null, selectedArchitectureId: null }));
+    }
   }, []);
 
   const addTenant = useCallback(async (input: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { initialUsers?: { email: string; name: string; password: string; role: string }[]; bankAdmins?: { email: string; name: string }[] }) => {
