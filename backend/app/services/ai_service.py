@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import vertexai
@@ -11,14 +12,33 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
+_PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompt"
+_PROMPT_FILE = _PROMPT_DIR / "evidence_evaluation_V1.txt"
+_loaded_prompt_template: str | None = None
+
+
+def _load_prompt_template() -> str:
+    """Load the evidence evaluation prompt template from backend/app/prompt/evidence_evaluation_V1.txt."""
+    global _loaded_prompt_template
+    if _loaded_prompt_template is None:
+        if not _PROMPT_FILE.is_file():
+            raise FileNotFoundError(f"Prompt file not found: {_PROMPT_FILE}")
+        _loaded_prompt_template = _PROMPT_FILE.read_text(encoding="utf-8")
+    return _loaded_prompt_template
+
 _model: GenerativeModel | None = None
 
 
 def _get_model() -> GenerativeModel:
     global _model
     if _model is None:
+        project = settings.GOOGLE_CLOUD_PROJECT
+        if not project:
+            raise ValueError(
+                "GOOGLE_CLOUD_PROJECT is not set. Set it in .env or environment to use Vertex AI."
+            )
         vertexai.init(
-            project=settings.GOOGLE_CLOUD_PROJECT,
+            project=project,
             location=settings.VERTEX_AI_LOCATION,
         )
         _model = GenerativeModel(settings.VERTEX_AI_MODEL)
@@ -58,51 +78,20 @@ def _build_prompt(
     item: Any,
     mappings: list[Any],
 ) -> str:
+    """Build the evaluation prompt by loading the template from prompt/evidence_evaluation_V1.txt and filling placeholders."""
     controls_text = "\n".join(
         f"- {m.control_id}: {m.sufficiency_requirement or 'General compliance'}"
         for m in mappings
     )
-    return f"""You are a SWIFT CSCF v2025 compliance auditor.
-Evaluate the uploaded evidence file(s) against the criteria below.
-
-## Evidence Item: {item.id} — {item.name}
-
-### What This Evidence Should Contain:
-{item.evidence_description or 'N/A'}
-
-### Required Elements (Sufficiency Definition):
-{item.sufficiency_definition or 'N/A'}
-
-### Reviewer Checklist (Evaluation Criteria):
-{item.evaluation_criteria or 'N/A'}
-
-### Mapped Controls:
-{controls_text or 'None'}
-
-## Instructions:
-Analyze the uploaded file(s) directly. For images/diagrams, describe what you see.
-Score each sufficiency dimension 0-100 based on how well the evidence matches.
-
-Return ONLY valid JSON (no markdown fences). Use this exact schema:
-{{
-  "overall_score": <0-100>,
-  "overall_met": <true if evidence sufficiently matches criteria>,
-  "summary": "<2-3 sentence summary of what evidence shows vs what is missing>",
-  "confidence": <0.0-1.0>,
-  "sufficiency_results": [
-    {{"id": "1", "label": "<short label>", "met": true/false, "description": null or "<what is missing>"}}
-  ],
-  "criteria": [
-    {{"id": "1", "label": "<short label>", "met": true/false, "description": null or "<what is missing>"}}
-  ],
-  "dimensions": [
-    {{"code": "<dimension code>", "label": "<human name>", "score": <0-100>, "rationale": "<present vs missing>"}}
-  ],
-  "controls": [
-    {{"control_id": "<e.g. 1.1>", "score": <0-100>, "rationale": "<how evidence supports this control>"}}
-  ]
-}}
-"""
+    template = _load_prompt_template()
+    return template.format(
+        evidence_item_id=item.id,
+        evidence_item_name=item.name,
+        evidence_description=item.evidence_description or "N/A",
+        sufficiency_definition=item.sufficiency_definition or "N/A",
+        evaluation_criteria=item.evaluation_criteria or "N/A",
+        mapped_controls=controls_text or "None",
+    )
 
 
 def _parse_ai_response(text: str) -> dict:
@@ -122,12 +111,46 @@ def evaluate_evidence(
     control_mappings: list[Any],
 ) -> dict:
     """Send files + prompt to Vertex AI and return the parsed JSON result."""
-    model = _get_model()
+    try:
+        model = _get_model()
+    except Exception as init_err:
+        logger.exception("Vertex AI init failed")
+        raise ValueError(
+            "Vertex AI is not available. Check GOOGLE_CLOUD_PROJECT and "
+            "Application Default Credentials (gcloud auth application-default login)."
+        ) from init_err
+
     prompt_text = _build_prompt(evidence_item, control_mappings)
     contents = [Part.from_text(prompt_text)] + file_parts
-    response = model.generate_content(contents)
+
     try:
-        return _parse_ai_response(response.text)
+        response = model.generate_content(contents)
+    except Exception as api_err:
+        logger.exception("Vertex AI generate_content failed")
+        raise ValueError(f"Vertex AI API error: {api_err}") from api_err
+
+    text = _get_response_text(response)
+    if not (text and text.strip()):
+        raise ValueError(
+            "Vertex AI returned no text (response may have been blocked or empty). "
+            "Try different evidence files or check model safety settings."
+        )
+
+    try:
+        return _parse_ai_response(text)
     except (json.JSONDecodeError, ValueError) as exc:
-        logger.error("AI response parse error: %s\nRaw: %s", exc, response.text[:500])
+        logger.error("AI response parse error: %s\nRaw: %s", exc, text[:500])
         raise ValueError(f"AI returned invalid JSON: {exc}") from exc
+
+
+def _get_response_text(response: Any) -> str:
+    """Extract generated text from Vertex AI GenerateContentResponse."""
+    if hasattr(response, "text") and response.text is not None:
+        return response.text
+    if hasattr(response, "candidates") and response.candidates:
+        for c in response.candidates:
+            if c.content and c.content.parts:
+                for p in c.content.parts:
+                    if getattr(p, "text", None):
+                        return p.text
+    return ""

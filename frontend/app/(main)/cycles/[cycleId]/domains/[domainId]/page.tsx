@@ -54,6 +54,14 @@ interface ApiSubmission {
   status: string;
   form_data: Record<string, string>;
   completion_pct: number;
+  /** Last AI evaluation (ticks/crosses) when user revisits after evidence was evaluated */
+  last_evaluation?: {
+    evidence_item_id: string;
+    overall_met: boolean;
+    sufficiency_results: { id: string; label: string; met: boolean; description?: string | null }[];
+    criteria: { id: string; label: string; met: boolean; description?: string | null }[];
+    summary?: string | null;
+  } | null;
 }
 
 const GRADIENTS: Record<string, string> = {
@@ -108,6 +116,10 @@ export default function CycleDomainPage() {
   const [aiEvaluationResult, setAiEvaluationResult] = useState<AiEvalResultType | null>(null);
   const [submissionMap, setSubmissionMap] = useState<Record<string, string>>({});
   const [controlScores, setControlScores] = useState<Record<string, number>>({});
+  /** Last evaluation result per evidence_item_id so tick status shows on revisit */
+  const [lastEvaluationByItem, setLastEvaluationByItem] = useState<Record<string, AiEvalResultType>>({});
+  /** Completion % from last AI evaluation per item (for score bar on revisit) */
+  const [completionPctByItem, setCompletionPctByItem] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!domainId) return;
@@ -141,6 +153,8 @@ export default function CycleDomainPage() {
       .then((subs) => {
         const data: Record<string, string> = {};
         const sMap: Record<string, string> = {};
+        const evalByItem: Record<string, AiEvalResultType> = {};
+        const completionByItem: Record<string, number> = {};
         subs.forEach((s) => {
           sMap[s.evidence_item_id] = s.id;
           if (s.form_data) {
@@ -148,12 +162,39 @@ export default function CycleDomainPage() {
               data[`${s.evidence_item_id}_${k}`] = String(v);
             });
           }
+          if (s.last_evaluation) {
+            evalByItem[s.evidence_item_id] = {
+              evidence_item_id: s.last_evaluation.evidence_item_id,
+              overall_met: s.last_evaluation.overall_met,
+              sufficiency_results: s.last_evaluation.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
+              criteria: s.last_evaluation.criteria?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
+              summary: s.last_evaluation.summary ?? null,
+            };
+          }
+          if (s.completion_pct != null && s.completion_pct > 0) {
+            completionByItem[s.evidence_item_id] = Math.round(s.completion_pct);
+          }
         });
         setFormData(data);
         setSubmissionMap(sMap);
+        setLastEvaluationByItem(evalByItem);
+        setCompletionPctByItem(completionByItem);
       })
       .catch(() => {});
   }, [cycleId, domainId]);
+
+  /** When active item changes, restore tick status from last evaluation if present */
+  useEffect(() => {
+    if (!activeItem) return;
+    const stored = lastEvaluationByItem[activeItem];
+    if (stored) {
+      setAiEvaluationResult(stored);
+      setEvaluated(true);
+    } else {
+      setAiEvaluationResult(null);
+      setEvaluated(false);
+    }
+  }, [activeItem, lastEvaluationByItem]);
 
   const fetchControlScores = useCallback(async () => {
     if (!cycleId) return;
@@ -237,7 +278,26 @@ export default function CycleDomainPage() {
         summary: res.summary ?? null,
       });
 
+      setLastEvaluationByItem((prev) => ({
+        ...prev,
+        [currentItem.id]: {
+          evidence_item_id: res.evidence_item_id,
+          overall_met: res.overall_met,
+          sufficiency_results: res.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
+          criteria: res.criteria.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })),
+          summary: res.summary ?? null,
+        },
+      }));
+
       fetchControlScores();
+      // Refetch submissions so completion_pct and last_evaluation stay in sync on revisit
+      api.get<ApiSubmission[]>(`/assessments/${cycleId}/evidence?domain=${domainId}`).then((subs) => {
+        const completionByItem: Record<string, number> = {};
+        subs.forEach((s) => {
+          if (s.completion_pct != null && s.completion_pct > 0) completionByItem[s.evidence_item_id] = Math.round(s.completion_pct);
+        });
+        setCompletionPctByItem((prev) => ({ ...prev, ...completionByItem }));
+      }).catch(() => {});
     } catch {
       setAiEvaluationResult(null);
     } finally {
@@ -330,7 +390,7 @@ export default function CycleDomainPage() {
                     loading={aiEvaluationLoading}
                     placeholder={!aiEvaluationLoading && !aiEvaluationResult}
                   />
-                  <EvaluationResults score={getItemCompletion(currentItem.id)} />
+                  <EvaluationResults score={completionPctByItem[currentItem.id] ?? getItemCompletion(currentItem.id)} />
                 </>
               )}
               <button onClick={handleEvaluateEvidence}

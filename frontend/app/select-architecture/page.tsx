@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
-import { ARCHITECTURES } from "@/lib/data/architectures";
+import { ARCHITECTURES, getArchitectureDiagramPath } from "@/lib/data/architectures";
 import { AppHeader } from "@/components/layout/app-header";
 
 const TYPE_COLORS: Record<string, { bg: string; border: string; badge: string }> = {
@@ -15,6 +15,31 @@ const TYPE_COLORS: Record<string, { bg: string; border: string; badge: string }>
   A4: { bg: "#fff7ed", border: "#ea580c", badge: "#9a3412" },
   B:  { bg: "#faf5ff", border: "#9333ea", badge: "#6b21a8" },
 };
+
+function ArchitectureDiagram({ architectureId, name }: { architectureId: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const [ext, setExt] = useState<"png" | "jpg" | "svg" | "webp">("png");
+  const exts: ("png" | "jpg" | "svg" | "webp")[] = ["png", "jpg", "svg", "webp"];
+  const src = getArchitectureDiagramPath(architectureId, ext);
+  const handleError = () => {
+    const i = exts.indexOf(ext);
+    if (i < exts.length - 1) setExt(exts[i + 1]);
+    else setFailed(true);
+  };
+  if (failed) {
+    return (
+      <span className="text-[10px] text-slate-400 text-center px-2">Diagram {architectureId}</span>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={`${name} architecture diagram`}
+      className="w-full h-full object-contain"
+      onError={handleError}
+    />
+  );
+}
 
 function SelectArchitectureInner() {
   const router = useRouter();
@@ -75,6 +100,10 @@ function SelectArchitectureInner() {
                   style={{ borderColor: "#e2e8f0" }}
                 >
                   <div className="flex items-start gap-4">
+                    {/* SWIFT Architecture Diagram — A1, A2, A3, A4, B from public/architecture-diagrams/ */}
+                    <div className="w-32 h-24 rounded-lg border border-slate-200 bg-slate-50 shrink-0 overflow-hidden flex items-center justify-center">
+                      <ArchitectureDiagram architectureId={arch.id} name={arch.name} />
+                    </div>
                     <div
                       className="w-12 h-12 rounded-lg flex items-center justify-center text-white text-lg font-bold shrink-0"
                       style={{ background: colors.badge }}

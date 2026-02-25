@@ -65,6 +65,7 @@ class EvidenceSubmission(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     ai_summary: Mapped[str | None] = mapped_column(Text)
     ai_confidence: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    evaluation_result: Mapped[dict | None] = mapped_column(JSONB)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cscf_version: Mapped[str] = mapped_column(String(10), nullable=False, server_default="2025v")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))

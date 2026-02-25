@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 1440
 
-    VERTEX_AI_MODEL: str = "gemini-1.5-flash"
+    VERTEX_AI_MODEL: str = "gemini-2.5-flash-lite"
     GOOGLE_CLOUD_PROJECT: str | None = None
     VERTEX_AI_LOCATION: str = "us-central1"
 

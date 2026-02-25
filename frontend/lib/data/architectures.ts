@@ -131,6 +131,11 @@ export function getArchitecture(id: string): Architecture | undefined {
   return ARCHITECTURES.find((a) => a.id === id);
 }
 
+/** Path to the architecture diagram image in public/architecture-diagrams. Add A1.png, A2.png, A3.png, A4.png, B.png (or .jpg, .svg, .webp). */
+export function getArchitectureDiagramPath(architectureId: string, extension: "png" | "jpg" | "svg" | "webp" = "png"): string {
+  return `/architecture-diagrams/${architectureId}.${extension}`;
+}
+
 export function getControlApplicability(archId: ArchitectureId, controlId: string): "mandatory" | "advisory" | "n/a" {
   const arch = getArchitecture(archId);
   if (!arch) return "n/a";

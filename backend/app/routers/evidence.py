@@ -26,6 +26,30 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _submission_to_out(sub: EvidenceSubmission) -> SubmissionOut:
+    """Build SubmissionOut with last_evaluation from stored evaluation_result."""
+    last_evaluation = None
+    if getattr(sub, "evaluation_result", None):
+        try:
+            last_evaluation = EvaluateEvidenceResponse.model_validate(sub.evaluation_result)
+        except Exception:
+            pass
+    return SubmissionOut(
+        id=sub.id,
+        cycle_id=sub.cycle_id,
+        evidence_item_id=sub.evidence_item_id,
+        submitted_by=sub.submitted_by,
+        status=sub.status,
+        scope_key=sub.scope_key,
+        form_data=sub.form_data or {},
+        completion_pct=float(sub.completion_pct or 0),
+        version=sub.version,
+        created_at=sub.created_at,
+        updated_at=sub.updated_at,
+        last_evaluation=last_evaluation,
+    )
+
+
 @router.get("/assessments/{cycle_id}/evidence", response_model=list[SubmissionOut])
 def list_evidence(
     cycle_id: UUID,
@@ -41,7 +65,8 @@ def list_evidence(
         q = q.filter(EvidenceSubmission.evidence_item_id.like(f"{domain}%"))
     if status:
         q = q.filter(EvidenceSubmission.status == status)
-    return q.order_by(EvidenceSubmission.created_at.desc()).all()
+    subs = q.order_by(EvidenceSubmission.created_at.desc()).all()
+    return [_submission_to_out(s) for s in subs]
 
 
 @router.post("/assessments/{cycle_id}/evidence", response_model=SubmissionOut, status_code=201)
@@ -56,7 +81,7 @@ def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = 
     db.add(sub)
     db.commit()
     db.refresh(sub)
-    return sub
+    return _submission_to_out(sub)
 
 
 @router.get("/assessments/{cycle_id}/evidence/{sub_id}", response_model=SubmissionOut)
@@ -64,7 +89,7 @@ def get_evidence(cycle_id: UUID, sub_id: UUID, db: Session = Depends(get_db), us
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
-    return sub
+    return _submission_to_out(sub)
 
 
 @router.put("/assessments/{cycle_id}/evidence/{sub_id}", response_model=SubmissionOut)
@@ -80,7 +105,7 @@ def update_evidence(cycle_id: UUID, sub_id: UUID, req: UpdateSubmissionRequest, 
 
     db.commit()
     db.refresh(sub)
-    return sub
+    return _submission_to_out(sub)
 
 
 @router.delete("/assessments/{cycle_id}/evidence/{sub_id}", status_code=204)
@@ -122,7 +147,7 @@ def _persist_ai_results(
     result: dict,
     user_id: UUID,
 ) -> None:
-    """Step 3: write sufficiency_evaluations rows, update submission summary."""
+    """Step 3: write sufficiency_evaluations rows, update submission summary, store last evaluation for tick status on revisit."""
     for dim in result.get("dimensions", []):
         db.add(SufficiencyEvaluation(
             submission_id=submission.id,
@@ -136,6 +161,14 @@ def _persist_ai_results(
     submission.ai_summary = result.get("summary")
     submission.ai_confidence = result.get("confidence")
     submission.completion_pct = result.get("overall_score", 0)
+    # Persist full evaluation so tick/cross status shows when user revisits
+    submission.evaluation_result = {
+        "evidence_item_id": submission.evidence_item_id,
+        "overall_met": result.get("overall_met", False),
+        "sufficiency_results": result.get("sufficiency_results", []),
+        "criteria": result.get("criteria", []),
+        "summary": result.get("summary"),
+    }
 
 
 def _recalculate_control_sufficiency(

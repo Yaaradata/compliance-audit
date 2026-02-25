@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel
@@ -25,6 +27,8 @@ class SubmissionOut(BaseModel):
     version: int = 1
     created_at: datetime
     updated_at: datetime
+    """Last AI evaluation result (ticks/crosses) when present; used to show status on revisit."""
+    last_evaluation: EvaluateEvidenceResponse | None = None
 
     model_config = {"from_attributes": True}
 
