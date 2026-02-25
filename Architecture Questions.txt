@@ -1,0 +1,264 @@
+You are building a CSCF v2026 Architecture Classifier — a conversational, state-machine-driven 
+web application that guides a user through 5–7 adaptive questions to determine their SWIFT 
+architecture type (A1, A2, A3, A4, or B).
+
+═══════════════════════════════════════════
+STACK & FILE STRUCTURE
+═══════════════════════════════════════════
+Create a single-page React app (JSX) with Tailwind utility classes only.
+No external component libraries. No localStorage.
+All state lives in React useState/useReducer.
+
+File structure to generate:
+├── App.jsx                        ← root, renders <Classifier />
+├── components/
+│   ├── Classifier.jsx             ← orchestrator (state machine controller)
+│   ├── QuestionCard.jsx           ← renders current question + options
+│   ├── ProgressTrail.jsx          ← shows answered facts + current candidate
+│   ├── ContradictionAlert.jsx     ← renders when conflict detected
+│   └── ResultCard.jsx             ← final architecture output
+├── logic/
+│   ├── questions.js               ← question graph (Q1–Q5 + fallbacks)
+│   ├── stateEngine.js             ← fact store, derive(), contradiction checker
+│   └── architectureRules.js       ← pure functions: classify(), escalate(), explain()
+└── constants/
+    └── architectures.js           ← A1/A2/A3/A4/B metadata (label, scope, controls note)
+
+═══════════════════════════════════════════
+STATE MACHINE — stateEngine.js
+═══════════════════════════════════════════
+Maintain this fact store (all default to "unknown"):
+
+const facts = {
+  local_swift_footprint: "unknown",       // yes | no | unknown
+  owns_comm_interface: "unknown",          // yes | no | unknown
+  owns_messaging_interface: "unknown",     // yes | no | unknown
+  uses_swift_connector: "unknown",         // yes | no | unknown
+  uses_customer_connector_only: "unknown", // yes | no | unknown
+  access_only_via_provider_gui: "unknown", // yes | no | unknown
+}
+
+Export these pure functions:
+
+1. updateFact(facts, key, value) → newFacts
+   - Updates the fact
+   - Runs cascading inferences (see DEPENDENCY RULES below)
+   - Returns updated facts + array of auto-derived changes with reasons
+
+2. detectContradictions(facts) → contradiction | null
+   - Returns { conflictingFacts, message, resolutionOptions } or null
+
+3. classify(facts) → { architecture, confidence, evidence, skipped }
+   - Returns best architecture or null if underdetermined
+   - Applies escalation: A1 > A2 > A3 > A4 > B
+
+4. nextQuestion(facts, answeredIds) → question | null
+   - Returns next applicable question based on current facts
+   - Returns null when classification is confident
+
+═══════════════════════════════════════════
+DEPENDENCY RULES — architectureRules.js
+═══════════════════════════════════════════
+Implement these as pure rule functions applied after every fact update:
+
+RULE 1 — B short-circuit:
+  IF local_swift_footprint = "no" AND access_only_via_provider_gui = "yes"
+  AND uses_customer_connector_only = "no"
+  → architecture = B
+  → mark owns_comm_interface, owns_messaging_interface, uses_swift_connector as N/A
+
+RULE 2 — A1 triggers:
+  IF owns_comm_interface = "yes"
+  → architecture candidate = A1
+  → infer local_swift_footprint = "yes"
+  → infer access_only_via_provider_gui = "no"
+
+RULE 3 — A2 candidate:
+  IF owns_messaging_interface = "yes" AND owns_comm_interface = "no"
+  → architecture candidate = A2
+
+RULE 4 — A3 overrides A4/B:
+  IF uses_swift_connector = "yes"
+  → architecture candidate = A3
+  → infer local_swift_footprint = "yes"
+  → infer access_only_via_provider_gui = "no"
+
+RULE 5 — A4:
+  IF uses_customer_connector_only = "yes"
+  AND uses_swift_connector = "no"
+  AND owns_comm_interface = "no"
+  AND owns_messaging_interface = "no"
+  → architecture candidate = A4
+
+RULE 6 — Escalation (most comprehensive wins):
+  Priority: A1 > A2 > A3 > A4 > B
+  If multiple candidates, return highest.
+
+CONTRADICTION RULES:
+  - access_only_via_provider_gui = "yes" AND uses_swift_connector = "yes"
+    → CONFLICT: "No local footprint contradicts running a Swift connector locally."
+    → Resolution options: ["I do run it locally (use A3 path)", "I don't run it (revert)"]
+
+  - local_swift_footprint = "no" AND owns_comm_interface = "yes"
+    → CONFLICT: "Owning a comm interface implies local footprint."
+    → Resolution options: ["Correct, we do have footprint", "We don't own it, I was wrong"]
+
+═══════════════════════════════════════════
+QUESTION GRAPH — questions.js
+═══════════════════════════════════════════
+Export an ordered array of question objects:
+
+Q1: {
+  id: "Q1",
+  text: "Do you run or host any SWIFT-related components yourself (on-premises or in your own cloud/VMs)?",
+  subtext: "This includes any installed software, connectors, or middleware on infrastructure you manage.",
+  options: [
+    { label: "Yes, we host/run components", sets: { local_swift_footprint: "yes" } },
+    { label: "No — we only access SWIFT through a provider's website or GUI", sets: { local_swift_footprint: "no", access_only_via_provider_gui: "yes" } },
+    { label: "Not sure", triggersFollowup: "Q1_fallback" }
+  ],
+  guard: () => true  // always ask first
+}
+
+Q1_fallback: {
+  id: "Q1_fallback",
+  text: "Does your team manage any server, VM, or local application that sends or receives SWIFT messages?",
+  options: [
+    { label: "Yes", sets: { local_swift_footprint: "yes" } },
+    { label: "No", sets: { local_swift_footprint: "no" } }
+  ]
+}
+
+Q1b: {
+  id: "Q1b",
+  text: "Even though you access via a provider's GUI, do you have any local middleware, file-transfer tool, or API connector that routes transactions to that provider?",
+  guard: (facts) => facts.access_only_via_provider_gui === "yes",
+  options: [
+    { label: "Yes, we have a local connector", sets: { uses_customer_connector_only: "yes" } },
+    { label: "No — purely through the GUI", sets: { uses_customer_connector_only: "no" } }
+  ]
+}
+
+Q2: {
+  id: "Q2",
+  text: "Do you own the communication interface license (e.g., Alliance Gateway or equivalent)?",
+  subtext: "This is the component that handles the actual SWIFT network connection.",
+  guard: (facts) => facts.local_swift_footprint === "yes",
+  options: [
+    { label: "Yes, we own it", sets: { owns_comm_interface: "yes" } },
+    { label: "No / Not applicable", sets: { owns_comm_interface: "no" } },
+    { label: "Not sure", triggersFollowup: "Q2_fallback" }
+  ]
+}
+
+Q2_fallback: {
+  id: "Q2_fallback",
+  text: "Do you hold a license or subscription for Alliance Gateway (or a similar SWIFT communication interface) directly with SWIFT or a vendor?",
+  options: [
+    { label: "Yes", sets: { owns_comm_interface: "yes" } },
+    { label: "No", sets: { owns_comm_interface: "no" } }
+  ]
+}
+
+Q3: {
+  id: "Q3",
+  text: "Do you own the messaging interface license (e.g., Alliance Access, Alliance Messaging Hub, or equivalent)?",
+  guard: (facts) => facts.owns_comm_interface === "no" && facts.local_swift_footprint === "yes",
+  options: [
+    { label: "Yes", sets: { owns_messaging_interface: "yes" } },
+    { label: "No", sets: { owns_messaging_interface: "no" } }
+  ]
+}
+
+Q4: {
+  id: "Q4",
+  text: "Do you run a SWIFT-provided connector in your environment?",
+  subtext: "Examples: Direct Link, Lite2 AutoClient, SWIFT Microgateway, Alliance Cloud SIL.",
+  guard: (facts) => facts.owns_messaging_interface === "no" && facts.local_swift_footprint === "yes",
+  options: [
+    { label: "Yes", sets: { uses_swift_connector: "yes" } },
+    { label: "No", sets: { uses_swift_connector: "no" } }
+  ]
+}
+
+Q5: {
+  id: "Q5",
+  text: "Do you use only your own middleware, file-transfer tool, or API connector to route transactions to a SWIFT service provider or group hub?",
+  subtext: "No SWIFT-branded software runs on your side.",
+  guard: (facts) => facts.uses_swift_connector === "no",
+  options: [
+    { label: "Yes, only our own connector", sets: { uses_customer_connector_only: "yes" } },
+    { label: "No", sets: { uses_customer_connector_only: "no" } }
+  ]
+}
+
+═══════════════════════════════════════════
+COMPONENT BEHAVIOR
+═══════════════════════════════════════════
+
+Classifier.jsx (controller):
+- Holds facts, answeredIds, contradictions, derivedChanges in useReducer
+- On each answer:
+  1. Call updateFact() → get newFacts + derivedChanges
+  2. Call detectContradictions(newFacts) → show ContradictionAlert if found
+  3. Call classify(newFacts) → update candidate architecture display
+  4. Call nextQuestion(newFacts, answeredIds) → advance or show ResultCard
+
+QuestionCard.jsx:
+- Animated entrance (fade + slide up)
+- Shows question text, subtext, option buttons
+- "Not sure" always shown as last option if fallback exists
+- Disable options while contradiction is unresolved
+
+ProgressTrail.jsx (sidebar or top strip):
+- Shows each answered fact as a row: label | answer | [derived badge if auto-set]
+- Shows current candidate architecture prominently
+- Skipped/N/A questions shown greyed out with reason
+
+ContradictionAlert.jsx:
+- Appears as a modal/banner
+- Shows: what conflicts, why it matters, resolution options as buttons
+- Must be resolved before next question appears
+
+ResultCard.jsx:
+- Shows: Architecture Type (large), confidence badge, evidence list
+- Shows what questions were skipped and why
+- Shows a brief scope summary (pull from architectures.js)
+- CTA: "Proceed to Control Assessment" (placeholder button)
+
+═══════════════════════════════════════════
+architectures.js — METADATA
+═══════════════════════════════════════════
+Export objects for A1–B each with:
+{
+  id: "A1",
+  label: "A1 — Full SWIFT Footprint (Comm + Messaging Interface)",
+  scope: "Highest scope. You own the communication and messaging interface.",
+  controlsNote: "All mandatory and advisory controls apply.",
+  color: "#...",   // for UI badge
+}
+// Repeat for A2, A3, A4, B with accurate scope descriptions per CSCF v2026.
+
+═══════════════════════════════════════════
+UI / DESIGN
+═══════════════════════════════════════════
+- Dark background (#0d1117), sharp white typography
+- Architecture candidate shown live in top-right corner — updates in real time as facts are collected
+- Question cards animate in (slide up + fade)
+- Derived fact changes show as subtle toast notifications: "Auto-set: Local footprint = Yes (because you own the comm interface)"
+- Contradiction alert: red banner with amber resolution buttons
+- Final result: large architecture badge + confidence ring
+- Monospaced font for fact keys, clean sans-serif for question text
+- Tailwind only — no external CSS files
+
+═══════════════════════════════════════════
+RULES YOU MUST FOLLOW WHILE GENERATING
+═══════════════════════════════════════════
+1. All classification logic lives in /logic — zero business logic in components
+2. Components are purely presentational — they receive props and call callbacks
+3. Every rule in architectureRules.js must be a named, exported pure function
+4. Every question guard is a pure function of facts
+5. Contradictions block progression until resolved
+6. "Most comprehensive architecture wins" is enforced in classify() with explicit comment
+7. Generate all files — do not leave stubs or TODOs
+8. The app must work end-to-end for all 5 architecture paths with no dead ends
