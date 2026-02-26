@@ -15,7 +15,7 @@ export function ScoreRing({ pct, size = 56, stroke = 4, label }: { pct: number; 
           <circle
             cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
             strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-            style={{ transition: "stroke-dashoffset 0.6s ease" }}
+            style={{ transition: "stroke-dashoffset 0.4s ease-out" }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">

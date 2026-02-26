@@ -11,6 +11,7 @@ import { DomainCard } from "@/components/dashboard/domain-card";
 import { ControlHeatmap } from "@/components/dashboard/control-heatmap";
 import { AiSuggestions } from "@/components/dashboard/ai-suggestions";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { LoadingState } from "@/components/ui/loading-state";
 import { scoreColor } from "@/lib/utils";
 import type { Control, Domain } from "@/lib/types";
 
@@ -100,18 +101,12 @@ export default function CycleDashboardPage() {
     return dashboard.control_scores.filter((c) => c.type === "M" && c.score >= 99).length;
   }, [dashboard?.control_scores]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-slate-500 text-sm">
-        Loading dashboard…
-      </div>
-    );
-  }
+  if (loading) return <LoadingState message="Loading dashboard…" />;
 
   if (!cycleId || !dashboard) {
     return (
-      <div className="text-center py-20 text-slate-500 text-sm">
-        No assessment selected. Open an assessment from Your Assessment Cycles.
+      <div className="card rounded-xl p-8 text-center">
+        <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>No assessment selected. Open an assessment from Your Assessment Cycles.</p>
       </div>
     );
   }
@@ -138,7 +133,7 @@ export default function CycleDashboardPage() {
       )}
       <div className="grid grid-cols-[1fr_260px] gap-5">
         <div>
-          <div className="text-sm font-semibold text-gray-700 mb-3">Evidence Domains</div>
+          <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>Evidence Domains</div>
           <div className="grid grid-cols-2 gap-3">
             {domainsForCards.map((d) => (
               <DomainCard key={d.id} domain={d} cycleId={cycleId} />
@@ -146,8 +141,8 @@ export default function CycleDashboardPage() {
           </div>
         </div>
         <div>
-          <div className="text-sm font-semibold text-gray-700 mb-3">Control Sufficiency ({controlsForHeatmap.length})</div>
-          <div className="bg-white rounded-xl p-3 border border-gray-200">
+          <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>Control Sufficiency ({controlsForHeatmap.length})</div>
+          <div className="card rounded-xl p-3">
             {controlsForHeatmap.length > 0 ? (
               <>
                 <ControlHeatmap controls={controlsForHeatmap} onSelect={setSelectedControl} selected={selectedControl} />

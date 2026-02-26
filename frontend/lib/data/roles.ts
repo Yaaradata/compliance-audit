@@ -18,37 +18,37 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   approver: "Senior sign-off authority (CISO, Head of Compliance).",
 };
 
-export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon: string }[]> = {
+export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?: string }[]> = {
   admin: [
-    { href: "/admin", label: "Bank Onboarding", icon: "🏦" },
-    { href: "/admin/tenants", label: "Tenants", icon: "📋" },
+    { href: "/admin", label: "Bank Onboarding" },
+    { href: "/admin/tenants", label: "Tenants" },
   ],
   compliance_officer: [
-    { href: "/dashboard", label: "Dashboard", icon: "📊" },
-    { href: "/evidence-model", label: "Evidence Model", icon: "🗂️" },
-    { href: "/review", label: "Review Queue", icon: "📋" },
-    { href: "/approval", label: "Approval", icon: "✅" },
-    { href: "/report", label: "Report", icon: "📄" },
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/evidence-model", label: "Evidence Model" },
+    { href: "/review", label: "Review Queue" },
+    { href: "/approval", label: "Approval" },
+    { href: "/report", label: "Report" },
   ],
   it_sme: [
-    { href: "/dashboard", label: "Dashboard", icon: "📊" },
-    { href: "/evidence-model", label: "Evidence Model", icon: "🗂️" },
-    { href: "/report", label: "Report", icon: "📄" },
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/evidence-model", label: "Evidence Model" },
+    { href: "/report", label: "Report" },
   ],
   internal_reviewer: [
-    { href: "/dashboard", label: "Dashboard", icon: "📊" },
-    { href: "/review", label: "Review Queue", icon: "📋" },
-    { href: "/evidence-model", label: "Evidence Model", icon: "🗂️" },
-    { href: "/report", label: "Report", icon: "📄" },
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/review", label: "Review Queue" },
+    { href: "/evidence-model", label: "Evidence Model" },
+    { href: "/report", label: "Report" },
   ],
   external_assessor: [
-    { href: "/dashboard", label: "Dashboard", icon: "📊" },
-    { href: "/review", label: "Review Queue", icon: "📋" },
-    { href: "/report", label: "Report", icon: "📄" },
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/review", label: "Review Queue" },
+    { href: "/report", label: "Report" },
   ],
   approver: [
-    { href: "/dashboard", label: "Dashboard", icon: "📊" },
-    { href: "/approval", label: "Approval", icon: "✅" },
-    { href: "/report", label: "Report", icon: "📄" },
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/approval", label: "Approval" },
+    { href: "/report", label: "Report" },
   ],
 };

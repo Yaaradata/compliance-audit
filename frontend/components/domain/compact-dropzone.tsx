@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 const ACCEPTED_TYPES = [
   "application/pdf",
@@ -12,7 +13,6 @@ const ACCEPTED_TYPES = [
   "text/plain",
   "text/csv",
 ].join(",");
-
 const MAX_SIZE_MB = 20;
 
 interface UploadedFile {
@@ -29,58 +29,18 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function FileIcon({ type }: { type?: string }) {
-  if (type?.startsWith("image/")) return <ImageIcon />;
-  if (type === "application/pdf") return <PdfIcon />;
-  if (type?.includes("spreadsheet")) return <SheetIcon />;
-  return <DocIcon />;
-}
-
-function UploadIcon() {
-  return (
-    <svg className="w-10 h-10 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-    </svg>
-  );
-}
-
-function ImageIcon() {
-  return (
-    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-  );
-}
-
-function PdfIcon() {
-  return (
-    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-  );
-}
-
-function SheetIcon() {
-  return (
-    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-  );
-}
-
-function DocIcon() {
-  return (
-    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-  );
-}
-
-export function FileUploadZone({
+export function CompactDropzone({
   submissionId,
-  label,
-  accept,
+  label = "Drop files or click to upload",
   onUploadComplete,
   onEnsureSubmission,
+  className,
 }: {
   submissionId?: string | null;
   label?: string;
-  accept?: string;
   onUploadComplete?: () => void;
-  /** When provided, upload is allowed without submissionId: submission is created on first upload. */
   onEnsureSubmission?: () => Promise<string | null>;
+  className?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -124,7 +84,7 @@ export function FileUploadZone({
     try {
       sid = await getSubmissionId();
       if (!sid) {
-        setError("Upload is not available. Please try again.");
+        setError("Upload unavailable.");
         setUploading(false);
         return;
       }
@@ -134,13 +94,12 @@ export function FileUploadZone({
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
-
     const total = selected.length;
     let done = 0;
     try {
       for (const file of Array.from(selected)) {
         if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-          setError(`File "${file.name}" exceeds ${MAX_SIZE_MB} MB`);
+          setError(`Max ${MAX_SIZE_MB} MB`);
           break;
         }
         setUploadProgress(total > 0 ? Math.round((done / total) * 100) : 0);
@@ -191,81 +150,74 @@ export function FileUploadZone({
 
   const canUpload = !!submissionId || !!onEnsureSubmission;
 
+  type State = "empty" | "dragOver" | "uploading" | "success" | "error";
+  const state: State = error ? "error" : uploading ? "uploading" : dragOver ? "dragOver" : files.length > 0 ? "success" : "empty";
+
   return (
-    <div className="space-y-3">
+    <div className={cn("flex flex-col gap-2 min-h-0", className)}>
       <div
         onClick={() => canUpload && !uploading && inputRef.current?.click()}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={`rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200 ${
-          !canUpload
-            ? "cursor-not-allowed opacity-75"
-            : dragOver
-              ? "border-[var(--primary)] bg-[var(--primary-muted)]"
-              : "cursor-pointer hover:border-[var(--primary)] hover:bg-[var(--primary-muted)]/30"
-        }`}
-        style={{
-          borderColor: !canUpload ? "var(--border)" : dragOver ? "var(--primary)" : "var(--border)",
-          background: !canUpload ? "var(--background)" : dragOver ? "var(--primary-muted)" : "transparent",
-        }}
+        className={cn(
+          "rounded-lg border-2 border-dashed transition-all duration-150 min-h-[100px] max-h-[140px] flex flex-col items-center justify-center px-4 py-3",
+          "focus-within:ring-2 focus-within:ring-[var(--primary)] focus-within:ring-offset-2",
+          !canUpload && "cursor-not-allowed opacity-60",
+          canUpload && !uploading && "cursor-pointer hover:border-[var(--primary)]/70 hover:bg-[var(--primary-muted)]/20",
+          state === "dragOver" && "border-[var(--primary)] bg-[var(--primary-muted)]/40",
+          state === "uploading" && "border-[var(--primary)]/50 bg-[var(--primary-muted)]/10",
+          state === "success" && "border-[var(--success)]/50 bg-[var(--success-bg)]/30",
+          state === "error" && "border-[var(--danger)] bg-[var(--danger-bg)]/30"
+        )}
+        style={{ borderColor: state === "empty" && !dragOver ? "var(--border)" : undefined }}
       >
         <input
           ref={inputRef}
           type="file"
-          className="hidden"
-          accept={accept || ACCEPTED_TYPES}
+          className="sr-only"
+          accept={ACCEPTED_TYPES}
           multiple
           onChange={handleFileSelect}
           disabled={!canUpload}
+          aria-label="Upload files"
         />
-        <div className="mb-2" style={{ color: !canUpload ? "var(--foreground-subtle)" : "var(--primary)" }}>
-          <UploadIcon />
-        </div>
-        <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-          {uploading ? "Uploading…" : label || "Drop files here or click to upload"}
-        </p>
-        {canUpload && !uploading && (
-          <p className="text-[11px] mt-1" style={{ color: "var(--foreground-muted)" }}>
-            PDF, images, Excel, CSV, or plain text · max {MAX_SIZE_MB} MB
-          </p>
-        )}
-        {uploading && (
-          <div className="mt-3 w-full rounded-full overflow-hidden" style={{ background: "var(--border)", height: 6 }}>
+        {state === "uploading" && (
+          <div className="w-full max-w-xs rounded-full overflow-hidden h-1.5 bg-[var(--border)]">
             <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${uploadProgress}%`, background: "var(--primary)" }}
+              className="h-full rounded-full bg-[var(--primary)] transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
             />
           </div>
         )}
+        <p className="text-xs font-medium text-[var(--foreground)] text-center">
+          {state === "uploading" && "Uploading…"}
+          {state === "dragOver" && "Drop here"}
+          {state === "empty" && (canUpload ? label : "Create submission to upload")}
+          {state === "success" && `${files.length} file${files.length !== 1 ? "s" : ""} uploaded`}
+          {state === "error" && error}
+        </p>
+        {state === "empty" && canUpload && (
+          <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">PDF, images, Excel, CSV · max {MAX_SIZE_MB} MB</p>
+        )}
       </div>
-
-      {error && (
-        <div className="text-xs rounded-lg px-3 py-2 border" style={{ color: "var(--danger)", background: "var(--danger-bg)", borderColor: "var(--danger)" }}>
-          {error}
-        </div>
-      )}
-
       {files.length > 0 && (
-        <div className="rounded-xl border divide-y" style={{ borderColor: "var(--border)" }}>
+        <ul className="overflow-y-auto min-h-0 rounded-lg border border-[var(--border)] divide-y divide-[var(--border)] max-h-32">
           {files.map((f) => (
-            <div key={f.id} className="flex items-center gap-2 px-3 py-2 text-xs">
-              <FileIcon type={f.file_type} />
-              <span className="flex-1 truncate font-medium" style={{ color: "var(--foreground)" }}>{f.file_name}</span>
-              <span className="shrink-0" style={{ color: "var(--foreground-muted)" }}>{formatSize(f.file_size_bytes)}</span>
+            <li key={f.id} className="flex items-center gap-2 px-2 py-1.5 text-[11px]">
+              <span className="flex-1 truncate font-medium text-[var(--foreground)]">{f.file_name}</span>
+              <span className="shrink-0 text-[var(--foreground-muted)]">{formatSize(f.file_size_bytes)}</span>
               <button
                 type="button"
                 onClick={() => handleDelete(f.id)}
-                className="shrink-0 p-1 rounded transition-colors hover:bg-[var(--danger-bg)]"
-                style={{ color: "var(--danger)" }}
-                title="Delete file"
-                aria-label="Delete file"
+                className="shrink-0 p-0.5 rounded hover:bg-[var(--danger-bg)] text-[var(--danger)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--danger)]"
+                aria-label={`Delete ${f.file_name}`}
               >
-                <span aria-hidden>×</span>
+                ×
               </button>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

@@ -101,6 +101,7 @@ interface ControlSectionProps {
   sufficiencyResults: AiCriterionResultType[] | null;
   criteriaResults: AiCriterionResultType[] | null;
   onUploadComplete?: () => void;
+  onEnsureSubmission?: () => Promise<string | null>;
   defaultExpanded?: boolean;
 }
 
@@ -111,6 +112,7 @@ function ControlSection({
   sufficiencyResults,
   criteriaResults,
   onUploadComplete,
+  onEnsureSubmission,
   defaultExpanded = false,
 }: ControlSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -183,6 +185,7 @@ function ControlSection({
               submissionId={submissionId}
               label={`Drop files for ${criteria.control_id} — ${criteria.control_name}`}
               onUploadComplete={onUploadComplete}
+              onEnsureSubmission={onEnsureSubmission}
             />
           </div>
         </div>
@@ -198,7 +201,13 @@ export interface PerControlEvidenceProps {
   sufficiencyResults: AiCriterionResultType[] | null;
   criteriaResults: AiCriterionResultType[] | null;
   onUploadComplete?: () => void;
-  onCreateSubmission?: () => void;
+  /** When provided, users can upload directly; submission is created on first upload if needed. */
+  onEnsureSubmission?: () => Promise<string | null>;
+  /** When provided, selection is controlled by parent (e.g. from clickable control badges above). */
+  selectedControlId?: string | null;
+  onSelectControl?: (controlId: string | null) => void;
+  /** When false, the common evidence upload block is hidden (e.g. when used in tabbed workspace with Common Evidence in another tab). */
+  showCommonEvidence?: boolean;
 }
 
 export function PerControlEvidence({
@@ -208,50 +217,96 @@ export function PerControlEvidence({
   sufficiencyResults,
   criteriaResults,
   onUploadComplete,
-  onCreateSubmission,
+  onEnsureSubmission,
+  selectedControlId: selectedControlIdProp,
+  onSelectControl,
+  showCommonEvidence = true,
 }: PerControlEvidenceProps) {
+  const [internalSelected, setInternalSelected] = useState<string | null>(null);
+  const isControlled = selectedControlIdProp !== undefined;
+  const selectedControlId = isControlled ? selectedControlIdProp ?? null : internalSelected;
+  const setSelectedControlId = onSelectControl ?? setInternalSelected;
+
   if (!matrix || matrix.length === 0) return null;
+
+  const selectedCriteria = selectedControlId
+    ? matrix.find((c) => c.control_id === selectedControlId)
+    : null;
 
   return (
     <div className="space-y-4">
-      {/* Common evidence upload */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-xs font-semibold text-gray-700 mb-1">Common Evidence</div>
-        <p className="text-[11px] text-gray-500 mb-3">
-          Upload evidence files that apply to all controls for this evidence item.
-        </p>
-        <FileUploadZone
-          submissionId={submissionId}
-          label="Drop common evidence files here"
-          onUploadComplete={onUploadComplete}
-        />
-        {!submissionId && onCreateSubmission && (
-          <button
-            onClick={onCreateSubmission}
-            className="mt-2 w-full py-1.5 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-200 hover:bg-blue-100 transition-colors"
-          >
-            Create submission to enable uploads
-          </button>
-        )}
-      </div>
-
-      {/* Per-control sections */}
-      <div className="space-y-2">
-        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1">
-          Per-Control Criteria &amp; Evidence ({matrix.length} control{matrix.length !== 1 ? "s" : ""})
-        </div>
-        {matrix.map((c, idx) => (
-          <ControlSection
-            key={c.control_id}
-            criteria={c}
+      {showCommonEvidence && (
+        <div className="card rounded-xl p-4">
+          <div className="text-xs font-semibold mb-1" style={{ color: "var(--foreground)" }}>Common Evidence</div>
+          <p className="text-[11px] mb-3" style={{ color: "var(--foreground-muted)" }}>
+            Upload evidence files that apply to all controls for this evidence item.
+          </p>
+          <FileUploadZone
             submissionId={submissionId}
-            evaluationState={evaluationState}
-            sufficiencyResults={sufficiencyResults}
-            criteriaResults={criteriaResults}
+            label="Drop common evidence files here"
             onUploadComplete={onUploadComplete}
-            defaultExpanded={idx === 0}
+            onEnsureSubmission={onEnsureSubmission}
           />
-        ))}
+        </div>
+      )}
+
+      {/* Per-control: when controlled (e.g. domain page), selection is via badges above — no duplicate section. When uncontrolled (e.g. item page), show heading + chips. */}
+      <div className="space-y-3">
+        {!isControlled && (
+          <>
+            <div className="text-xs font-semibold uppercase tracking-wider px-1" style={{ color: "var(--foreground-muted)" }}>
+              Per-Control Criteria &amp; Evidence ({matrix.length} control{matrix.length !== 1 ? "s" : ""})
+            </div>
+            <p className="text-[11px] px-1" style={{ color: "var(--foreground-muted)" }}>
+              Click a control to view its criteria and upload evidence for that control.
+            </p>
+            <div className="sticky top-0 z-10 py-2 -mx-1 px-1 flex flex-wrap gap-2 rounded-xl transition-colors duration-200" style={{ background: "var(--surface)" }}>
+              {matrix.map((c) => {
+                const isMandatory = c.ma === "M";
+                const isSelected = selectedControlId === c.control_id;
+                return (
+                  <button
+                    key={c.control_id}
+                    type="button"
+                    onClick={() => setSelectedControlId(isSelected ? null : c.control_id)}
+                    className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary)]"
+                    style={{
+                      background: isSelected ? "var(--primary)" : "var(--background)",
+                      borderColor: isSelected ? "var(--primary)" : "var(--border)",
+                      color: isSelected ? "#fff" : "var(--foreground)",
+                    }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: isSelected ? "rgba(255,255,255,0.9)" : "var(--foreground-subtle)" }} aria-hidden />
+                    <span className="font-bold">{c.control_id}</span>
+                    <span className="opacity-80">{c.ma}</span>
+                    <span className="max-w-[140px] truncate text-inherit">{c.control_name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+        {selectedCriteria ? (
+          <div className="pt-1">
+            <ControlSection
+              key={selectedCriteria.control_id}
+              criteria={selectedCriteria}
+              submissionId={submissionId}
+              evaluationState={evaluationState}
+              sufficiencyResults={sufficiencyResults}
+              criteriaResults={criteriaResults}
+              onUploadComplete={onUploadComplete}
+              onEnsureSubmission={onEnsureSubmission}
+              defaultExpanded={true}
+            />
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed px-4 py-8 text-center" style={{ borderColor: "var(--border)", background: "var(--background)" }}>
+            <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
+              Select a control above to view its criteria and upload evidence.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

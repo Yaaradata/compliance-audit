@@ -13,10 +13,10 @@ export function Badge({ text, color, bg }: { text: string; color: string; bg: st
 
 export function PriorityBadge({ priority }: { priority: string }) {
   const colors: Record<string, { bg: string; text: string }> = {
-    CRITICAL: { bg: "#DC2626", text: "#fff" },
-    HIGH: { bg: "#D97706", text: "#fff" },
-    "HIGH*": { bg: "#D97706", text: "#fff" },
-    MEDIUM: { bg: "#059669", text: "#fff" },
+    CRITICAL: { bg: "var(--danger)", text: "#fff" },
+    HIGH: { bg: "var(--warning)", text: "#fff" },
+    "HIGH*": { bg: "var(--warning)", text: "#fff" },
+    MEDIUM: { bg: "var(--success)", text: "#fff" },
   };
   const c = colors[priority] || colors.MEDIUM;
   return (

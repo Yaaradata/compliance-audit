@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { AppHeader } from "@/components/layout/app-header";
+import { PasswordInput } from "@/components/ui/password-input";
 
 interface ApiTenant {
   id: string;
@@ -128,23 +129,23 @@ export default function AdminPage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--background)" }}>
       <AppHeader />
       <div className="flex-1 flex overflow-hidden">
-        <aside className="w-52 bg-white border-r border-gray-200 flex flex-col shrink-0 p-3">
+        <aside className="w-52 flex flex-col shrink-0 p-3 border-r" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
           <nav className="flex flex-col gap-0.5">
-            <Link href="/admin" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-blue-50 text-blue-800">🏦 Bank Onboarding</Link>
-            <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-600 hover:bg-gray-50">📊 Dashboard</Link>
+            <Link href="/admin" className="nav-item flex items-center gap-2 px-3 py-2 text-xs font-semibold nav-item-active">Bank Onboarding</Link>
+            <Link href="/dashboard" className="nav-item flex items-center gap-2 px-3 py-2 text-xs" style={{ color: "var(--foreground-muted)" }}>Dashboard</Link>
           </nav>
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <button onClick={() => logout()} className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 rounded-lg">Log out</button>
+          <div className="mt-4 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+            <button onClick={() => logout()} className="w-full text-left px-3 py-2 text-xs rounded-lg transition-colors" style={{ color: "var(--foreground-muted)" }}>Log out</button>
           </div>
         </aside>
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto">
-            <h1 className="text-xl font-bold text-slate-900 mb-6">Bank onboarding</h1>
+            <h1 className="text-xl font-bold mb-6" style={{ color: "var(--foreground)" }}>Bank onboarding</h1>
 
-            <form onSubmit={handleAddTenant} className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mb-8">
+            <form onSubmit={handleAddTenant} className="card rounded-xl p-6 mb-8">
               <h2 className="font-semibold text-slate-900 mb-4">Onboard a new bank (tenant)</h2>
               <div className="space-y-4">
                 <div>
@@ -169,7 +170,13 @@ export default function AdminPage() {
                     <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
                       <input type="text" value={u.name} onChange={(e) => updateInitialUser(i, "name", e.target.value)} placeholder="Name" className="w-28 rounded border border-slate-300 px-2 py-1.5 text-sm" />
                       <input type="email" value={u.email} onChange={(e) => updateInitialUser(i, "email", e.target.value)} placeholder="Email" className="w-40 rounded border border-slate-300 px-2 py-1.5 text-sm" />
-                      <input type="password" value={u.password} onChange={(e) => updateInitialUser(i, "password", e.target.value)} placeholder="Password (min 8)" className="w-32 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+                      <PasswordInput
+                        value={u.password}
+                        onChange={(e) => updateInitialUser(i, "password", e.target.value)}
+                        placeholder="Password (min 8)"
+                        containerClassName="w-32"
+                        className="py-1.5 px-2 text-sm"
+                      />
                       <select value={u.role} onChange={(e) => updateInitialUser(i, "role", e.target.value)} className="rounded border border-slate-300 px-2 py-1.5 text-sm">
                         {TENANT_ROLES.map((r) => (
                           <option key={r.value} value={r.value}>{r.label}</option>
@@ -179,14 +186,14 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
-                <button type="submit" disabled={submitting} className="px-4 py-2 font-medium text-white bg-[#0c2340] rounded-lg hover:bg-[#0f2d52] disabled:opacity-50">
+                <button type="submit" disabled={submitting} className="btn-primary px-4 py-2 disabled:opacity-50">
                   {submitting ? "Creating…" : "Onboard bank"}
                 </button>
               </div>
             </form>
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <h2 className="font-semibold text-slate-900 p-4 border-b border-slate-200">Tenants</h2>
+            <div className="card rounded-xl overflow-hidden">
+              <h2 className="font-semibold p-4 border-b" style={{ color: "var(--foreground)", borderColor: "var(--border)" }}>Tenants</h2>
               {loadingTenants ? (
                 <p className="p-4 text-sm text-slate-400">Loading tenants…</p>
               ) : tenants.length === 0 ? (
@@ -230,7 +237,13 @@ export default function AdminPage() {
                             <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
                               <input type="text" value={u.name} onChange={(e) => updateTenantUser(t.id, i, "name", e.target.value)} placeholder="Name" className="w-28 rounded border border-slate-300 px-2 py-1.5 text-sm" />
                               <input type="email" value={u.email} onChange={(e) => updateTenantUser(t.id, i, "email", e.target.value)} placeholder="Email" className="w-40 rounded border border-slate-300 px-2 py-1.5 text-sm" />
-                              <input type="password" value={u.password} onChange={(e) => updateTenantUser(t.id, i, "password", e.target.value)} placeholder="Password (min 8)" className="w-32 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+                              <PasswordInput
+                                value={u.password}
+                                onChange={(e) => updateTenantUser(t.id, i, "password", e.target.value)}
+                                placeholder="Password (min 8)"
+                                containerClassName="w-32"
+                                className="py-1.5 px-2 text-sm"
+                              />
                               <select value={u.role} onChange={(e) => updateTenantUser(t.id, i, "role", e.target.value)} className="rounded border border-slate-300 px-2 py-1.5 text-sm">
                                 {TENANT_ROLES.map((r) => (
                                   <option key={r.value} value={r.value}>{r.label}</option>

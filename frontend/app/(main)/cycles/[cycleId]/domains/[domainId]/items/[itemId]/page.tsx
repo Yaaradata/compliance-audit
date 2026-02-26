@@ -14,6 +14,7 @@ import { EvidenceCriteriaSections } from "@/components/domain/evidence-criteria-
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { PerControlEvidence } from "@/components/domain/per-control-evidence";
 import { getStatusColor, getStatusIcon } from "@/lib/utils";
+import { LoadingState } from "@/components/ui/loading-state";
 import type { EvidenceItem, ControlRef, ControlCriteria, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 
 interface ApiEvidenceItem {
@@ -64,6 +65,15 @@ export default function CycleItemIntakePage() {
   const [evaluated, setEvaluated] = useState(false);
   const [aiEvaluationLoading, setAiEvaluationLoading] = useState(false);
   const [aiEvaluationResult, setAiEvaluationResult] = useState<AiEvalResultType | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+
+  const ensureSubmission = useCallback(async (): Promise<string> => {
+    if (submissionId) return submissionId;
+    if (!cycleId || !itemId) throw new Error("Missing cycle or item");
+    const sub = await api.post<{ id: string }>(`/assessments/${cycleId}/evidence`, { evidence_item_id: itemId });
+    setSubmissionId(sub.id);
+    return sub.id;
+  }, [cycleId, itemId, submissionId]);
 
   useEffect(() => {
     Promise.all([
@@ -157,14 +167,14 @@ export default function CycleItemIntakePage() {
     return scores;
   }, [item, completionPct]);
 
-  if (loading) return <div className="text-center py-20 text-gray-500">Loading...</div>;
+  if (loading) return <LoadingState message="Loading item…" />;
 
   if (!item) {
     return (
-      <div className="text-center py-20 text-gray-500">
-        <p>Item not found or not in your architecture scope.</p>
+      <div className="card rounded-xl p-8 text-center">
+        <p className="text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>Item not found or not in your architecture scope.</p>
         {cycleId && domainId && (
-          <Link href={`/cycles/${cycleId}/domains/${domainId}`} className="text-blue-600 text-sm mt-2 inline-block">Back to Domain {domainId}</Link>
+          <Link href={`/cycles/${cycleId}/domains/${domainId}`} className="text-sm font-medium hover:underline mt-2 inline-block" style={{ color: "var(--primary)" }}>Back to Domain {domainId}</Link>
         )}
       </div>
     );
@@ -216,9 +226,11 @@ export default function CycleItemIntakePage() {
           />
           <PerControlEvidence
             matrix={item.matrix ?? []}
+            submissionId={submissionId}
             evaluationState={!evaluated ? "idle" : aiEvaluationLoading ? "loading" : "done"}
             sufficiencyResults={aiEvaluationResult?.sufficiency_results ?? null}
             criteriaResults={aiEvaluationResult?.criteria ?? null}
+            onEnsureSubmission={() => ensureSubmission()}
           />
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-sm font-semibold text-gray-700 mb-3">Evidence Inputs</div>
@@ -239,9 +251,9 @@ export default function CycleItemIntakePage() {
             </div>
           </div>
           <button onClick={handleEvaluateEvidence}
-            className="w-full py-3 rounded-lg text-white font-semibold text-sm transition-colors"
+            className="btn-primary w-full py-3 text-sm"
             style={{ background: domainStyle.color }}>
-            🤖 Evaluate Evidence Sufficiency
+            Evaluate Evidence Sufficiency
           </button>
           {evaluated && (
             <>

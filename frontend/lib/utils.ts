@@ -1,8 +1,8 @@
 export function scoreColor(s: number): string {
-  if (s >= 90) return "#059669";
-  if (s >= 60) return "#d97706";
-  if (s > 0) return "#dc2626";
-  return "#9ca3af";
+  if (s >= 90) return "var(--success)";
+  if (s >= 60) return "var(--warning)";
+  if (s > 0) return "var(--danger)";
+  return "var(--foreground-subtle)";
 }
 
 export function scoreBg(s: number): string {
@@ -33,10 +33,10 @@ export const statusLabelMap: Record<string, string> = {
 };
 
 export function getStatusColor(pct: number): string {
-  if (pct >= 90) return "#059669";
-  if (pct >= 60) return "#d97706";
-  if (pct > 0) return "#dc2626";
-  return "#94a3b8";
+  if (pct >= 90) return "var(--success)";
+  if (pct >= 60) return "var(--warning)";
+  if (pct > 0) return "var(--danger)";
+  return "var(--foreground-subtle)";
 }
 
 export function getStatusLabel(pct: number): string {

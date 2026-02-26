@@ -5,8 +5,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import vertexai
-from vertexai.generative_models import GenerativeModel, Part
+import vertexai  # type: ignore[import-untyped]
+from vertexai.generative_models import GenerativeModel, Part  # type: ignore[import-untyped]
 
 from ..config import settings
 
