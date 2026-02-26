@@ -101,6 +101,18 @@ export interface EvidenceInput {
   scope?: "global" | "per-system" | "per-zone" | "per-quarter";
 }
 
+/** Per-control criteria from evidence_sufficiency_matrix. */
+export interface ControlCriteria {
+  item_code: string;
+  control_id: string;
+  evidence_item_name: string;
+  control_name: string;
+  ma: "M" | "A" | string;
+  evidence_type: string;
+  sufficiency_criteria: string | null;
+  evaluation_criteria: string | null;
+}
+
 export interface EvidenceItem {
   id: string;
   order: number;
@@ -110,12 +122,8 @@ export interface EvidenceItem {
   controls: ControlRef[];
   controlCount: number;
   description: string;
-  /** Full evidence description from DB (what evidence should cover). */
-  evidenceDescription?: string | null;
-  /** Sufficiency definition summary from DB (what must be present for evidence to be sufficient). */
-  sufficiencyDefinition?: string | null;
-  /** Evaluation criteria from DB (reviewer checks / how evidence is evaluated). */
-  evaluationCriteria?: string | null;
+  /** Per-control criteria from evidence_sufficiency_matrix. */
+  matrix?: ControlCriteria[];
   inputs: EvidenceInput[];
   sufficiency: SufficiencyDimension[];
   perControlSufficiency?: PerControlSufficiency[];

@@ -12,8 +12,9 @@ import { PerControlPanel } from "@/components/domain/per-control-panel";
 import { EvaluationResults } from "@/components/domain/evaluation-results";
 import { EvidenceCriteriaSections } from "@/components/domain/evidence-criteria-sections";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
+import { PerControlEvidence } from "@/components/domain/per-control-evidence";
 import { getStatusColor, getStatusIcon } from "@/lib/utils";
-import type { EvidenceItem, ControlRef, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
+import type { EvidenceItem, ControlRef, ControlCriteria, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 
 interface ApiEvidenceItem {
   id: string;
@@ -31,9 +32,6 @@ interface ApiEvidenceItem {
   per_access_point: boolean;
   is_advisory: boolean;
   is_conditional: boolean;
-  evidence_description?: string | null;
-  sufficiency_definition?: string | null;
-  evaluation_criteria?: string | null;
 }
 
 interface ItemDetailResponse {
@@ -68,8 +66,11 @@ export default function CycleItemIntakePage() {
   const [aiEvaluationResult, setAiEvaluationResult] = useState<AiEvalResultType | null>(null);
 
   useEffect(() => {
-    api.get<ItemDetailResponse>(`/ref/evidence-items/${itemId}`)
-      .then((data) => {
+    Promise.all([
+      api.get<ItemDetailResponse>(`/ref/evidence-items/${itemId}`),
+      api.get<ControlCriteria[]>(`/ref/evidence-items/${itemId}/matrix`).catch(() => [] as ControlCriteria[]),
+    ])
+      .then(([data, matrix]) => {
         if (data.item) {
           const controls: ControlRef[] = data.controls.map((c) => ({
             id: c.control_id,
@@ -85,9 +86,7 @@ export default function CycleItemIntakePage() {
             controls,
             controlCount: data.item.control_count,
             description: data.item.description,
-            evidenceDescription: data.item.evidence_description ?? null,
-            sufficiencyDefinition: data.item.sufficiency_definition ?? null,
-            evaluationCriteria: data.item.evaluation_criteria ?? null,
+            matrix,
             inputs: [],
             sufficiency: [],
             reductionNote: data.item.reduction_note || "",
@@ -213,9 +212,10 @@ export default function CycleItemIntakePage() {
       <div className="grid grid-cols-[1fr_280px] gap-5">
         <div className="space-y-3">
           <EvidenceCriteriaSections
-            evidenceDescription={item.evidenceDescription}
-            sufficiencyDefinition={item.sufficiencyDefinition}
-            evaluationCriteria={item.evaluationCriteria}
+            evidenceDescription={item.description}
+          />
+          <PerControlEvidence
+            matrix={item.matrix ?? []}
             evaluationState={!evaluated ? "idle" : aiEvaluationLoading ? "loading" : "done"}
             sufficiencyResults={aiEvaluationResult?.sufficiency_results ?? null}
             criteriaResults={aiEvaluationResult?.criteria ?? null}

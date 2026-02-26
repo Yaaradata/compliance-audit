@@ -346,8 +346,15 @@ def evaluate_evidence(
         )
 
     # --- Fallback: placeholder when no files uploaded yet ---
-    sufficiency_items = _parse_numbered_json(getattr(canonical, "sufficiency_definition", None))
-    criteria_items = _parse_numbered_json(getattr(canonical, "evaluation_criteria", None))
+    # Use per-control criteria from evidence_sufficiency_matrix
+    sufficiency_items: list[tuple[str, str]] = []
+    criteria_items: list[tuple[str, str]] = []
+    for row in matrix_rows:
+        prefix = f"[{row.control_id}] "
+        for id_, label in _parse_numbered_json(getattr(row, "sufficiency_criteria", None)):
+            sufficiency_items.append((f"{row.control_id}_{id_}", prefix + label))
+        for id_, label in _parse_numbered_json(getattr(row, "evaluation_criteria", None)):
+            criteria_items.append((f"{row.control_id}_{id_}", prefix + label))
 
     sufficiency_results = [
         AiCriterionResultOut(

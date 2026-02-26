@@ -70,10 +70,6 @@ class CanonicalEvidenceItem(Base):
     per_access_point: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     is_advisory: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     is_conditional: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
-    conditional_note: Mapped[str | None] = mapped_column(Text)
-    evidence_description: Mapped[str | None] = mapped_column(Text)
-    sufficiency_definition: Mapped[str | None] = mapped_column(Text)
-    evaluation_criteria: Mapped[str | None] = mapped_column(Text)
     cscf_version: Mapped[str] = mapped_column(String(10), nullable=False, server_default="2025v")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
 

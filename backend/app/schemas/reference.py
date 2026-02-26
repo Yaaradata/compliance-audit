@@ -62,16 +62,8 @@ class EvidenceItemOut(BaseModel):
     per_access_point: bool = False
     is_advisory: bool = False
     is_conditional: bool = False
-    evidence_description: str | None = None
-    sufficiency_definition: str | None = None
-    evaluation_criteria: str | None = None
 
     model_config = {"from_attributes": True}
-
-    @field_validator("sufficiency_definition", "evaluation_criteria", "evidence_description", mode="before")
-    @classmethod
-    def normalize_json_fields(cls, v: str | dict | list | None) -> str | None:
-        return _normalize_json_field(v)
 
 
 class MappingOut(BaseModel):
@@ -88,11 +80,6 @@ class ControlRefOut(BaseModel):
     ma: str  # "M" or "A" from control_type
 
 
-class EvidenceItemWithControlsOut(EvidenceItemOut):
-    """Evidence item with its control mappings for domain view."""
-    controls: list[ControlRefOut] = []
-
-
 class EvidenceSufficiencyMatrixOut(BaseModel):
     """One row from evidence_sufficiency_matrix (item + control criteria)."""
     item_code: str
@@ -105,6 +92,17 @@ class EvidenceSufficiencyMatrixOut(BaseModel):
     evaluation_criteria: str | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("sufficiency_criteria", "evaluation_criteria", mode="before")
+    @classmethod
+    def normalize_json_fields(cls, v: str | dict | list | None) -> str | None:
+        return _normalize_json_field(v)
+
+
+class EvidenceItemWithControlsOut(EvidenceItemOut):
+    """Evidence item with its control mappings and per-control criteria matrix for domain view."""
+    controls: list[ControlRefOut] = []
+    matrix: list[EvidenceSufficiencyMatrixOut] = []
 
 
 class DependencyOut(BaseModel):

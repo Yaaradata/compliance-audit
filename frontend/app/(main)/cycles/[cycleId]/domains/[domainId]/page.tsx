@@ -10,12 +10,12 @@ import { DomainLeftRail } from "@/components/layout/domain-left-rail";
 import { DomainRightSidebar } from "@/components/layout/domain-right-sidebar";
 import { ControlBadge } from "@/components/ui/control-badge";
 import { PriorityBadge } from "@/components/ui/badge";
-import { FileUploadZone } from "@/components/ui/file-upload-zone";
 import { EvaluationResults } from "@/components/domain/evaluation-results";
 import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
 import { EvidenceCriteriaSections } from "@/components/domain/evidence-criteria-sections";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
-import type { DomainConfig, EvidenceItem, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
+import { PerControlEvidence } from "@/components/domain/per-control-evidence";
+import type { DomainConfig, EvidenceItem, ControlCriteria, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 
 interface ApiDomain {
   id: string;
@@ -43,9 +43,7 @@ interface ApiEvidenceItem {
   is_advisory: boolean;
   is_conditional: boolean;
   controls?: { control_id: string; ma: string }[];
-  evidence_description?: string | null;
-  sufficiency_definition?: string | null;
-  evaluation_criteria?: string | null;
+  matrix?: ControlCriteria[];
 }
 
 interface ApiSubmission {
@@ -86,9 +84,7 @@ function toEvidenceItem(a: ApiEvidenceItem): EvidenceItem {
     controls,
     controlCount: a.control_count,
     description: a.description,
-    evidenceDescription: a.evidence_description ?? null,
-    sufficiencyDefinition: a.sufficiency_definition ?? null,
-    evaluationCriteria: a.evaluation_criteria ?? null,
+    matrix: a.matrix ?? [],
     inputs: [],
     sufficiency: [],
     reductionNote: a.reduction_note ?? "",
@@ -355,31 +351,17 @@ export default function CycleDomainPage() {
                 </div>
               </div>
               <EvidenceCriteriaSections
-                evidenceDescription={currentItem.evidenceDescription}
-                sufficiencyDefinition={currentItem.sufficiencyDefinition}
-                evaluationCriteria={currentItem.evaluationCriteria}
-                evaluationState={
-                  !evaluated ? "idle" : aiEvaluationLoading ? "loading" : "done"
-                }
+                evidenceDescription={currentItem.description}
+              />
+              <PerControlEvidence
+                matrix={currentItem.matrix ?? []}
+                submissionId={currentSubmissionId}
+                evaluationState={!evaluated ? "idle" : aiEvaluationLoading ? "loading" : "done"}
                 sufficiencyResults={aiEvaluationResult?.sufficiency_results ?? null}
                 criteriaResults={aiEvaluationResult?.criteria ?? null}
+                onUploadComplete={() => fetchControlScores()}
+                onCreateSubmission={() => ensureSubmission(currentItem.id)}
               />
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="text-xs font-semibold text-gray-700 mb-3">Quick Evidence Upload</div>
-                <FileUploadZone
-                  submissionId={currentSubmissionId}
-                  label={`Upload evidence for ${currentItem.id} — ${currentItem.name}`}
-                  onUploadComplete={() => fetchControlScores()}
-                />
-                {!currentSubmissionId && (
-                  <button
-                    onClick={() => ensureSubmission(currentItem.id)}
-                    className="mt-2 w-full py-1.5 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-200 hover:bg-blue-100 transition-colors"
-                  >
-                    Create submission to enable uploads
-                  </button>
-                )}
-              </div>
               {currentItem.sufficiency.length > 0 && (
                 <SufficiencyPanel dimensions={currentItem.sufficiency} color={config.color} />
               )}

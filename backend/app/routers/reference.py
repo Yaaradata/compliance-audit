@@ -7,9 +7,13 @@ from ..dependencies import get_db
 logger = logging.getLogger(__name__)
 from ..models.framework import (
     AuditFramework, Control, EvidenceDomain, CanonicalEvidenceItem,
-    ItemControlMapping, CrossDomainDependency,
+    ItemControlMapping, CrossDomainDependency, EvidenceSufficiencyMatrix,
 )
-from ..schemas.reference import FrameworkOut, DomainOut, ControlOut, EvidenceItemOut, EvidenceItemWithControlsOut, MappingOut, ControlRefOut, DependencyOut
+from ..schemas.reference import (
+    FrameworkOut, DomainOut, ControlOut, EvidenceItemOut,
+    EvidenceItemWithControlsOut, MappingOut, ControlRefOut, DependencyOut,
+    EvidenceSufficiencyMatrixOut,
+)
 
 router = APIRouter(prefix="/ref")
 
@@ -56,10 +60,18 @@ def get_domain(domain_id: str, db: Session = Depends(get_db)):
                 ctrl = db.query(Control).filter(Control.id == m.control_id).first()
                 ma = "M" if ctrl and ctrl.control_type and str(ctrl.control_type).lower() == "mandatory" else "A"
                 control_refs.append(ControlRefOut(control_id=m.control_id, ma=ma))
+
+            matrix_rows = db.query(EvidenceSufficiencyMatrix).filter(
+                EvidenceSufficiencyMatrix.item_code == i.id
+            ).all()
+            matrix = [EvidenceSufficiencyMatrixOut.model_validate(r) for r in matrix_rows]
+
             base = EvidenceItemOut.model_validate(i).model_dump()
-            evidence_with_controls.append(EvidenceItemWithControlsOut(**base, controls=control_refs))
+            evidence_with_controls.append(
+                EvidenceItemWithControlsOut(**base, controls=control_refs, matrix=matrix)
+            )
         except Exception as e:
-            logger.warning("Skipping evidence item %s: %s", getattr(i, "id", "?"), str(e))
+            logger.exception("Error processing evidence item %s", getattr(i, "id", "?"))
             continue
 
     try:
@@ -99,6 +111,15 @@ def get_evidence_item(item_id: str, db: Session = Depends(get_db)):
         "item": EvidenceItemOut.model_validate(item) if item else None,
         "controls": [MappingOut.model_validate(m) for m in mappings],
     }
+
+
+@router.get("/evidence-items/{item_id}/matrix", response_model=list[EvidenceSufficiencyMatrixOut])
+def get_evidence_item_matrix(item_id: str, db: Session = Depends(get_db)):
+    """Return all evidence_sufficiency_matrix rows for a given evidence item."""
+    rows = db.query(EvidenceSufficiencyMatrix).filter(
+        EvidenceSufficiencyMatrix.item_code == item_id
+    ).all()
+    return [EvidenceSufficiencyMatrixOut.model_validate(r) for r in rows]
 
 
 @router.get("/dependencies", response_model=list[DependencyOut])
