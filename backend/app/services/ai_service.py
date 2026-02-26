@@ -77,19 +77,42 @@ def prepare_file_part(file_path: str, mime_type: str) -> Part:
 def _build_prompt(
     item: Any,
     mappings: list[Any],
+    matrix_rows: list[Any] | None = None,
 ) -> str:
-    """Build the evaluation prompt by loading the template from prompt/evidence_evaluation_V1.txt and filling placeholders."""
+    """Build the evaluation prompt from evidence_sufficiency_matrix rows when present, else from CEI fields."""
     controls_text = "\n".join(
-        f"- {m.control_id}: {m.sufficiency_requirement or 'General compliance'}"
+        f"- {m.control_id}: {getattr(m, 'sufficiency_requirement', None) or 'General compliance'}"
         for m in mappings
     )
+    if matrix_rows:
+        # Aggregate per-control sufficiency and evaluation from evidence_sufficiency_matrix
+        sufficiency_parts = []
+        evaluation_parts = []
+        for row in matrix_rows:
+            cid = getattr(row, "control_id", None) or row.get("control_id")
+            cname = getattr(row, "control_name", None) or row.get("control_name") or cid
+            suf = getattr(row, "sufficiency_criteria", None) or row.get("sufficiency_criteria")
+            ev = getattr(row, "evaluation_criteria", None) or row.get("evaluation_criteria")
+            if suf:
+                sufficiency_parts.append(f"--- Control {cid} ({cname}) ---\n{suf}")
+            if ev:
+                evaluation_parts.append(f"--- Control {cid} ({cname}) ---\n{ev}")
+        sufficiency_definition = "\n\n".join(sufficiency_parts) if sufficiency_parts else "N/A"
+        evaluation_criteria = "\n\n".join(evaluation_parts) if evaluation_parts else "N/A"
+        evidence_description = (
+            getattr(item, "evidence_description", None) or "See per-control sufficiency and evaluation criteria below."
+        )
+    else:
+        evidence_description = getattr(item, "evidence_description", None) or "N/A"
+        sufficiency_definition = getattr(item, "sufficiency_definition", None) or "N/A"
+        evaluation_criteria = getattr(item, "evaluation_criteria", None) or "N/A"
     template = _load_prompt_template()
     return template.format(
         evidence_item_id=item.id,
         evidence_item_name=item.name,
-        evidence_description=item.evidence_description or "N/A",
-        sufficiency_definition=item.sufficiency_definition or "N/A",
-        evaluation_criteria=item.evaluation_criteria or "N/A",
+        evidence_description=evidence_description,
+        sufficiency_definition=sufficiency_definition,
+        evaluation_criteria=evaluation_criteria,
         mapped_controls=controls_text or "None",
     )
 
@@ -109,8 +132,10 @@ def evaluate_evidence(
     file_parts: list[Part],
     evidence_item: Any,
     control_mappings: list[Any],
+    matrix_rows: list[Any] | None = None,
 ) -> dict:
-    """Send files + prompt to Vertex AI and return the parsed JSON result."""
+    """Send files + prompt to Vertex AI and return the parsed JSON result.
+    When matrix_rows is provided (from evidence_sufficiency_matrix), prompt is built from them."""
     try:
         model = _get_model()
     except Exception as init_err:
@@ -120,7 +145,7 @@ def evaluate_evidence(
             "Application Default Credentials (gcloud auth application-default login)."
         ) from init_err
 
-    prompt_text = _build_prompt(evidence_item, control_mappings)
+    prompt_text = _build_prompt(evidence_item, control_mappings, matrix_rows=matrix_rows)
     contents = [Part.from_text(prompt_text)] + file_parts
 
     try:

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from ..dependencies import get_db, get_current_user
 from ..models.tenant import User
 from ..models.assessment import EvidenceSubmission, EvidenceAttachment
-from ..models.framework import CanonicalEvidenceItem, ItemControlMapping
+from ..models.framework import CanonicalEvidenceItem, ItemControlMapping, EvidenceSufficiencyMatrix
 from ..models.sufficiency import SufficiencyEvaluation, SufficiencyScore
 from ..schemas.evidence import (
     CreateSubmissionRequest,
@@ -266,6 +266,11 @@ def evaluate_evidence(
         .filter(ItemControlMapping.evidence_item_id == req.evidence_item_id)
         .all()
     )
+    matrix_rows = (
+        db.query(EvidenceSufficiencyMatrix)
+        .filter(EvidenceSufficiencyMatrix.item_code == req.evidence_item_id)
+        .all()
+    )
 
     # --- If submission_id present, try real AI evaluation ---
     submission: EvidenceSubmission | None = None
@@ -300,7 +305,9 @@ def evaluate_evidence(
             raise HTTPException(status_code=400, detail="No readable attachment files found on disk")
 
         try:
-            result = ai_service.evaluate_evidence(file_parts, canonical, control_mappings)
+            result = ai_service.evaluate_evidence(
+                file_parts, canonical, control_mappings, matrix_rows=matrix_rows or None
+            )
         except Exception as exc:
             logger.exception("AI evaluation failed")
             raise HTTPException(status_code=502, detail=f"AI evaluation error: {exc}") from exc

@@ -1,6 +1,7 @@
 """
 Seed script: reads xlsx files and upserts canonical_evidence_items JSONB fields
-(input_schema, sufficiency_dimensions) and item_control_mappings sufficiency details.
+(input_schema, sufficiency_dimensions), item_control_mappings sufficiency details,
+and evidence_sufficiency_matrix (one-time seed from CSCF_v2025_Complete_Sufficiency_Matrix.xlsx).
 
 Usage:
     cd backend
@@ -10,6 +11,7 @@ Usage:
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -22,9 +24,16 @@ BACKEND_DIR = SCRIPT_DIR.parent
 load_dotenv(BACKEND_DIR / ".env")
 
 XLSX_DIR = Path(os.getenv("XLSX_DIR", str(BACKEND_DIR.parent.parent)))
+# Project root (where CSCF_v2025_Complete_Sufficiency_Matrix.xlsx often lives)
+PROJECT_ROOT = BACKEND_DIR.parent
 
 EVIDENCE_MODEL_FILE = XLSX_DIR / "SWIFT_CSCF_v2025_Canonical_Evidence_Model.xlsx"
 SUFFICIENCY_FILE = XLSX_DIR / "MultiControl_Evidence_Sufficiency.xlsx"
+COMPLETE_SUFFICIENCY_MATRIX_FILE = (
+    PROJECT_ROOT / "CSCF_v2025_Complete_Sufficiency_Matrix.xlsx"
+    if (PROJECT_ROOT / "CSCF_v2025_Complete_Sufficiency_Matrix.xlsx").exists()
+    else XLSX_DIR / "CSCF_v2025_Complete_Sufficiency_Matrix.xlsx"
+)
 
 
 def get_connection():
@@ -160,6 +169,113 @@ def seed_sufficiency_requirements(conn, mappings):
     print(f"Updated {updated} item_control_mappings with sufficiency requirements")
 
 
+def _normalize_header(h: str) -> str:
+    """Strip, replace newlines with space, collapse spaces, lowercase for matching."""
+    if not h:
+        return ""
+    return re.sub(r"\s+", " ", str(h).strip().replace("\n", " ")).strip().lower()
+
+
+def parse_complete_sufficiency_matrix(wb) -> list[dict]:
+    """Parse CSCF_v2025_Complete_Sufficiency_Matrix.xlsx into rows for evidence_sufficiency_matrix."""
+    rows = []
+    ws = wb[wb.sheetnames[0]]
+    raw_headers = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+    headers = [safe_str(h) for h in raw_headers]
+    # Normalized header -> original header (for row_dict lookup)
+    norm_to_orig = {}
+    for h in headers:
+        if h:
+            norm_to_orig[_normalize_header(h)] = h
+
+    def get_val(row_dict: dict, *candidates: str) -> str | None:
+        for c in candidates:
+            n = _normalize_header(c)
+            for norm, orig in norm_to_orig.items():
+                if n in norm or norm in n or n == norm:
+                    return safe_str(row_dict.get(orig))
+        return None
+
+    def find_col_by_substring(row_dict: dict, sub: str) -> str | None:
+        """First column whose normalized name contains sub."""
+        for h, v in row_dict.items():
+            if h and sub in _normalize_header(h):
+                return safe_str(v)
+        return None
+
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        row_dict = dict(zip(headers, row))
+        item_code = get_val(row_dict, "Item Code")
+        control_id = get_val(row_dict, "Control ID")
+        if not item_code or not control_id:
+            continue
+        evidence_item_name = get_val(row_dict, "Evidence Item Name") or ""
+        control_name = get_val(row_dict, "Control Name") or ""
+        ma = get_val(row_dict, "M/A") or "M"
+        evidence_type = get_val(row_dict, "Evidence Type") or ""
+        sufficiency_criteria = (
+            get_val(row_dict, "What This Evidence Must Show for This Control (Sufficiency Criteria — Bullet Points)")
+            or get_val(row_dict, "What This Evidence Must Show for This Control")
+            or find_col_by_substring(row_dict, "sufficiency")
+        )
+        evaluation_criteria = (
+            get_val(row_dict, "How to Evaluate / AI Scoring Criteria (Pass/Fail Checkpoints)")
+            or get_val(row_dict, "How to Evaluate")
+            or find_col_by_substring(row_dict, "evaluate")
+            or find_col_by_substring(row_dict, "scoring")
+        )
+
+        rows.append({
+            "item_code": item_code,
+            "control_id": control_id,
+            "evidence_item_name": evidence_item_name,
+            "control_name": control_name,
+            "ma": (ma[:1].upper() if ma else "M") if ma and len(ma) >= 1 else "M",
+            "evidence_type": evidence_type,
+            "sufficiency_criteria": sufficiency_criteria,
+            "evaluation_criteria": evaluation_criteria,
+        })
+    return rows
+
+
+def seed_evidence_sufficiency_matrix(conn, matrix_rows: list[dict]) -> None:
+    """Insert or update evidence_sufficiency_matrix from parsed matrix rows."""
+    if not matrix_rows:
+        print("No evidence_sufficiency_matrix rows to seed")
+        return
+    cur = conn.cursor()
+    inserted = 0
+    for r in matrix_rows:
+        cur.execute(
+            """
+            INSERT INTO cscf_2025_new.evidence_sufficiency_matrix
+                (item_code, control_id, evidence_item_name, control_name, ma, evidence_type, sufficiency_criteria, evaluation_criteria)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (item_code, control_id) DO UPDATE SET
+                evidence_item_name = EXCLUDED.evidence_item_name,
+                control_name = EXCLUDED.control_name,
+                ma = EXCLUDED.ma,
+                evidence_type = EXCLUDED.evidence_type,
+                sufficiency_criteria = EXCLUDED.sufficiency_criteria,
+                evaluation_criteria = EXCLUDED.evaluation_criteria
+            """,
+            (
+                r["item_code"],
+                r["control_id"],
+                r["evidence_item_name"],
+                r["control_name"],
+                r["ma"],
+                r["evidence_type"],
+                r.get("sufficiency_criteria"),
+                r.get("evaluation_criteria"),
+            ),
+        )
+        inserted += 1
+    conn.commit()
+    cur.close()
+    print(f"Upserted {inserted} rows into evidence_sufficiency_matrix")
+
+
 def main():
     conn = get_connection()
     conn.autocommit = False
@@ -193,6 +309,19 @@ def main():
 
     seed_jsonb_fields(conn, items_data)
     seed_sufficiency_requirements(conn, sufficiency_mappings)
+
+    matrix_rows = []
+    if COMPLETE_SUFFICIENCY_MATRIX_FILE.exists():
+        print(f"Reading {COMPLETE_SUFFICIENCY_MATRIX_FILE.name}...")
+        wb = openpyxl.load_workbook(COMPLETE_SUFFICIENCY_MATRIX_FILE, read_only=True, data_only=True)
+        matrix_rows = parse_complete_sufficiency_matrix(wb)
+        wb.close()
+        print(f"  Parsed {len(matrix_rows)} evidence_sufficiency_matrix rows")
+    else:
+        print(f"WARNING: {COMPLETE_SUFFICIENCY_MATRIX_FILE} not found — skipping evidence_sufficiency_matrix seed")
+
+    if matrix_rows:
+        seed_evidence_sufficiency_matrix(conn, matrix_rows)
 
     conn.close()
     print("Done.")

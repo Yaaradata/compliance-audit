@@ -91,6 +91,21 @@ class ItemControlMapping(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
 
 
+class EvidenceSufficiencyMatrix(Base):
+    __tablename__ = "evidence_sufficiency_matrix"
+
+    item_code: Mapped[str] = mapped_column(String(5), primary_key=True)
+    control_id: Mapped[str] = mapped_column(String(10), primary_key=True)
+    evidence_item_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    control_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    ma: Mapped[str] = mapped_column(String(1), nullable=False)
+    evidence_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    sufficiency_criteria: Mapped[str | None] = mapped_column(Text)
+    evaluation_criteria: Mapped[str | None] = mapped_column(Text)
+    cscf_version: Mapped[str] = mapped_column(String(10), nullable=False, server_default="2025v")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+
 class CrossDomainDependency(Base):
     __tablename__ = "cross_domain_dependencies"
 

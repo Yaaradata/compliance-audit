@@ -93,6 +93,20 @@ class EvidenceItemWithControlsOut(EvidenceItemOut):
     controls: list[ControlRefOut] = []
 
 
+class EvidenceSufficiencyMatrixOut(BaseModel):
+    """One row from evidence_sufficiency_matrix (item + control criteria)."""
+    item_code: str
+    control_id: str
+    evidence_item_name: str
+    control_name: str
+    ma: str
+    evidence_type: str
+    sufficiency_criteria: str | None = None
+    evaluation_criteria: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class DependencyOut(BaseModel):
     source_item_id: str
     target_item_id: str
