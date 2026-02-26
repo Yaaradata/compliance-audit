@@ -8,13 +8,14 @@ import type { AssessmentCycle } from "@/lib/types";
 
 export default function AssessmentsPage() {
   const router = useRouter();
-  const { user, setActiveCycleId, setArchitecture } = useAuth();
+  const { user, activeCycleId, setActiveCycleId, setArchitecture } = useAuth();
   const [cycles, setCycles] = useState<AssessmentCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState("");
   const [year, setYear] = useState(new Date().getFullYear());
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -32,6 +33,22 @@ export default function AssessmentsPage() {
       router.push(`/select-architecture?cycleId=${cycle.id}`);
     } catch {
       setCreating(false);
+    }
+  };
+
+  /** Delete cycle and all its evidence, submissions, approvals, etc. */
+  const handleDeleteCycle = async (e: React.MouseEvent, cycle: AssessmentCycle) => {
+    e.stopPropagation();
+    if (!confirm(`Delete "${cycle.label}"? This will permanently remove all evidence, submissions, reviews, and other data in this cycle.`)) return;
+    setDeletingId(cycle.id);
+    try {
+      await api.del(`/assessments/${cycle.id}`);
+      setCycles((prev) => prev.filter((c) => c.id !== cycle.id));
+      if (cycle.id === activeCycleId) setActiveCycleId(null);
+    } catch {
+      setDeletingId(null);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -111,6 +128,15 @@ export default function AssessmentsPage() {
                       className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
                     >
                       {c.phase === "setup" || !c.architecture_type ? "Set up" : "Collection"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteCycle(e, c)}
+                      disabled={deletingId === c.id}
+                      className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+                      title="Delete this cycle and all its evidence and data"
+                    >
+                      {deletingId === c.id ? "Deleting…" : "Delete"}
                     </button>
                   </div>
                 </div>

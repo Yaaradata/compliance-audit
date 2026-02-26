@@ -55,25 +55,46 @@ def create_cycle(req: CreateCycleRequest, db: Session = Depends(get_db), user: U
     return cycle
 
 
-@router.get("/{cycle_id}", response_model=CycleOut)
-def get_cycle(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+def _require_cycle_access(cycle: AssessmentCycle | None, user: User) -> None:
+    """Raise 404 if cycle missing, 403 if user may not access."""
     if not cycle:
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
     if user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
         if cycle.tenant_id != user.tenant_id:
             raise HTTPException(status_code=403, detail="Access denied")
+
+
+@router.get("/{cycle_id}", response_model=CycleOut)
+def get_cycle(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user)
     return cycle
+
+
+@router.delete("/{cycle_id}", status_code=204)
+def delete_cycle(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """
+    Delete an assessment cycle and all data tied to it.
+    Cascades: evidence submissions, attachments, control applicability, approval gates,
+    vendors, sufficiency scores, reports, reviews, etc.
+    Any cycle that references this one as previous_cycle_id will have that reference cleared.
+    """
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user)
+
+    # Clear references from other cycles so FK does not block delete
+    db.query(AssessmentCycle).filter(AssessmentCycle.previous_cycle_id == cycle_id).update(
+        {AssessmentCycle.previous_cycle_id: None}
+    )
+    db.delete(cycle)
+    db.commit()
+    return None
 
 
 @router.put("/{cycle_id}", response_model=CycleOut)
 def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    if not cycle:
-        raise HTTPException(status_code=404, detail="Assessment cycle not found")
-    if user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
-        if cycle.tenant_id != user.tenant_id:
-            raise HTTPException(status_code=403, detail="Access denied")
+    _require_cycle_access(cycle, user)
 
     if req.architecture_type and not cycle.architecture_type:
         cycle.architecture_type = req.architecture_type
@@ -94,8 +115,7 @@ def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(
 @router.post("/{cycle_id}/advance-phase", response_model=CycleOut)
 def advance_phase(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    if not cycle:
-        raise HTTPException(status_code=404, detail="Assessment cycle not found")
+    _require_cycle_access(cycle, user)
 
     phases = ["setup", "collection", "review", "approval", "reporting", "submitted", "archived"]
     idx = phases.index(cycle.phase)
@@ -111,8 +131,7 @@ def advance_phase(cycle_id: UUID, db: Session = Depends(get_db), user: User = De
 @router.get("/{cycle_id}/dashboard", response_model=DashboardResponse)
 def dashboard(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    if not cycle:
-        raise HTTPException(status_code=404, detail="Assessment cycle not found")
+    _require_cycle_access(cycle, user)
 
     domains = db.query(EvidenceDomain).order_by(EvidenceDomain.sort_order).all()
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()
