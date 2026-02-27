@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 
 export interface PasswordInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
@@ -20,7 +20,8 @@ export function PasswordInput({
   ...inputProps
 }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
-  const inputId = id ?? `password-${Math.random().toString(36).slice(2, 9)}`;
+  const generatedId = useId();
+  const inputId = id ?? `password-${generatedId.replace(/:/g, "")}`;
 
   return (
     <div className={containerClassName}>

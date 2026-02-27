@@ -161,6 +161,15 @@ def evaluate_evidence(
         response = model.generate_content(contents)
     except Exception as api_err:
         logger.exception("Vertex AI generate_content failed")
+        err_msg = str(api_err)
+        if "PERMISSION_DENIED" in err_msg or "PermissionDenied" in type(api_err).__name__ or "403" in err_msg:
+            raise ValueError(
+                "Vertex AI permission denied (403). To fix: (1) Enable Vertex AI API in Google Cloud Console "
+                "(https://console.cloud.google.com/apis/library/aiplatform.googleapis.com?project=YOUR_PROJECT). "
+                "(2) Grant the service account or user the role 'Vertex AI User' (roles/aiplatform.user) so it has "
+                "aiplatform.endpoints.predict. (3) If the model does not exist in your region, set VERTEX_AI_MODEL "
+                "to a supported model, e.g. gemini-1.5-flash or gemini-1.5-pro. Original error: " + err_msg
+            ) from api_err
         raise ValueError(f"Vertex AI API error: {api_err}") from api_err
 
     text = _get_response_text(response)

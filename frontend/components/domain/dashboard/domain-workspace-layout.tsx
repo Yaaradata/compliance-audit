@@ -140,7 +140,7 @@ export function DomainWorkspaceLayout({
         </div>
 
         <div className="hidden lg:flex flex-col min-h-0 min-w-[300px]">
-          <ControlSufficiencyPanel controls={config.allControls} controlScores={controlScores} accentColor={config.color} className="h-full" />
+          <ControlSufficiencyPanel controls={config.allControls} controlScores={controlScores} className="h-full" />
         </div>
       </div>
     </div>
