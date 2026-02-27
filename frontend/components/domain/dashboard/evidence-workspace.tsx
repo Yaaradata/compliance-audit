@@ -11,10 +11,353 @@ import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { EvaluationResults } from "@/components/domain/evaluation-results";
 import { cn } from "@/lib/utils";
+
+import { A1IntakeForm } from "@/components/domain/a1-intake-form";
+import { A1_DIAGRAM_DERIVED_CHECKS, A1_EVIDENCE_ITEM_ID } from "@/lib/data/a1-evidence";
+import { A5_EVIDENCE_ITEM_ID, A5_FORM_KEYS } from "@/lib/data/a5-criteria";
+import { A5IntakeForm } from "@/components/domain/a5-intake-form";
+import { A2IntakeForm } from "@/components/domain/a2-intake-form";
+import { A2_EVIDENCE_ITEM_ID, A2_DIAGRAM_CROSS_CHECKS } from "@/lib/data/a2-evidence";
+import { A3IntakeForm } from "@/components/domain/a3-intake-form";
+import { A3_EVIDENCE_ITEM_ID, A3_DIAGRAM_CHECKS } from "@/lib/data/a3-evidence";
+import { A4IntakeForm } from "@/components/domain/a4-intake-form";
+import { A4_EVIDENCE_ITEM_ID, A4_UPLOAD_GUIDANCE } from "@/lib/data/a4-evidence";
+import { A6IntakeForm } from "@/components/domain/a6-intake-form";
+import { A6_EVIDENCE_ITEM_ID, A6_DOCUMENT_GUIDANCE } from "@/lib/data/a6-evidence";
+
+import { B1IntakeForm } from "@/components/domain/b1-intake-form";
+import { B1_EVIDENCE_ITEM_ID, B1_CONFIG_CHECKS } from "@/lib/data/b1-evidence";
+import { B2IntakeForm } from "@/components/domain/b2-intake-form";
+import { B2_EVIDENCE_ITEM_ID, B2_CONFIG_CHECKS } from "@/lib/data/b2-evidence";
+import { B3IntakeForm } from "@/components/domain/b3-intake-form";
+import { B3_EVIDENCE_ITEM_ID, B3_CONFIG_CHECKS } from "@/lib/data/b3-evidence";
+import { B4IntakeForm } from "@/components/domain/b4-intake-form";
+import { B4_EVIDENCE_ITEM_ID, B4_CONFIG_CHECKS } from "@/lib/data/b4-evidence";
+import { B5IntakeForm } from "@/components/domain/b5-intake-form";
+import { B5_EVIDENCE_ITEM_ID, B5_CONFIG_CHECKS } from "@/lib/data/b5-evidence";
+import { B6IntakeForm } from "@/components/domain/b6-intake-form";
+import { B6_EVIDENCE_ITEM_ID, B6_UPLOAD_GUIDANCE } from "@/lib/data/b6-evidence";
+import { B7IntakeForm } from "@/components/domain/b7-intake-form";
+import { B7_EVIDENCE_ITEM_ID, B7_CONFIG_CHECKS } from "@/lib/data/b7-evidence";
+import { B8IntakeForm } from "@/components/domain/b8-intake-form";
+import { B8_EVIDENCE_ITEM_ID, B8_CONFIG_CHECKS } from "@/lib/data/b8-evidence";
+
+import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/data/architectures";
 import type { EvidenceItem, DomainConfig } from "@/lib/types";
 import type { AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 
-const TAB_IDS = ["common", "control", "evaluation"] as const;
+const ALL_32_CONTROL_ID = "All";
+
+/* ---------- shared sub-components ---------- */
+
+interface CommonFormProps {
+  formData: Record<string, string>;
+  onFormChange: (key: string, value: string) => void;
+  onFormBlur?: () => void;
+  submissionId: string | null;
+  onUploadComplete: () => void;
+  onEnsureSubmission: (itemId: string) => Promise<string | null>;
+  itemId: string;
+}
+
+function GuidanceList({ id, title, items }: { id: string; title: string; items: { id: string; label: string }[] }) {
+  return (
+    <section className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4" aria-labelledby={id}>
+      <h2 id={id} className="text-xs font-semibold text-[var(--foreground)] mb-2">{title}</h2>
+      <ul className="space-y-1.5">
+        {items.map((item) => (
+          <li key={item.id} className="text-[11px] text-[var(--foreground-muted)]">
+            <span className="font-semibold text-[var(--foreground)] mr-1">{item.id}.</span>
+            {item.label}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function UploadSection({ id, title, description, label, submissionId, onUploadComplete, onEnsureSubmission, itemId }: {
+  id: string; title: string; description?: string; label: string;
+  submissionId: string | null; onUploadComplete: () => void; onEnsureSubmission: (itemId: string) => Promise<string | null>; itemId: string;
+}) {
+  return (
+    <section aria-labelledby={id}>
+      <h2 id={id} className="text-xs font-semibold text-[var(--foreground)] mb-1.5">{title}</h2>
+      {description && <p className="text-[11px] text-[var(--foreground-muted)] mb-2">{description}</p>}
+      <CompactDropzone
+        submissionId={submissionId}
+        label={label}
+        onUploadComplete={onUploadComplete}
+        onEnsureSubmission={() => onEnsureSubmission(itemId)}
+        className="max-h-[220px]"
+      />
+    </section>
+  );
+}
+
+function FormSection({ id, title, description, children }: { id: string; title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4" aria-labelledby={id}>
+      <h2 id={id} className="text-xs font-semibold text-[var(--foreground)] mb-1">{title}</h2>
+      {description && <p className="text-[11px] text-[var(--foreground-muted)] mb-4">{description}</p>}
+      {children}
+    </section>
+  );
+}
+
+/* ---------- A5 architecture preview ---------- */
+
+function A5ArchitecturePreview({ formData }: { formData: Record<string, string> }) {
+  const archType = formData[A5_FORM_KEYS.architecture_type];
+  const diagramFile = formData[A5_FORM_KEYS.selected_diagram];
+  const arch = archType ? getArchitecture(archType) : null;
+  if (!archType && !diagramFile) return null;
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+      <div className="text-[11px] font-semibold text-[var(--foreground)] mb-2">Architecture Evidence (from cycle selection)</div>
+      <div className="flex items-start gap-3">
+        {archType && (
+          <div className="shrink-0">
+            <div className="text-[10px] text-[var(--foreground-muted)]">Declared type</div>
+            <div className="text-sm font-bold text-[var(--foreground)]">{arch?.name ?? archType}</div>
+          </div>
+        )}
+        {diagramFile && (
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] text-[var(--foreground-muted)] mb-1">Selected diagram</div>
+            <div className="rounded border border-[var(--border)] overflow-hidden bg-[var(--surface)] max-w-[280px]">
+              <img src={getArchitectureDiagramUrl(diagramFile)} alt="Architecture diagram" className="w-full h-auto max-h-40 object-contain" />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Per-item Common Evidence content components ---------- */
+
+function A1CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="a1-upload" title="Upload network architecture diagram"
+        description="Upload the latest architecture diagram (PDF/image) showing zone boundaries, firewall placement, system locations, and flow direction."
+        label="Drop A1 diagram files or click to upload" submissionId={p.submissionId}
+        onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="a1-diagram-checks" title="AI will verify these directly from the uploaded diagram" items={A1_DIAGRAM_DERIVED_CHECKS} />
+      <FormSection id="a1-form" title="Required text evidence (for items not reliably inferred from diagram)"
+        description="Provide explicit confirmations and justifications below. These answers are sent to AI together with the uploaded diagram during evaluation.">
+        <A1IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+function A5CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      {p.formData[A5_FORM_KEYS.architecture_type] && (
+        <section aria-labelledby="a5-arch-preview"><h2 id="a5-arch-preview" className="sr-only">Architecture selection</h2><A5ArchitecturePreview formData={p.formData} /></section>
+      )}
+      <UploadSection id="a5-upload" title="Evidence upload"
+        description="Upload evidence files that apply to all controls for this evidence item (e.g. architecture documentation, decision rationale)."
+        label="Drop files or click to upload" submissionId={p.submissionId}
+        onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <FormSection id="a5-form" title="Architecture Declaration Form"
+        description="Complete the details below. Architecture type and diagram are pre-filled from your cycle selection.">
+        <A5IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} architectureFromCycle={!!p.formData[A5_FORM_KEYS.architecture_type]} />
+      </FormSection>
+    </div>
+  );
+}
+
+function A2CommonEvidenceContent(p: CommonFormProps & {
+  a2Rows?: Record<string, string>[]; onA2RowChange?: (i: number, k: string, v: string) => void;
+  onA2AddRow?: () => void; onA2RemoveRow?: (i: number) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="a2-upload" title="Upload supporting documents" label="Drop spreadsheet/CSV or supporting files"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="a2-diagram-checks" title="AI cross-checks against A1 diagram" items={A2_DIAGRAM_CROSS_CHECKS} />
+      <FormSection id="a2-form" title="SWIFT Component Inventory">
+        <A2IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur}
+          rows={p.a2Rows} onRowChange={p.onA2RowChange} onAddRow={p.onA2AddRow} onRemoveRow={p.onA2RemoveRow} />
+      </FormSection>
+    </div>
+  );
+}
+
+function A3CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="a3-upload" title="Upload data flow diagrams" label="Drop A3 data flow diagrams or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="a3-diagram-checks" title="AI will verify from uploaded diagrams" items={A3_DIAGRAM_CHECKS} />
+      <FormSection id="a3-form" title="Required text evidence">
+        <A3IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+function A4CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="a4-upload" title="Upload firewall config exports" label="Drop firewall rule set exports or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="a4-upload-guidance" title="Uploaded exports should include" items={A4_UPLOAD_GUIDANCE} />
+      <FormSection id="a4-form" title="Firewall rule confirmations">
+        <A4IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+function A6CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="a6-upload" title="Upload design rationale document" label="Drop zone design rationale document or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="a6-document-guidance" title="Document should cover" items={A6_DOCUMENT_GUIDANCE} />
+      <FormSection id="a6-form" title="Design rationale details">
+        <A6IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+/* ---------- B-domain Common Evidence content components ---------- */
+
+function B1CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="b1-upload" title="Upload OS hardening config / screenshots"
+        description="Upload per-system config exports (sudo config, UAC, Group Policy) and screenshots for each SWIFT system type."
+        label="Drop OS config exports or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="b1-config-checks" title="AI will verify from uploaded configs" items={B1_CONFIG_CHECKS} />
+      <FormSection id="b1-form" title="OS hardening confirmations"
+        description="Confirm settings that may not be fully visible in config exports.">
+        <B1IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+function B2CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="b2-upload" title="Upload SWIFT application security config / screenshots"
+        description="Upload application security configuration exports, TLS settings, and session configuration screenshots."
+        label="Drop SWIFT app config exports or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="b2-config-checks" title="AI will verify from uploaded configs" items={B2_CONFIG_CHECKS} />
+      <FormSection id="b2-form" title="Application security confirmations"
+        description="Provide details about session encryption, hardening, and component status.">
+        <B2IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+function B3CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="b3-upload" title="Upload encryption configuration exports"
+        description="Upload TLS/encryption config exports for internal flows, back-office flows, external transmissions, and operator sessions."
+        label="Drop encryption config exports or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="b3-config-checks" title="AI will verify from uploaded configs" items={B3_CONFIG_CHECKS} />
+      <FormSection id="b3-form" title="Encryption configuration details"
+        description="Provide per-flow encryption details, key management approach, and any unprotected flow justifications.">
+        <B3IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+function B4CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="b4-upload" title="Upload virtualisation platform config / screenshots"
+        description="Upload hypervisor/cloud platform security configuration, VM isolation settings, and access restriction evidence."
+        label="Drop platform config exports or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="b4-config-checks" title="AI will verify from uploaded configs" items={B4_CONFIG_CHECKS} />
+      <FormSection id="b4-form" title="Virtualisation platform confirmations"
+        description="Confirm platform security settings and controls.">
+        <B4IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+function B5CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="b5-upload" title="Upload password policy config / screenshots"
+        description="Upload AD Group Policy exports, application password settings, and account lockout configuration evidence."
+        label="Drop password policy config or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="b5-config-checks" title="AI will verify from uploaded configs" items={B5_CONFIG_CHECKS} />
+      <FormSection id="b5-form" title="Password policy confirmations"
+        description="Confirm password policy settings per account type.">
+        <B5IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+function B6CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="b6-upload" title="Upload hardening baseline scan reports"
+        description="Upload baseline comparison scan results, compliance scores, and authorized software baseline."
+        label="Drop scan reports or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="b6-upload-guidance" title="Uploaded reports should include" items={B6_UPLOAD_GUIDANCE} />
+      <FormSection id="b6-form" title="Baseline comparison details"
+        description="Confirm scan details, system coverage, and deviation status.">
+        <B6IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+function B7CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="b7-upload" title="Upload MFA configuration / screenshots"
+        description="Upload MFA configuration screenshots for each access point: OS admin, end user, VPN, virtualisation console, HSM."
+        label="Drop MFA config screenshots or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="b7-config-checks" title="AI will verify from uploaded evidence" items={B7_CONFIG_CHECKS} />
+      <FormSection id="b7-form" title="MFA configuration per access point"
+        description="Confirm MFA status for each required access point.">
+        <B7IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+function B8CommonEvidenceContent(p: CommonFormProps) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id="b8-upload" title="Upload session configuration / screenshots"
+        description="Upload session timeout settings, screen lock config, and re-authentication requirements for all session types."
+        label="Drop session config screenshots or click to upload"
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id="b8-config-checks" title="AI will verify from uploaded configs" items={B8_CONFIG_CHECKS} />
+      <FormSection id="b8-form" title="Session timeout confirmations"
+        description="Confirm timeout and re-authentication settings per session type.">
+        <B8IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
+/* ---------- Main workspace ---------- */
 
 export function EvidenceWorkspace({
   cycleId,
@@ -33,6 +376,13 @@ export function EvidenceWorkspace({
   onUploadComplete,
   onEvaluateEvidence,
   evaluationState,
+  itemFormData,
+  onItemFormChange,
+  onItemFormBlur,
+  a2Rows,
+  onA2RowChange,
+  onA2AddRow,
+  onA2RemoveRow,
 }: {
   cycleId: string | null;
   domainId: string;
@@ -50,6 +400,13 @@ export function EvidenceWorkspace({
   onUploadComplete: () => void;
   onEvaluateEvidence: () => void;
   evaluationState: "idle" | "loading" | "done";
+  itemFormData: Record<string, string>;
+  onItemFormChange: (key: string, value: string) => void;
+  onItemFormBlur: () => void;
+  a2Rows?: Record<string, string>[];
+  onA2RowChange?: (index: number, key: string, value: string) => void;
+  onA2AddRow?: () => void;
+  onA2RemoveRow?: (index: number) => void;
 }) {
   if (!currentItem) {
     return (
@@ -59,9 +416,52 @@ export function EvidenceWorkspace({
     );
   }
 
+  const commonProps: CommonFormProps = {
+    formData: itemFormData,
+    onFormChange: onItemFormChange,
+    onFormBlur: onItemFormBlur,
+    submissionId: currentSubmissionId,
+    onUploadComplete,
+    onEnsureSubmission,
+    itemId: currentItem.id,
+  };
+
+  const renderCommonEvidence = () => {
+    switch (currentItem.id) {
+      case A5_EVIDENCE_ITEM_ID: return <A5CommonEvidenceContent {...commonProps} />;
+      case A1_EVIDENCE_ITEM_ID: return <A1CommonEvidenceContent {...commonProps} />;
+      case A2_EVIDENCE_ITEM_ID: return <A2CommonEvidenceContent {...commonProps} a2Rows={a2Rows} onA2RowChange={onA2RowChange} onA2AddRow={onA2AddRow} onA2RemoveRow={onA2RemoveRow} />;
+      case A3_EVIDENCE_ITEM_ID: return <A3CommonEvidenceContent {...commonProps} />;
+      case A4_EVIDENCE_ITEM_ID: return <A4CommonEvidenceContent {...commonProps} />;
+      case A6_EVIDENCE_ITEM_ID: return <A6CommonEvidenceContent {...commonProps} />;
+      case B1_EVIDENCE_ITEM_ID: return <B1CommonEvidenceContent {...commonProps} />;
+      case B2_EVIDENCE_ITEM_ID: return <B2CommonEvidenceContent {...commonProps} />;
+      case B3_EVIDENCE_ITEM_ID: return <B3CommonEvidenceContent {...commonProps} />;
+      case B4_EVIDENCE_ITEM_ID: return <B4CommonEvidenceContent {...commonProps} />;
+      case B5_EVIDENCE_ITEM_ID: return <B5CommonEvidenceContent {...commonProps} />;
+      case B6_EVIDENCE_ITEM_ID: return <B6CommonEvidenceContent {...commonProps} />;
+      case B7_EVIDENCE_ITEM_ID: return <B7CommonEvidenceContent {...commonProps} />;
+      case B8_EVIDENCE_ITEM_ID: return <B8CommonEvidenceContent {...commonProps} />;
+      default:
+        return (
+          <>
+            <p className="text-[11px] text-[var(--foreground-muted)] mb-2">
+              Upload evidence files that apply to all controls for this evidence item.
+            </p>
+            <CompactDropzone
+              submissionId={currentSubmissionId}
+              label="Drop files or click to upload"
+              onUploadComplete={onUploadComplete}
+              onEnsureSubmission={() => onEnsureSubmission(currentItem.id)}
+              className="max-h-[200px]"
+            />
+          </>
+        );
+    }
+  };
+
   return (
     <div className="h-full flex flex-col min-h-0 bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
-      {/* Compact item title bar */}
       <div className="shrink-0 flex items-center justify-between gap-2 p-3 border-b border-[var(--border)]">
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-mono text-sm font-bold shrink-0" style={{ color: config.color }}>
@@ -89,32 +489,44 @@ export function EvidenceWorkspace({
           </TabsList>
         </div>
 
-        <TabsContent value="common" className="px-3 pb-3">
-          <p className="text-[11px] text-[var(--foreground-muted)] mb-2">
-            Upload evidence files that apply to all controls for this evidence item.
-          </p>
-          <CompactDropzone
-            submissionId={currentSubmissionId}
-            label="Drop files or click to upload"
-            onUploadComplete={onUploadComplete}
-            onEnsureSubmission={() => onEnsureSubmission(currentItem.id)}
-            className="max-h-[200px]"
-          />
+        <TabsContent value="common" className="px-3 pb-3 overflow-y-auto">
+          {renderCommonEvidence()}
         </TabsContent>
 
         <TabsContent value="control" className="px-3 pb-3 overflow-y-auto">
           <p className="text-[11px] text-[var(--foreground-muted)] mb-2">{currentItem.description}</p>
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {currentItem.controls.map((c) => (
-              <ControlBadge
-                key={c.id}
-                id={c.id}
-                ma={c.ma}
-                onClick={() => setSelectedControlId(selectedControlId === c.id ? null : c.id)}
-                selected={selectedControlId === c.id}
-              />
-            ))}
-          </div>
+          {currentItem.id === A5_EVIDENCE_ITEM_ID ? (
+            <>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedControlId(selectedControlId === ALL_32_CONTROL_ID ? null : ALL_32_CONTROL_ID)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-xs font-bold transition-colors",
+                    selectedControlId === ALL_32_CONTROL_ID
+                      ? "border-[var(--primary)] bg-[var(--primary-muted)] text-[var(--primary)]"
+                      : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-[var(--primary)]/50"
+                  )}
+                >
+                  <span className="font-mono">All 32</span>
+                  <span className="opacity-80">controls (scoping)</span>
+                </button>
+              </div>
+              {itemFormData?.architecture_type && <A5ArchitecturePreview formData={itemFormData} />}
+            </>
+          ) : (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {currentItem.controls.map((c) => (
+                <ControlBadge
+                  key={c.id}
+                  id={c.id}
+                  ma={c.ma}
+                  onClick={() => setSelectedControlId(selectedControlId === c.id ? null : c.id)}
+                  selected={selectedControlId === c.id}
+                />
+              ))}
+            </div>
+          )}
           {currentItem.reductionNote && (
             <div className="text-[11px] font-medium rounded-lg px-2.5 py-1.5 mb-3 bg-[var(--success-bg)] text-[var(--success)]">
               {currentItem.reductionNote}
@@ -122,6 +534,7 @@ export function EvidenceWorkspace({
           )}
           <EvidenceCriteriaSections evidenceDescription={currentItem.description} />
           <PerControlEvidence
+            evidenceItemId={currentItem.id}
             matrix={currentItem.matrix ?? []}
             submissionId={currentSubmissionId}
             evaluationState={evaluationState}

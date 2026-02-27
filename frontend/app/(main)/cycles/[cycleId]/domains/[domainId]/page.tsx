@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { DomainWorkspaceLayout } from "@/components/domain/dashboard/domain-workspace-layout";
 import { LoadingState } from "@/components/ui/loading-state";
+import { A2_EVIDENCE_ITEM_ID } from "@/lib/data/a2-evidence";
 import type { DomainConfig, EvidenceItem, ControlCriteria, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 
 interface ApiDomain {
@@ -44,7 +45,6 @@ interface ApiSubmission {
   status: string;
   form_data: Record<string, string>;
   completion_pct: number;
-  /** Last AI evaluation (ticks/crosses) when user revisits after evidence was evaluated */
   last_evaluation?: {
     evidence_item_id: string;
     overall_met: boolean;
@@ -104,12 +104,10 @@ export default function CycleDomainPage() {
   const [aiEvaluationResult, setAiEvaluationResult] = useState<AiEvalResultType | null>(null);
   const [submissionMap, setSubmissionMap] = useState<Record<string, string>>({});
   const [controlScores, setControlScores] = useState<Record<string, number>>({});
-  /** Last evaluation result per evidence_item_id so tick status shows on revisit */
   const [lastEvaluationByItem, setLastEvaluationByItem] = useState<Record<string, AiEvalResultType>>({});
-  /** Completion % from last AI evaluation per item (for score bar on revisit) */
   const [completionPctByItem, setCompletionPctByItem] = useState<Record<string, number>>({});
-  /** Selected control id for per-control criteria/evidence (clicking 1.1, 1.4, etc. shows content below) */
   const [selectedControlId, setSelectedControlId] = useState<string | null>(null);
+  const [a2Rows, setA2Rows] = useState<Record<string, string>[]>([{}]);
 
   useEffect(() => {
     setSelectedControlId(null);
@@ -169,6 +167,14 @@ export default function CycleDomainPage() {
             completionByItem[s.evidence_item_id] = Math.round(s.completion_pct);
           }
         });
+        subs.forEach((s) => {
+          if (s.evidence_item_id === A2_EVIDENCE_ITEM_ID && s.form_data?.inventory_rows) {
+            try {
+              const parsed = JSON.parse(s.form_data.inventory_rows);
+              if (Array.isArray(parsed) && parsed.length > 0) setA2Rows(parsed);
+            } catch { /* ignore */ }
+          }
+        });
         setFormData(data);
         setSubmissionMap(sMap);
         setLastEvaluationByItem(evalByItem);
@@ -177,7 +183,6 @@ export default function CycleDomainPage() {
       .catch(() => {});
   }, [cycleId, domainId]);
 
-  /** When active item changes, restore tick status from last evaluation if present */
   useEffect(() => {
     if (!activeItem) return;
     const stored = lastEvaluationByItem[activeItem];
@@ -197,9 +202,7 @@ export default function CycleDomainPage() {
       const scores: Record<string, number> = {};
       data.forEach((c) => { scores[c.id] = Math.round(c.score); });
       setControlScores(scores);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }, [cycleId]);
 
   useEffect(() => {
@@ -243,6 +246,56 @@ export default function CycleDomainPage() {
     });
     return out;
   }, [config, completionPctByItem, getItemCompletion]);
+
+  /* --- Generic form data for current item --- */
+  const itemFormData = useMemo(() => {
+    if (!activeItem) return {};
+    const prefix = `${activeItem}_`;
+    const out: Record<string, string> = {};
+    Object.entries(formData).forEach(([k, v]) => {
+      if (k.startsWith(prefix)) out[k.slice(prefix.length)] = v;
+    });
+    return out;
+  }, [formData, activeItem]);
+
+  const handleItemFormChange = useCallback((key: string, value: string) => {
+    if (!activeItem) return;
+    updateField(`${activeItem}_${key}`, value);
+  }, [activeItem, updateField]);
+
+  const handleItemFormBlur = useCallback(async () => {
+    if (!cycleId || !activeItem) return;
+    let sid = submissionMap[activeItem];
+    if (!sid) {
+      try { sid = await ensureSubmission(activeItem); } catch { return; }
+    }
+    const prefix = `${activeItem}_`;
+    const fd: Record<string, string> = {};
+    Object.entries(formData).forEach(([k, v]) => {
+      if (k.startsWith(prefix)) fd[k.slice(prefix.length)] = v;
+    });
+    if (activeItem === A2_EVIDENCE_ITEM_ID) {
+      fd.inventory_rows = JSON.stringify(a2Rows);
+    }
+    try { await api.put(`/assessments/${cycleId}/evidence/${sid}`, { form_data: fd }); } catch { /* ignore */ }
+  }, [cycleId, activeItem, submissionMap, formData, ensureSubmission, a2Rows]);
+
+  /* --- A2 spreadsheet row handlers --- */
+  const handleA2RowChange = useCallback((index: number, key: string, value: string) => {
+    setA2Rows((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [key]: value };
+      return next;
+    });
+  }, []);
+
+  const handleA2AddRow = useCallback(() => {
+    setA2Rows((prev) => [...prev, {}]);
+  }, []);
+
+  const handleA2RemoveRow = useCallback((index: number) => {
+    setA2Rows((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index));
+  }, []);
 
   const handleEvaluateEvidence = useCallback(async () => {
     if (!currentItem || !cycleId) return;
@@ -291,7 +344,6 @@ export default function CycleDomainPage() {
       }));
 
       fetchControlScores();
-      // Refetch submissions so completion_pct and last_evaluation stay in sync on revisit
       api.get<ApiSubmission[]>(`/assessments/${cycleId}/evidence?domain=${domainId}`).then((subs) => {
         const completionByItem: Record<string, number> = {};
         subs.forEach((s) => {
@@ -304,7 +356,7 @@ export default function CycleDomainPage() {
     } finally {
       setAiEvaluationLoading(false);
     }
-  }, [currentItem, cycleId, currentSubmissionId, ensureSubmission, fetchControlScores]);
+  }, [currentItem, cycleId, currentSubmissionId, ensureSubmission, fetchControlScores, domainId]);
 
   if (loading) {
     return <LoadingState message="Loading domain…" />;
@@ -348,6 +400,13 @@ export default function CycleDomainPage() {
         ensureSubmission={ensureSubmission}
         fetchControlScores={fetchControlScores}
         onEvaluateEvidence={handleEvaluateEvidence}
+        itemFormData={itemFormData}
+        onItemFormChange={handleItemFormChange}
+        onItemFormBlur={handleItemFormBlur}
+        a2Rows={a2Rows}
+        onA2RowChange={handleA2RowChange}
+        onA2AddRow={handleA2AddRow}
+        onA2RemoveRow={handleA2RemoveRow}
       />
     </div>
   );

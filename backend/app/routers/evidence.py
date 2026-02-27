@@ -141,6 +141,286 @@ def _parse_numbered_json(value: str | dict | None) -> list[tuple[str, str]]:
     return [(k, str(obj[k]).strip()) for k in keys if str(obj[k]).strip()]
 
 
+def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> str | None:
+    """Build structured text context from submission form_data for AI evaluation."""
+    if not form_data:
+        return None
+
+    fd = form_data or {}
+    parts: list[str] = []
+
+    if evidence_item_id == "A5":
+        if fd.get("architecture_type"):
+            parts.append(f"Declared architecture type: {fd['architecture_type']}")
+        if fd.get("selected_diagram"):
+            parts.append(f"Selected diagram: {fd['selected_diagram']}")
+        if fd.get("decision_rationale"):
+            parts.append(f"Decision rationale: {fd['decision_rationale']}")
+        if fd.get("infrastructure_characteristics"):
+            parts.append(f"Key infrastructure characteristics: {fd['infrastructure_characteristics']}")
+        if fd.get("bics"):
+            parts.append(f"SWIFT BIC(s) in scope: {fd['bics']}")
+        if fd.get("changes_from_previous"):
+            parts.append(f"Changes from previous architecture: {fd['changes_from_previous']}")
+        if fd.get("multiple_architectures"):
+            parts.append(f"Multiple architectures: {fd['multiple_architectures']}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "A1":
+        labels = {
+            "diagram_date": "Diagram version/date",
+            "internet_exposure_confirmation": "Any direct internet path from secure zone",
+            "internet_exposure_justification": "Internet exposure justification and compensating controls",
+            "connector_zone_statement": "Customer connector zone statement",
+            "backoffice_path_summary": "Back-office connectivity summary",
+            "protocol_encryption_notes": "Protocol/encryption clarifications",
+            "known_gaps_and_plan": "Known documentation gaps and remediation plan",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "A2":
+        labels = {
+            "exclusion_justification": "Systems excluded from zone with justification",
+            "co_hosting_notes": "Co-hosting decisions (non-SWIFT in zone)",
+            "customer_zone_notes": "Customer connectivity zone details",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        inv = fd.get("inventory_rows")
+        if inv:
+            parts.append(f"Component inventory (JSON rows): {inv}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "A3":
+        labels = {
+            "flow_inventory_notes": "Data flow inventory clarifications",
+            "unprotected_legacy_flows": "Unprotected/legacy flows and risk status",
+            "hsm_flow_details": "HSM connection flow details",
+            "encryption_method_summary": "Encryption method summary per flow type",
+            "cross_environment_details": "Cross-environment flow details",
+            "known_gaps": "Known documentation gaps and remediation plan",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "A4":
+        labels = {
+            "firewall_inventory": "Firewalls at secure zone boundaries",
+            "deny_default_confirmation": "Deny-by-default posture",
+            "allow_any_exceptions": "Permissive rule exceptions",
+            "internet_deny_confirmation": "Outbound internet deny status",
+            "jump_server_internet_status": "Jump server internet access",
+            "annual_review_date": "Last annual review date",
+            "annual_review_reviewer": "Reviewer",
+            "shared_firewall_notes": "Shared firewall status",
+            "customer_zone_rule_summary": "Customer zone firewall rules",
+            "known_exceptions": "Known exceptions and remediation",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "A6":
+        labels = {
+            "zone_boundary_rationale": "Zone boundary rationale",
+            "swift_guidance_reference": "SWIFT guidance references",
+            "segmentation_approach": "Segmentation approach",
+            "auth_separation_rationale": "Auth separation rationale",
+            "shared_component_risk": "Shared component risk assessment",
+            "co_hosting_justification": "Co-hosting justification",
+            "customer_zone_rationale": "Customer zone design rationale",
+            "customer_zone_equivalence": "Customer zone equivalent protection",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "B1":
+        labels = {
+            "hardening_baseline_name": "Hardening baseline applied",
+            "builtin_admin_status": "Built-in administrator account status",
+            "individual_admin_confirmed": "Individual admin accounts with escalation",
+            "privilege_elevation_logging": "Privilege elevation logging enabled",
+            "password_storage_zone_local": "Admin passwords in zone-local directory",
+            "network_device_admin_access": "Network device admin access method",
+            "default_passwords_changed": "Default passwords changed on all systems",
+            "autolock_configured": "Auto-lock configured",
+            "usb_ports_restricted": "USB/physical ports restricted",
+            "hardening_check_dates": "Last two hardening check dates",
+            "deviations_documented": "Deviations from baseline with justification",
+            "known_gaps": "Known gaps and remediation plan",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "B2":
+        labels = {
+            "tls_version_enforced": "TLS version enforced for operator sessions",
+            "cipher_suites_configured": "Cipher suites in use",
+            "session_timeout_value": "Application-level session timeout (minutes)",
+            "weak_protocols_disabled": "Weak/deprecated protocols disabled",
+            "weak_protocols_remaining": "Remaining weak protocols",
+            "jump_server_encryption": "Jump server to application encryption",
+            "swift_hardening_applied": "SWIFT app hardened per Alliance Security Guidance",
+            "default_app_passwords_changed": "Default application passwords changed",
+            "unnecessary_components_disabled": "Unnecessary components/adaptors disabled",
+            "app_deviations_documented": "Application deviations from hardening guidance",
+            "known_gaps": "Known gaps and remediation plan",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "B3":
+        labels = {
+            "internal_flow_summary": "Internal SWIFT component flow encryption summary",
+            "tls_version_per_flow": "TLS version and cipher suite per flow type",
+            "lau_configuration": "LAU configuration details",
+            "cross_environment_encryption": "Cross-environment flow encryption",
+            "backoffice_flow_protection": "Back-office to secure zone flow protection",
+            "external_transmission_encryption": "External transmission encryption config",
+            "backup_encryption": "Backup encryption method and key management",
+            "at_rest_encryption": "At-rest encryption for SWIFT data outside secure zone",
+            "key_management_approach": "Key management approach per flow",
+            "operator_session_transport": "Operator session transport-level encryption",
+            "unprotected_flows": "Unprotected/legacy flows with risk assessment",
+            "known_gaps": "Known gaps and remediation plan",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "B4":
+        labels = {
+            "platform_type": "Virtualisation/cloud platform type",
+            "platform_location": "Platform in secure zone",
+            "vm_isolation_configured": "VM isolation configured",
+            "network_flow_filtering": "Network flow filtering for SWIFT VMs",
+            "privileged_access_restrictions": "Privileged access restrictions on platform",
+            "platform_password_policy": "Platform admin password policy applied",
+            "security_update_status": "Hypervisor/platform security update status",
+            "mfa_for_vm_access": "MFA for interactive VM access",
+            "physical_protection": "Physical protection of underlying hardware",
+            "container_isolation": "Container isolation configuration",
+            "third_party_hosted": "Third-party hosted",
+            "third_party_comfort": "Third-party comfort evidence",
+            "known_gaps": "Known gaps and remediation plan",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "B5":
+        labels = {
+            "password_length_min": "Minimum password length configured",
+            "complexity_enabled": "Password complexity requirements enabled",
+            "expiration_period": "Password expiration period",
+            "history_enforced": "Password history/reuse prevention",
+            "lockout_threshold": "Account lockout threshold and duration",
+            "pin_settings": "PIN settings for tokens/mobile second factors",
+            "admin_policy_stricter": "Stricter policy for privileged accounts",
+            "app_to_app_accounts": "Application-to-application account password policy",
+            "zone_local_auth": "Passwords in zone-local auth only",
+            "nolmhash_enabled": "NoLMHash registry configured on Windows",
+            "policy_review_date": "Last password policy review date",
+            "known_gaps": "Known gaps and remediation plan",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "B6":
+        labels = {
+            "baseline_name_version": "Hardening baseline name and version",
+            "scan_date": "Last scan date",
+            "scan_frequency": "Scan frequency",
+            "system_types_covered": "System types covered in scan",
+            "deviation_summary": "Deviation summary with justifications",
+            "remediation_plan": "Remediation plan for high-risk deviations",
+            "swift_app_comparison": "SWIFT app settings compared to Alliance Security Guidance",
+            "app_deviations": "Application-specific deviations documented",
+            "authorized_software_baseline": "Authorized software baseline established",
+            "software_baseline_version_controlled": "Software baseline version-controlled",
+            "known_gaps": "Known gaps and remediation plan",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "B7":
+        labels = {
+            "os_admin_mfa": "MFA for OS administrators at zone boundary",
+            "os_admin_mfa_method": "OS admin MFA method",
+            "end_user_mfa": "MFA for end users accessing SWIFT application",
+            "end_user_mfa_method": "End user MFA method",
+            "remote_vpn_mfa": "MFA for remote VPN access",
+            "virtualisation_console_mfa": "MFA for virtualisation/cloud management console",
+            "hsm_mfa": "MFA for HSM access",
+            "service_provider_mfa": "MFA for service provider access",
+            "separate_device_confirmed": "Second factor on separate device from first factor",
+            "credentials_in_zone": "MFA credentials stored within secure zone",
+            "individual_assignment": "Authentication factors individually assigned",
+            "sso_mfa_status": "SSO with MFA second factor status",
+            "known_gaps": "Known gaps and remediation plan",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    if evidence_item_id == "B8":
+        labels = {
+            "app_timeout_configured": "Application-level timeout on SWIFT applications",
+            "app_timeout_value": "Application timeout value (minutes)",
+            "os_screen_lock": "OS-level screen lock on operator PCs and jump servers",
+            "os_lock_timeout": "OS screen lock timeout (minutes)",
+            "remote_session_timeout": "Remote session timeout configured",
+            "remote_timeout_value": "Remote session timeout value (minutes)",
+            "reauth_after_timeout": "Re-authentication required after timeout",
+            "session_recording": "Session recording for privileged accounts",
+            "concurrent_session_restrictions": "Concurrent session restrictions configured",
+            "known_gaps": "Known gaps and remediation plan",
+        }
+        for key, label in labels.items():
+            val = fd.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        return "\n".join(parts) if parts else None
+
+    # Fallback for other items if future forms are added.
+    for key, val in fd.items():
+        if val:
+            parts.append(f"{key.replace('_', ' ').title()}: {val}")
+    return "\n".join(parts) if parts else None
+
+
 def _persist_ai_results(
     db: Session,
     submission: EvidenceSubmission,
@@ -271,6 +551,9 @@ def evaluate_evidence(
         .filter(EvidenceSufficiencyMatrix.item_code == req.evidence_item_id)
         .all()
     )
+    # A5 uses canonical item sufficiency/evaluation criteria (single set), not per-control matrix
+    if req.evidence_item_id == "A5":
+        matrix_rows = []
 
     # --- If submission_id present, try real AI evaluation ---
     submission: EvidenceSubmission | None = None
@@ -291,6 +574,10 @@ def evaluate_evidence(
                 .all()
             )
 
+    submission_context: str | None = None
+    if submission and getattr(submission, "form_data", None):
+        submission_context = _build_submission_context(req.evidence_item_id, submission.form_data)
+
     if attachments:
         import os
 
@@ -306,7 +593,11 @@ def evaluate_evidence(
 
         try:
             result = ai_service.evaluate_evidence(
-                file_parts, canonical, control_mappings, matrix_rows=matrix_rows or None
+                file_parts,
+                canonical,
+                control_mappings,
+                matrix_rows=matrix_rows or None,
+                submission_context=submission_context,
             )
         except Exception as exc:
             logger.exception("AI evaluation failed")

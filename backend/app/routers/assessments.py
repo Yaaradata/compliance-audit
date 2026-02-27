@@ -146,24 +146,28 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depend
     domain_scores = []
     for d in domains:
         completed = sub_by_domain.get(d.id, 0)
-        total = d.item_count
+        total = d.item_count if d.item_count is not None else 0
         score = round((completed / total * 100) if total > 0 else 0, 1)
-        domain_scores.append(DomainScore(id=d.id, name=d.name, completed=completed, total=total, score=score))
+        domain_scores.append(DomainScore(id=d.id or "", name=d.name or "", completed=completed, total=total, score=score))
 
     control_scores = []
     mandatory_count = 0
     gaps = []
     for ca in cas:
         control = db.query(Control).filter(Control.id == ca.control_id).first()
-        cname = control.name if control else ca.control_id
-        ctype = "M" if ca.applicability == "mandatory" else "A"
-        if ca.applicability == "mandatory":
+        cname = (control.name if control else ca.control_id) or ca.control_id or ""
+        applicability = (ca.applicability or "").lower()
+        ctype = "M" if applicability == "mandatory" else "A"
+        if applicability == "mandatory":
             mandatory_count += 1
-        control_scores.append(ControlScore(id=ca.control_id, name=cname, type=ctype, score=float(ca.score or 0), status=ca.status, evidence_count=ca.evidence_count))
-        if float(ca.score or 0) < 50 and ca.applicability == "mandatory":
-            gaps.append({"control_id": ca.control_id, "name": cname, "score": float(ca.score or 0)})
+        score_val = float(ca.score) if ca.score is not None else 0.0
+        status = ca.status or "not_started"
+        evidence_count = ca.evidence_count if ca.evidence_count is not None else 0
+        control_scores.append(ControlScore(id=ca.control_id or "", name=cname, type=ctype, score=score_val, status=status, evidence_count=evidence_count))
+        if score_val < 50 and applicability == "mandatory":
+            gaps.append({"control_id": ca.control_id, "name": cname, "score": score_val})
 
-    total_evidence = sum(d.item_count for d in domains)
+    total_evidence = sum((d.item_count or 0) for d in domains)
     completed_evidence = sum(1 for s in submissions if s.status in ("approved", "submitted"))
     overall = round((sum(float(ca.score or 0) for ca in cas) / len(cas)) if cas else 0, 1)
 

@@ -15,7 +15,12 @@ import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { PerControlEvidence } from "@/components/domain/per-control-evidence";
 import { getStatusColor, getStatusIcon } from "@/lib/utils";
 import { LoadingState } from "@/components/ui/loading-state";
+import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/data/architectures";
+import { A5_FORM_KEYS } from "@/lib/data/a5-criteria";
+import { A5IntakeForm } from "@/components/domain/a5-intake-form";
 import type { EvidenceItem, ControlRef, ControlCriteria, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
+
+const EVIDENCE_ITEM_A5 = "A5";
 
 interface ApiEvidenceItem {
   id: string;
@@ -113,11 +118,48 @@ export default function CycleItemIntakePage() {
       .finally(() => setLoading(false));
   }, [itemId]);
 
+  /** Load existing submission and form_data for this item (e.g. A5 from select-architecture). */
+  useEffect(() => {
+    if (!cycleId || !itemId) return;
+    api
+      .get<{ id: string; evidence_item_id: string; form_data?: Record<string, string> }[]>(
+        `/assessments/${cycleId}/evidence`
+      )
+      .then((list) => {
+        const sub = list.find((s) => s.evidence_item_id === itemId);
+        if (sub) {
+          setSubmissionId(sub.id);
+          if (sub.form_data && Object.keys(sub.form_data).length > 0) {
+            setFormData((prev) => ({ ...prev, ...sub.form_data }));
+          }
+        }
+      })
+      .catch(() => {});
+  }, [cycleId, itemId]);
+
   const updateField = useCallback((key: string, value: string) => {
     setFormData((p) => ({ ...p, [key]: value }));
     setEvaluated(false);
     setAiEvaluationResult(null);
   }, []);
+
+  const persistA5Form = useCallback(async () => {
+    if (!cycleId || itemId !== EVIDENCE_ITEM_A5) return;
+    let sid = submissionId;
+    if (!sid) {
+      try {
+        sid = await ensureSubmission();
+      } catch {
+        return;
+      }
+    }
+    if (!sid) return;
+    try {
+      await api.put(`/assessments/${cycleId}/evidence/${sid}`, { form_data: formData });
+    } catch {
+      /* ignore */
+    }
+  }, [cycleId, itemId, submissionId, formData, ensureSubmission]);
 
   const markFileUploaded = useCallback((key: string) => {
     setUploadedFiles((p) => ({ ...p, [key]: true }));
@@ -139,7 +181,7 @@ export default function CycleItemIntakePage() {
         summary?: string | null;
       }>(
         `/assessments/${cycleId}/evidence/evaluate`,
-        { evidence_item_id: item.id, submission_id: null }
+        { evidence_item_id: item.id, submission_id: submissionId ?? undefined }
       )
       .then((res) => {
         setAiEvaluationResult({
@@ -152,13 +194,32 @@ export default function CycleItemIntakePage() {
       })
       .catch(() => setAiEvaluationResult(null))
       .finally(() => setAiEvaluationLoading(false));
-  }, [item, cycleId]);
+  }, [item, cycleId, submissionId]);
 
   const completionPct = useMemo(() => {
-    if (!item || !item.inputs.length) return 0;
+    if (!item) return 0;
+    if (item.id === EVIDENCE_ITEM_A5) {
+      const hasArch = !!formData.architecture_type;
+      const hasDiagram = !!formData.selected_diagram;
+      const hasRationale = !!formData[A5_FORM_KEYS.decision_rationale]?.trim();
+      const hasBics = !!formData[A5_FORM_KEYS.bics]?.trim();
+      const hasInfra = !!formData[A5_FORM_KEYS.infrastructure_characteristics]?.trim();
+      const count = [hasArch, hasDiagram, hasRationale, hasBics, hasInfra].filter(Boolean).length;
+      return Math.round((count / 5) * 100);
+    }
+    if (!item.inputs.length) return 0;
     const filled = item.inputs.filter((inp) => formData[inp.id] || uploadedFiles[inp.id]).length;
     return Math.round((filled / item.inputs.length) * 100);
   }, [item, formData, uploadedFiles]);
+
+  const a5Evidence = useMemo(() => {
+    if (item?.id !== EVIDENCE_ITEM_A5) return null;
+    const archType = formData.architecture_type;
+    const diagramFile = formData.selected_diagram;
+    if (!archType && !diagramFile) return null;
+    const arch = archType ? getArchitecture(archType) : null;
+    return { architectureType: archType, architectureName: arch?.name, diagramFilename: diagramFile };
+  }, [item?.id, formData.architecture_type, formData.selected_diagram]);
 
   const controlScores = useMemo(() => {
     if (!item) return {};
@@ -216,7 +277,14 @@ export default function CycleItemIntakePage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {item.controls.map((c) => <ControlBadge key={c.id} id={c.id} ma={c.ma} />)}
+          {item.id === EVIDENCE_ITEM_A5 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[var(--primary)]/60 bg-[var(--primary-muted)]/30 px-3 py-1.5 text-xs font-bold text-[var(--primary)]">
+              <span className="font-mono">All 32</span>
+              <span className="opacity-90">controls (scoping)</span>
+            </span>
+          ) : (
+            item.controls.map((c) => <ControlBadge key={c.id} id={c.id} ma={c.ma} />)
+          )}
         </div>
       </div>
       <div className="grid grid-cols-[1fr_280px] gap-5">
@@ -224,7 +292,35 @@ export default function CycleItemIntakePage() {
           <EvidenceCriteriaSections
             evidenceDescription={item.description}
           />
+          {a5Evidence && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="text-sm font-semibold text-gray-700 mb-3">Architecture evidence (from selection)</div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                {a5Evidence.architectureType && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 mb-1">Declared architecture</div>
+                    <div className="font-semibold text-gray-900">
+                      {a5Evidence.architectureName ?? a5Evidence.architectureType}
+                    </div>
+                  </div>
+                )}
+                {a5Evidence.diagramFilename && (
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-gray-500 mb-1">Selected diagram</div>
+                    <div className="rounded-lg border border-gray-200 overflow-hidden bg-gray-50 max-w-md">
+                      <img
+                        src={getArchitectureDiagramUrl(a5Evidence.diagramFilename)}
+                        alt="Architecture diagram"
+                        className="w-full h-auto max-h-64 object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <PerControlEvidence
+            evidenceItemId={item.id}
             matrix={item.matrix ?? []}
             submissionId={submissionId}
             evaluationState={!evaluated ? "idle" : aiEvaluationLoading ? "loading" : "done"}
@@ -232,24 +328,39 @@ export default function CycleItemIntakePage() {
             criteriaResults={aiEvaluationResult?.criteria ?? null}
             onEnsureSubmission={() => ensureSubmission()}
           />
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-sm font-semibold text-gray-700 mb-3">Evidence Inputs</div>
-            <div className="space-y-4">
-              {item.inputs.length > 0 ? (
-                item.inputs.map((input) => (
-                  <EvidenceInputRenderer key={input.id} input={input}
-                    value={formData[input.id] || ""}
-                    onChangeValue={(val) => updateField(input.id, val)}
-                    onFileUpload={(key) => markFileUploaded(key)} />
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-400 text-sm">
-                  <p>Evidence inputs are configured at the detailed intake level.</p>
-                  <p className="text-xs mt-1">Upload files and fill in evidence details to proceed.</p>
-                </div>
-              )}
+          {item.id === EVIDENCE_ITEM_A5 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="text-sm font-semibold text-gray-700 mb-3">Architecture declaration form</div>
+              <p className="text-xs text-gray-500 mb-4">
+                Complete the form below. Your declared architecture (from cycle selection) is stored as evidence and used for AI evaluation.
+              </p>
+              <A5IntakeForm
+                formData={formData}
+                onChange={updateField}
+                onBlur={persistA5Form}
+                architectureFromCycle={!!formData.architecture_type}
+              />
             </div>
-          </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="text-sm font-semibold text-gray-700 mb-3">Evidence Inputs</div>
+              <div className="space-y-4">
+                {item.inputs.length > 0 ? (
+                  item.inputs.map((input) => (
+                    <EvidenceInputRenderer key={input.id} input={input}
+                      value={formData[input.id] || ""}
+                      onChangeValue={(val) => updateField(input.id, val)}
+                      onFileUpload={(key) => markFileUploaded(key)} />
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">
+                    <p>Evidence inputs are configured at the detailed intake level.</p>
+                    <p className="text-xs mt-1">Upload files and fill in evidence details to proceed.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <button onClick={handleEvaluateEvidence}
             className="btn-primary w-full py-3 text-sm"
             style={{ background: domainStyle.color }}>
@@ -271,19 +382,30 @@ export default function CycleItemIntakePage() {
           <PerControlPanel items={item.perControlSufficiency} />
           <div className="bg-white rounded-xl border border-gray-200 p-3">
             <div className="text-xs font-semibold text-gray-700 mb-2">Control Impact</div>
-            {item.controls.map((c) => {
-              const score = controlScores[c.id] ?? 0;
-              return (
-                <div key={c.id} className="flex items-center gap-2 py-1 text-[11px]">
-                  <ControlBadge id={c.id} ma={c.ma} />
-                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: getStatusColor(score) }} />
-                  </div>
-                  <span className="font-bold w-8 text-right" style={{ color: getStatusColor(score) }}>{score}%</span>
-                  <span className="w-3" style={{ color: getStatusColor(score) }}>{getStatusIcon(score)}</span>
+            {item.id === EVIDENCE_ITEM_A5 ? (
+              <div className="flex items-center gap-2 py-1 text-[11px]">
+                <span className="font-mono font-bold">All 32</span>
+                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${completionPct}%`, background: getStatusColor(completionPct) }} />
                 </div>
-              );
-            })}
+                <span className="font-bold w-8 text-right" style={{ color: getStatusColor(completionPct) }}>{completionPct}%</span>
+                <span className="w-3" style={{ color: getStatusColor(completionPct) }}>{getStatusIcon(completionPct)}</span>
+              </div>
+            ) : (
+              item.controls.map((c) => {
+                const score = controlScores[c.id] ?? 0;
+                return (
+                  <div key={c.id} className="flex items-center gap-2 py-1 text-[11px]">
+                    <ControlBadge id={c.id} ma={c.ma} />
+                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: getStatusColor(score) }} />
+                    </div>
+                    <span className="font-bold w-8 text-right" style={{ color: getStatusColor(score) }}>{score}%</span>
+                    <span className="w-3" style={{ color: getStatusColor(score) }}>{getStatusIcon(score)}</span>
+                  </div>
+                );
+              })
+            )}
           </div>
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800">
             <span className="font-semibold">Effort Saving:</span> {item.reductionNote}

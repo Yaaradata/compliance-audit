@@ -78,8 +78,10 @@ def _build_prompt(
     item: Any,
     mappings: list[Any],
     matrix_rows: list[Any] | None = None,
+    submission_context: str | None = None,
 ) -> str:
-    """Build the evaluation prompt from evidence_sufficiency_matrix rows when present, else from CEI fields."""
+    """Build the evaluation prompt from evidence_sufficiency_matrix rows when present, else from CEI fields.
+    submission_context: optional text (e.g. declared architecture and form data for A5) appended for AI."""
     controls_text = "\n".join(
         f"- {m.control_id}: {getattr(m, 'sufficiency_requirement', None) or 'General compliance'}"
         for m in mappings
@@ -107,7 +109,7 @@ def _build_prompt(
         sufficiency_definition = getattr(item, "sufficiency_definition", None) or "N/A"
         evaluation_criteria = getattr(item, "evaluation_criteria", None) or "N/A"
     template = _load_prompt_template()
-    return template.format(
+    out = template.format(
         evidence_item_id=item.id,
         evidence_item_name=item.name,
         evidence_description=evidence_description,
@@ -115,6 +117,9 @@ def _build_prompt(
         evaluation_criteria=evaluation_criteria,
         mapped_controls=controls_text or "None",
     )
+    if submission_context and submission_context.strip():
+        out += "\n\n## Declared / form context (use when evaluating):\n" + submission_context.strip()
+    return out
 
 
 def _parse_ai_response(text: str) -> dict:
@@ -133,9 +138,11 @@ def evaluate_evidence(
     evidence_item: Any,
     control_mappings: list[Any],
     matrix_rows: list[Any] | None = None,
+    submission_context: str | None = None,
 ) -> dict:
     """Send files + prompt to Vertex AI and return the parsed JSON result.
-    When matrix_rows is provided (from evidence_sufficiency_matrix), prompt is built from them."""
+    When matrix_rows is provided (from evidence_sufficiency_matrix), prompt is built from them.
+    submission_context: optional (e.g. A5 declared architecture and form data) appended to prompt."""
     try:
         model = _get_model()
     except Exception as init_err:
@@ -145,7 +152,9 @@ def evaluate_evidence(
             "Application Default Credentials (gcloud auth application-default login)."
         ) from init_err
 
-    prompt_text = _build_prompt(evidence_item, control_mappings, matrix_rows=matrix_rows)
+    prompt_text = _build_prompt(
+        evidence_item, control_mappings, matrix_rows=matrix_rows, submission_context=submission_context
+    )
     contents = [Part.from_text(prompt_text)] + file_parts
 
     try:

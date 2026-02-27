@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { FileUploadZone } from "@/components/ui/file-upload-zone";
+import {
+  A5_EVIDENCE_ITEM_ID,
+  A5_SUFFICIENCY_ITEMS,
+  A5_EVALUATION_ITEMS,
+} from "@/lib/data/a5-criteria";
 import type { ControlCriteria, AiCriterionResult as AiCriterionResultType } from "@/lib/types";
+
+const ALL_32_CONTROL_ID = "All";
 
 function parseAsNumberedList(value: string | null | undefined): { id: string; label: string }[] | null {
   if (!value || typeof value !== "string") return null;
@@ -100,8 +107,6 @@ interface ControlSectionProps {
   evaluationState: EvaluationState;
   sufficiencyResults: AiCriterionResultType[] | null;
   criteriaResults: AiCriterionResultType[] | null;
-  onUploadComplete?: () => void;
-  onEnsureSubmission?: () => Promise<string | null>;
   defaultExpanded?: boolean;
 }
 
@@ -111,8 +116,6 @@ function ControlSection({
   evaluationState,
   sufficiencyResults,
   criteriaResults,
-  onUploadComplete,
-  onEnsureSubmission,
   defaultExpanded = false,
 }: ControlSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -163,7 +166,7 @@ function ControlSection({
               state={evaluationState}
               results={sufficiencyResults}
               controlId={criteria.control_id}
-              emptyMessage="Upload evidence & evaluate"
+              emptyMessage="Upload evidence in Common Evidence tab & evaluate"
             />
           )}
           {(evalItems || criteria.evaluation_criteria) && (
@@ -177,17 +180,6 @@ function ControlSection({
               emptyMessage="AI will evaluate after sufficiency check"
             />
           )}
-          <div>
-            <div className="text-[11px] font-semibold text-gray-600 mb-1.5">
-              Upload evidence for {criteria.control_id}
-            </div>
-            <FileUploadZone
-              submissionId={submissionId}
-              label={`Drop files for ${criteria.control_id} — ${criteria.control_name}`}
-              onUploadComplete={onUploadComplete}
-              onEnsureSubmission={onEnsureSubmission}
-            />
-          </div>
         </div>
       )}
     </div>
@@ -195,6 +187,8 @@ function ControlSection({
 }
 
 export interface PerControlEvidenceProps {
+  /** When "A5", show single "All 32 controls" and A5 sufficiency/evaluation criteria. */
+  evidenceItemId?: string | null;
   matrix: ControlCriteria[];
   submissionId?: string | null;
   evaluationState: EvaluationState;
@@ -203,7 +197,7 @@ export interface PerControlEvidenceProps {
   onUploadComplete?: () => void;
   /** When provided, users can upload directly; submission is created on first upload if needed. */
   onEnsureSubmission?: () => Promise<string | null>;
-  /** When provided, selection is controlled by parent (e.g. from clickable control badges above). */
+  /** When provided, selection is controlled by parent (e.g. from clickable control badges above). For A5, use "All". */
   selectedControlId?: string | null;
   onSelectControl?: (controlId: string | null) => void;
   /** When false, the common evidence upload block is hidden (e.g. when used in tabbed workspace with Common Evidence in another tab). */
@@ -211,6 +205,7 @@ export interface PerControlEvidenceProps {
 }
 
 export function PerControlEvidence({
+  evidenceItemId,
   matrix,
   submissionId,
   evaluationState,
@@ -226,6 +221,130 @@ export function PerControlEvidence({
   const isControlled = selectedControlIdProp !== undefined;
   const selectedControlId = isControlled ? selectedControlIdProp ?? null : internalSelected;
   const setSelectedControlId = onSelectControl ?? setInternalSelected;
+
+  const isA5 = evidenceItemId === A5_EVIDENCE_ITEM_ID;
+  const a5Selected = isA5 && selectedControlId === ALL_32_CONTROL_ID;
+
+  if (isA5) {
+    return (
+      <div className="space-y-4">
+        {!isControlled && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedControlId(a5Selected ? null : ALL_32_CONTROL_ID)}
+              className="inline-flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary)]"
+              style={{
+                background: a5Selected ? "var(--primary)" : "var(--background)",
+                borderColor: a5Selected ? "var(--primary)" : "var(--border)",
+                color: a5Selected ? "#fff" : "var(--foreground)",
+              }}
+            >
+              <span className="font-bold">All 32</span>
+              <span className="opacity-80">controls (scoping)</span>
+            </button>
+          </div>
+        )}
+        {a5Selected ? (
+          <div className="space-y-4 pt-1">
+            <div className="rounded-lg border border-gray-200 bg-gray-50/50 overflow-hidden">
+              <div className="px-3 py-1.5 bg-gray-100/80 border-b border-gray-200 flex items-center gap-2">
+                <span className="text-[11px] font-bold text-gray-700">Sufficiency</span>
+                {evaluationState === "loading" && (
+                  <span className="text-[11px] text-sky-600 font-medium">Waiting for AI…</span>
+                )}
+                {evaluationState === "idle" && (
+                  <span className="text-[11px] text-gray-500">Upload evidence in Common Evidence tab & evaluate</span>
+                )}
+              </div>
+              <ul className="divide-y divide-gray-100">
+                {A5_SUFFICIENCY_ITEMS.map((item) => {
+                  const res = sufficiencyResults?.find(
+                    (r) => r.id === item.id || r.id === `${ALL_32_CONTROL_ID}_${item.id}`
+                  );
+                  const showResult = evaluationState === "done" && res !== undefined;
+                  return (
+                    <li key={item.id} className="px-3 py-2 flex gap-2.5 items-start">
+                      <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-sm font-bold mt-0.5">
+                        {evaluationState === "loading" && (
+                          <span className="inline-block w-3.5 h-3.5 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+                        )}
+                        {evaluationState === "idle" && (
+                          <span className="w-4 h-4 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-[9px]">—</span>
+                        )}
+                        {showResult && res?.met && (
+                          <span className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs">✓</span>
+                        )}
+                        {showResult && res && !res.met && (
+                          <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs">✗</span>
+                        )}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-xs ${showResult && !res?.met ? "text-amber-800 font-medium" : "text-gray-700"}`}>
+                          {item.label}
+                        </span>
+                        {showResult && res && !res.met && res.description && (
+                          <p className="text-[11px] text-amber-700 mt-1 bg-amber-50/80 rounded px-2 py-1 border border-amber-100">
+                            {res.description}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50/50 overflow-hidden">
+              <div className="px-3 py-1.5 bg-gray-100/80 border-b border-gray-200 flex items-center gap-2">
+                <span className="text-[11px] font-bold text-gray-700">Evaluation</span>
+              </div>
+              <ul className="divide-y divide-gray-100">
+                {A5_EVALUATION_ITEMS.map((item) => {
+                  const res = criteriaResults?.find((r) => r.id === item.id || r.id === `${ALL_32_CONTROL_ID}_${item.id}`);
+                  const showResult = evaluationState === "done" && res !== undefined;
+                  return (
+                    <li key={item.id} className="px-3 py-2 flex gap-2.5 items-start">
+                      <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-sm font-bold mt-0.5">
+                        {evaluationState === "loading" && (
+                          <span className="inline-block w-3.5 h-3.5 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+                        )}
+                        {evaluationState === "idle" && (
+                          <span className="w-4 h-4 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-[9px]">—</span>
+                        )}
+                        {showResult && res?.met && (
+                          <span className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs">✓</span>
+                        )}
+                        {showResult && res && !res.met && (
+                          <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs">✗</span>
+                        )}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{item.type}</span>
+                        <span className={`block text-xs ${showResult && !res?.met ? "text-amber-800 font-medium" : "text-gray-700"}`}>
+                          {item.label}
+                        </span>
+                        {showResult && res && !res.met && res.description && (
+                          <p className="text-[11px] text-amber-700 mt-1 bg-amber-50/80 rounded px-2 py-1 border border-amber-100">
+                            {res.description}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed px-4 py-8 text-center" style={{ borderColor: "var(--border)", background: "var(--background)" }}>
+            <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
+              Click &quot;All 32 controls (scoping)&quot; above to view sufficiency and evaluation criteria.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (!matrix || matrix.length === 0) return null;
 
@@ -258,7 +377,7 @@ export function PerControlEvidence({
               Per-Control Criteria &amp; Evidence ({matrix.length} control{matrix.length !== 1 ? "s" : ""})
             </div>
             <p className="text-[11px] px-1" style={{ color: "var(--foreground-muted)" }}>
-              Click a control to view its criteria and upload evidence for that control.
+              Click a control to view its criteria.
             </p>
             <div className="sticky top-0 z-10 py-2 -mx-1 px-1 flex flex-wrap gap-2 rounded-xl transition-colors duration-200" style={{ background: "var(--surface)" }}>
               {matrix.map((c) => {
@@ -295,15 +414,13 @@ export function PerControlEvidence({
               evaluationState={evaluationState}
               sufficiencyResults={sufficiencyResults}
               criteriaResults={criteriaResults}
-              onUploadComplete={onUploadComplete}
-              onEnsureSubmission={onEnsureSubmission}
               defaultExpanded={true}
             />
           </div>
         ) : (
           <div className="rounded-xl border border-dashed px-4 py-8 text-center" style={{ borderColor: "var(--border)", background: "var(--background)" }}>
             <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-              Select a control above to view its criteria and upload evidence.
+              Select a control above to view its criteria.
             </p>
           </div>
         )}

@@ -131,9 +131,29 @@ export function getArchitecture(id: string): Architecture | undefined {
   return ARCHITECTURES.find((a) => a.id === id);
 }
 
-/** Path to the architecture diagram image in public/architecture-diagrams. Add A1.png, A2.png, A3.png, A4.png, B.png (or .jpg, .svg, .webp). */
-export function getArchitectureDiagramPath(architectureId: string, extension: "png" | "jpg" | "svg" | "webp" = "png"): string {
-  return `/architecture-diagrams/${architectureId}.${extension}`;
+/**
+ * Diagram filenames per architecture (from Swift Architecture Diagrams folder).
+ * Each filename is served from /architecture-diagrams/<filename> (e.g. A1-1.png).
+ * One architecture can have multiple diagrams for the user to choose from.
+ */
+export const ARCHITECTURE_DIAGRAMS: Record<string, string[]> = {
+  A1: ["A1-1.png", "A1-2.png"],
+  A2: ["A2-1.png"],
+  A3: ["A3-1.png"],
+  A4: ["A4-1.png", "A4-2.png", "A4-3.png"],
+  B: ["B-1.png", "B-2.png"],
+};
+
+/** Public URL for an architecture diagram filename (e.g. A1-1.png). */
+export function getArchitectureDiagramUrl(diagramFilename: string): string {
+  return `/architecture-diagrams/${diagramFilename}`;
+}
+
+/** Path to a single diagram image by architecture and index (legacy fallback: first diagram). */
+export function getArchitectureDiagramPath(architectureId: string, _extension?: "png" | "jpg" | "svg" | "webp"): string {
+  const list = ARCHITECTURE_DIAGRAMS[architectureId];
+  const filename = list?.[0];
+  return filename ? `/architecture-diagrams/${filename}` : `/architecture-diagrams/${architectureId}.png`;
 }
 
 export function getControlApplicability(archId: ArchitectureId, controlId: string): "mandatory" | "advisory" | "n/a" {

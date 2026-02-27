@@ -31,6 +31,13 @@ export interface DomainWorkspaceLayoutProps {
   ensureSubmission: (itemId: string) => Promise<string | null>;
   fetchControlScores: () => void;
   onEvaluateEvidence: () => void;
+  itemFormData: Record<string, string>;
+  onItemFormChange: (key: string, value: string) => void;
+  onItemFormBlur: () => void;
+  a2Rows?: Record<string, string>[];
+  onA2RowChange?: (index: number, key: string, value: string) => void;
+  onA2AddRow?: () => void;
+  onA2RemoveRow?: (index: number) => void;
 }
 
 export function DomainWorkspaceLayout({
@@ -54,6 +61,13 @@ export function DomainWorkspaceLayout({
   ensureSubmission,
   fetchControlScores,
   onEvaluateEvidence,
+  itemFormData,
+  onItemFormChange,
+  onItemFormBlur,
+  a2Rows,
+  onA2RowChange,
+  onA2AddRow,
+  onA2RemoveRow,
 }: DomainWorkspaceLayoutProps) {
   const evaluationState: EvaluationState = !evaluated ? "idle" : aiEvaluationLoading ? "loading" : "done";
   const currentSubmissionId = currentItem ? submissionMap[currentItem.id] ?? null : null;
@@ -62,7 +76,6 @@ export function DomainWorkspaceLayout({
     <div className="h-full min-h-0 flex flex-col">
       <CompactDomainHeader config={config} completionPct={overallCompletion} className="shrink-0" />
 
-      {/* Mobile: evidence item dropdown when left panel is hidden */}
       <div className="md:hidden shrink-0 p-2 border-b border-[var(--border)]">
         <label htmlFor="evidence-select-mobile" className="sr-only">
           Select evidence item
@@ -116,6 +129,13 @@ export function DomainWorkspaceLayout({
             onUploadComplete={fetchControlScores}
             onEvaluateEvidence={onEvaluateEvidence}
             evaluationState={evaluationState}
+            itemFormData={itemFormData}
+            onItemFormChange={onItemFormChange}
+            onItemFormBlur={onItemFormBlur}
+            a2Rows={a2Rows}
+            onA2RowChange={onA2RowChange}
+            onA2AddRow={onA2AddRow}
+            onA2RemoveRow={onA2RemoveRow}
           />
         </div>
 
