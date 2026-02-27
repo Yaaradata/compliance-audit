@@ -233,7 +233,7 @@ export function PerControlEvidence({
             <button
               type="button"
               onClick={() => setSelectedControlId(a5Selected ? null : ALL_32_CONTROL_ID)}
-              className="inline-flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary)]"
+              className="inline-flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-(--primary)"
               style={{
                 background: a5Selected ? "var(--primary)" : "var(--background)",
                 borderColor: a5Selected ? "var(--primary)" : "var(--border)",
@@ -388,7 +388,7 @@ export function PerControlEvidence({
                     key={c.control_id}
                     type="button"
                     onClick={() => setSelectedControlId(isSelected ? null : c.control_id)}
-                    className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary)]"
+                    className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-(--primary)"
                     style={{
                       background: isSelected ? "var(--primary)" : "var(--background)",
                       borderColor: isSelected ? "var(--primary)" : "var(--border)",

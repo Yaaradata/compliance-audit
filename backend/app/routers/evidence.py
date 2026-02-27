@@ -451,6 +451,47 @@ def _persist_ai_results(
     }
 
 
+def _persist_per_control_scores(
+    db: Session,
+    cycle_id: UUID,
+    controls: list[dict],
+) -> None:
+    """Write per-control scores returned by the AI into sufficiency_scores."""
+    for ctrl in controls:
+        control_id = ctrl.get("control_id")
+        if not control_id:
+            continue
+        score = ctrl.get("score", 0)
+        if score == 0:
+            status = "not_started"
+        elif score < 40:
+            status = "insufficient"
+        elif score < 80:
+            status = "partial"
+        else:
+            status = "sufficient"
+        existing = (
+            db.query(SufficiencyScore)
+            .filter(
+                SufficiencyScore.cycle_id == cycle_id,
+                SufficiencyScore.control_id == control_id,
+            )
+            .first()
+        )
+        if existing:
+            existing.overall_score = score
+            existing.status = status
+            existing.last_evaluated_at = datetime.utcnow()
+        else:
+            db.add(SufficiencyScore(
+                cycle_id=cycle_id,
+                control_id=control_id,
+                overall_score=score,
+                status=status,
+                last_evaluated_at=datetime.utcnow(),
+            ))
+
+
 def _recalculate_control_sufficiency(
     db: Session,
     cycle_id: UUID,
@@ -526,12 +567,16 @@ def evaluate_evidence(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Evaluate uploaded evidence files against canonical criteria using Vertex AI.
+    """Evaluate evidence for this item using Vertex AI.
 
-    When *submission_id* is provided the backend loads the associated file
-    attachments from disk and sends them alongside the canonical evidence
-    description / sufficiency definition / evaluation criteria to the AI model.
-    Falls back to a lightweight placeholder when no files are available.
+    All evidence is passed to the AI:
+    - File attachments for the submission (diagrams, configs, etc.)
+    - Structured form data (submission_context) when present
+
+    All sufficiency_criteria and evaluation_criteria for this evidence item's
+    controls (e.g. all A1 controls from evidence_sufficiency_matrix) are
+    included in the prompt as readable numbered lists. Evaluation runs when
+    there are uploads and/or form context; otherwise a placeholder response is returned.
     """
     canonical = (
         db.query(CanonicalEvidenceItem)
@@ -578,19 +623,19 @@ def evaluate_evidence(
     if submission and getattr(submission, "form_data", None):
         submission_context = _build_submission_context(req.evidence_item_id, submission.form_data)
 
+    # Build file parts from attachments (all evidence for this item)
+    import os
+    file_parts: list = []
     if attachments:
-        import os
-
-        file_parts = []
         for att in attachments:
             if not os.path.exists(att.storage_path):
                 logger.warning("Attachment file missing: %s", att.storage_path)
                 continue
             file_parts.append(ai_service.prepare_file_part(att.storage_path, att.file_type))
 
-        if not file_parts:
-            raise HTTPException(status_code=400, detail="No readable attachment files found on disk")
-
+    # Run AI evaluation when we have uploaded files and/or form context; pass all criteria for this item's controls
+    has_evidence = bool(file_parts) or bool(submission_context and submission_context.strip())
+    if has_evidence:
         try:
             result = ai_service.evaluate_evidence(
                 file_parts,
@@ -622,10 +667,10 @@ def evaluate_evidence(
             for i, c in enumerate(result.get("criteria", []))
         ]
 
-        # Persist results (Steps 3 & 4)
+        # Persist results (Steps 3 & 4) and per-control scores from AI
         if submission:
             _persist_ai_results(db, submission, result, user.id)
-            _recalculate_control_sufficiency(db, cycle_id, req.evidence_item_id)
+            _persist_per_control_scores(db, cycle_id, result.get("controls", []))
             db.commit()
 
         return EvaluateEvidenceResponse(

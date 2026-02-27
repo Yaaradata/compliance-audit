@@ -12,18 +12,17 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-_PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompt"
+_PROMPT_DIR = Path(__file__).resolve().parent.parent / "Prompt"
 _PROMPT_FILE = _PROMPT_DIR / "evidence_evaluation_V1.txt"
 _loaded_prompt_template: str | None = None
 
 
 def _load_prompt_template() -> str:
-    """Load the evidence evaluation prompt template from backend/app/prompt/evidence_evaluation_V1.txt."""
+    """Load the evidence evaluation prompt template (always re-read in dev for easier iteration)."""
     global _loaded_prompt_template
-    if _loaded_prompt_template is None:
-        if not _PROMPT_FILE.is_file():
-            raise FileNotFoundError(f"Prompt file not found: {_PROMPT_FILE}")
-        _loaded_prompt_template = _PROMPT_FILE.read_text(encoding="utf-8")
+    if not _PROMPT_FILE.is_file():
+        raise FileNotFoundError(f"Prompt file not found: {_PROMPT_FILE}")
+    _loaded_prompt_template = _PROMPT_FILE.read_text(encoding="utf-8")
     return _loaded_prompt_template
 
 _model: GenerativeModel | None = None
@@ -74,6 +73,38 @@ def prepare_file_part(file_path: str, mime_type: str) -> Part:
         return Part.from_text(f.read())
 
 
+def _parse_numbered_criteria(value: str | dict | Any | None) -> list[tuple[str, str]]:
+    """Parse sufficiency/evaluation_criteria JSON (string or dict) into [(id, label), ...], keys sorted numerically."""
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        obj = value
+    elif isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return []
+        try:
+            obj = json.loads(value)
+        except Exception:
+            return []
+    else:
+        return []
+    if not isinstance(obj, dict):
+        return []
+    keys = sorted(obj.keys(), key=lambda k: (int(k) if str(k).isdigit() else 999, k))
+    return [(k, str(obj[k]).strip()) for k in keys if str(obj[k]).strip()]
+
+
+def _format_criteria_as_numbered_list(parsed: list[tuple[str, str]]) -> str:
+    """Turn [(id, label), ...] into '1. label\\n2. label\\n...' for prompt."""
+    return "\n".join(f"{id_}. {label}" for id_, label in parsed)
+
+
+def _format_criteria_with_control_ids(control_id: str, parsed: list[tuple[str, str]]) -> str:
+    """Format criteria as 'control_id_N: label' so the LLM uses those exact IDs in its response."""
+    return "\n".join(f"  {control_id}_{id_}: {label}" for id_, label in parsed)
+
+
 def _build_prompt(
     item: Any,
     mappings: list[Any],
@@ -81,24 +112,30 @@ def _build_prompt(
     submission_context: str | None = None,
 ) -> str:
     """Build the evaluation prompt from evidence_sufficiency_matrix rows when present, else from CEI fields.
-    submission_context: optional text (e.g. declared architecture and form data for A5) appended for AI."""
+    When matrix_rows is set, all controls' sufficiency_criteria and evaluation_criteria are included
+    as readable numbered lists. submission_context (e.g. form data) is appended for the AI."""
     controls_text = "\n".join(
         f"- {m.control_id}: {getattr(m, 'sufficiency_requirement', None) or 'General compliance'}"
         for m in mappings
     )
     if matrix_rows:
-        # Aggregate per-control sufficiency and evaluation from evidence_sufficiency_matrix
         sufficiency_parts = []
         evaluation_parts = []
         for row in matrix_rows:
             cid = getattr(row, "control_id", None) or row.get("control_id")
             cname = getattr(row, "control_name", None) or row.get("control_name") or cid
-            suf = getattr(row, "sufficiency_criteria", None) or row.get("sufficiency_criteria")
-            ev = getattr(row, "evaluation_criteria", None) or row.get("evaluation_criteria")
-            if suf:
-                sufficiency_parts.append(f"--- Control {cid} ({cname}) ---\n{suf}")
-            if ev:
-                evaluation_parts.append(f"--- Control {cid} ({cname}) ---\n{ev}")
+            suf_raw = getattr(row, "sufficiency_criteria", None) or row.get("sufficiency_criteria")
+            ev_raw = getattr(row, "evaluation_criteria", None) or row.get("evaluation_criteria")
+            suf_parsed = _parse_numbered_criteria(suf_raw)
+            ev_parsed = _parse_numbered_criteria(ev_raw)
+            if suf_parsed:
+                sufficiency_parts.append(
+                    f"--- Control {cid} ({cname}) ---\n" + _format_criteria_with_control_ids(cid, suf_parsed)
+                )
+            if ev_parsed:
+                evaluation_parts.append(
+                    f"--- Control {cid} ({cname}) ---\n" + _format_criteria_with_control_ids(cid, ev_parsed)
+                )
         sufficiency_definition = "\n\n".join(sufficiency_parts) if sufficiency_parts else "N/A"
         evaluation_criteria = "\n\n".join(evaluation_parts) if evaluation_parts else "N/A"
         evidence_description = (
@@ -168,7 +205,7 @@ def evaluate_evidence(
                 "(https://console.cloud.google.com/apis/library/aiplatform.googleapis.com?project=YOUR_PROJECT). "
                 "(2) Grant the service account or user the role 'Vertex AI User' (roles/aiplatform.user) so it has "
                 "aiplatform.endpoints.predict. (3) If the model does not exist in your region, set VERTEX_AI_MODEL "
-                "to a supported model, e.g. gemini-1.5-flash or gemini-1.5-pro. Original error: " + err_msg
+                "to a supported model, e.g. gemini-2.5-flash-lite or gemini-2.5-flash-lite. Original error: " + err_msg
             ) from api_err
         raise ValueError(f"Vertex AI API error: {api_err}") from api_err
 

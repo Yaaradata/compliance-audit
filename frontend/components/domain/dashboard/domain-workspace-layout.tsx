@@ -76,7 +76,7 @@ export function DomainWorkspaceLayout({
     <div className="h-full min-h-0 flex flex-col">
       <CompactDomainHeader config={config} completionPct={overallCompletion} className="shrink-0" />
 
-      <div className="md:hidden shrink-0 p-2 border-b border-[var(--border)]">
+      <div className="md:hidden shrink-0 p-2 border-b border-(--border)">
         <label htmlFor="evidence-select-mobile" className="sr-only">
           Select evidence item
         </label>
@@ -84,7 +84,7 @@ export function DomainWorkspaceLayout({
           id="evidence-select-mobile"
           value={activeItem}
           onChange={(e) => onSelectItem(e.target.value)}
-          className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+          className="w-full px-3 py-2 text-sm rounded-lg border border-(--border) bg-(--surface) text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
           aria-label="Select evidence item"
         >
           {config.evidenceItems.map((item) => (
