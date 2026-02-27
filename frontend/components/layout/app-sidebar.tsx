@@ -39,9 +39,10 @@ interface DomainScore {
 export function AppSidebar() {
   const pathname = usePathname();
   const { open, toggle } = useSidebar();
-  const cycleId = useCycleIdFromPath() ?? useAuth().activeCycleId;
+  const { user, selectedArchitectureId, activeCycleId } = useAuth();
+  const cycleIdFromPath = useCycleIdFromPath();
+  const cycleId = cycleIdFromPath ?? activeCycleId;
   const [searchQuery, setSearchQuery] = useState("");
-  const { user, selectedArchitectureId } = useAuth();
   const role = user?.role ?? "compliance_officer";
   const navItems = NAV_BY_ROLE[role].filter(
     (item) =>

@@ -7,6 +7,7 @@ type TabsContextValue = {
   value: string;
   onChange: (v: string) => void;
   id: string;
+  accentColor?: string;
 };
 
 const TabsContext = createContext<TabsContextValue | null>(null);
@@ -23,12 +24,14 @@ export function Tabs({
   onChange,
   children,
   className,
+  accentColor,
 }: {
   value?: string;
   defaultValue?: string;
   onChange?: (v: string) => void;
   children: React.ReactNode;
   className?: string;
+  accentColor?: string;
 }) {
   const [internal, setInternal] = useState(defaultValue ?? "");
   const id = useId().replace(/:/g, "");
@@ -39,7 +42,7 @@ export function Tabs({
     onChange?.(v);
   };
   return (
-    <TabsContext.Provider value={{ value: current, onChange: handleChange, id }}>
+    <TabsContext.Provider value={{ value: current, onChange: handleChange, id, accentColor }}>
       <div className={cn("flex flex-col min-h-0", className)} role="tablist" aria-label="Workspace sections">
         {children}
       </div>
@@ -76,8 +79,9 @@ export function TabsTrigger({
   children: React.ReactNode;
   className?: string;
 }) {
-  const { value: current, onChange, id } = useTabs();
+  const { value: current, onChange, id, accentColor } = useTabs();
   const active = current === value;
+  const hasAccent = accentColor && active;
   return (
     <button
       type="button"
@@ -88,13 +92,17 @@ export function TabsTrigger({
       tabIndex={active ? 0 : -1}
       onClick={() => onChange(value)}
       className={cn(
-        "px-3 py-2 text-xs font-semibold rounded-md transition-all duration-150",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2",
-        active
-          ? "bg-[var(--background)] text-[var(--foreground)] shadow-sm"
-          : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]/50",
+        "px-3 py-2 text-xs font-semibold rounded-md transition-all duration-200",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+        "hover:opacity-90 active:scale-[0.98]",
+        hasAccent
+          ? "text-white shadow-md"
+          : active
+            ? "bg-[var(--background)] text-[var(--foreground)] shadow-sm focus-visible:ring-[var(--primary)]"
+            : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]/50 focus-visible:ring-[var(--primary)]",
         className
       )}
+      style={hasAccent ? { backgroundColor: accentColor } : undefined}
     >
       {children}
     </button>

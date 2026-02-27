@@ -36,12 +36,14 @@ export function CompactDropzone({
   onUploadComplete,
   onEnsureSubmission,
   className,
+  accentColor,
 }: {
   submissionId?: string | null;
   label?: string;
   onUploadComplete?: () => void;
   onEnsureSubmission?: () => Promise<string | null>;
   className?: string;
+  accentColor?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -162,16 +164,25 @@ export function CompactDropzone({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={cn(
-          "rounded-lg border-2 border-dashed transition-all duration-150 min-h-[100px] max-h-[140px] flex flex-col items-center justify-center px-4 py-3",
-          "focus-within:ring-2 focus-within:ring-[var(--primary)] focus-within:ring-offset-2",
+          "rounded-xl border-2 border-dashed transition-all duration-200 min-h-[120px] max-h-[180px] flex flex-col items-center justify-center px-4 py-4",
+          "focus-within:ring-2 focus-within:ring-offset-2",
           !canUpload && "cursor-not-allowed opacity-60",
-          canUpload && !uploading && "cursor-pointer hover:border-[var(--primary)]/70 hover:bg-[var(--primary-muted)]/20",
-          state === "dragOver" && "border-[var(--primary)] bg-[var(--primary-muted)]/40",
+          canUpload && !uploading && "cursor-pointer hover:scale-[1.01] active:scale-[0.99]",
+          state === "dragOver" && "scale-[1.02]",
           state === "uploading" && "border-[var(--primary)]/50 bg-[var(--primary-muted)]/10",
-          state === "success" && "border-[var(--success)]/50 bg-[var(--success-bg)]/30",
+          state === "success" && "border-[var(--success)]/60 bg-[var(--success)]/10",
           state === "error" && "border-[var(--danger)] bg-[var(--danger-bg)]/30"
         )}
-        style={{ borderColor: state === "empty" && !dragOver ? "var(--border)" : undefined }}
+        style={{
+          borderColor:
+            state === "empty" && !dragOver
+              ? "var(--border)"
+              : state === "dragOver" || state === "uploading"
+                ? accentColor ?? "var(--primary)"
+                : undefined,
+          ...(state === "dragOver" && accentColor ? { backgroundColor: `${accentColor}18` } : {}),
+          ...(state === "empty" && canUpload && accentColor ? { ["--tw-ring-color" as string]: accentColor } : {}),
+        }}
       >
         <input
           ref={inputRef}
@@ -184,22 +195,22 @@ export function CompactDropzone({
           aria-label="Upload files"
         />
         {state === "uploading" && (
-          <div className="w-full max-w-xs rounded-full overflow-hidden h-1.5 bg-[var(--border)]">
+          <div className="w-full max-w-xs rounded-full overflow-hidden h-2 bg-[var(--border)]">
             <div
-              className="h-full rounded-full bg-[var(--primary)] transition-all duration-300"
-              style={{ width: `${uploadProgress}%` }}
+              className="h-full rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress}%`, backgroundColor: accentColor ?? "var(--primary)" }}
             />
           </div>
         )}
-        <p className="text-xs font-medium text-[var(--foreground)] text-center">
+        <p className="text-sm font-semibold text-[var(--foreground)] text-center">
           {state === "uploading" && "Uploading…"}
           {state === "dragOver" && "Drop here"}
-          {state === "empty" && (canUpload ? label : "Create submission to upload")}
+          {state === "empty" && (canUpload ? "Upload Evidence — " + label : "Create submission to upload")}
           {state === "success" && `${files.length} file${files.length !== 1 ? "s" : ""} uploaded`}
           {state === "error" && error}
         </p>
         {state === "empty" && canUpload && (
-          <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">PDF, images, Excel, CSV · max {MAX_SIZE_MB} MB</p>
+          <p className="text-[10px] text-[var(--foreground-muted)] mt-1">PDF, images, Excel, CSV · max {MAX_SIZE_MB} MB</p>
         )}
       </div>
       {files.length > 0 && (

@@ -46,7 +46,7 @@ def _get_model() -> GenerativeModel:
 
 
 def prepare_file_part(file_path: str, mime_type: str) -> Part:
-    """Return a Vertex AI Part for the given file.  PDF/images are sent as
+    """Return a Vertex AI Part for the given file. PDF/images are sent as
     binary; Excel is converted to CSV text; everything else is sent as text."""
     if mime_type in (
         "application/pdf",

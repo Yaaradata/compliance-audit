@@ -15,10 +15,12 @@ function PassFailIcon({ pct }: { pct: number }) {
 export function ControlSufficiencyPanel({
   controls,
   controlScores,
+  accentColor,
   className,
 }: {
   controls: string[];
   controlScores: Record<string, number>;
+  accentColor?: string;
   className?: string;
 }) {
   const [sortWorstFirst, setSortWorstFirst] = useState(true);
@@ -35,17 +37,21 @@ export function ControlSufficiencyPanel({
         className
       )}
     >
-      <div className="shrink-0 flex items-center justify-between gap-2 p-3 border-b border-[var(--border)]">
-        <span className="text-xs font-semibold text-[var(--foreground)]">Control Sufficiency</span>
-        <button
-          type="button"
-          onClick={() => setSortWorstFirst((s) => !s)}
-          className="text-[10px] font-medium px-2 py-1 rounded border border-[var(--border)] bg-[var(--background)] text-[var(--foreground-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-          title={sortWorstFirst ? "Sort by best first" : "Sort by worst first"}
-          aria-pressed={sortWorstFirst}
-        >
-          {sortWorstFirst ? "Worst first" : "Best first"}
-        </button>
+      <div className="shrink-0 p-3 border-b border-[var(--border)]">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)] mb-1">Control Sufficiency</h2>
+        <p className="text-[10px] text-[var(--foreground-muted)] mb-2">Progress by control for this domain</p>
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => setSortWorstFirst((s) => !s)}
+            className="text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-all duration-200 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 text-white"
+            style={{ backgroundColor: accentColor ?? "var(--primary)" }}
+            title={sortWorstFirst ? "Sort by best first" : "Sort by worst first"}
+            aria-pressed={sortWorstFirst}
+          >
+            {sortWorstFirst ? "Worst first" : "Best first"}
+          </button>
+        </div>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
         {sortedControls.map(({ id, score }) => {

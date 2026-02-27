@@ -12,7 +12,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1 overflow-hidden min-w-0">
           <AppSidebar />
           <main className="flex-1 min-w-0 overflow-y-auto p-5">
-            <div className="max-w-[1100px] mx-auto w-full">{children}</div>
+            <div className="w-full h-full min-h-0">{children}</div>
           </main>
         </div>
         <footer className="px-5 py-2.5 text-center text-[10px] border-t shrink-0" style={{ color: "var(--foreground-subtle)", borderColor: "var(--border)", background: "var(--surface)" }}>

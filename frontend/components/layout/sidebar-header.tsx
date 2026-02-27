@@ -60,15 +60,17 @@ export function SidebarHeader({
           paddingRight: 8,
         }}
       >
-        <Link
-          href={href}
-          className="rounded-full w-9 h-9 flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sidebar-active-text)] shrink-0"
+        <button
+          type="button"
+          onClick={toggle}
+          className="rounded-full w-9 h-9 flex items-center justify-center outline-none transition-all duration-200 hover:bg-[var(--sidebar-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sidebar-active-text)] shrink-0"
           style={{ background: "var(--sidebar-active-bg)", color: "var(--sidebar-active-text)" }}
-          aria-label="YaaraLabs SWIFT — Home"
-          title="YaaraLabs SWIFT Compliance"
+          title="Expand sidebar"
+          aria-label="Expand sidebar"
+          aria-expanded={open}
         >
-          <span className="font-bold text-sm">YL</span>
-        </Link>
+          <ChevronIcon open={false} className="w-5 h-5" />
+        </button>
         <button
           type="button"
           onClick={onSearchClick ?? toggle}

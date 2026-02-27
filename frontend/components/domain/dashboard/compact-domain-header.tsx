@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { ControlBadge } from "@/components/ui/control-badge";
 import { getStatusColor, getStatusLabel } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { DomainConfig } from "@/lib/types";
 
 function RiskBadge({ pct }: { pct: number }) {
@@ -44,36 +45,46 @@ export function CompactDomainHeader({
     return refs;
   }, [config.evidenceItems]);
 
+  const [showControls, setShowControls] = useState(false);
+
   return (
     <header
-      className={className}
-      style={{
-        maxHeight: "90px",
-        minHeight: "56px",
-      }}
+      className={cn("border-b border-[var(--border)] bg-[var(--background)]", className)}
+      style={{ minHeight: "56px" }}
     >
-      <div className="flex items-center gap-4 flex-wrap py-2">
-        <div className="flex items-center gap-3 shrink-0">
+      <div className="flex flex-col gap-2 py-3 px-1">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="shrink-0" title={`${completionPct}% complete`}>
             <ScoreRing pct={completionPct} size={44} stroke={4} />
           </div>
-          <div>
-            <h1 className="text-base font-bold text-[var(--foreground)] leading-tight">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-bold text-[var(--foreground)] leading-tight truncate">
               Domain {config.id}: {config.name}
             </h1>
-            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[var(--foreground-muted)]">
+            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[var(--foreground-muted)] flex-wrap">
               <span>{config.evidenceItems.length} evidence items</span>
               <span aria-hidden>·</span>
               <span>{config.allControls.length} controls</span>
               <RiskBadge pct={completionPct} />
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowControls((s) => !s)}
+            className="shrink-0 text-[11px] font-semibold px-3 py-2 rounded-lg transition-all duration-200 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 text-white"
+            style={{ backgroundColor: config.color }}
+            aria-expanded={showControls}
+          >
+            {showControls ? "Hide controls" : "Show controls"}
+          </button>
         </div>
-        <div className="flex flex-wrap gap-1.5 ml-auto">
-          {controlRefs.map((c) => (
-            <ControlBadge key={c.id} id={c.id} ma={c.ma} />
-          ))}
-        </div>
+        {showControls && (
+          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--border)]">
+            {controlRefs.map((c) => (
+              <ControlBadge key={c.id} id={c.id} ma={c.ma} />
+            ))}
+          </div>
+        )}
       </div>
     </header>
   );
