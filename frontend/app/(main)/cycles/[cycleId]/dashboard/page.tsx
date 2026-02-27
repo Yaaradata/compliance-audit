@@ -70,6 +70,7 @@ export default function CycleDashboardPage() {
       .finally(() => setLoading(false));
   }, [cycleId]);
 
+  
   const domainsForCards: Domain[] = useMemo(() => {
     const byId = new Map(dashboard?.domain_scores?.map((s) => [s.id, s]) ?? []);
     return staticDomains.map((d) => {
