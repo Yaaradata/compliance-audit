@@ -31,6 +31,7 @@ export interface DomainWorkspaceLayoutProps {
   ensureSubmission: (itemId: string) => Promise<string | null>;
   fetchControlScores: () => void;
   onEvaluateEvidence: () => void;
+  aiEvaluationError?: string | null;
   itemFormData: Record<string, string>;
   onItemFormChange: (key: string, value: string) => void;
   onItemFormBlur: () => void;
@@ -61,6 +62,7 @@ export function DomainWorkspaceLayout({
   ensureSubmission,
   fetchControlScores,
   onEvaluateEvidence,
+  aiEvaluationError,
   itemFormData,
   onItemFormChange,
   onItemFormBlur,
@@ -128,6 +130,7 @@ export function DomainWorkspaceLayout({
             onEnsureSubmission={ensureSubmission}
             onUploadComplete={fetchControlScores}
             onEvaluateEvidence={onEvaluateEvidence}
+            aiEvaluationError={aiEvaluationError}
             evaluationState={evaluationState}
             itemFormData={itemFormData}
             onItemFormChange={onItemFormChange}

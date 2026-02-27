@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Any
 
@@ -194,20 +195,42 @@ def evaluate_evidence(
     )
     contents = [Part.from_text(prompt_text)] + file_parts
 
-    try:
-        response = model.generate_content(contents)
-    except Exception as api_err:
-        logger.exception("Vertex AI generate_content failed")
-        err_msg = str(api_err)
-        if "PERMISSION_DENIED" in err_msg or "PermissionDenied" in type(api_err).__name__ or "403" in err_msg:
-            raise ValueError(
-                "Vertex AI permission denied (403). To fix: (1) Enable Vertex AI API in Google Cloud Console "
-                "(https://console.cloud.google.com/apis/library/aiplatform.googleapis.com?project=YOUR_PROJECT). "
-                "(2) Grant the service account or user the role 'Vertex AI User' (roles/aiplatform.user) so it has "
-                "aiplatform.endpoints.predict. (3) If the model does not exist in your region, set VERTEX_AI_MODEL "
-                "to a supported model, e.g. gemini-2.5-flash-lite or gemini-2.5-flash-lite. Original error: " + err_msg
-            ) from api_err
-        raise ValueError(f"Vertex AI API error: {api_err}") from api_err
+    max_retries = 3
+    last_err: Exception | None = None
+    for attempt in range(max_retries + 1):
+        try:
+            response = model.generate_content(contents)
+            break  # success
+        except Exception as api_err:
+            last_err = api_err
+            err_msg = str(api_err)
+            err_type = type(api_err).__name__
+
+            is_rate_limit = "RESOURCE_EXHAUSTED" in err_type or "ResourceExhausted" in err_type or "429" in err_msg or "Resource exhausted" in err_msg
+            if is_rate_limit and attempt < max_retries:
+                wait = 2 ** attempt * 5  # 5s, 10s, 20s
+                logger.warning("Vertex AI 429 (attempt %d/%d), retrying in %ds…", attempt + 1, max_retries + 1, wait)
+                time.sleep(wait)
+                continue
+
+            if is_rate_limit:
+                logger.warning("Vertex AI rate limit (429) after %d attempts: %s", attempt + 1, err_msg)
+                raise ValueError(
+                    "Vertex AI rate limit (429). The AI service is temporarily overloaded. Please try again in a minute."
+                ) from api_err
+
+            logger.exception("Vertex AI generate_content failed")
+            if "PERMISSION_DENIED" in err_msg or "PermissionDenied" in err_type or "403" in err_msg:
+                raise ValueError(
+                    "Vertex AI permission denied (403). To fix: (1) Enable Vertex AI API in Google Cloud Console "
+                    "(https://console.cloud.google.com/apis/library/aiplatform.googleapis.com?project=YOUR_PROJECT). "
+                    "(2) Grant the service account or user the role 'Vertex AI User' (roles/aiplatform.user) so it has "
+                    "aiplatform.endpoints.predict. (3) If the model does not exist in your region, set VERTEX_AI_MODEL "
+                    "to a supported model. Original error: " + err_msg
+                ) from api_err
+            raise ValueError(f"Vertex AI API error: {api_err}") from api_err
+    else:
+        raise ValueError(f"Vertex AI failed after {max_retries + 1} attempts: {last_err}")
 
     text = _get_response_text(response)
     if not (text and text.strip()):

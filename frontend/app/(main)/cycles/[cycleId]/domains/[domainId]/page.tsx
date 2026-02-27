@@ -102,6 +102,7 @@ export default function CycleDomainPage() {
   const [evaluated, setEvaluated] = useState(false);
   const [aiEvaluationLoading, setAiEvaluationLoading] = useState(false);
   const [aiEvaluationResult, setAiEvaluationResult] = useState<AiEvalResultType | null>(null);
+  const [aiEvaluationError, setAiEvaluationError] = useState<string | null>(null);
   const [submissionMap, setSubmissionMap] = useState<Record<string, string>>({});
   const [controlScores, setControlScores] = useState<Record<string, number>>({});
   const [lastEvaluationByItem, setLastEvaluationByItem] = useState<Record<string, AiEvalResultType>>({});
@@ -302,6 +303,7 @@ export default function CycleDomainPage() {
     setAiEvaluationLoading(true);
     setEvaluated(true);
     setAiEvaluationResult(null);
+    setAiEvaluationError(null);
 
     let subId = currentSubmissionId;
     if (!subId) {
@@ -313,7 +315,7 @@ export default function CycleDomainPage() {
     }
 
     try {
-      const res = await api.post<{
+      const res = await api.postDirect<{
         evidence_item_id: string;
         overall_met: boolean;
         sufficiency_results: { id: string; label: string; met: boolean; description?: string | null }[];
@@ -351,8 +353,16 @@ export default function CycleDomainPage() {
         });
         setCompletionPctByItem((prev) => ({ ...prev, ...completionByItem }));
       }).catch(() => {});
-    } catch {
+    } catch (err: unknown) {
       setAiEvaluationResult(null);
+      const detail =
+        (err as { response?: { data?: { detail?: string }; status?: number } })?.response?.data?.detail ??
+        (err instanceof Error ? err.message : null);
+      const message =
+        typeof detail === "string" && detail.length > 0
+          ? detail
+          : "Evaluation failed. Check your connection and try again.";
+      setAiEvaluationError(message);
     } finally {
       setAiEvaluationLoading(false);
     }
@@ -400,6 +410,7 @@ export default function CycleDomainPage() {
         ensureSubmission={ensureSubmission}
         fetchControlScores={fetchControlScores}
         onEvaluateEvidence={handleEvaluateEvidence}
+        aiEvaluationError={aiEvaluationError}
         itemFormData={itemFormData}
         onItemFormChange={handleItemFormChange}
         onItemFormBlur={handleItemFormBlur}

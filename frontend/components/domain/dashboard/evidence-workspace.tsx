@@ -42,7 +42,102 @@ import { B7_EVIDENCE_ITEM_ID, B7_CONFIG_CHECKS } from "@/lib/data/b7-evidence";
 import { B8IntakeForm } from "@/components/domain/b8-intake-form";
 import { B8_EVIDENCE_ITEM_ID, B8_CONFIG_CHECKS } from "@/lib/data/b8-evidence";
 
+import { GenericIntakeForm } from "@/components/domain/generic-intake-form";
+import type { FieldDef } from "@/components/domain/generic-intake-form";
+import { C1_EVIDENCE_ITEM_ID, C1_UPLOAD_GUIDANCE, C1_FIELDS } from "@/lib/data/c1-evidence";
+import { C2_EVIDENCE_ITEM_ID, C2_UPLOAD_GUIDANCE, C2_FIELDS } from "@/lib/data/c2-evidence";
+import { C3_EVIDENCE_ITEM_ID, C3_UPLOAD_GUIDANCE, C3_FIELDS } from "@/lib/data/c3-evidence";
+import { C4_EVIDENCE_ITEM_ID, C4_UPLOAD_GUIDANCE, C4_FIELDS } from "@/lib/data/c4-evidence";
+import { C5_EVIDENCE_ITEM_ID, C5_UPLOAD_GUIDANCE, C5_FIELDS } from "@/lib/data/c5-evidence";
+import { C6_EVIDENCE_ITEM_ID, C6_UPLOAD_GUIDANCE, C6_FIELDS } from "@/lib/data/c6-evidence";
+import { C7_EVIDENCE_ITEM_ID, C7_UPLOAD_GUIDANCE, C7_FIELDS } from "@/lib/data/c7-evidence";
+import { C8_EVIDENCE_ITEM_ID, C8_UPLOAD_GUIDANCE, C8_FIELDS } from "@/lib/data/c8-evidence";
+import { C9_EVIDENCE_ITEM_ID, C9_UPLOAD_GUIDANCE, C9_FIELDS } from "@/lib/data/c9-evidence";
+import { D1_EVIDENCE_ITEM_ID, D1_UPLOAD_GUIDANCE, D1_FIELDS } from "@/lib/data/d1-evidence";
+import { D2_EVIDENCE_ITEM_ID, D2_UPLOAD_GUIDANCE, D2_FIELDS } from "@/lib/data/d2-evidence";
+import { D3_EVIDENCE_ITEM_ID, D3_UPLOAD_GUIDANCE, D3_FIELDS } from "@/lib/data/d3-evidence";
+import { D4_EVIDENCE_ITEM_ID, D4_UPLOAD_GUIDANCE, D4_FIELDS } from "@/lib/data/d4-evidence";
+import { D5_EVIDENCE_ITEM_ID, D5_UPLOAD_GUIDANCE, D5_FIELDS } from "@/lib/data/d5-evidence";
+import { D6_EVIDENCE_ITEM_ID, D6_UPLOAD_GUIDANCE, D6_FIELDS } from "@/lib/data/d6-evidence";
+import { E1_EVIDENCE_ITEM_ID, E1_UPLOAD_GUIDANCE, E1_FIELDS } from "@/lib/data/e1-evidence";
+import { E2_EVIDENCE_ITEM_ID, E2_UPLOAD_GUIDANCE, E2_FIELDS } from "@/lib/data/e2-evidence";
+import { E3_EVIDENCE_ITEM_ID, E3_UPLOAD_GUIDANCE, E3_FIELDS } from "@/lib/data/e3-evidence";
+import { E4_EVIDENCE_ITEM_ID, E4_UPLOAD_GUIDANCE, E4_FIELDS } from "@/lib/data/e4-evidence";
+import { E5_EVIDENCE_ITEM_ID, E5_UPLOAD_GUIDANCE, E5_FIELDS } from "@/lib/data/e5-evidence";
+import { E6_EVIDENCE_ITEM_ID, E6_UPLOAD_GUIDANCE, E6_FIELDS } from "@/lib/data/e6-evidence";
+import { E7_EVIDENCE_ITEM_ID, E7_UPLOAD_GUIDANCE, E7_FIELDS } from "@/lib/data/e7-evidence";
+import { F1_EVIDENCE_ITEM_ID, F1_UPLOAD_GUIDANCE, F1_FIELDS } from "@/lib/data/f1-evidence";
+import { F2_EVIDENCE_ITEM_ID, F2_UPLOAD_GUIDANCE, F2_FIELDS } from "@/lib/data/f2-evidence";
+import { F3_EVIDENCE_ITEM_ID, F3_UPLOAD_GUIDANCE, F3_FIELDS } from "@/lib/data/f3-evidence";
+import { F4_EVIDENCE_ITEM_ID, F4_UPLOAD_GUIDANCE, F4_FIELDS } from "@/lib/data/f4-evidence";
+import { G1_EVIDENCE_ITEM_ID, G1_UPLOAD_GUIDANCE, G1_FIELDS } from "@/lib/data/g1-evidence";
+import { G2_EVIDENCE_ITEM_ID, G2_UPLOAD_GUIDANCE, G2_FIELDS } from "@/lib/data/g2-evidence";
+import { G3_EVIDENCE_ITEM_ID, G3_UPLOAD_GUIDANCE, G3_FIELDS } from "@/lib/data/g3-evidence";
+import { G4_EVIDENCE_ITEM_ID, G4_UPLOAD_GUIDANCE, G4_FIELDS } from "@/lib/data/g4-evidence";
+import { H1_EVIDENCE_ITEM_ID, H1_UPLOAD_GUIDANCE, H1_FIELDS } from "@/lib/data/h1-evidence";
+import { H2_EVIDENCE_ITEM_ID, H2_UPLOAD_GUIDANCE, H2_FIELDS } from "@/lib/data/h2-evidence";
+import { H3_EVIDENCE_ITEM_ID, H3_UPLOAD_GUIDANCE, H3_FIELDS } from "@/lib/data/h3-evidence";
+import { H4_EVIDENCE_ITEM_ID, H4_UPLOAD_GUIDANCE, H4_FIELDS } from "@/lib/data/h4-evidence";
+import { H5_EVIDENCE_ITEM_ID, H5_UPLOAD_GUIDANCE, H5_FIELDS } from "@/lib/data/h5-evidence";
+import { H6_EVIDENCE_ITEM_ID, H6_UPLOAD_GUIDANCE, H6_FIELDS } from "@/lib/data/h6-evidence";
+import { H7_EVIDENCE_ITEM_ID, H7_UPLOAD_GUIDANCE, H7_FIELDS } from "@/lib/data/h7-evidence";
+import { H8_EVIDENCE_ITEM_ID, H8_UPLOAD_GUIDANCE, H8_FIELDS } from "@/lib/data/h8-evidence";
+import { H9_EVIDENCE_ITEM_ID, H9_UPLOAD_GUIDANCE, H9_FIELDS } from "@/lib/data/h9-evidence";
+
 import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/data/architectures";
+
+interface GenericEvidenceDef {
+  uploadTitle: string;
+  uploadDesc: string;
+  uploadLabel: string;
+  guidanceTitle: string;
+  guidance: { id: string; label: string }[];
+  formTitle: string;
+  formDesc: string;
+  fields: FieldDef[];
+}
+
+const GENERIC_EVIDENCE_MAP: Record<string, GenericEvidenceDef> = {
+  [C1_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload access control policy", uploadDesc: "Upload the organization's access control policy covering SWIFT infrastructure.", uploadLabel: "Drop policy document or click to upload", guidanceTitle: "AI will verify from uploaded policy", guidance: C1_UPLOAD_GUIDANCE, formTitle: "Policy confirmations", formDesc: "Confirm key policy elements.", fields: C1_FIELDS },
+  [C2_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload privileged account inventory", uploadDesc: "Upload spreadsheet/PAM export of all privileged accounts across SWIFT systems.", uploadLabel: "Drop inventory spreadsheet or click to upload", guidanceTitle: "AI will verify from uploaded inventory", guidance: C2_UPLOAD_GUIDANCE, formTitle: "Inventory confirmations", formDesc: "Confirm inventory completeness and review status.", fields: C2_FIELDS },
+  [C3_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload user access list", uploadDesc: "Upload system export of all user accounts with role assignments.", uploadLabel: "Drop user access export or click to upload", guidanceTitle: "AI will verify from uploaded list", guidance: C3_UPLOAD_GUIDANCE, formTitle: "Access list confirmations", formDesc: "Confirm alignment with RBAC and account hygiene.", fields: C3_FIELDS },
+  [C4_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload RBAC role definitions", uploadDesc: "Upload role definition matrix showing permissions and separation of duties.", uploadLabel: "Drop role matrix or click to upload", guidanceTitle: "AI will verify from uploaded matrix", guidance: C4_UPLOAD_GUIDANCE, formTitle: "RBAC confirmations", formDesc: "Confirm role enforcement and separation of duties.", fields: C4_FIELDS },
+  [C5_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload quarterly access review records", uploadDesc: "Upload review records, findings, and management sign-offs for the past 12 months.", uploadLabel: "Drop review records or click to upload", guidanceTitle: "AI will verify from uploaded records", guidance: C5_UPLOAD_GUIDANCE, formTitle: "Review confirmations", formDesc: "Confirm review frequency and remediation.", fields: C5_FIELDS },
+  [C6_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload JML process documentation & logs", uploadDesc: "Upload documented JML process and sample execution evidence.", uploadLabel: "Drop JML docs/logs or click to upload", guidanceTitle: "AI will verify from uploaded docs", guidance: C6_UPLOAD_GUIDANCE, formTitle: "JML process confirmations", formDesc: "Confirm process execution and coverage.", fields: C6_FIELDS },
+  [C7_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload token/certificate inventory", uploadDesc: "Upload inventory of hardware/software tokens and certificates with lifecycle records.", uploadLabel: "Drop inventory or click to upload", guidanceTitle: "AI will verify from uploaded inventory", guidance: C7_UPLOAD_GUIDANCE, formTitle: "Token management confirmations", formDesc: "Confirm lifecycle management status.", fields: C7_FIELDS },
+  [C8_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload credential storage evidence", uploadDesc: "Upload vault configuration, encryption settings, and access log evidence.", uploadLabel: "Drop config/vault evidence or click to upload", guidanceTitle: "AI will verify from uploaded evidence", guidance: C8_UPLOAD_GUIDANCE, formTitle: "Credential storage confirmations", formDesc: "Confirm secure storage and access controls.", fields: C8_FIELDS },
+  [C9_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload personnel vetting records", uploadDesc: "Upload screening policy and background check evidence for SWIFT operators.", uploadLabel: "Drop HR documentation or click to upload", guidanceTitle: "AI will verify from uploaded records", guidance: C9_UPLOAD_GUIDANCE, formTitle: "Vetting confirmations", formDesc: "Confirm screening coverage and process.", fields: C9_FIELDS },
+  [D1_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload patch management policy", uploadDesc: "Upload the documented patch management policy for SWIFT systems.", uploadLabel: "Drop policy document or click to upload", guidanceTitle: "AI will verify from uploaded policy", guidance: D1_UPLOAD_GUIDANCE, formTitle: "Patch policy confirmations", formDesc: "Confirm key policy elements.", fields: D1_FIELDS },
+  [D2_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload current patch level reports", uploadDesc: "Upload scan/WSUS reports showing current patch status for all SWIFT systems.", uploadLabel: "Drop scan reports or click to upload", guidanceTitle: "AI will verify from uploaded reports", guidance: D2_UPLOAD_GUIDANCE, formTitle: "Patch level confirmations", formDesc: "Confirm scan coverage and findings.", fields: D2_FIELDS },
+  [D3_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload patch deployment records (12 months)", uploadDesc: "Upload deployment logs showing patching cadence over the past 12 months.", uploadLabel: "Drop deployment logs or click to upload", guidanceTitle: "AI will verify from uploaded logs", guidance: D3_UPLOAD_GUIDANCE, formTitle: "Deployment record confirmations", formDesc: "Confirm patching cadence and coverage.", fields: D3_FIELDS },
+  [D4_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload vulnerability scan reports", uploadDesc: "Upload vulnerability scanner output for all SWIFT systems from the most recent quarter.", uploadLabel: "Drop scanner output or click to upload", guidanceTitle: "AI will verify from uploaded reports", guidance: D4_UPLOAD_GUIDANCE, formTitle: "Scan report confirmations", formDesc: "Confirm scan scope and findings.", fields: D4_FIELDS },
+  [D5_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload vulnerability remediation tracking", uploadDesc: "Upload the tracking log for all identified vulnerabilities with resolution status.", uploadLabel: "Drop tracking log or click to upload", guidanceTitle: "AI will verify from uploaded log", guidance: D5_UPLOAD_GUIDANCE, formTitle: "Remediation tracking confirmations", formDesc: "Confirm tracking completeness and timeliness.", fields: D5_FIELDS },
+  [D6_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload penetration test reports", uploadDesc: "Upload pen test reports covering SWIFT infrastructure scope.", uploadLabel: "Drop pen test reports or click to upload", guidanceTitle: "AI will verify from uploaded reports", guidance: D6_UPLOAD_GUIDANCE, formTitle: "Pen test confirmations", formDesc: "Confirm scope, methodology, and findings.", fields: D6_FIELDS },
+  [E1_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload anti-malware config & update evidence", uploadDesc: "Upload AV console exports showing product, definitions, scan schedules for each SWIFT system.", uploadLabel: "Drop AV config exports or click to upload", guidanceTitle: "AI will verify from uploaded configs", guidance: E1_UPLOAD_GUIDANCE, formTitle: "Anti-malware confirmations", formDesc: "Confirm coverage and configuration.", fields: E1_FIELDS },
+  [E2_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload SIEM/logging configuration", uploadDesc: "Upload SIEM config showing log sources, event types, retention, and integrity settings.", uploadLabel: "Drop SIEM config or click to upload", guidanceTitle: "AI will verify from uploaded config", guidance: E2_UPLOAD_GUIDANCE, formTitle: "Logging confirmations", formDesc: "Confirm log coverage and retention.", fields: E2_FIELDS },
+  [E3_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload alert rules & escalation docs", uploadDesc: "Upload alert rule definitions, escalation matrix, and response procedures.", uploadLabel: "Drop alert docs or click to upload", guidanceTitle: "AI will verify from uploaded docs", guidance: E3_UPLOAD_GUIDANCE, formTitle: "Alert & escalation confirmations", formDesc: "Confirm alert coverage and response readiness.", fields: E3_FIELDS },
+  [E4_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload software integrity verification reports", uploadDesc: "Upload FIM/integrity check reports, baselines, and authorized software lists.", uploadLabel: "Drop integrity reports or click to upload", guidanceTitle: "AI will verify from uploaded reports", guidance: E4_UPLOAD_GUIDANCE, formTitle: "Integrity verification confirmations", formDesc: "Confirm integrity checking and change detection.", fields: E4_FIELDS },
+  [E5_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload database integrity evidence", uploadDesc: "Upload database audit logs, integrity verification, and access control evidence.", uploadLabel: "Drop DB integrity evidence or click to upload", guidanceTitle: "AI will verify from uploaded evidence", guidance: E5_UPLOAD_GUIDANCE, formTitle: "Database integrity confirmations", formDesc: "Confirm integrity controls and access restrictions.", fields: E5_FIELDS },
+  [E6_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload IDS/IPS configuration", uploadDesc: "Upload IDS/IPS configuration for SWIFT network segments.", uploadLabel: "Drop IDS/IPS config or click to upload", guidanceTitle: "AI will verify from uploaded config", guidance: E6_UPLOAD_GUIDANCE, formTitle: "IDS/IPS confirmations", formDesc: "Confirm deployment and integration.", fields: E6_FIELDS },
+  [E7_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload admin activity monitoring logs", uploadDesc: "Upload log extracts/SIEM reports showing admin activity monitoring.", uploadLabel: "Drop admin logs or click to upload", guidanceTitle: "AI will verify from uploaded logs", guidance: E7_UPLOAD_GUIDANCE, formTitle: "Admin monitoring confirmations", formDesc: "Confirm monitoring coverage.", fields: E7_FIELDS },
+  [F1_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload third-party vendor inventory", uploadDesc: "Upload complete inventory of all third parties with SWIFT access.", uploadLabel: "Drop vendor inventory or click to upload", guidanceTitle: "AI will verify from uploaded inventory", guidance: F1_UPLOAD_GUIDANCE, formTitle: "Vendor inventory confirmations", formDesc: "Confirm vendor identification and classification.", fields: F1_FIELDS },
+  [F2_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload SLA/NDA agreements", uploadDesc: "Upload SLA and NDA excerpts for each third party managing SWIFT components.", uploadLabel: "Drop contract excerpts or click to upload", guidanceTitle: "AI will verify from uploaded agreements", guidance: F2_UPLOAD_GUIDANCE, formTitle: "Agreement confirmations", formDesc: "Confirm SLA/NDA coverage.", fields: F2_FIELDS },
+  [F3_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload third-party security assessments", uploadDesc: "Upload risk assessments and certification evidence for each vendor.", uploadLabel: "Drop assessment reports or click to upload", guidanceTitle: "AI will verify from uploaded assessments", guidance: F3_UPLOAD_GUIDANCE, formTitle: "Assessment confirmations", formDesc: "Confirm assessment coverage and currency.", fields: F3_FIELDS },
+  [F4_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload ongoing monitoring evidence", uploadDesc: "Upload current SOC reports, audit findings, and certification renewals.", uploadLabel: "Drop SOC reports/audits or click to upload", guidanceTitle: "AI will verify from uploaded reports", guidance: F4_UPLOAD_GUIDANCE, formTitle: "Monitoring confirmations", formDesc: "Confirm ongoing vendor monitoring.", fields: F4_FIELDS },
+  [G1_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload physical access control evidence", uploadDesc: "Upload access control system config, authorized personnel lists, and visitor logs.", uploadLabel: "Drop access control evidence or click to upload", guidanceTitle: "AI will verify from uploaded evidence", guidance: G1_UPLOAD_GUIDANCE, formTitle: "Physical access confirmations", formDesc: "Confirm access controls and review status.", fields: G1_FIELDS },
+  [G2_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload physical access logs (12 months)", uploadDesc: "Upload physical access logs covering at least 12 months for SWIFT equipment areas.", uploadLabel: "Drop access logs or click to upload", guidanceTitle: "AI will verify from uploaded logs", guidance: G2_UPLOAD_GUIDANCE, formTitle: "Access log confirmations", formDesc: "Confirm log retention and coverage.", fields: G2_FIELDS },
+  [G3_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload video surveillance evidence", uploadDesc: "Upload surveillance system config and camera placement documentation.", uploadLabel: "Drop surveillance evidence or click to upload", guidanceTitle: "AI will verify from uploaded evidence", guidance: G3_UPLOAD_GUIDANCE, formTitle: "Surveillance confirmations", formDesc: "Confirm camera coverage and retention.", fields: G3_FIELDS },
+  [G4_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload equipment disposal evidence", uploadDesc: "Upload disposal/sanitization records and destruction certificates.", uploadLabel: "Drop disposal records or click to upload", guidanceTitle: "AI will verify from uploaded records", guidance: G4_UPLOAD_GUIDANCE, formTitle: "Disposal confirmations", formDesc: "Confirm disposal process and certification.", fields: G4_FIELDS },
+  [H1_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload cyber incident response plan", uploadDesc: "Upload the IR plan/runbook covering SWIFT-specific scenarios.", uploadLabel: "Drop IR plan or click to upload", guidanceTitle: "AI will verify from uploaded plan", guidance: H1_UPLOAD_GUIDANCE, formTitle: "IR plan confirmations", formDesc: "Confirm plan coverage and currency.", fields: H1_FIELDS },
+  [H2_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload IR exercise records", uploadDesc: "Upload exercise records including scenarios, findings, and improvements.", uploadLabel: "Drop exercise records or click to upload", guidanceTitle: "AI will verify from uploaded records", guidance: H2_UPLOAD_GUIDANCE, formTitle: "Exercise confirmations", formDesc: "Confirm exercise coverage and follow-up.", fields: H2_FIELDS },
+  [H3_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload SWIFT ISAC participation evidence", uploadDesc: "Upload registration confirmation, alert receipts, and action records.", uploadLabel: "Drop ISAC evidence or click to upload", guidanceTitle: "AI will verify from uploaded evidence", guidance: H3_UPLOAD_GUIDANCE, formTitle: "ISAC participation confirmations", formDesc: "Confirm active participation.", fields: H3_FIELDS },
+  [H4_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload security training program", uploadDesc: "Upload training program document with curriculum and schedules.", uploadLabel: "Drop training program or click to upload", guidanceTitle: "AI will verify from uploaded program", guidance: H4_UPLOAD_GUIDANCE, formTitle: "Training program confirmations", formDesc: "Confirm program scope and content.", fields: H4_FIELDS },
+  [H5_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload training completion records", uploadDesc: "Upload LMS export showing completion records for all SWIFT personnel.", uploadLabel: "Drop completion records or click to upload", guidanceTitle: "AI will verify from uploaded records", guidance: H5_UPLOAD_GUIDANCE, formTitle: "Completion confirmations", formDesc: "Confirm completion rates and follow-up.", fields: H5_FIELDS },
+  [H6_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload transaction control procedures", uploadDesc: "Upload documented transaction verification, dual auth, and reconciliation procedures.", uploadLabel: "Drop procedure docs or click to upload", guidanceTitle: "AI will verify from uploaded docs", guidance: H6_UPLOAD_GUIDANCE, formTitle: "Transaction control confirmations", formDesc: "Confirm control coverage.", fields: H6_FIELDS },
+  [H7_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload transaction monitoring config", uploadDesc: "Upload monitoring rules, threshold definitions, and reconciliation records.", uploadLabel: "Drop monitoring config or click to upload", guidanceTitle: "AI will verify from uploaded config", guidance: H7_UPLOAD_GUIDANCE, formTitle: "Monitoring config confirmations", formDesc: "Confirm rule configuration and execution.", fields: H7_FIELDS },
+  [H8_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload RMA management procedures", uploadDesc: "Upload RMA management docs, due diligence records, and authorization list.", uploadLabel: "Drop RMA docs or click to upload", guidanceTitle: "AI will verify from uploaded docs", guidance: H8_UPLOAD_GUIDANCE, formTitle: "RMA management confirmations", formDesc: "Confirm procedures and review status.", fields: H8_FIELDS },
+  [H9_EVIDENCE_ITEM_ID]: { uploadTitle: "Upload risk assessment & register", uploadDesc: "Upload risk assessment methodology, risk register, and treatment decisions.", uploadLabel: "Drop risk docs or click to upload", guidanceTitle: "AI will verify from uploaded docs", guidance: H9_UPLOAD_GUIDANCE, formTitle: "Risk assessment confirmations", formDesc: "Confirm methodology and management acceptance.", fields: H9_FIELDS },
+};
 import type { EvidenceItem, DomainConfig } from "@/lib/types";
 import type { AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 
@@ -364,6 +459,22 @@ function B8CommonEvidenceContent(p: CommonFormProps) {
   );
 }
 
+/* ---------- Generic C–H content ---------- */
+
+function GenericCommonEvidenceContent({ def, ...p }: CommonFormProps & { def: GenericEvidenceDef }) {
+  return (
+    <div className="space-y-6">
+      <UploadSection id={`${p.itemId.toLowerCase()}-upload`} title={def.uploadTitle}
+        description={def.uploadDesc} label={def.uploadLabel}
+        submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
+      <GuidanceList id={`${p.itemId.toLowerCase()}-guidance`} title={def.guidanceTitle} items={def.guidance} />
+      <FormSection id={`${p.itemId.toLowerCase()}-form`} title={def.formTitle} description={def.formDesc}>
+        <GenericIntakeForm fields={def.fields} formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
+      </FormSection>
+    </div>
+  );
+}
+
 /* ---------- Main workspace ---------- */
 
 export function EvidenceWorkspace({
@@ -382,6 +493,7 @@ export function EvidenceWorkspace({
   onEnsureSubmission,
   onUploadComplete,
   onEvaluateEvidence,
+  aiEvaluationError,
   evaluationState,
   itemFormData,
   onItemFormChange,
@@ -406,6 +518,7 @@ export function EvidenceWorkspace({
   onEnsureSubmission: (itemId: string) => Promise<string | null>;
   onUploadComplete: () => void;
   onEvaluateEvidence: () => void;
+  aiEvaluationError?: string | null;
   evaluationState: "idle" | "loading" | "done";
   itemFormData: Record<string, string>;
   onItemFormChange: (key: string, value: string) => void;
@@ -449,7 +562,9 @@ export function EvidenceWorkspace({
       case B6_EVIDENCE_ITEM_ID: return <B6CommonEvidenceContent {...commonProps} />;
       case B7_EVIDENCE_ITEM_ID: return <B7CommonEvidenceContent {...commonProps} />;
       case B8_EVIDENCE_ITEM_ID: return <B8CommonEvidenceContent {...commonProps} />;
-      default:
+      default: {
+        const genericDef = GENERIC_EVIDENCE_MAP[currentItem.id];
+        if (genericDef) return <GenericCommonEvidenceContent def={genericDef} {...commonProps} />;
         return (
           <>
             <p className="text-[11px] text-(--foreground-muted) mb-2">
@@ -464,6 +579,7 @@ export function EvidenceWorkspace({
             />
           </>
         );
+      }
     }
   };
 
@@ -569,10 +685,16 @@ export function EvidenceWorkspace({
               score={completionPctByItem[currentItem.id] ?? getItemCompletion(currentItem.id)}
             />
           )}
+          {aiEvaluationError && (
+            <p className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              {aiEvaluationError}
+            </p>
+          )}
           <button
             type="button"
             onClick={onEvaluateEvidence}
-            className="mt-4 w-full py-2.5 text-sm font-semibold rounded-lg text-white transition-all duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary)"
+            disabled={aiEvaluationLoading}
+            className="mt-4 w-full py-2.5 text-sm font-semibold rounded-lg text-white transition-all duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60 disabled:pointer-events-none"
             style={{ background: config.color }}
           >
             Evaluate Evidence for {currentItem.id}

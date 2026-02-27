@@ -646,6 +646,13 @@ def evaluate_evidence(
             )
         except Exception as exc:
             logger.exception("AI evaluation failed")
+            msg = str(exc)
+            # Rate limit / resource exhausted → 503 so client can retry
+            if "429" in msg or "rate limit" in msg.lower() or "Resource exhausted" in msg:
+                raise HTTPException(
+                    status_code=503,
+                    detail="AI service is temporarily overloaded. Please try again in a minute.",
+                ) from exc
             raise HTTPException(status_code=502, detail=f"AI evaluation error: {exc}") from exc
 
         sufficiency_results = [
