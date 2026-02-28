@@ -1,6 +1,37 @@
 from uuid import UUID
 from datetime import date, datetime
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, computed_field, field_validator
+
+
+# Roles a compliance officer can create when setting up a cycle (excludes compliance_officer and admin).
+CYCLE_TEAM_ROLES = ["it_sme", "internal_reviewer", "external_assessor", "approver"]
+
+
+class CycleTeamUserCreate(BaseModel):
+    """One user to create for this cycle (same tenant as cycle)."""
+    role: str
+    email: str
+    password: str
+    name: str = ""
+
+    @field_validator("role")
+    @classmethod
+    def role_must_be_team_role(cls, v: str) -> str:
+        if v not in CYCLE_TEAM_ROLES:
+            raise ValueError(f"Role must be one of: {CYCLE_TEAM_ROLES}")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
+
+class CycleTeamCreate(BaseModel):
+    """Request to create team users for a cycle (compliance officer only)."""
+    users: list[CycleTeamUserCreate]
 
 
 class CreateCycleRequest(BaseModel):

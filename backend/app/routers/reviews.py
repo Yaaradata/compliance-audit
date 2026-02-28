@@ -1,15 +1,147 @@
 from uuid import UUID
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_current_user
 from ..models.tenant import User
+from ..models.assessment import EvidenceSubmission, EvidenceAttachment
 from ..models.review import ReviewAssignment, ReviewComment
-from ..schemas.review import CreateReviewRequest, UpdateReviewRequest, ReviewOut, CreateCommentRequest, CommentOut
+from ..schemas.review import (
+    CreateReviewRequest,
+    UpdateReviewRequest,
+    ReviewOut,
+    ReviewDetailOut,
+    CreateCommentRequest,
+    CommentOut,
+    SubmitForReviewResponse,
+)
+from ..services import storage_service
+from ..services import evidence_status as evidence_status_svc
 
 router = APIRouter()
 
+REVIEW_LEVELS = ("L1", "L2", "L3")
+LEVEL_ROLE_MAP = {"L1": "internal_reviewer", "L2": "internal_reviewer", "L3": "external_assessor"}
+
+# DB uses enum review_level: 'l1_completeness', 'l2_quality', 'l3_assessment'
+LEVEL_TO_DB = {"L1": "l1_completeness", "L2": "l2_quality", "L3": "l3_assessment"}
+DB_TO_LEVEL = {"l1_completeness": "L1", "l2_quality": "L2", "l3_assessment": "L3"}
+
+
+# ── Review assignment policy ─────────────────────────────────
+# When team/roles are assigned: L1/L2 → Internal Reviewer, L3 → External Assessor.
+# When Compliance Officer skips team setup: no Internal Reviewer exists, so L1 is
+# assigned to Compliance Officer (or any tenant user) so submitted evidence still
+# enters the review queue and is viewable/actionable in the Review page.
+
+
+def _find_reviewer_by_role(db: Session, tenant_id: UUID | None, role: str) -> User | None:
+    """Find an active user with the given role in the same tenant."""
+    q = db.query(User).filter(User.role == role, User.is_active == True)
+    if tenant_id:
+        q = q.filter(User.tenant_id == tenant_id)
+    return q.first()
+
+
+def _resolve_l1_reviewer(db: Session, tenant_id: UUID | None) -> User | None:
+    """
+    Resolve who should perform L1 review for this tenant.
+    Priority: Internal Reviewer → Compliance Officer → any tenant user.
+    Ensures evidence appears in the review queue and can be viewed/actioned even
+    when team setup was skipped.
+    """
+    reviewer = _find_reviewer_by_role(db, tenant_id, "internal_reviewer")
+    if reviewer:
+        return reviewer
+    reviewer = _find_reviewer_by_role(db, tenant_id, "compliance_officer")
+    if reviewer:
+        return reviewer
+    if not tenant_id:
+        return None
+    return (
+        db.query(User)
+        .filter(User.tenant_id == tenant_id, User.is_active == True)
+        .first()
+    )
+
+
+def _resolve_reviewer_for_level(db: Session, submission: EvidenceSubmission, level: str) -> User | None:
+    """Resolve the reviewer for the given level. L1 uses fallback chain; L2/L3 use role only."""
+    if level == "L1":
+        return _resolve_l1_reviewer(db, submission.tenant_id)
+    role = LEVEL_ROLE_MAP.get(level)
+    if not role:
+        return None
+    return _find_reviewer_by_role(db, submission.tenant_id, role)
+
+
+def _ensure_review_assignment(db: Session, submission: EvidenceSubmission, level: str) -> ReviewAssignment | None:
+    """
+    Ensure a review assignment exists for this submission at the given level.
+    level is logical "L1"/"L2"/"L3"; stored in DB as review_level enum.
+    """
+    reviewer = _resolve_reviewer_for_level(db, submission, level)
+    if not reviewer:
+        return None
+    level_db = LEVEL_TO_DB.get(level, level)
+    existing = (
+        db.query(ReviewAssignment)
+        .filter(
+            ReviewAssignment.submission_id == submission.id,
+            ReviewAssignment.level == level_db,
+        )
+        .first()
+    )
+    if existing:
+        return existing
+    review = ReviewAssignment(
+        submission_id=submission.id,
+        reviewer_id=reviewer.id,
+        level=level_db,
+    )
+    db.add(review)
+    db.flush()
+    return review
+
+
+# ── Submit evidence for review ──────────────────────────────
+
+@router.post("/assessments/{cycle_id}/evidence/{sub_id}/submit")
+def submit_for_review(
+    cycle_id: UUID,
+    sub_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Submit evidence for review. Creates L1 review assignment automatically."""
+    if user.role not in ("compliance_officer", "it_sme", "admin"):
+        raise HTTPException(status_code=403, detail="Only evidence submitters can submit for review")
+
+    submission = (
+        db.query(EvidenceSubmission)
+        .filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id)
+        .first()
+    )
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    submission.status = evidence_status_svc.evidence_status_to_db("submitted")
+    submission.submitted_at = datetime.now(timezone.utc)
+
+    review = _ensure_review_assignment(db, submission, "L1")
+    db.commit()
+
+    return SubmitForReviewResponse(
+        submission_id=sub_id,
+        status="submitted",
+        review_id=review.id if review else None,
+        level="L1" if review else None,
+    )
+
+
+# ── List reviews ────────────────────────────────────────────
 
 @router.get("/assessments/{cycle_id}/reviews", response_model=list[ReviewOut])
 def list_reviews(
@@ -19,21 +151,64 @@ def list_reviews(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    from ..models.assessment import EvidenceSubmission
-    sub_ids = [s.id for s in db.query(EvidenceSubmission).filter(EvidenceSubmission.cycle_id == cycle_id).all()]
+    submissions_query = db.query(EvidenceSubmission).filter(EvidenceSubmission.cycle_id == cycle_id)
+    if user.role not in ("admin", "tenant_admin"):
+        submissions_query = submissions_query.filter(EvidenceSubmission.tenant_id == user.tenant_id)
+    submissions = submissions_query.all()
+    sub_ids = [s.id for s in submissions]
     if not sub_ids:
         return []
 
+    l1_db = LEVEL_TO_DB["L1"]
+    for sub in submissions:
+        if sub.status == "submitted":
+            has_l1 = (
+                db.query(ReviewAssignment)
+                .filter(
+                    ReviewAssignment.submission_id == sub.id,
+                    ReviewAssignment.level == l1_db,
+                )
+                .first()
+            )
+            if not has_l1:
+                _ensure_review_assignment(db, sub, "L1")
+    db.commit()
+
     q = db.query(ReviewAssignment).filter(ReviewAssignment.submission_id.in_(sub_ids))
+
+    if user.role == "internal_reviewer":
+        q = q.filter(ReviewAssignment.level.in_([LEVEL_TO_DB["L1"], LEVEL_TO_DB["L2"]]))
+    elif user.role == "external_assessor":
+        q = q.filter(ReviewAssignment.level == LEVEL_TO_DB["L3"])
+
     if status:
         q = q.filter(ReviewAssignment.status == status)
     if level:
-        q = q.filter(ReviewAssignment.level == level)
-    return q.order_by(ReviewAssignment.assigned_at.desc()).all()
+        level_db = LEVEL_TO_DB.get(level, level)
+        q = q.filter(ReviewAssignment.level == level_db)
 
+    reviews = q.order_by(ReviewAssignment.assigned_at.desc()).all()
+
+    result = []
+    for r in reviews:
+        sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == r.submission_id).first()
+        out = ReviewOut.model_validate(r)
+        if sub:
+            out.evidence_item_id = sub.evidence_item_id
+            out.submission_status = evidence_status_svc.evidence_display_status(sub.status, db, sub.id)
+        result.append(out)
+    return result
+
+
+# ── CRUD ────────────────────────────────────────────────────
 
 @router.post("/assessments/{cycle_id}/reviews", response_model=ReviewOut, status_code=201)
-def create_review(cycle_id: UUID, req: CreateReviewRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def create_review(
+    cycle_id: UUID,
+    req: CreateReviewRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     review = ReviewAssignment(
         submission_id=req.submission_id,
         reviewer_id=req.reviewer_id,
@@ -42,34 +217,192 @@ def create_review(cycle_id: UUID, req: CreateReviewRequest, db: Session = Depend
     db.add(review)
     db.commit()
     db.refresh(review)
-    return review
+    return ReviewOut.model_validate(review)
 
 
 @router.get("/reviews/{review_id}", response_model=ReviewOut)
-def get_review(review_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_review(
+    review_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
-    return review
+    return ReviewOut.model_validate(review)
+
+
+@router.get("/reviews/{review_id}/detail")
+def get_review_detail(
+    review_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Full review detail: submission + attachments (with signed URLs) + AI eval + comments."""
+    review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    submission = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == review.submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if user.role not in ("admin", "tenant_admin") and submission.tenant_id != user.tenant_id:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    attachments = (
+        db.query(EvidenceAttachment)
+        .filter(EvidenceAttachment.submission_id == submission.id)
+        .all()
+    )
+
+    file_list = []
+    for att in attachments:
+        try:
+            url = storage_service.get_signed_url(att.storage_path, expiry_minutes=15)
+        except Exception:
+            url = None
+        file_list.append({
+            "id": str(att.id),
+            "file_name": att.file_name,
+            "file_type": att.file_type,
+            "file_size_bytes": att.file_size_bytes,
+            "url": url,
+        })
+
+    comments = (
+        db.query(ReviewComment)
+        .filter(ReviewComment.review_id == review_id)
+        .order_by(ReviewComment.created_at)
+        .all()
+    )
+
+    reviewer = db.query(User).filter(User.id == review.reviewer_id).first()
+
+    all_reviews = (
+        db.query(ReviewAssignment)
+        .filter(ReviewAssignment.submission_id == submission.id)
+        .order_by(ReviewAssignment.assigned_at)
+        .all()
+    )
+
+    level_display = DB_TO_LEVEL.get(review.level, review.level)
+    return {
+        "review": {
+            "id": str(review.id),
+            "level": level_display,
+            "status": review.status,
+            "decision": review.decision,
+            "reviewer_id": str(review.reviewer_id),
+            "reviewer_name": reviewer.name if reviewer else None,
+            "assigned_at": str(review.assigned_at),
+            "completed_at": str(review.completed_at) if review.completed_at else None,
+        },
+        "submission": {
+            "id": str(submission.id),
+            "evidence_item_id": submission.evidence_item_id,
+            "status": evidence_status_svc.evidence_display_status(submission.status, db, submission.id),
+            "form_data": submission.form_data or {},
+            "evaluation_result": submission.evaluation_result,
+            "submitted_at": str(submission.submitted_at) if submission.submitted_at else None,
+        },
+        "attachments": file_list,
+        "comments": [
+            {
+                "id": str(c.id),
+                "author_id": str(c.author_id),
+                "body": c.body,
+                "is_resolved": c.is_resolved,
+                "created_at": str(c.created_at),
+            }
+            for c in comments
+        ],
+        "review_history": [
+            {
+                "id": str(ra.id),
+                "level": ra.level,
+                "status": ra.status,
+                "decision": ra.decision,
+                "assigned_at": str(ra.assigned_at),
+                "completed_at": str(ra.completed_at) if ra.completed_at else None,
+            }
+            for ra in all_reviews
+        ],
+    }
 
 
 @router.put("/reviews/{review_id}", response_model=ReviewOut)
-def update_review(review_id: UUID, req: UpdateReviewRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def update_review(
+    review_id: UUID,
+    req: UpdateReviewRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
-    from datetime import datetime, timezone
+    level_display = DB_TO_LEVEL.get(review.level, review.level)
+    is_assignee = user.id == review.reviewer_id
+    can_by_role = user.role in ("compliance_officer", "admin") or user.role == LEVEL_ROLE_MAP.get(level_display)
+    if not is_assignee and not can_by_role:
+        raise HTTPException(status_code=403, detail=f"Not authorized to action this {level_display} review")
+
     review.decision = req.decision
-    review.status = "approved" if req.decision == "approve" else "returned" if req.decision == "return" else "escalated"
     review.completed_at = datetime.now(timezone.utc)
+
+    submission = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == review.submission_id).first()
+
+    if req.decision == "approve":
+        review.status = "approved"
+        level_display = DB_TO_LEVEL.get(review.level, review.level)
+        if level_display == "L1" and submission:
+            _ensure_review_assignment(db, submission, "L2")
+            submission.status = evidence_status_svc.evidence_status_to_db("in_review_L2")
+        elif level_display == "L2" and submission:
+            l3_review = _ensure_review_assignment(db, submission, "L3")
+            submission.status = (
+                evidence_status_svc.evidence_status_to_db("in_review_L3")
+                if l3_review
+                else evidence_status_svc.evidence_status_to_db("approved")
+            )
+        elif level_display == "L3" and submission:
+            submission.status = evidence_status_svc.evidence_status_to_db("approved")
+    elif req.decision == "return":
+        review.status = "returned"
+        if submission:
+            submission.status = evidence_status_svc.evidence_status_to_db("returned")
+    else:
+        review.status = "escalated"
+
     db.commit()
     db.refresh(review)
-    return review
+    return ReviewOut.model_validate(review)
+
+
+# ── Comments ────────────────────────────────────────────────
+
+@router.get("/reviews/{review_id}/comments", response_model=list[CommentOut])
+def list_comments(
+    review_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    comments = (
+        db.query(ReviewComment)
+        .filter(ReviewComment.review_id == review_id)
+        .order_by(ReviewComment.created_at)
+        .all()
+    )
+    return [CommentOut.model_validate(c) for c in comments]
 
 
 @router.post("/reviews/{review_id}/comments", response_model=CommentOut, status_code=201)
-def add_comment(review_id: UUID, req: CreateCommentRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def add_comment(
+    review_id: UUID,
+    req: CreateCommentRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     comment = ReviewComment(
         review_id=review_id,
         author_id=user.id,
@@ -78,4 +411,103 @@ def add_comment(review_id: UUID, req: CreateCommentRequest, db: Session = Depend
     db.add(comment)
     db.commit()
     db.refresh(comment)
-    return comment
+    return CommentOut.model_validate(comment)
+
+
+# ── Evidence detail (for any authenticated user) ────────────
+
+@router.get("/assessments/{cycle_id}/evidence/{sub_id}/detail")
+def get_evidence_detail(
+    cycle_id: UUID,
+    sub_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Full evidence detail with signed URLs, form data, AI eval, and review history."""
+    submission = (
+        db.query(EvidenceSubmission)
+        .filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id)
+        .first()
+    )
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if user.role not in ("admin", "tenant_admin") and submission.tenant_id != user.tenant_id:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    attachments = (
+        db.query(EvidenceAttachment)
+        .filter(EvidenceAttachment.submission_id == submission.id)
+        .all()
+    )
+
+    file_list = []
+    for att in attachments:
+        try:
+            url = storage_service.get_signed_url(att.storage_path, expiry_minutes=15)
+        except Exception:
+            url = None
+        file_list.append({
+            "id": str(att.id),
+            "file_name": att.file_name,
+            "file_type": att.file_type,
+            "file_size_bytes": att.file_size_bytes,
+            "url": url,
+        })
+
+    reviews = (
+        db.query(ReviewAssignment)
+        .filter(ReviewAssignment.submission_id == submission.id)
+        .order_by(ReviewAssignment.assigned_at)
+        .all()
+    )
+
+    all_comments = []
+    for rev in reviews:
+        comments = (
+            db.query(ReviewComment)
+            .filter(ReviewComment.review_id == rev.id)
+            .order_by(ReviewComment.created_at)
+            .all()
+        )
+        for c in comments:
+            author = db.query(User).filter(User.id == c.author_id).first()
+            all_comments.append({
+                "id": str(c.id),
+                "review_id": str(c.review_id),
+                "author_id": str(c.author_id),
+                "author_name": author.name if author else "Unknown",
+                "body": c.body,
+                "is_resolved": c.is_resolved,
+                "created_at": str(c.created_at),
+            })
+
+    submitter = db.query(User).filter(User.id == submission.submitted_by).first()
+
+    submission_status_display = evidence_status_svc.evidence_display_status(submission.status, db, submission.id)
+    return {
+        "submission": {
+            "id": str(submission.id),
+            "evidence_item_id": submission.evidence_item_id,
+            "status": submission_status_display,
+            "form_data": submission.form_data or {},
+            "evaluation_result": submission.evaluation_result,
+            "submitted_by": str(submission.submitted_by) if submission.submitted_by else None,
+            "submitter_name": submitter.name if submitter else None,
+            "submitted_at": str(submission.submitted_at) if submission.submitted_at else None,
+            "completion_pct": float(submission.completion_pct or 0),
+        },
+        "attachments": file_list,
+        "reviews": [
+            {
+                "id": str(r.id),
+                "level": DB_TO_LEVEL.get(r.level, r.level),
+                "status": r.status,
+                "decision": r.decision,
+                "reviewer_id": str(r.reviewer_id),
+                "assigned_at": str(r.assigned_at),
+                "completed_at": str(r.completed_at) if r.completed_at else None,
+            }
+            for r in reviews
+        ],
+        "comments": all_comments,
+    }

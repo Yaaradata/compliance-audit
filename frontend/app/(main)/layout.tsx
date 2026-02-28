@@ -63,5 +63,38 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (isPlatformAdmin && pathname !== "/admin") return null;
   if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute) return null;
 
+  // Team setup: standalone page without sidebar or main header
+  if (pathname?.includes("/team-setup")) {
+    return <>{children}</>;
+  }
+
+  // Role-based route protection
+  const role = user?.role;
+  if (role && pathname) {
+    const isReviewRoute = pathname.includes("/review");
+    const isApprovalRoute = pathname.includes("/approval");
+    const isDomainRoute = pathname.includes("/domains/");
+    const isEvidenceRoute = isDomainRoute;
+
+    if (role === "it_sme" && (isReviewRoute || isApprovalRoute)) {
+      return (
+        <AppShell>
+          <div className="flex items-center justify-center h-64">
+            <p className="text-sm text-gray-500">You do not have access to this page.</p>
+          </div>
+        </AppShell>
+      );
+    }
+    if (role === "internal_reviewer" && isEvidenceRoute) {
+      // Allow read-only — the page itself handles edit restrictions
+    }
+    if (role === "external_assessor" && isEvidenceRoute) {
+      // Allow read-only
+    }
+    if (role === "approver" && isReviewRoute) {
+      // Approvers can view review status but not take review actions — page handles this
+    }
+  }
+
   return <AppShell>{children}</AppShell>;
 }

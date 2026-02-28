@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_current_user
 from ..models.tenant import User
-from ..models.assessment import EvidenceSubmission, EvidenceAttachment
+from ..models.assessment import EvidenceSubmission, EvidenceAttachment, ControlApplicability
 from ..models.framework import CanonicalEvidenceItem, ItemControlMapping, EvidenceSufficiencyMatrix
 from ..models.sufficiency import SufficiencyEvaluation, SufficiencyScore
 from ..schemas.evidence import (
@@ -20,26 +20,33 @@ from ..schemas.evidence import (
     AiCriterionResultOut,
 )
 from ..services import ai_service
+from ..services import evidence_status as evidence_status_svc
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-def _submission_to_out(sub: EvidenceSubmission) -> SubmissionOut:
-    """Build SubmissionOut with last_evaluation from stored evaluation_result."""
+def _submission_to_out(sub: EvidenceSubmission, db: Session | None = None) -> SubmissionOut:
+    """Build SubmissionOut with last_evaluation from stored evaluation_result.
+    If db is provided, status is returned as display value (e.g. in_review_L2) for API."""
     last_evaluation = None
     if getattr(sub, "evaluation_result", None):
         try:
             last_evaluation = EvaluateEvidenceResponse.model_validate(sub.evaluation_result)
         except Exception:
             pass
+    status_val = (
+        evidence_status_svc.evidence_display_status(sub.status, db, sub.id)
+        if db
+        else sub.status
+    )
     return SubmissionOut(
         id=sub.id,
         cycle_id=sub.cycle_id,
         evidence_item_id=sub.evidence_item_id,
         submitted_by=sub.submitted_by,
-        status=sub.status,
+        status=status_val,
         scope_key=sub.scope_key,
         form_data=sub.form_data or {},
         completion_pct=float(sub.completion_pct or 0),
@@ -64,13 +71,18 @@ def list_evidence(
     if domain:
         q = q.filter(EvidenceSubmission.evidence_item_id.like(f"{domain}%"))
     if status:
-        q = q.filter(EvidenceSubmission.status == status)
+        q = q.filter(EvidenceSubmission.status == evidence_status_svc.evidence_status_to_db(status))
     subs = q.order_by(EvidenceSubmission.created_at.desc()).all()
-    return [_submission_to_out(s) for s in subs]
+    return [_submission_to_out(s, db) for s in subs]
+
+
+EVIDENCE_WRITE_ROLES = ("compliance_officer", "it_sme", "admin", "tenant_admin")
 
 
 @router.post("/assessments/{cycle_id}/evidence", response_model=SubmissionOut, status_code=201)
 def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role not in EVIDENCE_WRITE_ROLES:
+        raise HTTPException(status_code=403, detail="Not authorized to create evidence")
     sub = EvidenceSubmission(
         cycle_id=cycle_id,
         tenant_id=user.tenant_id,
@@ -81,7 +93,7 @@ def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = 
     db.add(sub)
     db.commit()
     db.refresh(sub)
-    return _submission_to_out(sub)
+    return _submission_to_out(sub, db)
 
 
 @router.get("/assessments/{cycle_id}/evidence/{sub_id}", response_model=SubmissionOut)
@@ -89,23 +101,25 @@ def get_evidence(cycle_id: UUID, sub_id: UUID, db: Session = Depends(get_db), us
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
-    return _submission_to_out(sub)
+    return _submission_to_out(sub, db)
 
 
 @router.put("/assessments/{cycle_id}/evidence/{sub_id}", response_model=SubmissionOut)
 def update_evidence(cycle_id: UUID, sub_id: UUID, req: UpdateSubmissionRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role not in EVIDENCE_WRITE_ROLES:
+        raise HTTPException(status_code=403, detail="Not authorized to update evidence")
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
 
     if req.status:
-        sub.status = req.status
+        sub.status = evidence_status_svc.evidence_status_to_db(req.status)
     if req.form_data is not None:
         sub.form_data = req.form_data
 
     db.commit()
     db.refresh(sub)
-    return _submission_to_out(sub)
+    return _submission_to_out(sub, db)
 
 
 @router.delete("/assessments/{cycle_id}/evidence/{sub_id}", status_code=204)
@@ -451,31 +465,101 @@ def _persist_ai_results(
     }
 
 
+def _score_to_status(score: float) -> str:
+    if score == 0:
+        return "not_started"
+    elif score < 40:
+        return "insufficient"
+    elif score < 80:
+        return "partial"
+    return "sufficient"
+
+
+def _sync_to_control_applicability(db: Session, cycle_id: UUID, control_id: str, score: float, status: str) -> None:
+    """Mirror SufficiencyScore into ControlApplicability so the dashboard picks it up."""
+    ca = (
+        db.query(ControlApplicability)
+        .filter(ControlApplicability.cycle_id == cycle_id, ControlApplicability.control_id == control_id)
+        .first()
+    )
+    if ca:
+        ca.score = score
+        ca.status = status
+
+
+def _label_prefix(label: str | None) -> str:
+    """Return 'PASS', 'FAIL', 'ONLY_APPLICABLE', or '' from criterion label."""
+    if not label or not isinstance(label, str):
+        return ""
+    u = label.strip().upper()
+    if u.startswith("PASS:"):
+        return "PASS"
+    if u.startswith("FAIL:"):
+        return "FAIL"
+    if u.startswith("ONLY APPLICABLE:") or u.startswith("ONLY_APPLICABLE:"):
+        return "ONLY_APPLICABLE"
+    return ""
+
+
+def _count_pass_fail_for_control(control_id: str, criteria_list: list[dict]) -> tuple[int, int]:
+    """Count (pass_count, fail_count) for this control; ONLY APPLICABLE excluded. No prefix -> use met."""
+    cid_prefix = f"{control_id}_"
+    pass_count = 0
+    fail_count = 0
+    for c in criteria_list:
+        cid = c.get("id", "")
+        if not (cid.startswith(cid_prefix) or cid == control_id):
+            continue
+        label = c.get("label") or ""
+        pref = _label_prefix(label)
+        if pref == "PASS":
+            pass_count += 1
+        elif pref == "FAIL":
+            fail_count += 1
+        elif pref == "ONLY_APPLICABLE":
+            continue
+        else:
+            if c.get("met"):
+                pass_count += 1
+            else:
+                fail_count += 1
+    return pass_count, fail_count
+
+
 def _persist_per_control_scores(
     db: Session,
     cycle_id: UUID,
     controls: list[dict],
+    evaluation_result: dict | None = None,
 ) -> None:
-    """Write per-control scores returned by the AI into sufficiency_scores."""
+    """Write per-control scores into sufficiency_scores.
+    Score = PASS / (PASS + FAIL) * 100; only PASS and FAIL criteria counted (ONLY APPLICABLE excluded)."""
+    suf_results = (evaluation_result or {}).get("sufficiency_results", [])
+    criteria = (evaluation_result or {}).get("criteria", [])
+
+    by_control: dict[str, dict] = {}
     for ctrl in controls:
+        cid = ctrl.get("control_id")
+        if cid:
+            by_control[cid] = ctrl
+
+    for ctrl in by_control.values():
         control_id = ctrl.get("control_id")
         if not control_id:
             continue
-        score = ctrl.get("score", 0)
-        if score == 0:
-            status = "not_started"
-        elif score < 40:
-            status = "insufficient"
-        elif score < 80:
-            status = "partial"
+
+        pass_count, fail_count = _count_pass_fail_for_control(control_id, suf_results + criteria)
+        total_counted = pass_count + fail_count
+
+        if total_counted > 0:
+            score = round(pass_count / total_counted * 100, 1)
         else:
-            status = "sufficient"
+            score = float(ctrl.get("score", 0) or 0)
+
+        status = _score_to_status(score)
         existing = (
             db.query(SufficiencyScore)
-            .filter(
-                SufficiencyScore.cycle_id == cycle_id,
-                SufficiencyScore.control_id == control_id,
-            )
+            .filter(SufficiencyScore.cycle_id == cycle_id, SufficiencyScore.control_id == control_id)
             .first()
         )
         if existing:
@@ -490,6 +574,8 @@ def _persist_per_control_scores(
                 status=status,
                 last_evaluated_at=datetime.utcnow(),
             ))
+            db.flush()  # so same session sees this row if we process this control again
+        _sync_to_control_applicability(db, cycle_id, control_id, score, status)
 
 
 def _recalculate_control_sufficiency(
@@ -497,7 +583,7 @@ def _recalculate_control_sufficiency(
     cycle_id: UUID,
     evidence_item_id: str,
 ) -> None:
-    """Step 4: aggregate all evidence submissions' scores per control."""
+    """Per item: score = PASS / (PASS + FAIL) * 100. Overall = weighted average by item (1/N)."""
     mappings = (
         db.query(ItemControlMapping)
         .filter(ItemControlMapping.evidence_item_id == evidence_item_id)
@@ -512,9 +598,10 @@ def _recalculate_control_sufficiency(
             .filter(ItemControlMapping.control_id == control_id)
             .all()
         )
-
+        n_items = len(all_mappings)
+        weight_per_item = 100.0 / n_items if n_items > 0 else 0
         weighted_sum = 0.0
-        weight_total = 0.0
+
         for m in all_mappings:
             sub = (
                 db.query(EvidenceSubmission)
@@ -524,26 +611,45 @@ def _recalculate_control_sufficiency(
                 )
                 .first()
             )
-            if sub and float(sub.completion_pct or 0) > 0:
-                weighted_sum += float(sub.completion_pct) * float(m.weight)
-                weight_total += float(m.weight)
+            if not sub:
+                weighted_sum += 0.0
+                continue
+            eval_result = sub.evaluation_result or {}
+            suf_results = eval_result.get("sufficiency_results", [])
+            criteria = eval_result.get("criteria", [])
+            pass_count, fail_count = _count_pass_fail_for_control(control_id, suf_results + criteria)
+            total_counted = pass_count + fail_count
+            item_score = (pass_count / total_counted * 100.0) if total_counted > 0 else 0.0
+            weighted_sum += item_score * weight_per_item / 100.0
 
-        score = weighted_sum / weight_total if weight_total > 0 else 0
-        if score == 0:
-            status = "not_started"
-        elif score < 40:
-            status = "insufficient"
-        elif score < 80:
-            status = "partial"
+        if n_items > 0:
+            if weighted_sum > 0:
+                score = round(weighted_sum, 1)
+            else:
+                # No evaluation result yet: fall back to completion_pct
+                comp_sum = 0.0
+                weight_total = 0.0
+                for m in all_mappings:
+                    sub = (
+                        db.query(EvidenceSubmission)
+                        .filter(
+                            EvidenceSubmission.cycle_id == cycle_id,
+                            EvidenceSubmission.evidence_item_id == m.evidence_item_id,
+                        )
+                        .first()
+                    )
+                    if sub and float(sub.completion_pct or 0) > 0:
+                        comp_sum += float(sub.completion_pct) * float(m.weight)
+                        weight_total += float(m.weight)
+                score = round(comp_sum / weight_total, 1) if weight_total > 0 else 0.0
         else:
-            status = "sufficient"
+            score = 0.0
+
+        status = _score_to_status(score)
 
         existing = (
             db.query(SufficiencyScore)
-            .filter(
-                SufficiencyScore.cycle_id == cycle_id,
-                SufficiencyScore.control_id == control_id,
-            )
+            .filter(SufficiencyScore.cycle_id == cycle_id, SufficiencyScore.control_id == control_id)
             .first()
         )
         if existing:
@@ -558,6 +664,8 @@ def _recalculate_control_sufficiency(
                 status=status,
                 last_evaluated_at=datetime.utcnow(),
             ))
+            db.flush()
+        _sync_to_control_applicability(db, cycle_id, control_id, score, status)
 
 
 @router.post("/assessments/{cycle_id}/evidence/evaluate", response_model=EvaluateEvidenceResponse)
@@ -623,15 +731,17 @@ def evaluate_evidence(
     if submission and getattr(submission, "form_data", None):
         submission_context = _build_submission_context(req.evidence_item_id, submission.form_data)
 
-    # Build file parts from attachments (all evidence for this item)
-    import os
+    from ..services import storage_service
+
     file_parts: list = []
     if attachments:
         for att in attachments:
-            if not os.path.exists(att.storage_path):
-                logger.warning("Attachment file missing: %s", att.storage_path)
+            try:
+                data = storage_service.download(att.storage_path)
+                file_parts.append(ai_service.prepare_file_part(data, att.file_type))
+            except Exception:
+                logger.warning("Attachment file missing or unreadable: %s", att.storage_path)
                 continue
-            file_parts.append(ai_service.prepare_file_part(att.storage_path, att.file_type))
 
     # Run AI evaluation when we have uploaded files and/or form context; pass all criteria for this item's controls
     has_evidence = bool(file_parts) or bool(submission_context and submission_context.strip())
@@ -677,7 +787,11 @@ def evaluate_evidence(
         # Persist results (Steps 3 & 4) and per-control scores from AI
         if submission:
             _persist_ai_results(db, submission, result, user.id)
-            _persist_per_control_scores(db, cycle_id, result.get("controls", []))
+            _persist_per_control_scores(
+                db, cycle_id, result.get("controls", []),
+                evaluation_result=submission.evaluation_result,
+            )
+            _recalculate_control_sufficiency(db, cycle_id, req.evidence_item_id)
             db.commit()
 
         return EvaluateEvidenceResponse(

@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     GOOGLE_CLOUD_PROJECT: str | None = None
     VERTEX_AI_LOCATION: str = "us-central1"
 
+    GCS_BUCKET_NAME: str = ""
+    GCS_PREFIX: str = "compliance-audit"
+    STORAGE_BACKEND: str = "gcs"
+
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     model_config = {"env_file": str(_env_file), "env_file_encoding": "utf-8"}

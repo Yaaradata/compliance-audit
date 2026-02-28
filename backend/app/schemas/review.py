@@ -1,6 +1,9 @@
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+# DB enum review_level uses 'l1_completeness', 'l2_quality', 'l3_assessment'; API exposes L1/L2/L3
+DB_TO_LEVEL = {"l1_completeness": "L1", "l2_quality": "L2", "l3_assessment": "L3"}
 
 
 class CreateReviewRequest(BaseModel):
@@ -21,8 +24,21 @@ class ReviewOut(BaseModel):
     status: str
     decision: str | None = None
     assigned_at: datetime
+    completed_at: datetime | None = None
+    evidence_item_id: str | None = None
+    submission_status: str | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("level", mode="before")
+    @classmethod
+    def normalize_level(cls, v: str) -> str:
+        return DB_TO_LEVEL.get(v, v)
+
+
+class ReviewDetailOut(BaseModel):
+    """Placeholder for typed detail response."""
+    pass
 
 
 class CreateCommentRequest(BaseModel):
@@ -38,3 +54,10 @@ class CommentOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class SubmitForReviewResponse(BaseModel):
+    submission_id: UUID
+    status: str
+    review_id: UUID | None = None
+    level: str | None = None

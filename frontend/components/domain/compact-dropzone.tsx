@@ -151,6 +151,16 @@ export function CompactDropzone({
     }
   };
 
+  const handleViewFile = async (file: UploadedFile) => {
+    if (!submissionId) return;
+    try {
+      const resp = await api.get<{ url: string; file_name: string }>(`/evidence/${submissionId}/files/${file.id}/url`);
+      window.open(resp.url, "_blank");
+    } catch {
+      window.open(`/api/evidence/${submissionId}/files/${file.id}`, "_blank");
+    }
+  };
+
   const canUpload = !!submissionId || !!onEnsureSubmission;
 
   type State = "empty" | "dragOver" | "uploading" | "success" | "error";
@@ -217,7 +227,14 @@ export function CompactDropzone({
         <ul className="overflow-y-auto min-h-0 rounded-lg border border-[var(--border)] divide-y divide-[var(--border)] max-h-32">
           {files.map((f) => (
             <li key={f.id} className="flex items-center gap-2 px-2 py-1.5 text-[11px]">
-              <span className="flex-1 truncate font-medium text-[var(--foreground)]">{f.file_name}</span>
+              <button
+                type="button"
+                onClick={() => handleViewFile(f)}
+                className="flex-1 truncate font-medium text-[var(--foreground)] hover:underline text-left cursor-pointer"
+                title="View / download"
+              >
+                {f.file_name}
+              </button>
               <span className="shrink-0 text-[var(--foreground-muted)]">{formatSize(f.file_size_bytes)}</span>
               <button
                 type="button"

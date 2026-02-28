@@ -30,7 +30,7 @@ export default function AssessmentsPage() {
     setCreating(true);
     try {
       const cycle = await api.post<AssessmentCycle>("/assessments", { label, cycle_year: year });
-      router.push(`/select-architecture?cycleId=${cycle.id}`);
+      router.push(`/cycles/${cycle.id}/team-setup`);
     } catch {
       setCreating(false);
     }

@@ -144,7 +144,21 @@ export const ARCHITECTURE_DIAGRAMS: Record<string, string[]> = {
   B: ["B-1.png", "B-2.png"],
 };
 
-/** Public URL for an architecture diagram filename (e.g. A1-1.png). */
+/**
+ * URL for an architecture diagram. Uses backend endpoint to get a signed URL
+ * from GCS when available, falls back to local static path.
+ */
+export async function getArchitectureDiagramUrlAsync(diagramFilename: string): Promise<string> {
+  try {
+    const { api } = await import("@/lib/api");
+    const resp = await api.get<{ url: string }>(`/ref/diagrams/${diagramFilename}`);
+    return resp.url;
+  } catch {
+    return `/architecture-diagrams/${diagramFilename}`;
+  }
+}
+
+/** Sync fallback for static contexts. */
 export function getArchitectureDiagramUrl(diagramFilename: string): string {
   return `/architecture-diagrams/${diagramFilename}`;
 }

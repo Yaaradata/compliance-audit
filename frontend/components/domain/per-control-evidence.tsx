@@ -7,6 +7,7 @@ import {
   A5_SUFFICIENCY_ITEMS,
   A5_EVALUATION_ITEMS,
 } from "@/lib/data/a5-criteria";
+import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
 import type { ControlCriteria, AiCriterionResult as AiCriterionResultType } from "@/lib/types";
 
 const ALL_32_CONTROL_ID = "All";
@@ -45,12 +46,13 @@ interface CriteriaBlockProps {
 }
 
 function CriteriaBlock({ title, items, plainFallback, state, results, controlId, emptyMessage }: CriteriaBlockProps) {
-  const list = items && items.length > 0 ? items : plainFallback ? [{ id: "1", label: plainFallback }] : [];
-  if (list.length === 0) return null;
-
+  const rawList = (items && items.length > 0 ? items : plainFallback ? [{ id: "1", label: plainFallback }] : [])
+    .filter((item) => shouldShowCriterion(item.label));
   const resultByKey = results
     ? new Map(results.filter((r) => r.id.startsWith(`${controlId}_`)).map((r) => [r.id.replace(`${controlId}_`, ""), r]))
     : null;
+  const list = rawList;
+  if (list.length === 0) return null;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50/50 overflow-hidden">
@@ -67,6 +69,7 @@ function CriteriaBlock({ title, items, plainFallback, state, results, controlId,
         {list.map((item) => {
           const res = resultByKey?.get(item.id);
           const showResult = state === "done" && res !== undefined;
+          const displayLabel = stripCriteriaPrefix(res?.label ?? item.label);
           return (
             <li key={item.id} className="px-3 py-2 flex gap-2.5 items-start">
               <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-sm font-bold mt-0.5">
@@ -80,17 +83,16 @@ function CriteriaBlock({ title, items, plainFallback, state, results, controlId,
                   <span className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs">✓</span>
                 )}
                 {showResult && res && !res.met && (
-                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs">✗</span>
+                  <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs" title="Not met">✗</span>
+                )}
+                {state === "done" && !showResult && (
+                  <span className="w-4 h-4 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-[9px]">—</span>
                 )}
               </span>
               <div className="flex-1 min-w-0">
-                <span className={`text-xs ${showResult && !res?.met ? "text-amber-800 font-medium" : "text-gray-700"}`}>
-                  {item.label}
-                </span>
+                <span className="text-xs text-gray-700">{displayLabel}</span>
                 {showResult && res && !res.met && res.description && (
-                  <p className="text-[11px] text-amber-700 mt-1 bg-amber-50/80 rounded px-2 py-1 border border-amber-100">
-                    {res.description}
-                  </p>
+                  <p className="text-[11px] text-red-600/90 mt-1">{res.description}</p>
                 )}
               </div>
             </li>
@@ -258,11 +260,20 @@ export function PerControlEvidence({
                 )}
               </div>
               <ul className="divide-y divide-gray-100">
-                {A5_SUFFICIENCY_ITEMS.map((item) => {
+                {(evaluationState === "done"
+                  ? A5_SUFFICIENCY_ITEMS.filter((item) => {
+                      const res = sufficiencyResults?.find(
+                        (r) => r.id === item.id || r.id === `${ALL_32_CONTROL_ID}_${item.id}`
+                      );
+                      return res !== undefined;
+                    })
+                  : A5_SUFFICIENCY_ITEMS
+                ).map((item) => {
                   const res = sufficiencyResults?.find(
                     (r) => r.id === item.id || r.id === `${ALL_32_CONTROL_ID}_${item.id}`
                   );
                   const showResult = evaluationState === "done" && res !== undefined;
+                  const displayLabel = stripCriteriaPrefix(res?.label ?? item.label);
                   return (
                     <li key={item.id} className="px-3 py-2 flex gap-2.5 items-start">
                       <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-sm font-bold mt-0.5">
@@ -276,17 +287,16 @@ export function PerControlEvidence({
                           <span className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs">✓</span>
                         )}
                         {showResult && res && !res.met && (
-                          <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs">✗</span>
+                          <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs" title="Not met">✗</span>
+                        )}
+                        {evaluationState === "done" && !showResult && (
+                          <span className="w-4 h-4 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-[9px]">—</span>
                         )}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <span className={`text-xs ${showResult && !res?.met ? "text-amber-800 font-medium" : "text-gray-700"}`}>
-                          {item.label}
-                        </span>
+                        <span className="text-xs text-gray-700">{displayLabel}</span>
                         {showResult && res && !res.met && res.description && (
-                          <p className="text-[11px] text-amber-700 mt-1 bg-amber-50/80 rounded px-2 py-1 border border-amber-100">
-                            {res.description}
-                          </p>
+                          <p className="text-[11px] text-red-600/90 mt-1">{res.description}</p>
                         )}
                       </div>
                     </li>
@@ -299,9 +309,16 @@ export function PerControlEvidence({
                 <span className="text-[11px] font-bold text-gray-700">Evaluation</span>
               </div>
               <ul className="divide-y divide-gray-100">
-                {A5_EVALUATION_ITEMS.map((item) => {
+                {(evaluationState === "done"
+                  ? A5_EVALUATION_ITEMS.filter((item) => {
+                      const res = criteriaResults?.find((r) => r.id === item.id || r.id === `${ALL_32_CONTROL_ID}_${item.id}`);
+                      return res !== undefined;
+                    })
+                  : A5_EVALUATION_ITEMS
+                ).map((item) => {
                   const res = criteriaResults?.find((r) => r.id === item.id || r.id === `${ALL_32_CONTROL_ID}_${item.id}`);
                   const showResult = evaluationState === "done" && res !== undefined;
+                  const displayLabel = stripCriteriaPrefix(res?.label ?? item.label);
                   return (
                     <li key={item.id} className="px-3 py-2 flex gap-2.5 items-start">
                       <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-sm font-bold mt-0.5">
@@ -315,18 +332,16 @@ export function PerControlEvidence({
                           <span className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs">✓</span>
                         )}
                         {showResult && res && !res.met && (
-                          <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs">✗</span>
+                          <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs" title="Not met">✗</span>
+                        )}
+                        {evaluationState === "done" && !showResult && (
+                          <span className="w-4 h-4 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-[9px]">—</span>
                         )}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{item.type}</span>
-                        <span className={`block text-xs ${showResult && !res?.met ? "text-amber-800 font-medium" : "text-gray-700"}`}>
-                          {item.label}
-                        </span>
+                        <span className="block text-xs text-gray-700">{displayLabel}</span>
                         {showResult && res && !res.met && res.description && (
-                          <p className="text-[11px] text-amber-700 mt-1 bg-amber-50/80 rounded px-2 py-1 border border-amber-100">
-                            {res.description}
-                          </p>
+                          <p className="text-[11px] text-red-600/90 mt-1">{res.description}</p>
                         )}
                       </div>
                     </li>

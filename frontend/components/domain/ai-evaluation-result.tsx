@@ -1,5 +1,6 @@
 "use client";
 
+import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
 import type { AiEvaluationResult as AiEvaluationResultType } from "@/lib/types";
 
 interface AiEvaluationResultProps {
@@ -26,15 +27,15 @@ export function AiEvaluationResult({ result, loading, placeholder }: AiEvaluatio
   if (placeholder) {
     return (
       <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
-        <div className="text-xs font-semibold text-amber-800 mb-2">🤖 AI Evaluation (placeholder)</div>
+        <div className="text-xs font-semibold text-amber-800 mb-2">🤖 Evaluation results</div>
         <p className="text-xs text-amber-700">
-          When you upload evidence and click &quot;Evaluate Evidence&quot;, the AI will read the Evidence Description, Sufficiency Definition, and Evaluation Criteria above, compare them to your submission, and return:
+          Fill in evidence and upload files in the <strong>Common Evidence</strong> tab, then click <strong>Evaluate Evidence</strong> there. The AI will compare your submission to the Evidence Description, Sufficiency Definition, and Evaluation Criteria and return:
         </p>
         <ul className="text-[11px] text-amber-800 mt-2 list-disc list-inside space-y-1">
           <li>✓ Tick for each criterion met</li>
           <li>✗ Cross and a short description for any criterion not met</li>
         </ul>
-        <p className="text-[11px] text-amber-600 mt-2">Integrate your AI provider here to enable live evaluation.</p>
+        <p className="text-[11px] text-amber-600 mt-2">Results will appear in this tab after you run evaluation.</p>
       </div>
     );
   }
@@ -53,22 +54,26 @@ export function AiEvaluationResult({ result, loading, placeholder }: AiEvaluatio
         <p className="text-xs text-gray-600 mb-3">{result.summary}</p>
       )}
       <div className="space-y-2">
-        {result.criteria.map((c) => (
-          <div key={c.id} className="flex gap-2 text-xs">
-            <span
-              className={`shrink-0 w-5 h-5 rounded flex items-center justify-center text-sm font-bold ${c.met ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}
-              title={c.met ? "Met" : "Not met"}
-            >
-              {c.met ? "✓" : "✗"}
-            </span>
-            <div className="flex-1 min-w-0">
-              <span className={c.met ? "text-gray-700" : "text-amber-800 font-medium"}>{c.label}</span>
-              {!c.met && c.description && (
-                <p className="text-[11px] text-amber-700 mt-0.5 pl-0">{c.description}</p>
-              )}
+        {result.criteria
+          .filter((c) => shouldShowCriterion(c.label))
+          .map((c) => (
+            <div key={c.id} className="flex gap-2 text-xs">
+              <span
+                className={`shrink-0 w-5 h-5 rounded flex items-center justify-center text-sm font-bold ${
+                  c.met ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                }`}
+                title={c.met ? "Met" : "Not met"}
+              >
+                {c.met ? "✓" : "✗"}
+              </span>
+              <div className="flex-1 min-w-0">
+                <span className="text-gray-700">{stripCriteriaPrefix(c.label)}</span>
+                {!c.met && c.description && (
+                  <p className="text-[11px] text-red-600/90 mt-1">{c.description}</p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
       </div>
     </div>
   );

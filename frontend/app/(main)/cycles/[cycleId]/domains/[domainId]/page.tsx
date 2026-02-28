@@ -109,6 +109,8 @@ export default function CycleDomainPage() {
   const [completionPctByItem, setCompletionPctByItem] = useState<Record<string, number>>({});
   const [selectedControlId, setSelectedControlId] = useState<string | null>(null);
   const [a2Rows, setA2Rows] = useState<Record<string, string>[]>([{}]);
+  const [submitForReviewLoading, setSubmitForReviewLoading] = useState(false);
+  const [submissionStatusMap, setSubmissionStatusMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setSelectedControlId(null);
@@ -146,10 +148,12 @@ export default function CycleDomainPage() {
       .then((subs) => {
         const data: Record<string, string> = {};
         const sMap: Record<string, string> = {};
+        const statusMap: Record<string, string> = {};
         const evalByItem: Record<string, AiEvalResultType> = {};
         const completionByItem: Record<string, number> = {};
         subs.forEach((s) => {
           sMap[s.evidence_item_id] = s.id;
+          statusMap[s.evidence_item_id] = s.status;
           if (s.form_data) {
             Object.entries(s.form_data).forEach(([k, v]) => {
               data[`${s.evidence_item_id}_${k}`] = String(v);
@@ -178,6 +182,7 @@ export default function CycleDomainPage() {
         });
         setFormData(data);
         setSubmissionMap(sMap);
+        setSubmissionStatusMap(statusMap);
         setLastEvaluationByItem(evalByItem);
         setCompletionPctByItem(completionByItem);
       })
@@ -298,6 +303,18 @@ export default function CycleDomainPage() {
     setA2Rows((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index));
   }, []);
 
+  const handleSubmitForReview = useCallback(async () => {
+    if (!currentItem || !cycleId) return;
+    const subId = submissionMap[currentItem.id];
+    if (!subId) return;
+    setSubmitForReviewLoading(true);
+    try {
+      await api.post(`/assessments/${cycleId}/evidence/${subId}/submit`, {});
+      setSubmissionStatusMap((prev) => ({ ...prev, [currentItem.id]: "submitted" }));
+    } catch { /* ignore */ }
+    setSubmitForReviewLoading(false);
+  }, [currentItem, cycleId, submissionMap]);
+
   const handleEvaluateEvidence = useCallback(async () => {
     if (!currentItem || !cycleId) return;
     setAiEvaluationLoading(true);
@@ -410,6 +427,9 @@ export default function CycleDomainPage() {
         ensureSubmission={ensureSubmission}
         fetchControlScores={fetchControlScores}
         onEvaluateEvidence={handleEvaluateEvidence}
+        onSubmitForReview={handleSubmitForReview}
+        submitForReviewLoading={submitForReviewLoading}
+        submissionStatus={currentItem ? submissionStatusMap[currentItem.id] : undefined}
         aiEvaluationError={aiEvaluationError}
         itemFormData={itemFormData}
         onItemFormChange={handleItemFormChange}

@@ -5,14 +5,18 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_current_user
 from ..constants import PLATFORM_ADMIN_ROLES
+from ..middleware.auth import hash_password
 from ..models.tenant import User
 from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceSubmission
 from ..models.approval import ApprovalGate
 from ..models.framework import Control, EvidenceDomain, CanonicalEvidenceItem, AuditFramework
+from ..models.sufficiency import SufficiencyScore
 from ..schemas.assessment import (
     CreateCycleRequest, UpdateCycleRequest, CycleOut,
+    CycleTeamCreate, CycleTeamUserCreate,
     DashboardResponse, DomainScore, ControlScore,
 )
+from . import controls as controls_router
 
 router = APIRouter(prefix="/assessments")
 
@@ -62,6 +66,54 @@ def _require_cycle_access(cycle: AssessmentCycle | None, user: User) -> None:
     if user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
         if cycle.tenant_id != user.tenant_id:
             raise HTTPException(status_code=403, detail="Access denied")
+
+
+def _require_compliance_officer_or_admin(user: User) -> None:
+    """Only compliance officer or platform admin can create cycle team users."""
+    if user.role not in ("compliance_officer",) and user.role not in PLATFORM_ADMIN_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Only Compliance Officer or Platform Administrator can create team accounts for this cycle.",
+        )
+
+
+@router.post("/{cycle_id}/team", response_model=list[dict], status_code=201)
+def create_cycle_team(
+    cycle_id: UUID,
+    req: CycleTeamCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Create user accounts for this cycle (IT SME, Internal Reviewer, External Assessor, Approver).
+    Only compliance officer (or platform admin) with access to the cycle can call this.
+    Users are created in the same tenant as the cycle and can log in with the given email/password.
+    """
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user)
+    _require_compliance_officer_or_admin(user)
+
+    tenant_id = cycle.tenant_id
+    created = []
+    for u in req.users:
+        if db.query(User).filter(User.email == u.email.strip().lower()).first():
+            raise HTTPException(
+                status_code=400,
+                detail=f"User with email {u.email} already exists. Use a different email.",
+            )
+        name = (u.name or u.email or "").strip() or u.email
+        new_user = User(
+            email=u.email.strip().lower(),
+            name=name,
+            password_hash=hash_password(u.password),
+            role=u.role,
+            tenant_id=tenant_id,
+        )
+        db.add(new_user)
+        created.append({"id": str(new_user.id), "email": new_user.email, "role": new_user.role})
+
+    db.commit()
+    return created
 
 
 @router.get("/{cycle_id}", response_model=CycleOut)
@@ -128,6 +180,16 @@ def advance_phase(cycle_id: UUID, db: Session = Depends(get_db), user: User = De
     return cycle
 
 
+@router.get("/{cycle_id}/controls/sufficiency-detail")
+def sufficiency_detail(
+    cycle_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Per-control sufficiency detail for tooltips and dashboard."""
+    return controls_router.get_sufficiency_detail(cycle_id, db, user)
+
+
 @router.get("/{cycle_id}/dashboard", response_model=DashboardResponse)
 def dashboard(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
@@ -140,7 +202,7 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depend
     sub_by_domain: dict[str, int] = {}
     for s in submissions:
         domain_id = s.evidence_item_id[0] if s.evidence_item_id else ""
-        if s.status in ("approved", "submitted"):
+        if s.status in ("approved", "submitted", "in_review"):
             sub_by_domain[domain_id] = sub_by_domain.get(domain_id, 0) + 1
 
     domain_scores = []
@@ -149,6 +211,10 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depend
         total = d.item_count if d.item_count is not None else 0
         score = round((completed / total * 100) if total > 0 else 0, 1)
         domain_scores.append(DomainScore(id=d.id or "", name=d.name or "", completed=completed, total=total, score=score))
+
+    suf_scores: dict[str, SufficiencyScore] = {}
+    for ss in db.query(SufficiencyScore).filter(SufficiencyScore.cycle_id == cycle_id).all():
+        suf_scores[ss.control_id] = ss
 
     control_scores = []
     mandatory_count = 0
@@ -160,16 +226,19 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depend
         ctype = "M" if applicability == "mandatory" else "A"
         if applicability == "mandatory":
             mandatory_count += 1
-        score_val = float(ca.score) if ca.score is not None else 0.0
-        status = ca.status or "not_started"
+        suf = suf_scores.get(ca.control_id)
+        score_val = float(suf.overall_score if suf else ca.score) if (suf or ca.score) else 0.0
+        status = (suf.status if suf else ca.status) or "not_started"
         evidence_count = ca.evidence_count if ca.evidence_count is not None else 0
         control_scores.append(ControlScore(id=ca.control_id or "", name=cname, type=ctype, score=score_val, status=status, evidence_count=evidence_count))
         if score_val < 50 and applicability == "mandatory":
             gaps.append({"control_id": ca.control_id, "name": cname, "score": score_val})
 
     total_evidence = sum((d.item_count or 0) for d in domains)
-    completed_evidence = sum(1 for s in submissions if s.status in ("approved", "submitted"))
-    overall = round((sum(float(ca.score or 0) for ca in cas) / len(cas)) if cas else 0, 1)
+    completed_evidence = sum(1 for s in submissions if s.status in ("approved", "submitted", "in_review"))
+    overall = round(
+        (sum(cs.score for cs in control_scores) / len(control_scores)) if control_scores else 0, 1
+    )
 
     return DashboardResponse(
         overall_score=overall,

@@ -493,6 +493,9 @@ export function EvidenceWorkspace({
   onEnsureSubmission,
   onUploadComplete,
   onEvaluateEvidence,
+  onSubmitForReview,
+  submitForReviewLoading,
+  submissionStatus,
   aiEvaluationError,
   evaluationState,
   itemFormData,
@@ -518,6 +521,9 @@ export function EvidenceWorkspace({
   onEnsureSubmission: (itemId: string) => Promise<string | null>;
   onUploadComplete: () => void;
   onEvaluateEvidence: () => void;
+  onSubmitForReview?: () => void;
+  submitForReviewLoading?: boolean;
+  submissionStatus?: string;
   aiEvaluationError?: string | null;
   evaluationState: "idle" | "loading" | "done";
   itemFormData: Record<string, string>;
@@ -614,6 +620,42 @@ export function EvidenceWorkspace({
 
         <TabsContent value="common" className="px-3 pb-3 overflow-y-auto">
           {renderCommonEvidence()}
+          <div className="mt-6 pt-4 border-t border-(--border)">
+            <button
+              type="button"
+              onClick={onEvaluateEvidence}
+              disabled={aiEvaluationLoading}
+              className="w-full py-2.5 text-sm font-semibold rounded-lg text-white transition-all duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60 disabled:pointer-events-none"
+              style={{ background: config.color }}
+            >
+              {aiEvaluationLoading ? "Evaluating…" : `Evaluate Evidence for ${currentItem.id}`}
+            </button>
+            {aiEvaluationError && (
+              <p className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                {aiEvaluationError}
+              </p>
+            )}
+            {aiEvaluationResult && submissionStatus !== "submitted" && submissionStatus !== "approved" && onSubmitForReview && (
+              <button
+                type="button"
+                onClick={onSubmitForReview}
+                disabled={submitForReviewLoading}
+                className="w-full mt-3 py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500 disabled:opacity-60 disabled:pointer-events-none"
+              >
+                {submitForReviewLoading ? "Submitting…" : `Submit ${currentItem.id} for Review`}
+              </button>
+            )}
+            {(submissionStatus === "submitted" || submissionStatus === "in_review_L2" || submissionStatus === "in_review_L3") && (
+              <div className="mt-3 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm text-center font-medium">
+                Submitted for review
+              </div>
+            )}
+            {submissionStatus === "approved" && (
+              <div className="mt-3 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm text-center font-medium">
+                Evidence approved
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="control" className="px-3 pb-3 overflow-y-auto">
@@ -685,20 +727,6 @@ export function EvidenceWorkspace({
               score={completionPctByItem[currentItem.id] ?? getItemCompletion(currentItem.id)}
             />
           )}
-          {aiEvaluationError && (
-            <p className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-              {aiEvaluationError}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={onEvaluateEvidence}
-            disabled={aiEvaluationLoading}
-            className="mt-4 w-full py-2.5 text-sm font-semibold rounded-lg text-white transition-all duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60 disabled:pointer-events-none"
-            style={{ background: config.color }}
-          >
-            Evaluate Evidence for {currentItem.id}
-          </button>
         </TabsContent>
       </Tabs>
     </div>

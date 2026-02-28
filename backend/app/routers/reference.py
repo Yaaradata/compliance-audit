@@ -1,8 +1,10 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db
+from ..services import storage_service
 
 logger = logging.getLogger(__name__)
 from ..models.framework import (
@@ -120,6 +122,16 @@ def get_evidence_item_matrix(item_id: str, db: Session = Depends(get_db)):
         EvidenceSufficiencyMatrix.item_code == item_id
     ).all()
     return [EvidenceSufficiencyMatrixOut.model_validate(r) for r in rows]
+
+
+@router.get("/diagrams/{filename}")
+def get_diagram_url(filename: str):
+    """Return a signed URL (or local path) for an architecture diagram."""
+    import re
+    if not re.match(r"^[A-Za-z0-9_\-]+\.\w+$", filename):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    url = storage_service.get_diagram_url(filename, expiry_minutes=60)
+    return {"url": url, "filename": filename}
 
 
 @router.get("/dependencies", response_model=list[DependencyOut])

@@ -45,23 +45,28 @@ def _get_model() -> GenerativeModel:
     return _model
 
 
-def prepare_file_part(file_path: str, mime_type: str) -> Part:
-    """Return a Vertex AI Part for the given file. PDF/images are sent as
-    binary; Excel is converted to CSV text; everything else is sent as text."""
+def prepare_file_part(file_path_or_bytes: str | bytes, mime_type: str) -> Part:
+    """Return a Vertex AI Part. Accepts a local file path or raw bytes.
+    PDF/images are sent as binary; Excel is converted to CSV text; rest as text."""
+    if isinstance(file_path_or_bytes, bytes):
+        raw = file_path_or_bytes
+    else:
+        with open(file_path_or_bytes, "rb") as f:
+            raw = f.read()
+
     if mime_type in (
         "application/pdf",
         "image/png",
         "image/jpeg",
         "image/webp",
     ):
-        with open(file_path, "rb") as f:
-            data = f.read()
-        return Part.from_data(data, mime_type=mime_type)
+        return Part.from_data(raw, mime_type=mime_type)
 
     if "spreadsheet" in mime_type:
+        import io
         import openpyxl
 
-        wb = openpyxl.load_workbook(file_path, data_only=True)
+        wb = openpyxl.load_workbook(io.BytesIO(raw), data_only=True)
         text_parts: list[str] = []
         for sheet in wb.sheetnames:
             ws = wb[sheet]
@@ -70,8 +75,7 @@ def prepare_file_part(file_path: str, mime_type: str) -> Part:
             text_parts.append(f"[Sheet: {sheet}]\n{csv_text}")
         return Part.from_text("\n\n".join(text_parts))
 
-    with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-        return Part.from_text(f.read())
+    return Part.from_text(raw.decode("utf-8", errors="replace"))
 
 
 def _parse_numbered_criteria(value: str | dict | Any | None) -> list[tuple[str, str]]:

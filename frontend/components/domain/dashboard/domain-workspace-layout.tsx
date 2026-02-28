@@ -31,6 +31,9 @@ export interface DomainWorkspaceLayoutProps {
   ensureSubmission: (itemId: string) => Promise<string | null>;
   fetchControlScores: () => void;
   onEvaluateEvidence: () => void;
+  onSubmitForReview?: () => void;
+  submitForReviewLoading?: boolean;
+  submissionStatus?: string;
   aiEvaluationError?: string | null;
   itemFormData: Record<string, string>;
   onItemFormChange: (key: string, value: string) => void;
@@ -62,6 +65,9 @@ export function DomainWorkspaceLayout({
   ensureSubmission,
   fetchControlScores,
   onEvaluateEvidence,
+  onSubmitForReview,
+  submitForReviewLoading,
+  submissionStatus,
   aiEvaluationError,
   itemFormData,
   onItemFormChange,
@@ -130,6 +136,9 @@ export function DomainWorkspaceLayout({
             onEnsureSubmission={ensureSubmission}
             onUploadComplete={fetchControlScores}
             onEvaluateEvidence={onEvaluateEvidence}
+            onSubmitForReview={onSubmitForReview}
+            submitForReviewLoading={submitForReviewLoading}
+            submissionStatus={submissionStatus}
             aiEvaluationError={aiEvaluationError}
             evaluationState={evaluationState}
             itemFormData={itemFormData}
@@ -143,7 +152,7 @@ export function DomainWorkspaceLayout({
         </div>
 
         <div className="hidden lg:flex flex-col min-h-0 min-w-[300px]">
-          <ControlSufficiencyPanel controls={config.allControls} controlScores={controlScores} className="h-full" />
+          <ControlSufficiencyPanel controls={config.allControls} controlScores={controlScores} cycleId={cycleId ?? undefined} className="h-full" />
         </div>
       </div>
     </div>

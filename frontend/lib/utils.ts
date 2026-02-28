@@ -1,3 +1,25 @@
+const CRITERIA_HIDE_PREFIXES = ["FAIL:", "CROSS-CHECK:"];
+
+/** Strip PASS:, FAIL:, CROSS-CHECK: prefix from criterion label for display. */
+export function stripCriteriaPrefix(label: string | null | undefined): string {
+  if (!label || typeof label !== "string") return label ?? "";
+  const t = label.trim();
+  const prefixes = ["PASS:", "FAIL:", "CROSS-CHECK:"];
+  for (const p of prefixes) {
+    if (t.toUpperCase().startsWith(p.toUpperCase())) {
+      return t.slice(p.length).trim();
+    }
+  }
+  return t;
+}
+
+/** True if this criterion should be shown in the UI. FAIL and CROSS-CHECK are hidden. */
+export function shouldShowCriterion(label: string | null | undefined): boolean {
+  if (!label || typeof label !== "string") return true;
+  const upper = label.trim().toUpperCase();
+  return !CRITERIA_HIDE_PREFIXES.some((p) => upper.startsWith(p.toUpperCase()));
+}
+
 export function scoreColor(s: number): string {
   if (s >= 90) return "var(--success)";
   if (s >= 60) return "var(--warning)";
