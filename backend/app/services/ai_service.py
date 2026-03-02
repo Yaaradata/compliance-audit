@@ -105,9 +105,10 @@ def _format_criteria_as_numbered_list(parsed: list[tuple[str, str]]) -> str:
     return "\n".join(f"{id_}. {label}" for id_, label in parsed)
 
 
-def _format_criteria_with_control_ids(control_id: str, parsed: list[tuple[str, str]]) -> str:
-    """Format criteria as 'control_id_N: label' so the LLM uses those exact IDs in its response."""
-    return "\n".join(f"  {control_id}_{id_}: {label}" for id_, label in parsed)
+def _format_criteria_with_control_ids(control_id: str, parsed: list[tuple[str, str]], prefix: str = "") -> str:
+    """Format criteria as 'control_id_prefix_N: label' so the LLM uses those exact IDs in its response.
+    prefix should be 'suf_' for sufficiency or 'eval_' for evaluation to avoid ID collisions."""
+    return "\n".join(f"  {control_id}_{prefix}{id_}: {label}" for id_, label in parsed)
 
 
 def _build_prompt(
@@ -136,11 +137,11 @@ def _build_prompt(
             ev_parsed = _parse_numbered_criteria(ev_raw)
             if suf_parsed:
                 sufficiency_parts.append(
-                    f"--- Control {cid} ({cname}) ---\n" + _format_criteria_with_control_ids(cid, suf_parsed)
+                    f"--- Control {cid} ({cname}) ---\n" + _format_criteria_with_control_ids(cid, suf_parsed, prefix="suf_")
                 )
             if ev_parsed:
                 evaluation_parts.append(
-                    f"--- Control {cid} ({cname}) ---\n" + _format_criteria_with_control_ids(cid, ev_parsed)
+                    f"--- Control {cid} ({cname}) ---\n" + _format_criteria_with_control_ids(cid, ev_parsed, prefix="eval_")
                 )
         sufficiency_definition = "\n\n".join(sufficiency_parts) if sufficiency_parts else "N/A"
         evaluation_criteria = "\n\n".join(evaluation_parts) if evaluation_parts else "N/A"
@@ -160,6 +161,14 @@ def _build_prompt(
         evaluation_criteria=evaluation_criteria,
         mapped_controls=controls_text or "None",
     )
+    out += (
+        "\n\n## CRITICAL RESPONSE RULES:\n"
+        "- IDs starting with 'suf_' (e.g. 1.1_suf_1) are SUFFICIENCY criteria. Return them ONLY in the 'sufficiency_results' array.\n"
+        "- IDs starting with 'eval_' (e.g. 1.1_eval_1) are EVALUATION criteria. Return them ONLY in the 'criteria' array.\n"
+        "- NEVER duplicate: each criterion ID must appear in exactly ONE array.\n"
+        "- Use the EXACT IDs provided (including the suf_/eval_ prefix).\n"
+    )
+
     if submission_context and submission_context.strip():
         out += "\n\n## Declared / form context (use when evaluating):\n" + submission_context.strip()
 

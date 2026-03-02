@@ -38,6 +38,9 @@ def _submission_to_out(sub: EvidenceSubmission, db: Session | None = None) -> Su
     if getattr(sub, "evaluation_result", None):
         try:
             last_evaluation = EvaluateEvidenceResponse.model_validate(sub.evaluation_result)
+            remediation_col = getattr(sub, "evaluation_remediation", None)
+            if last_evaluation.remediation is None and remediation_col:
+                last_evaluation = last_evaluation.model_copy(update={"remediation": remediation_col})
         except Exception:
             pass
     status_val = (
@@ -445,6 +448,28 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
     return "\n".join(parts) if parts else None
 
 
+def _split_ai_results(result: dict) -> dict:
+    """Post-process AI response: enforce sufficiency items in sufficiency_results,
+    evaluation items in criteria. Deduplicate based on ID prefix."""
+    all_items: dict[str, dict] = {}
+    for item in result.get("sufficiency_results", []) + result.get("criteria", []):
+        item_id = item.get("id", "")
+        if item_id not in all_items:
+            all_items[item_id] = item
+
+    suf: list[dict] = []
+    ev: list[dict] = []
+    for item_id, item in all_items.items():
+        if "_suf_" in item_id:
+            suf.append(item)
+        else:
+            ev.append(item)
+
+    result["sufficiency_results"] = suf
+    result["criteria"] = ev
+    return result
+
+
 def _persist_ai_results(
     db: Session,
     submission: EvidenceSubmission,
@@ -465,6 +490,8 @@ def _persist_ai_results(
     submission.ai_summary = result.get("summary")
     submission.ai_confidence = result.get("confidence")
     submission.completion_pct = result.get("overall_score", 0)
+    remediation = result.get("remediation")
+    submission.evaluation_remediation = remediation if isinstance(remediation, str) and remediation.strip() else None
     # Persist full evaluation so tick/cross status shows when user revisits
     submission.evaluation_result = {
         "evidence_item_id": submission.evidence_item_id,
@@ -472,6 +499,7 @@ def _persist_ai_results(
         "sufficiency_results": result.get("sufficiency_results", []),
         "criteria": result.get("criteria", []),
         "summary": result.get("summary"),
+        "remediation": remediation,
     }
 
 
@@ -755,7 +783,20 @@ def evaluate_evidence(
                 continue
 
     # Run AI evaluation when we have uploaded files and/or form context; pass all criteria for this item's controls
-    previous_evaluation = (submission.evaluation_result if submission else None) or None
+    # Merge user edits into previous_evaluation so AI sees user corrections
+    previous_evaluation = None
+    if submission and submission.evaluation_result:
+        import copy
+        previous_evaluation = copy.deepcopy(submission.evaluation_result)
+        edits = getattr(submission, "evaluation_edits", None) or {}
+        if edits:
+            for section_key in ("sufficiency_results", "criteria"):
+                for item in previous_evaluation.get(section_key, []):
+                    edit = edits.get(item.get("id", ""))
+                    if edit:
+                        item["met"] = edit.get("met", item["met"])
+                        if edit.get("description") is not None:
+                            item["description"] = edit["description"]
 
     has_evidence = bool(file_parts) or bool(submission_context and submission_context.strip())
     if has_evidence:
@@ -779,28 +820,31 @@ def evaluate_evidence(
                 ) from exc
             raise HTTPException(status_code=502, detail=f"AI evaluation error: {exc}") from exc
 
+        result = _split_ai_results(result)
+
+        def _coerce_criterion(raw: dict, index: int, prefix: str) -> dict:
+            """Ensure met is bool (AI may return null); id/label are strings."""
+            met_val = raw.get("met", False)
+            return {
+                "id": raw.get("id") or str(index + 1),
+                "label": raw.get("label") or f"{prefix} {index + 1}",
+                "met": bool(met_val) if met_val is not None else False,
+                "description": raw.get("description"),
+            }
+
         sufficiency_results = [
-            AiCriterionResultOut(
-                id=s.get("id", str(i + 1)),
-                label=s.get("label", f"Sufficiency {i + 1}"),
-                met=s.get("met", False),
-                description=s.get("description"),
-            )
+            AiCriterionResultOut(**_coerce_criterion(s, i, "Sufficiency"))
             for i, s in enumerate(result.get("sufficiency_results", []))
         ]
         criteria_results = [
-            AiCriterionResultOut(
-                id=c.get("id", str(i + 1)),
-                label=c.get("label", f"Criterion {i + 1}"),
-                met=c.get("met", False),
-                description=c.get("description"),
-            )
+            AiCriterionResultOut(**_coerce_criterion(c, i, "Criterion"))
             for i, c in enumerate(result.get("criteria", []))
         ]
 
         # Persist results (Steps 3 & 4) and per-control scores from AI
         if submission:
             _persist_ai_results(db, submission, result, user.id)
+            submission.evaluation_edits = {}
             _persist_per_control_scores(
                 db, cycle_id, result.get("controls", []),
                 evaluation_result=submission.evaluation_result,
@@ -814,6 +858,7 @@ def evaluate_evidence(
             sufficiency_results=sufficiency_results,
             criteria=criteria_results,
             summary=result.get("summary"),
+            remediation=result.get("remediation"),
         )
 
     # --- Fallback: placeholder when no files uploaded yet ---

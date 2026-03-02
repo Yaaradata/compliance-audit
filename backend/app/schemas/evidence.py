@@ -78,3 +78,5 @@ class EvaluateEvidenceResponse(BaseModel):
     """Per-item results for Evaluation Criteria (reviewer checks). description is set when met=False to explain what's missing."""
     criteria: list[AiCriterionResultOut]
     summary: str | None = None
+    """When overall_met is false: AI-generated list of what is required to make the evidence correct. Stored separately for UI display."""
+    remediation: str | None = None

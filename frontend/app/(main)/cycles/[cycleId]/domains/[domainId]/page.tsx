@@ -53,6 +53,7 @@ interface ApiSubmission {
     sufficiency_results: { id: string; label: string; met: boolean; description?: string | null }[];
     criteria: { id: string; label: string; met: boolean; description?: string | null }[];
     summary?: string | null;
+    remediation?: string | null;
   } | null;
   evaluation_edits?: EvaluationEditsMap;
 }
@@ -193,6 +194,7 @@ export default function CycleDomainPage() {
               sufficiency_results: s.last_evaluation.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
               criteria: s.last_evaluation.criteria?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
               summary: s.last_evaluation.summary ?? null,
+              remediation: s.last_evaluation.remediation ?? null,
             };
             evalByItem[s.evidence_item_id] = applyEditsToResult(base, edits);
           }
@@ -379,6 +381,7 @@ export default function CycleDomainPage() {
         sufficiency_results: res.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
         criteria: res.criteria.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })),
         summary: res.summary ?? null,
+        remediation: res.remediation ?? null,
       });
 
       setLastEvaluationByItem((prev) => ({
@@ -389,6 +392,7 @@ export default function CycleDomainPage() {
           sufficiency_results: res.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
           criteria: res.criteria.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })),
           summary: res.summary ?? null,
+          remediation: res.remediation ?? null,
         },
       }));
       setEvaluationEditsByItem((prev) => ({ ...prev, [currentItem.id]: {} }));
@@ -426,13 +430,6 @@ export default function CycleDomainPage() {
     if (!subId) return;
     try {
       await api.put(`/assessments/${cycleId}/evidence/${subId}`, {
-        evaluation_result: {
-          evidence_item_id: updated.evidence_item_id,
-          overall_met: updated.overall_met,
-          sufficiency_results: updated.sufficiency_results,
-          criteria: updated.criteria,
-          summary: updated.summary,
-        },
         evaluation_edits: edits,
       });
     } catch { /* save best-effort */ }
