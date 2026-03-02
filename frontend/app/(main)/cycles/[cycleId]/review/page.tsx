@@ -32,6 +32,22 @@ const LEVEL_COLORS: Record<string, { bg: string; text: string }> = {
   L3: { bg: "bg-orange-100", text: "text-orange-700" },
 };
 
+const LEVEL_LABELS: Record<string, string> = {
+  L1: "Completeness",
+  L2: "Quality",
+  L3: "Assessment",
+};
+
+/** Normalize API level (e.g. l1_completeness or L1) to display L1/L2/L3 */
+function normalizeLevel(level: string): string {
+  const map: Record<string, string> = {
+    l1_completeness: "L1",
+    l2_quality: "L2",
+    l3_assessment: "L3",
+  };
+  return map[level] || level;
+}
+
 function domainFrom(itemId: string | null) {
   return itemId ? itemId.charAt(0) : "?";
 }
@@ -45,6 +61,7 @@ export default function CycleReviewPage() {
   const [reviews, setReviews] = useState<ApiReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
+  const [levelFilter, setLevelFilter] = useState<string>("all");
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
 
   const fetchReviews = useCallback(async () => {
@@ -73,12 +90,17 @@ export default function CycleReviewPage() {
   }, [reviews]);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return reviews;
+    let list = reviews;
     if (filter === "assigned") {
-      return reviews.filter((r) => r.status === "assigned" && r.reviewer_id === user?.id);
+      list = list.filter((r) => r.status === "assigned" && r.reviewer_id === user?.id);
+    } else if (filter !== "all") {
+      list = list.filter((r) => r.status === filter);
     }
-    return reviews.filter((r) => r.status === filter);
-  }, [filter, reviews, user?.id]);
+    if (levelFilter !== "all") {
+      list = list.filter((r) => normalizeLevel(r.level) === levelFilter);
+    }
+    return list;
+  }, [filter, levelFilter, reviews, user?.id]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, ApiReview[]>();
@@ -121,7 +143,7 @@ export default function CycleReviewPage() {
           </div>
         </div>
 
-        {/* Filter tabs */}
+        {/* Status filter */}
         <div className="flex gap-1 px-4 py-2 border-b border-gray-100">
           {STATUS_TABS.map((t) => (
             <button
@@ -136,6 +158,30 @@ export default function CycleReviewPage() {
               {t.label}
             </button>
           ))}
+        </div>
+        {/* Level filter + legend */}
+        <div className="px-4 py-2 border-b border-gray-100 space-y-1.5">
+          <div className="flex gap-1 flex-wrap">
+            {["all", "L1", "L2", "L3"].map((lv) => (
+              <button
+                key={lv}
+                onClick={() => setLevelFilter(lv)}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                  levelFilter === lv
+                    ? lv === "all"
+                      ? "bg-gray-700 text-white"
+                      : `${LEVEL_COLORS[lv]?.bg || "bg-gray-100"} ${LEVEL_COLORS[lv]?.text || "text-gray-700"} ring-1 ring-offset-0 ring-gray-400`
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {lv === "all" ? "All levels" : lv}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-500">
+            <span className="font-medium text-gray-600">Review levels:</span>{" "}
+            L1 = Completeness · L2 = Quality · L3 = Assessment
+          </p>
         </div>
 
         {/* Review list */}
@@ -156,7 +202,8 @@ export default function CycleReviewPage() {
                   </span>
                 </div>
                 {items.map((r) => {
-                  const lc = LEVEL_COLORS[r.level] || LEVEL_COLORS.L1;
+                  const displayLevel = normalizeLevel(r.level);
+                  const lc = LEVEL_COLORS[displayLevel] || LEVEL_COLORS.L1;
                   const isSelected = selectedReviewId === r.id;
                   return (
                     <button
@@ -171,8 +218,11 @@ export default function CycleReviewPage() {
                           {r.evidence_item_id || r.submission_id.slice(0, 8)}
                         </span>
                         <div className="flex items-center gap-1.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${lc.bg} ${lc.text}`}>
-                            {r.level}
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${lc.bg} ${lc.text}`}
+                            title={`${displayLevel}: ${LEVEL_LABELS[displayLevel] ?? displayLevel}`}
+                          >
+                            {displayLevel}
                           </span>
                           <span
                             className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
@@ -188,7 +238,7 @@ export default function CycleReviewPage() {
                         </div>
                       </div>
                       <div className="text-[10px] text-gray-400 mt-0.5">
-                        {new Date(r.assigned_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        {displayLevel} {LEVEL_LABELS[displayLevel] ?? ""} · {new Date(r.assigned_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </div>
                     </button>
                   );

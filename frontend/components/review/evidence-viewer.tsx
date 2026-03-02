@@ -131,6 +131,18 @@ export function EvidenceViewer({
 
   const isReadOnly = userRole === "external_assessor" || userRole === "approver";
 
+  const LEVEL_LABELS: Record<string, string> = { L1: "Completeness", L2: "Quality", L3: "Assessment" };
+  const normalizeLevel = (l: string) => (["l1_completeness", "l2_quality", "l3_assessment"].includes(l) ? { l1_completeness: "L1", l2_quality: "L2", l3_assessment: "L3" }[l]! : l);
+  const l1 = review_history.find((r) => normalizeLevel(r.level) === "L1");
+  const l2 = review_history.find((r) => normalizeLevel(r.level) === "L2");
+  const l3 = review_history.find((r) => normalizeLevel(r.level) === "L3");
+  const currentLevel = normalizeLevel(review.level);
+  const pipeline = [
+    { level: "L1", label: LEVEL_LABELS.L1, done: l1?.status === "approved" || ["L2", "L3"].includes(currentLevel), current: currentLevel === "L1" },
+    { level: "L2", label: LEVEL_LABELS.L2, done: l2?.status === "approved" || currentLevel === "L3", current: currentLevel === "L2" },
+    { level: "L3", label: LEVEL_LABELS.L3, done: l3?.status === "approved" || submission.status === "approved", current: currentLevel === "L3" },
+  ];
+
   const TABS = [
     { id: "evidence" as const, label: "Evidence" },
     { id: "evaluation" as const, label: "AI Evaluation" },
@@ -141,12 +153,12 @@ export function EvidenceViewer({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/80">
+      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/80 space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-gray-900">{submission.evidence_item_id}</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              {review.level} Review · Status: <span className="font-semibold">{review.status}</span>
+              {currentLevel} Review ({LEVEL_LABELS[currentLevel] ?? currentLevel}) · Status: <span className="font-semibold">{review.status}</span>
             </p>
           </div>
           <span
@@ -160,6 +172,28 @@ export function EvidenceViewer({
           >
             {submission.status}
           </span>
+        </div>
+        {/* L1 → L2 → L3 pipeline */}
+        <div className="flex items-center gap-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5">
+          <span className="text-[10px] font-medium text-gray-500 mr-2">Review flow:</span>
+          {pipeline.map((step, i) => (
+            <div key={step.level} className="flex items-center gap-0.5">
+              {i > 0 && <span className="text-gray-300 mx-0.5">→</span>}
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                  step.done
+                    ? "bg-green-100 text-green-700"
+                    : step.current
+                      ? "bg-blue-100 text-blue-700 ring-1 ring-blue-300"
+                      : "bg-gray-100 text-gray-500"
+                }`}
+                title={`${step.level}: ${step.label}`}
+              >
+                {step.done ? "✓ " : step.current ? "● " : ""}{step.level}
+              </span>
+              <span className="text-[9px] text-gray-400 hidden sm:inline">{step.label}</span>
+            </div>
+          ))}
         </div>
       </div>
 

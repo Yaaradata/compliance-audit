@@ -327,7 +327,7 @@ def get_review_detail(
         "review_history": [
             {
                 "id": str(ra.id),
-                "level": ra.level,
+                "level": DB_TO_LEVEL.get(ra.level, ra.level),
                 "status": ra.status,
                 "decision": ra.decision,
                 "assigned_at": str(ra.assigned_at),
@@ -439,7 +439,7 @@ def get_evidence_detail(
     )
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
-    if user.role not in ("admin", "tenant_admin") and submission.tenant_id != user.tenant_id:
+    if user.role not in ("admin", "tenant_admin", "approver") and submission.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="Submission not found")
 
     attachments = (
