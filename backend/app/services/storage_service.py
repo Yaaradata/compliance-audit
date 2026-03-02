@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 from datetime import timedelta
 from pathlib import Path
 
@@ -116,6 +117,43 @@ def delete(storage_path: str) -> None:
             logger.debug("Storage object already missing: %s", storage_path)
             return
         raise
+
+
+def delete_prefix(relative_prefix: str) -> int:
+    """
+    Delete all objects under the given relative prefix (e.g. evidence/{submission_id}/).
+    Removes every blob (files and any folder-placeholder objects) under that path.
+    For local storage, removes the directory and all its contents.
+    Returns the number of objects/blobs deleted.
+    """
+    if not relative_prefix or not relative_prefix.strip():
+        return 0
+    prefix = relative_prefix.strip("/")
+    if not prefix:
+        return 0
+    deleted = 0
+    if _is_gcs():
+        obj_prefix = _gcs_object_path(prefix)
+        if not obj_prefix.endswith("/"):
+            obj_prefix += "/"
+        bucket = _bucket()
+        blobs = list(bucket.list_blobs(prefix=obj_prefix))
+        for blob in blobs:
+            try:
+                blob.delete()
+                deleted += 1
+                logger.debug("Deleted from GCS: %s", blob.name)
+            except Exception as e:
+                logger.warning("Failed to delete blob %s: %s", blob.name, e)
+        if blobs:
+            logger.info("Deleted %d blob(s) under GCS prefix %s", deleted, obj_prefix)
+    else:
+        dir_path = _LOCAL_UPLOAD_DIR / prefix
+        if dir_path.exists() and dir_path.is_dir():
+            shutil.rmtree(dir_path)
+            deleted = 1
+            logger.info("Deleted local directory: %s", dir_path)
+    return deleted
 
 
 def upload_diagram(filename: str, data: bytes, content_type: str = "image/png") -> str:

@@ -61,25 +61,27 @@ def delete_cycle_evidence_and_related(db: Session, cycle_id: UUID) -> dict[str, 
         SufficiencyEvaluation.submission_id.in_(submission_ids)
     ).delete(synchronize_session=False)
 
-    # 4. Evidence attachments: delete file from storage then delete row
+    # 4. Delete all evidence from storage (files and folders) per submission, then DB rows
+    #    Using prefix deletion ensures every object under evidence/{sub_id}/ is removed,
+    #    including any folder-placeholder blobs, so GCS "folders" are cleaned up.
     attachments = (
         db.query(EvidenceAttachment)
         .filter(EvidenceAttachment.submission_id.in_(submission_ids))
         .all()
     )
+    for sub_id in submission_ids:
+        try:
+            n = storage_service.delete_prefix(f"evidence/{sub_id}/")
+            stats["files_deleted"] += n
+        except Exception as e:
+            logger.warning(
+                "Failed to delete evidence prefix for submission %s: %s",
+                sub_id,
+                e,
+                exc_info=True,
+            )
+            stats["files_failed"] += 1
     for att in attachments:
-        if att.storage_path:
-            try:
-                storage_service.delete(att.storage_path)
-                stats["files_deleted"] += 1
-            except Exception as e:
-                logger.warning(
-                    "Failed to delete evidence file from storage: %s (%s)",
-                    att.storage_path,
-                    e,
-                    exc_info=True,
-                )
-                stats["files_failed"] += 1
         db.delete(att)
         stats["attachments"] += 1
 
