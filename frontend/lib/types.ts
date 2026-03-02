@@ -167,6 +167,8 @@ export interface AiEvaluationResult {
   /** Per-item results for Evaluation Criteria (reviewer checks); description = what's missing when not met. */
   criteria: AiCriterionResult[];
   summary?: string | null;
+  /** When evidence fails: what is required to make it correct (from AI). Stored separately, shown in UI. */
+  remediation?: string | null;
 }
 
 export interface SubGroup {

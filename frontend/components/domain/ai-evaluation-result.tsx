@@ -157,6 +157,15 @@ export function AiEvaluationResult({ result, loading, placeholder, onEdit, edita
         <p className="text-xs text-gray-600 mb-3">{result.summary}</p>
       )}
 
+      {!result.overall_met && result.remediation && result.remediation.trim() && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
+          <h4 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-2">
+            What’s required to make it correct
+          </h4>
+          <div className="text-xs text-amber-900 whitespace-pre-wrap">{result.remediation.trim()}</div>
+        </div>
+      )}
+
       {visibleSufficiency.length > 0 && (
         <div className="mb-4">
           <h4 className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2">Sufficiency Definition</h4>

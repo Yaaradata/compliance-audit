@@ -49,7 +49,15 @@ function CriteriaBlock({ title, items, plainFallback, state, results, controlId,
   const rawList = (items && items.length > 0 ? items : plainFallback ? [{ id: "1", label: plainFallback }] : [])
     .filter((item) => shouldShowCriterion(item.label));
   const resultByKey = results
-    ? new Map(results.filter((r) => r.id.startsWith(`${controlId}_`)).map((r) => [r.id.replace(`${controlId}_`, ""), r]))
+    ? new Map(
+        results
+          .filter((r) => r.id.startsWith(`${controlId}_`))
+          .map((r) => {
+            const suffix = r.id.slice(controlId.length + 1);
+            const numericKey = suffix.replace(/^(suf_|eval_)/, "");
+            return [numericKey, r] as [string, typeof r];
+          })
+      )
     : null;
   const list = rawList;
   if (list.length === 0) return null;
