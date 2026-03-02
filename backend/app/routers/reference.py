@@ -5,6 +5,11 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_db
 from ..services import storage_service
+from ..services.batch_loaders import (
+    load_controls_by_ids,
+    load_mappings_by_item_ids,
+    load_matrix_by_item_ids,
+)
 
 logger = logging.getLogger(__name__)
 from ..models.framework import (
@@ -51,21 +56,28 @@ def get_domain(domain_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error loading evidence items: {str(e)}")
 
+    item_ids = [i.id for i in items]
+
+    mappings_by_item = load_mappings_by_item_ids(db, item_ids)
+    all_control_ids = list({
+        m.control_id
+        for ms in mappings_by_item.values()
+        for m in ms
+    })
+    controls_map = load_controls_by_ids(db, all_control_ids)
+    matrix_by_item = load_matrix_by_item_ids(db, item_ids)
+
     evidence_with_controls = []
     for i in items:
         try:
-            mappings = db.query(ItemControlMapping).filter(
-                ItemControlMapping.evidence_item_id == i.id
-            ).all()
+            item_mappings = mappings_by_item.get(i.id, [])
             control_refs = []
-            for m in mappings:
-                ctrl = db.query(Control).filter(Control.id == m.control_id).first()
+            for m in item_mappings:
+                ctrl = controls_map.get(m.control_id)
                 ma = "M" if ctrl and ctrl.control_type and str(ctrl.control_type).lower() == "mandatory" else "A"
                 control_refs.append(ControlRefOut(control_id=m.control_id, ma=ma))
 
-            matrix_rows = db.query(EvidenceSufficiencyMatrix).filter(
-                EvidenceSufficiencyMatrix.item_code == i.id
-            ).all()
+            matrix_rows = matrix_by_item.get(i.id, [])
             matrix = [EvidenceSufficiencyMatrixOut.model_validate(r) for r in matrix_rows]
 
             base = EvidenceItemOut.model_validate(i).model_dump()

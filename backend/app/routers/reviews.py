@@ -19,6 +19,13 @@ from ..schemas.review import (
 )
 from ..services import storage_service
 from ..services import evidence_status as evidence_status_svc
+from ..services.batch_loaders import (
+    load_submissions_by_ids,
+    load_users_by_ids,
+    load_attachments_by_submission_ids,
+    load_review_comments_by_review_ids,
+    batch_sign_urls,
+)
 
 router = APIRouter()
 
@@ -189,9 +196,12 @@ def list_reviews(
 
     reviews = q.order_by(ReviewAssignment.assigned_at.desc()).all()
 
+    review_sub_ids = list({r.submission_id for r in reviews})
+    subs_map = load_submissions_by_ids(db, review_sub_ids)
+
     result = []
     for r in reviews:
-        sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == r.submission_id).first()
+        sub = subs_map.get(r.submission_id)
         out = ReviewOut.model_validate(r)
         if sub:
             out.evidence_item_id = sub.evidence_item_id
@@ -255,19 +265,17 @@ def get_review_detail(
         .all()
     )
 
-    file_list = []
-    for att in attachments:
-        try:
-            url = storage_service.get_signed_url(att.storage_path, expiry_minutes=15)
-        except Exception:
-            url = None
-        file_list.append({
+    signed_urls = batch_sign_urls([att.storage_path for att in attachments])
+    file_list = [
+        {
             "id": str(att.id),
             "file_name": att.file_name,
             "file_type": att.file_type,
             "file_size_bytes": att.file_size_bytes,
-            "url": url,
-        })
+            "url": signed_urls.get(att.storage_path),
+        }
+        for att in attachments
+    ]
 
     comments = (
         db.query(ReviewComment)
@@ -440,19 +448,17 @@ def get_evidence_detail(
         .all()
     )
 
-    file_list = []
-    for att in attachments:
-        try:
-            url = storage_service.get_signed_url(att.storage_path, expiry_minutes=15)
-        except Exception:
-            url = None
-        file_list.append({
+    signed_urls = batch_sign_urls([att.storage_path for att in attachments])
+    file_list = [
+        {
             "id": str(att.id),
             "file_name": att.file_name,
             "file_type": att.file_type,
             "file_size_bytes": att.file_size_bytes,
-            "url": url,
-        })
+            "url": signed_urls.get(att.storage_path),
+        }
+        for att in attachments
+    ]
 
     reviews = (
         db.query(ReviewAssignment)
@@ -461,16 +467,22 @@ def get_evidence_detail(
         .all()
     )
 
+    review_ids = [rev.id for rev in reviews]
+    comments_by_review = load_review_comments_by_review_ids(db, review_ids)
+
+    all_author_ids = list({
+        c.author_id
+        for comments in comments_by_review.values()
+        for c in comments
+    })
+    if submission.submitted_by:
+        all_author_ids.append(submission.submitted_by)
+    authors_map = load_users_by_ids(db, all_author_ids)
+
     all_comments = []
     for rev in reviews:
-        comments = (
-            db.query(ReviewComment)
-            .filter(ReviewComment.review_id == rev.id)
-            .order_by(ReviewComment.created_at)
-            .all()
-        )
-        for c in comments:
-            author = db.query(User).filter(User.id == c.author_id).first()
+        for c in comments_by_review.get(rev.id, []):
+            author = authors_map.get(c.author_id)
             all_comments.append({
                 "id": str(c.id),
                 "review_id": str(c.review_id),
@@ -481,7 +493,7 @@ def get_evidence_detail(
                 "created_at": str(c.created_at),
             })
 
-    submitter = db.query(User).filter(User.id == submission.submitted_by).first()
+    submitter = authors_map.get(submission.submitted_by) if submission.submitted_by else None
 
     submission_status_display = evidence_status_svc.evidence_display_status(submission.status, db, submission.id)
     return {

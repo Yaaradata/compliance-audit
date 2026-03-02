@@ -89,19 +89,33 @@ def get_signed_url(storage_path: str, expiry_minutes: int = 15) -> str:
 
 
 def delete(storage_path: str) -> None:
-    """Delete a file from storage."""
-    if storage_path.startswith("gs://"):
-        parts = storage_path.replace("gs://", "").split("/", 1)
-        bucket_name, obj_path = parts[0], parts[1]
-        client = _get_gcs_client()
-        blob = client.bucket(bucket_name).blob(obj_path)
-        blob.delete()
-        logger.info("Deleted from GCS: %s", storage_path)
-    else:
-        p = Path(storage_path)
-        if p.exists():
-            p.unlink()
-            logger.info("Deleted locally: %s", storage_path)
+    """Delete a file from storage. Idempotent: no-op if the file does not exist."""
+    if not storage_path:
+        return
+    try:
+        if storage_path.startswith("gs://"):
+            parts = storage_path.replace("gs://", "").split("/", 1)
+            bucket_name, obj_path = parts[0], parts[1]
+            client = _get_gcs_client()
+            blob = client.bucket(bucket_name).blob(obj_path)
+            blob.delete()
+            logger.info("Deleted from GCS: %s", storage_path)
+        else:
+            p = Path(storage_path)
+            if p.exists():
+                p.unlink()
+                logger.info("Deleted locally: %s", storage_path)
+    except Exception as e:
+        err_msg = str(e).lower()
+        if (
+            "404" in err_msg
+            or "no such object" in err_msg
+            or "not found" in err_msg
+            or type(e).__name__ == "NotFound"
+        ):
+            logger.debug("Storage object already missing: %s", storage_path)
+            return
+        raise
 
 
 def upload_diagram(filename: str, data: bytes, content_type: str = "image/png") -> str:

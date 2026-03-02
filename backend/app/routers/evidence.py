@@ -21,6 +21,10 @@ from ..schemas.evidence import (
 )
 from ..services import ai_service
 from ..services import evidence_status as evidence_status_svc
+from ..services.batch_loaders import (
+    load_mappings_by_control_ids,
+    load_submissions_by_cycle_and_items,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -583,36 +587,47 @@ def _recalculate_control_sufficiency(
     cycle_id: UUID,
     evidence_item_id: str,
 ) -> None:
-    """Per item: score = PASS / (PASS + FAIL) * 100. Overall = weighted average by item (1/N)."""
-    mappings = (
+    """Per item: score = PASS / (PASS + FAIL) * 100. Overall = weighted average by item (1/N).
+
+    Uses batch queries to avoid N+1: loads all mappings and submissions up front.
+    """
+    trigger_mappings = (
         db.query(ItemControlMapping)
         .filter(ItemControlMapping.evidence_item_id == evidence_item_id)
         .all()
     )
+    affected_control_ids = list({m.control_id for m in trigger_mappings})
+    if not affected_control_ids:
+        return
 
-    affected_control_ids = {m.control_id for m in mappings}
+    all_mappings_map = load_mappings_by_control_ids(db, affected_control_ids)
+
+    all_item_ids = list({
+        m.evidence_item_id
+        for ms in all_mappings_map.values()
+        for m in ms
+    })
+    subs_map = load_submissions_by_cycle_and_items(db, cycle_id, all_item_ids)
+
+    existing_scores = (
+        db.query(SufficiencyScore)
+        .filter(
+            SufficiencyScore.cycle_id == cycle_id,
+            SufficiencyScore.control_id.in_(affected_control_ids),
+        )
+        .all()
+    )
+    existing_scores_map = {s.control_id: s for s in existing_scores}
 
     for control_id in affected_control_ids:
-        all_mappings = (
-            db.query(ItemControlMapping)
-            .filter(ItemControlMapping.control_id == control_id)
-            .all()
-        )
-        n_items = len(all_mappings)
+        ctrl_mappings = all_mappings_map.get(control_id, [])
+        n_items = len(ctrl_mappings)
         weight_per_item = 100.0 / n_items if n_items > 0 else 0
         weighted_sum = 0.0
 
-        for m in all_mappings:
-            sub = (
-                db.query(EvidenceSubmission)
-                .filter(
-                    EvidenceSubmission.cycle_id == cycle_id,
-                    EvidenceSubmission.evidence_item_id == m.evidence_item_id,
-                )
-                .first()
-            )
+        for m in ctrl_mappings:
+            sub = subs_map.get(m.evidence_item_id)
             if not sub:
-                weighted_sum += 0.0
                 continue
             eval_result = sub.evaluation_result or {}
             suf_results = eval_result.get("sufficiency_results", [])
@@ -626,18 +641,10 @@ def _recalculate_control_sufficiency(
             if weighted_sum > 0:
                 score = round(weighted_sum, 1)
             else:
-                # No evaluation result yet: fall back to completion_pct
                 comp_sum = 0.0
                 weight_total = 0.0
-                for m in all_mappings:
-                    sub = (
-                        db.query(EvidenceSubmission)
-                        .filter(
-                            EvidenceSubmission.cycle_id == cycle_id,
-                            EvidenceSubmission.evidence_item_id == m.evidence_item_id,
-                        )
-                        .first()
-                    )
+                for m in ctrl_mappings:
+                    sub = subs_map.get(m.evidence_item_id)
                     if sub and float(sub.completion_pct or 0) > 0:
                         comp_sum += float(sub.completion_pct) * float(m.weight)
                         weight_total += float(m.weight)
@@ -647,24 +654,22 @@ def _recalculate_control_sufficiency(
 
         status = _score_to_status(score)
 
-        existing = (
-            db.query(SufficiencyScore)
-            .filter(SufficiencyScore.cycle_id == cycle_id, SufficiencyScore.control_id == control_id)
-            .first()
-        )
+        existing = existing_scores_map.get(control_id)
         if existing:
             existing.overall_score = score
             existing.status = status
             existing.last_evaluated_at = datetime.utcnow()
         else:
-            db.add(SufficiencyScore(
+            new_score = SufficiencyScore(
                 cycle_id=cycle_id,
                 control_id=control_id,
                 overall_score=score,
                 status=status,
                 last_evaluated_at=datetime.utcnow(),
-            ))
+            )
+            db.add(new_score)
             db.flush()
+            existing_scores_map[control_id] = new_score
         _sync_to_control_applicability(db, cycle_id, control_id, score, status)
 
 

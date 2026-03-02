@@ -117,13 +117,18 @@ export default function CycleDomainPage() {
   }, [activeItem]);
 
   useEffect(() => {
-    if (!domainId) return;
+    if (!cycleId || !domainId) return;
     setLoading(true);
-    api.get<{ domain: ApiDomain | null; evidence_items: ApiEvidenceItem[] }>(`/ref/domains/${domainId}`)
-      .then((res) => {
-        if (!res.domain) { setConfig(null); return; }
-        const d = res.domain;
-        const evidenceItems = res.evidence_items.map(toEvidenceItem);
+
+    const refPromise = api.get<{ domain: ApiDomain | null; evidence_items: ApiEvidenceItem[] }>(`/ref/domains/${domainId}`);
+    const subsPromise = api.get<ApiSubmission[]>(`/assessments/${cycleId}/evidence?domain=${domainId}`);
+    const controlsPromise = api.get<{ id: string; score: number }[]>(`/assessments/${cycleId}/controls`);
+
+    Promise.all([refPromise, subsPromise, controlsPromise])
+      .then(([refRes, subs, controlsData]) => {
+        if (!refRes.domain) { setConfig(null); return; }
+        const d = refRes.domain;
+        const evidenceItems = refRes.evidence_items.map(toEvidenceItem);
         const allControls = [...new Set(evidenceItems.flatMap((i) => i.controls.map((c) => c.id)))];
         setConfig({
           id: d.id,
@@ -137,15 +142,7 @@ export default function CycleDomainPage() {
           weights: {},
         });
         if (evidenceItems.length > 0) setActiveItem(evidenceItems[0].id);
-      })
-      .catch(() => setConfig(null))
-      .finally(() => setLoading(false));
-  }, [domainId]);
 
-  useEffect(() => {
-    if (!cycleId || !domainId) return;
-    api.get<ApiSubmission[]>(`/assessments/${cycleId}/evidence?domain=${domainId}`)
-      .then((subs) => {
         const data: Record<string, string> = {};
         const sMap: Record<string, string> = {};
         const statusMap: Record<string, string> = {};
@@ -185,8 +182,13 @@ export default function CycleDomainPage() {
         setSubmissionStatusMap(statusMap);
         setLastEvaluationByItem(evalByItem);
         setCompletionPctByItem(completionByItem);
+
+        const scores: Record<string, number> = {};
+        controlsData.forEach((c) => { scores[c.id] = Math.round(c.score); });
+        setControlScores(scores);
       })
-      .catch(() => {});
+      .catch(() => setConfig(null))
+      .finally(() => setLoading(false));
   }, [cycleId, domainId]);
 
   useEffect(() => {
@@ -210,10 +212,6 @@ export default function CycleDomainPage() {
       setControlScores(scores);
     } catch { /* ignore */ }
   }, [cycleId]);
-
-  useEffect(() => {
-    fetchControlScores();
-  }, [fetchControlScores]);
 
   const ensureSubmission = useCallback(async (itemId: string): Promise<string> => {
     if (submissionMap[itemId]) return submissionMap[itemId];

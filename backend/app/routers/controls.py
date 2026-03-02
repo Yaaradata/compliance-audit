@@ -11,6 +11,12 @@ from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceS
 from ..models.framework import Control, ItemControlMapping, EvidenceSufficiencyMatrix, CanonicalEvidenceItem
 from ..models.sufficiency import SufficiencyScore
 from ..schemas.assessment import ControlScore
+from ..services.batch_loaders import (
+    load_controls_by_ids,
+    load_sufficiency_scores,
+    load_mappings_by_control_ids,
+    load_submissions_by_cycle_and_items,
+)
 
 router = APIRouter()
 
@@ -29,17 +35,15 @@ def list_controls(cycle_id: UUID, db: Session = Depends(get_db), user: User = De
     _require_cycle_access(cycle, user)
 
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()
+    control_ids = [ca.control_id for ca in cas]
+
+    controls_map = load_controls_by_ids(db, control_ids)
+    scores_map = load_sufficiency_scores(db, cycle_id, control_ids)
+
     result = []
     for ca in cas:
-        ctrl = db.query(Control).filter(Control.id == ca.control_id).first()
-        suf = (
-            db.query(SufficiencyScore)
-            .filter(
-                SufficiencyScore.cycle_id == cycle_id,
-                SufficiencyScore.control_id == ca.control_id,
-            )
-            .first()
-        )
+        ctrl = controls_map.get(ca.control_id)
+        suf = scores_map.get(ca.control_id)
         score_val = (suf.overall_score if suf else ca.score) if (suf or ca) else 0
         score = float(score_val) if score_val is not None else 0.0
         status = (suf.status if suf else ca.status) or "not_started"
@@ -60,10 +64,15 @@ def control_matrix(cycle_id: UUID, db: Session = Depends(get_db), user: User = D
     _require_cycle_access(cycle, user)
 
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()
+    control_ids = [ca.control_id for ca in cas]
+
+    controls_map = load_controls_by_ids(db, control_ids)
+    mappings_map = load_mappings_by_control_ids(db, control_ids)
+
     result = []
     for ca in cas:
-        ctrl = db.query(Control).filter(Control.id == ca.control_id).first()
-        mappings = db.query(ItemControlMapping).filter(ItemControlMapping.control_id == ca.control_id).all()
+        ctrl = controls_map.get(ca.control_id)
+        mappings = mappings_map.get(ca.control_id, [])
         result.append({
             "control_id": ca.control_id,
             "name": ctrl.name if ctrl else ca.control_id,
@@ -186,10 +195,11 @@ def get_sufficiency_detail(cycle_id: UUID, db: Session, user: User):
         for cei in ceis:
             item_names[cei.id] = cei.name
 
-    # Control names
+    # Control names — single batch query
+    controls_map = load_controls_by_ids(db, control_ids)
     ctrl_name_map: dict[str, str] = {}
     for ca in cas:
-        ctrl = db.query(Control).filter(Control.id == ca.control_id).first()
+        ctrl = controls_map.get(ca.control_id)
         ctrl_name_map[ca.control_id] = (ctrl.name if ctrl else ca.control_id) or ca.control_id or ""
 
     result = []

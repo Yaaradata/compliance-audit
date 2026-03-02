@@ -16,6 +16,8 @@ from ..schemas.assessment import (
     CycleTeamCreate, CycleTeamUserCreate,
     DashboardResponse, DomainScore, ControlScore,
 )
+from ..services.cycle_cleanup import delete_cycle_evidence_and_related
+from ..services.batch_loaders import load_controls_by_ids
 from . import controls as controls_router
 
 router = APIRouter(prefix="/assessments")
@@ -127,12 +129,18 @@ def get_cycle(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depend
 def delete_cycle(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """
     Delete an assessment cycle and all data tied to it.
-    Cascades: evidence submissions, attachments, control applicability, approval gates,
-    vendors, sufficiency scores, reports, reviews, etc.
-    Any cycle that references this one as previous_cycle_id will have that reference cleared.
+
+    - Deletes all evidence files from GCS (or local storage) for submissions in this cycle.
+    - Removes evidence attachments, submissions, review assignments/comments,
+      sufficiency scores/evaluations, reports, and vendors for this cycle.
+    - Clears previous_cycle_id on other cycles, then deletes the cycle (with cascaded
+      control applicability and approval gates).
     """
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user)
+
+    # Delete evidence files from storage and all related DB rows (attachments, submissions, reviews, etc.)
+    delete_cycle_evidence_and_related(db, cycle_id)
 
     # Clear references from other cycles so FK does not block delete
     db.query(AssessmentCycle).filter(AssessmentCycle.previous_cycle_id == cycle_id).update(
@@ -216,11 +224,13 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depend
     for ss in db.query(SufficiencyScore).filter(SufficiencyScore.cycle_id == cycle_id).all():
         suf_scores[ss.control_id] = ss
 
+    controls_map = load_controls_by_ids(db, [ca.control_id for ca in cas])
+
     control_scores = []
     mandatory_count = 0
     gaps = []
     for ca in cas:
-        control = db.query(Control).filter(Control.id == ca.control_id).first()
+        control = controls_map.get(ca.control_id)
         cname = (control.name if control else ca.control_id) or ca.control_id or ""
         applicability = (ca.applicability or "").lower()
         ctype = "M" if applicability == "mandatory" else "A"
