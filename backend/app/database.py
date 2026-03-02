@@ -1,7 +1,11 @@
-from sqlalchemy import create_engine, event
+import logging
+
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 from .config import settings
+
+logger = logging.getLogger(__name__)
 
 SCHEMA = "cscf_2025_new"
 
@@ -28,3 +32,21 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase):
     pass
+
+
+def ensure_optional_columns():
+    """
+    Ensure optional columns exist on evidence_submissions without requiring a separate migration.
+    Idempotent: safe to call on every startup.
+    """
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    f'ALTER TABLE "{SCHEMA}"."evidence_submissions" '
+                    "ADD COLUMN IF NOT EXISTS \"evaluation_edits\" JSONB NOT NULL DEFAULT '{}'"
+                )
+            )
+            conn.commit()
+    except Exception as e:
+        logger.warning("Could not ensure evaluation_edits column (table may not exist yet): %s", e)

@@ -3,7 +3,6 @@
 import { CompactDomainHeader } from "./compact-domain-header";
 import { EvidenceListPanel } from "./evidence-list-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
-import { ControlSufficiencyPanel } from "./control-sufficiency-panel";
 import { cn } from "@/lib/utils";
 import type { DomainConfig, EvidenceItem } from "@/lib/types";
 import type { AiEvaluationResult as AiEvalResultType } from "@/lib/types";
@@ -42,6 +41,8 @@ export interface DomainWorkspaceLayoutProps {
   onA2RowChange?: (index: number, key: string, value: string) => void;
   onA2AddRow?: () => void;
   onA2RemoveRow?: (index: number) => void;
+  onEvaluationEdit?: (updated: AiEvalResultType, edits: import("@/components/domain/ai-evaluation-result").EvaluationEditsMap) => void;
+  evaluationEdits?: import("@/components/domain/ai-evaluation-result").EvaluationEditsMap;
 }
 
 export function DomainWorkspaceLayout({
@@ -76,6 +77,8 @@ export function DomainWorkspaceLayout({
   onA2RowChange,
   onA2AddRow,
   onA2RemoveRow,
+  onEvaluationEdit,
+  evaluationEdits,
 }: DomainWorkspaceLayoutProps) {
   const evaluationState: EvaluationState = !evaluated ? "idle" : aiEvaluationLoading ? "loading" : "done";
   const currentSubmissionId = currentItem ? submissionMap[currentItem.id] ?? null : null;
@@ -106,7 +109,7 @@ export function DomainWorkspaceLayout({
       <div
         className={cn(
           "flex-1 min-h-0 grid gap-4 overflow-hidden",
-          "grid-cols-1 md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr_300px]"
+          "grid-cols-1 md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]"
         )}
       >
         <div className="hidden md:flex flex-col min-h-0 md:min-w-[220px] lg:min-w-[280px]">
@@ -148,11 +151,9 @@ export function DomainWorkspaceLayout({
             onA2RowChange={onA2RowChange}
             onA2AddRow={onA2AddRow}
             onA2RemoveRow={onA2RemoveRow}
+            onEvaluationEdit={onEvaluationEdit}
+            evaluationEdits={evaluationEdits}
           />
-        </div>
-
-        <div className="hidden lg:flex flex-col min-h-0 min-w-[300px]">
-          <ControlSufficiencyPanel controls={config.allControls} controlScores={controlScores} cycleId={cycleId ?? undefined} className="h-full" />
         </div>
       </div>
     </div>

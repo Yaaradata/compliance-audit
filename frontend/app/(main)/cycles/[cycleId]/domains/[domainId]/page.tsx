@@ -39,6 +39,8 @@ interface ApiEvidenceItem {
   matrix?: ControlCriteria[];
 }
 
+type EvaluationEditsMap = Record<string, { met: boolean; description: string | null }>;
+
 interface ApiSubmission {
   id: string;
   evidence_item_id: string;
@@ -52,6 +54,7 @@ interface ApiSubmission {
     criteria: { id: string; label: string; met: boolean; description?: string | null }[];
     summary?: string | null;
   } | null;
+  evaluation_edits?: EvaluationEditsMap;
 }
 
 const GRADIENTS: Record<string, string> = {
@@ -64,6 +67,29 @@ const GRADIENTS: Record<string, string> = {
   G: "linear-gradient(135deg, #F57F17 0%, #FFB300 100%)",
   H: "linear-gradient(135deg, #BF360C 0%, #E64A19 100%)",
 };
+
+function applyEditsToResult(
+  result: AiEvalResultType,
+  edits: EvaluationEditsMap
+): AiEvalResultType {
+  if (Object.keys(edits).length === 0) return result;
+  const apply = (list: { id: string; label: string; met: boolean; description?: string | null }[]) =>
+    list.map((c) => {
+      const e = edits[c.id];
+      if (!e) return c;
+      return { ...c, met: e.met, description: e.description ?? c.description ?? null };
+    });
+  const sufficiency_results = apply(result.sufficiency_results ?? []);
+  const criteria = apply(result.criteria);
+  const overall_met =
+    sufficiency_results.every((c) => c.met) && criteria.every((c) => c.met);
+  return {
+    ...result,
+    sufficiency_results,
+    criteria,
+    overall_met,
+  };
+}
 
 function toEvidenceItem(a: ApiEvidenceItem): EvidenceItem {
   const controls = (a.controls ?? []).map((c) => ({ id: c.control_id, name: "", ma: c.ma as "M" | "A" }));
@@ -111,6 +137,7 @@ export default function CycleDomainPage() {
   const [a2Rows, setA2Rows] = useState<Record<string, string>[]>([{}]);
   const [submitForReviewLoading, setSubmitForReviewLoading] = useState(false);
   const [submissionStatusMap, setSubmissionStatusMap] = useState<Record<string, string>>({});
+  const [evaluationEditsByItem, setEvaluationEditsByItem] = useState<Record<string, EvaluationEditsMap>>({});
 
   useEffect(() => {
     setSelectedControlId(null);
@@ -148,6 +175,7 @@ export default function CycleDomainPage() {
         const statusMap: Record<string, string> = {};
         const evalByItem: Record<string, AiEvalResultType> = {};
         const completionByItem: Record<string, number> = {};
+        const editsByItem: Record<string, EvaluationEditsMap> = {};
         subs.forEach((s) => {
           sMap[s.evidence_item_id] = s.id;
           statusMap[s.evidence_item_id] = s.status;
@@ -156,19 +184,23 @@ export default function CycleDomainPage() {
               data[`${s.evidence_item_id}_${k}`] = String(v);
             });
           }
+          const edits = s.evaluation_edits ?? {};
+          editsByItem[s.evidence_item_id] = edits;
           if (s.last_evaluation) {
-            evalByItem[s.evidence_item_id] = {
+            const base = {
               evidence_item_id: s.last_evaluation.evidence_item_id,
               overall_met: s.last_evaluation.overall_met,
               sufficiency_results: s.last_evaluation.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
               criteria: s.last_evaluation.criteria?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
               summary: s.last_evaluation.summary ?? null,
             };
+            evalByItem[s.evidence_item_id] = applyEditsToResult(base, edits);
           }
           if (s.completion_pct != null && s.completion_pct > 0) {
             completionByItem[s.evidence_item_id] = Math.round(s.completion_pct);
           }
         });
+        setEvaluationEditsByItem(editsByItem);
         subs.forEach((s) => {
           if (s.evidence_item_id === A2_EVIDENCE_ITEM_ID && s.form_data?.inventory_rows) {
             try {
@@ -359,6 +391,7 @@ export default function CycleDomainPage() {
           summary: res.summary ?? null,
         },
       }));
+      setEvaluationEditsByItem((prev) => ({ ...prev, [currentItem.id]: {} }));
 
       fetchControlScores();
       api.get<ApiSubmission[]>(`/assessments/${cycleId}/evidence?domain=${domainId}`).then((subs) => {
@@ -382,6 +415,28 @@ export default function CycleDomainPage() {
       setAiEvaluationLoading(false);
     }
   }, [currentItem, cycleId, currentSubmissionId, ensureSubmission, fetchControlScores, domainId]);
+
+  const handleEvaluationEdit = useCallback(async (updated: AiEvalResultType, edits: EvaluationEditsMap) => {
+    if (!currentItem || !cycleId) return;
+    setAiEvaluationResult(updated);
+    setLastEvaluationByItem((prev) => ({ ...prev, [currentItem.id]: updated }));
+    setEvaluationEditsByItem((prev) => ({ ...prev, [currentItem.id]: edits }));
+
+    const subId = submissionMap[currentItem.id];
+    if (!subId) return;
+    try {
+      await api.put(`/assessments/${cycleId}/evidence/${subId}`, {
+        evaluation_result: {
+          evidence_item_id: updated.evidence_item_id,
+          overall_met: updated.overall_met,
+          sufficiency_results: updated.sufficiency_results,
+          criteria: updated.criteria,
+          summary: updated.summary,
+        },
+        evaluation_edits: edits,
+      });
+    } catch { /* save best-effort */ }
+  }, [currentItem, cycleId, submissionMap]);
 
   if (loading) {
     return <LoadingState message="Loading domain…" />;
@@ -436,6 +491,8 @@ export default function CycleDomainPage() {
         onA2RowChange={handleA2RowChange}
         onA2AddRow={handleA2AddRow}
         onA2RemoveRow={handleA2RemoveRow}
+        onEvaluationEdit={handleEvaluationEdit}
+        evaluationEdits={currentItem ? evaluationEditsByItem[currentItem.id] : undefined}
       />
     </div>
   );

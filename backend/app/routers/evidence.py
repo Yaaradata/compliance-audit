@@ -45,6 +45,7 @@ def _submission_to_out(sub: EvidenceSubmission, db: Session | None = None) -> Su
         if db
         else sub.status
     )
+    evaluation_edits = getattr(sub, "evaluation_edits", None) or {}
     return SubmissionOut(
         id=sub.id,
         cycle_id=sub.cycle_id,
@@ -58,6 +59,7 @@ def _submission_to_out(sub: EvidenceSubmission, db: Session | None = None) -> Su
         created_at=sub.created_at,
         updated_at=sub.updated_at,
         last_evaluation=last_evaluation,
+        evaluation_edits=evaluation_edits,
     )
 
 
@@ -120,6 +122,10 @@ def update_evidence(cycle_id: UUID, sub_id: UUID, req: UpdateSubmissionRequest, 
         sub.status = evidence_status_svc.evidence_status_to_db(req.status)
     if req.form_data is not None:
         sub.form_data = req.form_data
+    if req.evaluation_result is not None:
+        sub.evaluation_result = req.evaluation_result
+    if req.evaluation_edits is not None:
+        sub.evaluation_edits = req.evaluation_edits
 
     db.commit()
     db.refresh(sub)
@@ -749,6 +755,8 @@ def evaluate_evidence(
                 continue
 
     # Run AI evaluation when we have uploaded files and/or form context; pass all criteria for this item's controls
+    previous_evaluation = (submission.evaluation_result if submission else None) or None
+
     has_evidence = bool(file_parts) or bool(submission_context and submission_context.strip())
     if has_evidence:
         try:
@@ -758,6 +766,7 @@ def evaluate_evidence(
                 control_mappings,
                 matrix_rows=matrix_rows or None,
                 submission_context=submission_context,
+                previous_evaluation=previous_evaluation,
             )
         except Exception as exc:
             logger.exception("AI evaluation failed")

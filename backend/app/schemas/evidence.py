@@ -10,9 +10,17 @@ class CreateSubmissionRequest(BaseModel):
     scope_key: str | None = None
 
 
+class EvaluationEditItem(BaseModel):
+    """User override for a single criterion (stored in evaluation_edits)."""
+    met: bool
+    description: str | None = None
+
+
 class UpdateSubmissionRequest(BaseModel):
     status: str | None = None
     form_data: dict | None = None
+    evaluation_result: dict | None = None
+    evaluation_edits: dict | None = None
 
 
 class SubmissionOut(BaseModel):
@@ -29,6 +37,8 @@ class SubmissionOut(BaseModel):
     updated_at: datetime
     """Last AI evaluation result (ticks/crosses) when present; used to show status on revisit."""
     last_evaluation: EvaluateEvidenceResponse | None = None
+    """User edits per criterion id: { "<id>": { "met": bool, "description": str|null } }. Kept separate for audit and downstream."""
+    evaluation_edits: dict = {}
 
     model_config = {"from_attributes": True}
 

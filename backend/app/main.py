@@ -1,7 +1,10 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
+from .database import ensure_optional_columns
 from .routers import (
     auth,
     tenants,
@@ -19,10 +22,17 @@ from .routers import (
     audit_log,
 )
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    ensure_optional_columns()
+    yield
+
+
 app = FastAPI(
     title="SWIFT Compliance Platform API",
     version="1.0.0",
     root_path="",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

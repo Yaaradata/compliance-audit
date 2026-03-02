@@ -115,6 +115,7 @@ def _build_prompt(
     mappings: list[Any],
     matrix_rows: list[Any] | None = None,
     submission_context: str | None = None,
+    previous_evaluation: dict | None = None,
 ) -> str:
     """Build the evaluation prompt from evidence_sufficiency_matrix rows when present, else from CEI fields.
     When matrix_rows is set, all controls' sufficiency_criteria and evaluation_criteria are included
@@ -161,6 +162,24 @@ def _build_prompt(
     )
     if submission_context and submission_context.strip():
         out += "\n\n## Declared / form context (use when evaluating):\n" + submission_context.strip()
+
+    if previous_evaluation:
+        prev_lines = []
+        for section_key in ("sufficiency_results", "criteria"):
+            for c in previous_evaluation.get(section_key, []):
+                status = "MET" if c.get("met") else "NOT MET"
+                desc = c.get("description") or ""
+                label = c.get("label", c.get("id", ""))
+                line = f"  - [{status}] {label}"
+                if desc:
+                    line += f" — {desc}"
+                prev_lines.append(line)
+        if prev_lines:
+            out += (
+                "\n\n## Previous evaluation results (user may have edited these; consider changes as user corrections):\n"
+                + "\n".join(prev_lines)
+            )
+
     return out
 
 
@@ -181,6 +200,7 @@ def evaluate_evidence(
     control_mappings: list[Any],
     matrix_rows: list[Any] | None = None,
     submission_context: str | None = None,
+    previous_evaluation: dict | None = None,
 ) -> dict:
     """Send files + prompt to Vertex AI and return the parsed JSON result.
     When matrix_rows is provided (from evidence_sufficiency_matrix), prompt is built from them.
@@ -195,7 +215,8 @@ def evaluate_evidence(
         ) from init_err
 
     prompt_text = _build_prompt(
-        evidence_item, control_mappings, matrix_rows=matrix_rows, submission_context=submission_context
+        evidence_item, control_mappings, matrix_rows=matrix_rows,
+        submission_context=submission_context, previous_evaluation=previous_evaluation,
     )
     contents = [Part.from_text(prompt_text)] + file_parts
 
