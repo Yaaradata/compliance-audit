@@ -41,6 +41,22 @@ LEVEL_TO_DB = {"L1": "l1_completeness", "L2": "l2_quality", "L3": "l3_assessment
 DB_TO_LEVEL = {"l1_completeness": "L1", "l2_quality": "L2", "l3_assessment": "L3"}
 
 
+def _check_json_to_display_text(check_json: dict, level: str) -> str:
+    """Build a short display string from structured L1/L2/L3 check JSON for backward compatibility."""
+    task = check_json.get("task") or ""
+    doc = check_json.get("document") or ""
+    if level == "L1":
+        checks = check_json.get("checks") or []
+        return f"{task}: {doc} — {len(checks)} checks" if task else doc
+    if level == "L2":
+        control = check_json.get("control") or ""
+        return f"{task}: {doc} / {control}" if task else (control or doc)
+    if level == "L3":
+        control = check_json.get("control") or ""
+        return f"{task}: {doc} / {control}" if task else (control or doc)
+    return doc or task
+
+
 # ── Review assignment policy ─────────────────────────────────
 # When team/roles are assigned: L1/L2 → Internal Reviewer, L3 → External Assessor.
 # When Compliance Officer skips team setup: no Internal Reviewer exists, so L1 is
@@ -400,16 +416,28 @@ def get_review_detail(
 
     checklist_items = []
     for row in checklist_rows:
-        check_text = getattr(row, level_check_col, None)
-        if not check_text or not check_text.strip():
+        check_data = getattr(row, level_check_col, None)
+        if not check_data:
             continue
-        checklist_items.append({
+        # Support both legacy TEXT and JSONB (dict)
+        if isinstance(check_data, dict):
+            check_json = check_data
+            check_text = _check_json_to_display_text(check_json, level_display)
+        else:
+            check_text = check_data.strip() if isinstance(check_data, str) else ""
+            check_json = None
+        if not check_text and not check_json:
+            continue
+        item = {
             "id": str(row.id),
             "control_id": row.control_id,
             "control_name": row.control_name,
             "mandatory_advisory": row.mandatory_advisory,
-            "check_text": check_text.strip(),
-        })
+            "check_text": check_text or "",
+        }
+        if check_json is not None:
+            item["check_json"] = check_json
+        checklist_items.append(item)
 
     saved_results = getattr(review, "checklist_results", None) or {}
 
