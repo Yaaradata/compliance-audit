@@ -43,6 +43,13 @@ DB_TO_LEVEL = {"l1_completeness": "L1", "l2_quality": "L2", "l3_assessment": "L3
 
 def _check_json_to_display_text(check_json: dict, level: str) -> str:
     """Build a short display string from structured L1/L2/L3 check JSON for backward compatibility."""
+    # New format: { checklist: [{section, checks[]}, ...], action: {...} }
+    checklist = check_json.get("checklist")
+    if isinstance(checklist, list) and checklist:
+        total_checks = sum(len(s.get("checks") or []) for s in checklist if isinstance(s, dict))
+        first_section = checklist[0].get("section", "") if isinstance(checklist[0], dict) else ""
+        return f"{first_section} — {total_checks} checks" if first_section else f"{total_checks} checks"
+    # Legacy format fallback
     task = check_json.get("task") or ""
     doc = check_json.get("document") or ""
     if level == "L1":
