@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { EvidenceDetailModal } from "@/components/review/evidence-viewer";
@@ -255,19 +255,50 @@ function ReviewQueueSkeleton() {
   );
 }
 
+const VALID_LEVELS = ["L1", "L2", "L3"] as const;
+
 export default function CycleReviewPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const cycleId = params.cycleId as string;
   const { user } = useAuth();
   const userRole = user?.role || "compliance_officer";
 
+  const levelFromUrl = searchParams.get("level");
+  const initialLevel = levelFromUrl && VALID_LEVELS.includes(levelFromUrl as (typeof VALID_LEVELS)[number]) ? levelFromUrl : "all";
+
   const [reviews, setReviews] = useState<ApiReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
-  const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [levelFilter, setLevelFilter] = useState<string>(initialLevel);
   const [modalReviewId, setModalReviewId] = useState<string | null>(null);
   const [modalEvidenceItemId, setModalEvidenceItemId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (levelFromUrl && VALID_LEVELS.includes(levelFromUrl as (typeof VALID_LEVELS)[number])) {
+      setLevelFilter(levelFromUrl);
+    } else if (levelFromUrl === null || levelFromUrl === "") {
+      setLevelFilter("all");
+    }
+  }, [levelFromUrl]);
+
+  const updateLevelFilter = useCallback(
+    (lv: string) => {
+      setLevelFilter(lv);
+      const params = new URLSearchParams(searchParams.toString());
+      if (lv === "all") {
+        params.delete("level");
+      } else {
+        params.set("level", lv);
+      }
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname ?? "");
+    },
+    [pathname, router, searchParams]
+  );
 
   const fetchReviews = useCallback(async () => {
     if (!cycleId) return;
@@ -343,7 +374,7 @@ export default function CycleReviewPage() {
         { decision, checklist_results: checklistResults ?? null }
       );
       if (res?.next_review_id) {
-        setLevelFilter("all");
+        updateLevelFilter("all");
         setFilter("all");
       }
       await fetchReviews();
@@ -368,7 +399,7 @@ export default function CycleReviewPage() {
 
   const clearFilters = () => {
     setFilter("all");
-    setLevelFilter("all");
+    updateLevelFilter("all");
     setSearchQuery("");
   };
 
@@ -458,7 +489,7 @@ export default function CycleReviewPage() {
                   <button
                     key={lv}
                     type="button"
-                    onClick={() => !isDisabled && setLevelFilter(lv)}
+                    onClick={() => !isDisabled && updateLevelFilter(lv)}
                     disabled={isDisabled}
                     aria-pressed={isActive}
                     aria-label={`${levelLabel}, ${count} items`}

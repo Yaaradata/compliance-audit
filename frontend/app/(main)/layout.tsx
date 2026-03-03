@@ -3,14 +3,35 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 import { AppShell } from "@/app/app-shell";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, activeCycleId, selectedArchitectureId, isPlatformAdmin, loading } = useAuth();
+  const { user, activeCycleId, setActiveCycleId, setArchitecture, selectedArchitectureId, isPlatformAdmin, loading } = useAuth();
 
   const isCycleRoute = pathname?.startsWith("/cycles/");
+
+  const urlCycleId = pathname?.match(/^\/cycles\/([^/]+)/)?.[1];
+
+  useEffect(() => {
+    if (urlCycleId && user && !isPlatformAdmin && urlCycleId !== activeCycleId) {
+      api
+        .get<{ id: string; label: string; cycle_year: number; display_id: string; architecture_type: string | null }>(`/assessments/${urlCycleId}`)
+        .then((cycle) => {
+          setActiveCycleId(urlCycleId, {
+            label: cycle.label,
+            display_id: cycle.display_id,
+            cycle_year: cycle.cycle_year,
+          });
+          if (cycle.architecture_type) {
+            setArchitecture(cycle.architecture_type);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [urlCycleId, user, isPlatformAdmin, activeCycleId, setActiveCycleId, setArchitecture]);
 
   useEffect(() => {
     if (loading) return;

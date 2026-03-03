@@ -171,7 +171,6 @@ const EvidenceDashboard = () => {
           </div>
           {/* AI Insights */}
           <div style={{ marginTop: 16, background: "#f0f9ff", borderRadius: 10, padding: 12, border: "1px solid #bae6fd" }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369a1", marginBottom: 8 }}>🤖 AI Suggestions</div>
             <div style={{ fontSize: 11, color: "#0c4a6e", lineHeight: 1.5 }}>
               <div style={{ padding: "4px 0", borderBottom: "1px solid #bae6fd" }}>Upload vendor risk assessments to improve Control 2.8 from 55% → ~90%</div>
               <div style={{ padding: "4px 0", borderBottom: "1px solid #bae6fd" }}>SIEM config screenshot needed for Control 6.4</div>
