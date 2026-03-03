@@ -111,6 +111,23 @@ class ApiClient {
   put<T>(path: string, body?: unknown) { return this.request<T>("PUT", path, body); }
   patch<T>(path: string, body?: unknown) { return this.request<T>("PATCH", path, body); }
   del<T>(path: string) { return this.request<T>("DELETE", path); }
+
+  /** Fetch a file as Blob (e.g. for evidence attachments). Uses same auth as request(). */
+  async getBlob(path: string): Promise<Blob> {
+    const headers: Record<string, string> = {};
+    const token = this.getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${BASE_URL}${path}`, { method: "GET", headers });
+
+    if (res.status === 401) {
+      this.clearToken();
+      if (typeof window !== "undefined") window.location.href = "/login";
+      throw new Error("Unauthorized");
+    }
+    if (!res.ok) throw new Error(res.statusText || "Request failed");
+    return res.blob();
+  }
 }
 
 export const api = new ApiClient();

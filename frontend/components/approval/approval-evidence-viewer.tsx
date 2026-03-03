@@ -65,18 +65,18 @@ export function ApprovalEvidenceViewer({
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full bg-white">
-        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800">Evidence detail</h3>
+      <div className="flex flex-col h-full bg-[var(--surface)]">
+        <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between bg-[var(--background)]/50">
+          <h3 className="text-sm font-bold text-[var(--foreground)]">Evidence detail</h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-sm"
+            className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] text-sm font-medium"
           >
             Close
           </button>
         </div>
-        <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+        <div className="flex-1 flex items-center justify-center text-sm text-[var(--foreground-muted)]">
           Loading…
         </div>
       </div>
@@ -85,18 +85,18 @@ export function ApprovalEvidenceViewer({
 
   if (!data) {
     return (
-      <div className="flex flex-col h-full bg-white">
-        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800">Evidence detail</h3>
+      <div className="flex flex-col h-full bg-[var(--surface)]">
+        <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between bg-[var(--background)]/50">
+          <h3 className="text-sm font-bold text-[var(--foreground)]">Evidence detail</h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-sm"
+            className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] text-sm font-medium"
           >
             Close
           </button>
         </div>
-        <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+        <div className="flex-1 flex items-center justify-center text-sm text-[var(--foreground-muted)]">
           Could not load evidence.
         </div>
       </div>
@@ -109,12 +109,12 @@ export function ApprovalEvidenceViewer({
   const evalResult = submission.evaluation_result;
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50/80">
+    <div className="flex flex-col h-full bg-[var(--surface)]">
+      <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between bg-[var(--background)]/50">
         <div>
-          <h3 className="text-sm font-bold text-gray-900">{submission.evidence_item_id}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Status: <span className="font-semibold">{submission.status}</span>
+          <h3 className="text-sm font-bold text-[var(--foreground)]">{submission.evidence_item_id}</h3>
+          <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
+            Status: <span className="font-semibold text-[var(--foreground)]">{submission.status}</span>
             {submission.submitted_at && (
               <> · Submitted {new Date(submission.submitted_at).toLocaleDateString()}</>
             )}
@@ -124,7 +124,7 @@ export function ApprovalEvidenceViewer({
         <button
           type="button"
           onClick={onClose}
-          className="px-2 py-1 text-xs font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-100"
+          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
         >
           Close
         </button>
@@ -133,19 +133,19 @@ export function ApprovalEvidenceViewer({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {formKeys.length > 0 && (
           <div>
-            <h4 className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-[var(--foreground-muted)] mb-2 uppercase tracking-wider">
               Form data
             </h4>
             <div className="grid grid-cols-1 gap-2">
               {formKeys.map((key) => (
                 <div
                   key={key}
-                  className="bg-gray-50 rounded-lg p-2.5 border border-gray-100"
+                  className="bg-[var(--background)] rounded-lg p-2.5 border border-[var(--border)]"
                 >
-                  <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-0.5">
+                  <div className="text-[10px] font-semibold text-[var(--foreground-subtle)] uppercase tracking-wider mb-0.5">
                     {key.replace(/_/g, " ")}
                   </div>
-                  <div className="text-xs text-gray-800 whitespace-pre-wrap">
+                  <div className="text-xs text-[var(--foreground)] whitespace-pre-wrap">
                     {formData[key]}
                   </div>
                 </div>
@@ -156,7 +156,7 @@ export function ApprovalEvidenceViewer({
 
         {attachments.length > 0 && (
           <div>
-            <h4 className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-[var(--foreground-muted)] mb-2 uppercase tracking-wider">
               Attachments
             </h4>
             <ul className="space-y-1.5">
@@ -165,7 +165,7 @@ export function ApprovalEvidenceViewer({
                 return (
                   <li
                     key={att.id}
-                    className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border border-gray-100"
+                    className="flex items-center gap-2 bg-[var(--background)] rounded-lg p-2 border border-[var(--border)]"
                   >
                     <div className="flex-1 min-w-0">
                       {att.url ? (
@@ -173,16 +173,16 @@ export function ApprovalEvidenceViewer({
                           href={att.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs font-medium text-blue-600 hover:underline truncate block"
+                          className="text-xs font-medium text-[var(--primary)] hover:underline truncate block"
                         >
                           {att.file_name}
                         </a>
                       ) : (
-                        <span className="text-xs font-medium text-gray-700 truncate block">
+                        <span className="text-xs font-medium text-[var(--foreground)] truncate block">
                           {att.file_name}
                         </span>
                       )}
-                      <span className="text-[10px] text-gray-400">
+                      <span className="text-[10px] text-[var(--foreground-subtle)]">
                         {formatBytes(att.file_size_bytes)}
                       </span>
                     </div>
@@ -190,7 +190,7 @@ export function ApprovalEvidenceViewer({
                       <img
                         src={att.url}
                         alt={att.file_name}
-                        className="w-16 h-16 object-cover rounded border border-gray-200"
+                        className="w-16 h-16 object-cover rounded border border-[var(--border)]"
                       />
                     )}
                   </li>
@@ -202,29 +202,29 @@ export function ApprovalEvidenceViewer({
 
         {reviews.length > 0 && (
           <div>
-            <h4 className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-[var(--foreground-muted)] mb-2 uppercase tracking-wider">
               Review history (L1 → L2 → L3)
             </h4>
             <div className="space-y-1.5">
               {reviews.map((r) => (
                 <div
                   key={r.id}
-                  className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 border border-gray-100"
+                  className="flex items-center justify-between bg-[var(--background)] rounded-lg px-3 py-2 border border-[var(--border)]"
                 >
-                  <span className="text-xs font-semibold text-gray-700">{r.level}</span>
+                  <span className="text-xs font-semibold text-[var(--foreground)]">{r.level}</span>
                   <span
                     className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                       r.status === "approved"
-                        ? "bg-green-100 text-green-700"
+                        ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
                         : r.status === "returned"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-gray-200 text-gray-600"
+                          ? "bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300"
+                          : "bg-[var(--background)] text-[var(--foreground-muted)]"
                     }`}
                   >
                     {r.status}
                   </span>
                   {r.completed_at && (
-                    <span className="text-[10px] text-gray-400">
+                    <span className="text-[10px] text-[var(--foreground-subtle)]">
                       {new Date(r.completed_at).toLocaleDateString()}
                     </span>
                   )}
@@ -236,20 +236,20 @@ export function ApprovalEvidenceViewer({
 
         {evalResult && (
           <div>
-            <h4 className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-[var(--foreground-muted)] mb-2 uppercase tracking-wider">
               AI evaluation
             </h4>
             <div className="flex items-center gap-2 mb-1">
               <span
                 className={
-                  evalResult.overall_met ? "text-green-600 text-sm" : "text-amber-600 text-sm"
+                  evalResult.overall_met ? "text-emerald-600 dark:text-emerald-400 text-sm" : "text-amber-600 dark:text-amber-400 text-sm"
                 }
               >
                 {evalResult.overall_met ? "✓ Meets requirements" : "⚠ Review recommended"}
               </span>
             </div>
             {evalResult.summary && (
-              <p className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2 border border-gray-100">
+              <p className="text-xs text-[var(--foreground-muted)] bg-[var(--background)] rounded-lg p-2 border border-[var(--border)]">
                 {evalResult.summary}
               </p>
             )}
@@ -257,7 +257,7 @@ export function ApprovalEvidenceViewer({
         )}
 
         {formKeys.length === 0 && attachments.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-6">No evidence content.</p>
+          <p className="text-sm text-[var(--foreground-muted)] text-center py-6">No evidence content.</p>
         )}
       </div>
     </div>

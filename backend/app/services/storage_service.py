@@ -74,18 +74,32 @@ def download(storage_path: str) -> bytes:
         return Path(storage_path).read_bytes()
 
 
-def get_signed_url(storage_path: str, expiry_minutes: int = 15) -> str:
-    """Return a short-lived signed URL for frontend display. Falls back to local endpoint."""
+def get_signed_url(storage_path: str, expiry_minutes: int = 15) -> str | None:
+    """
+    Return a short-lived signed URL for frontend display, or None if credentials
+    cannot sign (e.g. user OAuth token without a private key). Caller should
+    fall back to streaming the file through the backend when None is returned.
+    """
     if storage_path.startswith("gs://"):
         parts = storage_path.replace("gs://", "").split("/", 1)
         bucket_name, obj_path = parts[0], parts[1]
         client = _get_gcs_client()
         blob = client.bucket(bucket_name).blob(obj_path)
-        return blob.generate_signed_url(
-            version="v4",
-            expiration=timedelta(minutes=expiry_minutes),
-            method="GET",
-        )
+        try:
+            return blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(minutes=expiry_minutes),
+                method="GET",
+            )
+        except AttributeError as e:
+            if "private key" in str(e).lower() or "sign" in str(e).lower():
+                logger.warning(
+                    "Cannot generate signed URL (credentials have no private key). "
+                    "Use a service account for signing, or files will be streamed through the backend. %s",
+                    e,
+                )
+                return None
+            raise
     return storage_path
 
 

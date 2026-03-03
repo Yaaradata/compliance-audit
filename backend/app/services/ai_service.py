@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 _PROMPT_DIR = Path(__file__).resolve().parent.parent / "Prompt"
 _PROMPT_FILE = _PROMPT_DIR / "evidence_evaluation_V1.txt"
+_REPORT_PROMPT_FILE = _PROMPT_DIR / "report_generation_V1.txt"
 _loaded_prompt_template: str | None = None
 
 
@@ -291,3 +292,246 @@ def _get_response_text(response: Any) -> str:
                     if getattr(p, "text", None):
                         return p.text
     return ""
+
+
+# ---------------------------------------------------------------------------
+# Report generation
+# ---------------------------------------------------------------------------
+
+DOMAIN_NAMES = {
+    "A": "Network & Architecture",
+    "B": "System Hardening & Config",
+    "C": "Access Management",
+    "D": "Vulnerability & Patch Mgmt",
+    "E": "Monitoring & Detection",
+    "F": "Third-Party & Outsourcing",
+    "G": "Physical Security",
+    "H": "Policies & Governance",
+}
+
+_SECTION_INSTRUCTIONS: dict[str, str] = {
+    "executive_summary": (
+        "Write a 1–2 page Executive Summary for the SWIFT CSP assessment report.\n"
+        "Include:\n"
+        "- Purpose of the assessment\n"
+        "- Overall compliance status (use the numbers provided, do NOT recalculate)\n"
+        "- A compliance status table (Total / Mandatory / Advisory / Compliant / Partially / Non-Compliant / N/A)\n"
+        "- Key observations (strengths and weaknesses)\n"
+        "- High-level risk posture\n"
+        "- Overall conclusion statement: 'Based on the procedures performed, [Bank] is assessed as [status] with the applicable SWIFT CSCF controls.'"
+    ),
+    "scope_methodology": (
+        "Write the Scope of Assessment and Methodology section.\n"
+        "Include:\n"
+        "- Architecture type and what it means\n"
+        "- In-scope systems (Messaging Interface, Communication Interface, SwiftNet Link, HSM, GUI)\n"
+        "- Assessment period\n"
+        "- Methodology: evidence review, L1 (completeness) → L2 (quality) → L3 (assessment) review workflow\n"
+        "- Testing approach: documentation inspection, configuration validation, sample-based testing\n"
+        "- Do NOT list actual evidence items; keep it at methodology level."
+    ),
+    "gap_analysis": (
+        "Write a consolidated Gap Analysis section.\n"
+        "Include:\n"
+        "- A summary table: Control ID | Control Name | Status | Risk Level | Target Remediation\n"
+        "- Only include controls that are NOT fully compliant\n"
+        "- For each gap, write a brief observation and recommendation\n"
+        "- Systemic patterns if any\n"
+        "- Risk distribution summary (high / medium / low counts)"
+    ),
+    "attestation": (
+        "Write the Final Attestation section.\n"
+        "Include:\n"
+        "- Formal attestation statement in SWIFT IAF format\n"
+        "- Approved by, role, date, MFA verification status\n"
+        "- If not yet attested, state that attestation is pending."
+    ),
+    "evidence_index": (
+        "Generate an Evidence Index table listing all evidence items.\n"
+        "Columns: Evidence Item ID | Status | Overall Met | Domain\n"
+        "List every item from the data provided."
+    ),
+}
+
+
+def _get_section_instructions(section_key: str) -> str:
+    if section_key in _SECTION_INSTRUCTIONS:
+        return _SECTION_INSTRUCTIONS[section_key]
+
+    if section_key.startswith("domain_") and len(section_key) == 8:
+        domain_letter = section_key[-1].upper()
+        domain_name = DOMAIN_NAMES.get(domain_letter, f"Domain {domain_letter}")
+        return (
+            f"Write the detailed assessment section for Domain {domain_letter} — {domain_name}.\n"
+            "For EACH control in this domain, write:\n"
+            "### Control [ID] — [Name]\n"
+            "- **Control Objective:** (from the data)\n"
+            "- **Control Type:** Mandatory / Advisory\n"
+            "- **Evidence Reviewed:** list the evidence item IDs and their status\n"
+            "- **Testing Performed:** describe what was reviewed based on the evidence status and evaluation\n"
+            "- **Assessment Result:** Compliant / Partially Compliant / Non-Compliant (use the compliance_status from data)\n"
+            "- **Risk Rating:** High / Medium / Low\n"
+            "- **Observation:** describe what was found based on eval_summary and failed_criteria\n"
+            "- **Recommendation:** if non-compliant or partially compliant, what should be done (use remediation data)\n"
+            "\nIf a control has no evidence items, note that evidence was not available."
+        )
+
+    return "Write the content for this section based on the provided data."
+
+
+def _slice_snapshot_for_section(snapshot: dict, section_key: str) -> dict:
+    """Return only the data slice relevant to a section to keep prompts focused."""
+    meta = snapshot.get("metadata", {})
+    summary = snapshot.get("overall_summary", {})
+    controls = snapshot.get("controls", [])
+    risk = snapshot.get("risk_summary", {})
+    att = snapshot.get("attestation", {})
+
+    if section_key == "executive_summary":
+        return {"metadata": meta, "overall_summary": summary, "risk_summary": risk, "attestation": att}
+
+    if section_key == "scope_methodology":
+        return {"metadata": meta, "overall_summary": {"total_controls": summary.get("total_controls"),
+                "mandatory_controls": summary.get("mandatory_controls"),
+                "advisory_controls": summary.get("advisory_controls")}}
+
+    if section_key.startswith("domain_") and len(section_key) == 8:
+        domain_letter = section_key[-1].upper()
+        domain_controls = [c for c in controls if c.get("domain", "").upper() == domain_letter]
+        return {"metadata": meta, "controls": domain_controls}
+
+    if section_key == "gap_analysis":
+        non_compliant = [c for c in controls if c.get("compliance_status") != "compliant"]
+        return {"metadata": meta, "risk_summary": risk, "controls": non_compliant}
+
+    if section_key == "attestation":
+        return {"metadata": meta, "attestation": att}
+
+    if section_key == "evidence_index":
+        items = []
+        for c in controls:
+            for ev in c.get("evidence_items", []):
+                items.append({
+                    "evidence_item_id": ev["evidence_item_id"],
+                    "status": ev["status"],
+                    "overall_met": ev.get("overall_met"),
+                    "domain": c.get("domain", "?"),
+                })
+        seen = set()
+        unique = []
+        for item in items:
+            if item["evidence_item_id"] not in seen:
+                seen.add(item["evidence_item_id"])
+                unique.append(item)
+        return {"evidence_items": sorted(unique, key=lambda x: x["evidence_item_id"])}
+
+    return snapshot
+
+
+_SECTION_DISPLAY_NAMES: dict[str, str] = {
+    "executive_summary": "Executive Summary",
+    "scope_methodology": "Scope & Methodology",
+    "gap_analysis": "Gap Analysis",
+    "attestation": "Final Attestation",
+    "evidence_index": "Evidence Index",
+    "glossary": "Glossary",
+}
+
+
+def _section_display_name(section_key: str) -> str:
+    if section_key in _SECTION_DISPLAY_NAMES:
+        return _SECTION_DISPLAY_NAMES[section_key]
+    if section_key.startswith("domain_") and len(section_key) == 8:
+        letter = section_key[-1].upper()
+        return f"Domain {letter} — {DOMAIN_NAMES.get(letter, letter)}"
+    return section_key
+
+
+def _load_report_prompt_template() -> str:
+    if not _REPORT_PROMPT_FILE.is_file():
+        raise FileNotFoundError(f"Report prompt file not found: {_REPORT_PROMPT_FILE}")
+    return _REPORT_PROMPT_FILE.read_text(encoding="utf-8")
+
+
+def generate_report_section(snapshot: dict, section_key: str) -> str:
+    """Generate a single report section via Vertex AI.
+
+    Returns markdown text for the section content.
+    """
+    if section_key == "glossary":
+        return _static_glossary()
+
+    meta = snapshot.get("metadata", {})
+    section_data = _slice_snapshot_for_section(snapshot, section_key)
+    instructions = _get_section_instructions(section_key)
+    section_name = _section_display_name(section_key)
+
+    template = _load_report_prompt_template()
+    prompt = template.format(
+        bank_name=meta.get("bank_name", "Unknown"),
+        bic_code=meta.get("bic_code", "N/A"),
+        assessment_year=meta.get("assessment_year", "N/A"),
+        architecture_type=meta.get("architecture_type", "Unknown"),
+        assessment_period=meta.get("assessment_period", "N/A"),
+        cscf_version=meta.get("cscf_version", "2025v"),
+        section_key=section_key,
+        section_instructions=instructions,
+        section_data=json.dumps(section_data, indent=2, default=str),
+        section_name=section_name,
+    )
+
+    model = _get_model()
+
+    max_retries = 5
+    for attempt in range(max_retries + 1):
+        try:
+            response = model.generate_content([Part.from_text(prompt)])
+            break
+        except Exception as api_err:
+            err_msg = str(api_err)
+            is_rate_limit = "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg
+            if is_rate_limit and attempt < max_retries:
+                wait = min(5 * (2 ** attempt), 90)
+                logger.warning(
+                    "Report gen 429 (attempt %d/%d), retrying in %ds…",
+                    attempt + 1, max_retries + 1, wait,
+                )
+                time.sleep(wait)
+                continue
+            raise ValueError(
+                f"Vertex AI rate limit (429). Please try again in a few minutes. "
+                f"Section: {section_key}. Error: {api_err}"
+            ) from api_err
+
+    text = _get_response_text(response)
+    if not text or not text.strip():
+        return f"*Content generation returned empty for section: {section_name}. Please regenerate.*"
+
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        first_nl = cleaned.index("\n") if "\n" in cleaned else len(cleaned)
+        cleaned = cleaned[first_nl + 1:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:cleaned.rfind("```")]
+
+    return cleaned.strip()
+
+
+def _static_glossary() -> str:
+    return (
+        "| Term | Definition |\n"
+        "|------|------------|\n"
+        "| SWIFT | Society for Worldwide Interbank Financial Telecommunication |\n"
+        "| CSP | Customer Security Programme |\n"
+        "| CSCF | Customer Security Controls Framework |\n"
+        "| IAF | Independent Assessment Framework |\n"
+        "| BIC | Business Identifier Code |\n"
+        "| MFA | Multi-Factor Authentication |\n"
+        "| HSM | Hardware Security Module |\n"
+        "| SIEM | Security Information and Event Management |\n"
+        "| L1 | Level 1 Review — Completeness check |\n"
+        "| L2 | Level 2 Review — Quality / technical accuracy check |\n"
+        "| L3 | Level 3 Review — Independent assessment |\n"
+        "| Mandatory (M) | Control that must be implemented |\n"
+        "| Advisory (A) | Control that is recommended but not required |\n"
+    )

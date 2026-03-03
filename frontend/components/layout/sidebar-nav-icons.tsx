@@ -65,7 +65,6 @@ export function IconTenants({ className }: { className?: string } = {}) {
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   "/dashboard": IconDashboard,
-  "/evidence-model": IconLayers,
   "/review": IconReview,
   "/approval": IconApproval,
   "/report": IconReport,

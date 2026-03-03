@@ -14,8 +14,11 @@ export default function AssessmentsPage() {
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState("");
   const [year, setYear] = useState(new Date().getFullYear());
+  const [complianceAssessment, setComplianceAssessment] = useState<"swift_cscf" | "pci_dss" | "iso">("swift_cscf");
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const canProceedWithCreate = complianceAssessment === "swift_cscf";
 
   useEffect(() => {
     if (!user) return;
@@ -167,6 +170,22 @@ export default function AssessmentsPage() {
                 />
               </div>
               <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Compliance assessment</label>
+                <select
+                  value={complianceAssessment}
+                  onChange={(e) => setComplianceAssessment(e.target.value as "swift_cscf" | "pci_dss" | "iso")}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  aria-describedby="compliance-assessment-hint"
+                >
+                  <option value="swift_cscf">SWIFT CSCF</option>
+                  <option value="pci_dss" disabled>PCI DSS</option>
+                  <option value="iso" disabled>ISO</option>
+                </select>
+                <p id="compliance-assessment-hint" className="text-[11px] text-gray-500 mt-1">
+                  Only SWIFT CSCF is available for new cycles at this time.
+                </p>
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Year</label>
                 <select
                   value={year}
@@ -181,13 +200,16 @@ export default function AssessmentsPage() {
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={handleCreate}
-                  disabled={creating || !label.trim()}
+                  disabled={creating || !label.trim() || !canProceedWithCreate}
                   className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-all"
                 >
                   {creating ? "Creating..." : "Create Cycle"}
                 </button>
                 <button
-                  onClick={() => setShowForm(false)}
+                  onClick={() => {
+                    setShowForm(false);
+                    setComplianceAssessment("swift_cscf");
+                  }}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-all"
                 >
                   Cancel

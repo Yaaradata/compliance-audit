@@ -2,7 +2,7 @@ import hashlib
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_current_user
@@ -92,6 +92,11 @@ def get_file_url(
     if not attachment:
         raise HTTPException(status_code=404, detail="File not found")
     url = storage_service.get_signed_url(attachment.storage_path, expiry_minutes=15)
+    if url is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Signed URLs are not available with current credentials. Use a GCS service account for signing.",
+        )
     return {"url": url, "file_name": attachment.file_name, "file_type": attachment.file_type}
 
 
@@ -102,7 +107,7 @@ def download_file(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Redirect to a signed URL for the file, or return bytes for local storage."""
+    """Redirect to a signed URL for the file, or stream through backend when signing is unavailable."""
     attachment = (
         db.query(EvidenceAttachment)
         .filter(
@@ -116,7 +121,16 @@ def download_file(
 
     if attachment.storage_path.startswith("gs://"):
         url = storage_service.get_signed_url(attachment.storage_path, expiry_minutes=15)
-        return RedirectResponse(url=url)
+        if url is not None:
+            return RedirectResponse(url=url)
+        data = storage_service.download(attachment.storage_path)
+        return Response(
+            content=data,
+            media_type=attachment.file_type or "application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{attachment.file_name}"',
+            },
+        )
     else:
         from fastapi.responses import FileResponse
         import os

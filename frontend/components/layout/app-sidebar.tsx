@@ -86,13 +86,17 @@ export function AppSidebar() {
     if (item.href.startsWith("/review")) return `${base}/review`;
     if (item.href.startsWith("/approval")) return `${base}/approval`;
     if (item.href.startsWith("/report")) return `${base}/report`;
-    if (item.href.startsWith("/evidence-model")) return `${base}/evidence-model`;
     return item.href;
   };
 
   return (
     <aside
-      className="flex flex-col shrink-0 overflow-hidden border-r rounded-r-xl"
+      className={`
+        flex flex-col shrink-0 overflow-hidden border-r rounded-r-xl
+        max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:!w-64 max-md:transition-transform max-md:duration-200 max-md:ease-out
+        md:rounded-r-xl
+        ${!open ? "max-md:-translate-x-full" : "max-md:translate-x-0"}
+      `}
       style={{
         width: open ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED,
         minWidth: open ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED,

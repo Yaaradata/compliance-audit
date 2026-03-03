@@ -202,9 +202,11 @@ export interface ReviewItem {
 }
 
 export interface ReportSection {
+  key: string;
   name: string;
-  status: "draft" | "complete" | "in_progress";
+  status: "draft" | "complete" | "in_progress" | "generating";
   ai: boolean;
+  content?: string;
   sub?: string;
 }
 

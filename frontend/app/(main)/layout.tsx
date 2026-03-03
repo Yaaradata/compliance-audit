@@ -51,10 +51,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         router.replace(`/cycles/${activeCycleId}/report`);
         return;
       }
-      if (pathname === "/evidence-model") {
-        router.replace(`/cycles/${activeCycleId}/evidence-model`);
-        return;
-      }
     }
   }, [user, activeCycleId, selectedArchitectureId, isPlatformAdmin, pathname, router, loading, isCycleRoute]);
 

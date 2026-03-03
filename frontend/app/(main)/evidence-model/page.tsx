@@ -9,7 +9,7 @@ export default function EvidenceModelRedirectPage() {
   const { activeCycleId } = useAuth();
 
   useEffect(() => {
-    if (activeCycleId) router.replace(`/cycles/${activeCycleId}/evidence-model`);
+    if (activeCycleId) router.replace(`/cycles/${activeCycleId}/dashboard`);
     else router.replace("/assessments/new");
   }, [activeCycleId, router]);
 

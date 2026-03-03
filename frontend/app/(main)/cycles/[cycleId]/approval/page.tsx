@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { scoreColor } from "@/lib/utils";
 import { ApprovalEvidenceViewer } from "@/components/approval/approval-evidence-viewer";
+import { DOMAINS as DOMAIN_LIST } from "@/lib/data/domains";
+import { LoadingState } from "@/components/ui/loading-state";
 
 interface GateInfo {
   gate: string;
@@ -54,6 +55,24 @@ interface EvidenceTimelineItem {
   reviews: TimelineReview[];
 }
 
+interface FailedCriterion {
+  id: string;
+  label: string;
+  description: string | null;
+}
+
+interface GapItem {
+  submission_id: string;
+  evidence_item_id: string;
+  domain: string;
+  status: string;
+  eval_summary: string | null;
+  failed_criteria: FailedCriterion[];
+  remediation_ai: string | null;
+  remediation_user: string | null;
+  is_documented: boolean;
+}
+
 interface ApprovalSummary {
   overall_compliance_pct: number;
   total_items: number;
@@ -63,6 +82,7 @@ interface ApprovalSummary {
   evidence_for_approval?: { id: string; evidence_item_id: string; status: string; submitted_at: string | null }[];
   evidence_timeline?: EvidenceTimelineItem[];
   domain_breakdown: Record<string, DomainBreakdown>;
+  gap_items?: GapItem[];
   gates: GateInfo[];
 }
 
@@ -77,85 +97,148 @@ const GATE_META: Record<string, { label: string; icon: string; description: stri
 
 const LEVEL_LABELS: Record<string, string> = { L1: "Completeness", L2: "Quality", L3: "Assessment" };
 
-const DOMAIN_COLORS: Record<string, string> = {
-  A: "#0F4C75", B: "#1B5E20", C: "#E65100", D: "#B71C1C",
-  E: "#4A148C", F: "#1565C0", G: "#F57F17", H: "#BF360C",
+const LEVEL_ACCENT: Record<string, string> = {
+  L1: "border-l-blue-500",
+  L2: "border-l-violet-500",
+  L3: "border-l-amber-500",
 };
 
-function TimelineStep({ done, current, label, detail, date }: { done: boolean; current: boolean; label: string; detail?: string; date?: string }) {
+const DOMAIN_ACCENT_COLORS = [
+  "bg-blue-500",
+  "bg-violet-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-cyan-500",
+];
+
+function Icon({ path, className }: { path: string; className?: string }) {
   return (
-    <div className="flex gap-3 relative">
-      <div className="flex flex-col items-center">
-        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 z-10 ${
-          done ? "bg-green-600 border-green-600 text-white" : current ? "bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100" : "bg-white border-gray-300 text-gray-400"
-        }`}>
-          {done ? <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> : current ? "●" : "○"}
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d={path} />
+    </svg>
+  );
+}
+
+function EvidenceJourneyCard({
+  item,
+  onView,
+  accentColor,
+}: {
+  item: EvidenceTimelineItem;
+  onView: () => void;
+  accentColor: string;
+}) {
+  const isApproved = item.status === "approved";
+  const levelMap = useMemo(() => {
+    const m: Record<string, TimelineReview> = {};
+    for (const r of item.reviews) {
+      const lv = r.level?.toUpperCase().replace("L1_COMPLETENESS", "L1").replace("L2_QUALITY", "L2").replace("L3_ASSESSMENT", "L3") || r.level;
+      m[lv] = r;
+    }
+    return m;
+  }, [item.reviews]);
+  const l1 = levelMap["L1"] ?? item.reviews.find((r) => r.level?.toLowerCase().includes("l1"));
+  const l2 = levelMap["L2"] ?? item.reviews.find((r) => r.level?.toLowerCase().includes("l2"));
+  const l3 = levelMap["L3"] ?? item.reviews.find((r) => r.level?.toLowerCase().includes("l3"));
+
+  const statusBg = isApproved
+    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
+    : "bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)]";
+
+  return (
+    <div
+      className="relative rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-[var(--border-strong)] hover:-translate-y-0.5"
+      style={{ boxShadow: "var(--shadow)" }}
+    >
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${accentColor}`} />
+      <div className="p-4 pl-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              <span className="font-bold text-[var(--foreground)]">{item.evidence_item_id}</span>
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusBg}`}>
+                {item.status.replace(/_/g, " ")}
+              </span>
+              {item.overall_met != null && (
+                <span className="text-xs font-semibold text-[var(--foreground-muted)]">
+                  {item.overall_met ? "Met" : "Review"}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 flex-wrap">
+              {[
+                { level: "L1", data: l1 },
+                { level: "L2", data: l2 },
+                { level: "L3", data: l3 },
+              ].map((step, i) => {
+                const done = step.data?.status === "approved";
+                const active = step.data && step.data.status !== "approved";
+                return (
+                  <span key={step.level} className="flex items-center gap-1">
+                    {i > 0 && <span className="w-4 h-0.5 rounded bg-[var(--border)]" />}
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border border-[var(--border)] ${
+                        done ? "bg-[var(--surface)] text-[var(--foreground)]" : "bg-[var(--background)] text-[var(--foreground-subtle)]"
+                      }`}
+                    >
+                      {done ? "✓" : active ? "●" : "○"} {step.level}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+            {item.submitted_at && (
+              <p className="text-[10px] text-[var(--foreground-subtle)] mt-2">
+                Submitted {new Date(item.submitted_at).toLocaleDateString("en-US")}
+                {item.submitter_name && <> · {item.submitter_name}</>}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onView();
+            }}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--primary-muted)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-colors"
+          >
+            <Icon path="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" className="w-3.5 h-3.5" />
+            View
+          </button>
         </div>
-        <div className="w-0.5 flex-1 bg-gray-200 min-h-[24px]" />
-      </div>
-      <div className="pb-5 pt-0.5 flex-1">
-        <div className="flex items-center gap-2">
-          <span className={`text-sm font-semibold ${done ? "text-green-700" : current ? "text-blue-700" : "text-gray-500"}`}>{label}</span>
-          {date && <span className="text-[10px] text-gray-400">{new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>}
-        </div>
-        {detail && <p className="text-xs text-gray-500 mt-0.5">{detail}</p>}
       </div>
     </div>
   );
 }
 
-function EvidenceJourneyCard({ item, onView }: { item: EvidenceTimelineItem; onView: () => void }) {
-  const isApproved = item.status === "approved";
-  const l1 = item.reviews.find((r) => r.level === "L1");
-  const l2 = item.reviews.find((r) => r.level === "L2");
-  const l3 = item.reviews.find((r) => r.level === "L3");
-
-  const statusBg = isApproved ? "bg-green-100 text-green-700" : item.status?.startsWith("in_review") ? "bg-blue-100 text-blue-700" : item.status === "returned" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600";
-
+function MetricCard({
+  label,
+  value,
+  sub,
+  iconPath,
+  colorClass,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  sub?: string;
+  iconPath: string;
+  colorClass: string;
+  accent: string;
+}) {
   return (
-    <div className={`rounded-xl border-2 p-4 transition-colors ${isApproved ? "border-green-200 bg-green-50/30" : "border-gray-200 bg-white"}`}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-gray-900">{item.evidence_item_id}</span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusBg}`}>{item.status}</span>
-          {item.overall_met != null && (
-            <span className={`text-xs font-semibold ${item.overall_met ? "text-green-600" : "text-red-600"}`}>
-              {item.overall_met ? "✓ Met" : "✗ Not met"}
-            </span>
-          )}
+    <div className={`rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow)] hover:shadow-[var(--shadow-md)] transition-all duration-300 overflow-hidden border-l-4 ${accent}`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{value}</p>
+          <p className="text-sm font-medium text-[var(--foreground-muted)] mt-0.5">{label}</p>
+          {sub != null && <p className="text-[10px] text-[var(--foreground-subtle)] mt-0.5">{sub}</p>}
         </div>
-        <button type="button" onClick={onView} className="text-xs font-medium text-blue-600 hover:underline">View detail</button>
-      </div>
-
-      {/* Mini L1→L2→L3 pipeline */}
-      <div className="flex items-center gap-0">
-        {([
-          { level: "L1", data: l1 },
-          { level: "L2", data: l2 },
-          { level: "L3", data: l3 },
-        ]).map((step, i) => {
-          const done = step.data?.status === "approved";
-          const active = step.data && step.data.status !== "approved";
-          return (
-            <div key={step.level} className="flex items-center">
-              {i > 0 && <div className={`w-6 h-0.5 ${done || active ? "bg-green-300" : "bg-gray-200"}`} />}
-              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold ${
-                done ? "bg-green-100 text-green-700" : active ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-400"
-              }`}>
-                {done ? "✓" : active ? "●" : "○"} {step.level}
-                {step.data?.reviewer_name && <span className="font-normal text-gray-500">({step.data.reviewer_name})</span>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {item.submitted_at && (
-        <div className="mt-2 text-[10px] text-gray-400">
-          Submitted {new Date(item.submitted_at).toLocaleDateString()}
-          {item.submitter_name && <> by {item.submitter_name}</>}
+        <div className={`p-2.5 rounded-xl ${colorClass}`}>
+          <Icon path={iconPath} className="w-5 h-5 text-current" />
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -174,9 +257,17 @@ export default function CycleApprovalPage() {
   const [mfaToken, setMfaToken] = useState("");
   const [notes, setNotes] = useState("");
   const [viewingEvidenceId, setViewingEvidenceId] = useState<string | null>(null);
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+  const [editingGapId, setEditingGapId] = useState<string | null>(null);
+  const [remediationDraft, setRemediationDraft] = useState("");
+  const [savingRemediation, setSavingRemediation] = useState(false);
 
   const fetchSummary = useCallback(async () => {
-    if (!cycleId) { setLoading(false); setError("No cycle selected."); return; }
+    if (!cycleId) {
+      setLoading(false);
+      setError("No cycle selected.");
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -190,7 +281,9 @@ export default function CycleApprovalPage() {
     }
   }, [cycleId]);
 
-  useEffect(() => { fetchSummary(); }, [fetchSummary]);
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
 
   const canApprove = userRole === "approver" || userRole === "admin";
 
@@ -203,322 +296,653 @@ export default function CycleApprovalPage() {
       });
       setNotes("");
       setMfaToken("");
-      fetchSummary();
-    } catch { /* */ }
-    setApproving(null);
+      await fetchSummary();
+    } catch {
+      /* ignore */
+    } finally {
+      setApproving(null);
+    }
   };
 
-  if (loading && !summary) return <div className="flex items-center justify-center h-64 text-sm text-gray-400">Loading approval status…</div>;
-  if (!cycleId) return <div className="flex-col items-center justify-center h-64 text-center px-4"><p className="text-sm text-gray-500">No assessment cycle selected.</p></div>;
-  if (!summary && error) return (
-    <div className="flex flex-col items-center justify-center h-64 text-center px-4">
-      <p className="text-sm text-gray-600">{error}</p>
-      <button type="button" onClick={fetchSummary} className="mt-4 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700">Retry</button>
-    </div>
-  );
-  if (!summary) return <div className="flex items-center justify-center h-64 text-sm text-gray-400">Could not load approval data.</div>;
+  const handleSaveRemediation = async (submissionId: string) => {
+    if (!remediationDraft.trim()) return;
+    setSavingRemediation(true);
+    try {
+      await api.patch(`/assessments/${cycleId}/submissions/${submissionId}/remediation`, {
+        remediation_notes: remediationDraft,
+      });
+      setEditingGapId(null);
+      setRemediationDraft("");
+      await fetchSummary();
+    } catch {
+      /* ignore */
+    } finally {
+      setSavingRemediation(false);
+    }
+  };
 
-  const { overall_compliance_pct, total_items, approved_items, review_level_stats, all_l_cleared, evidence_timeline, domain_breakdown, gates } = summary;
+  const timeline = summary?.evidence_timeline ?? [];
+  const evidenceByDomain = useMemo(() => {
+    const map = new Map<string, EvidenceTimelineItem[]>();
+    for (const item of timeline) {
+      const domain = item.evidence_item_id?.charAt(0)?.toUpperCase() || "?";
+      if (!map.has(domain)) map.set(domain, []);
+      map.get(domain)!.push(item);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [timeline]);
+
+  const evidenceByDomainFiltered = useMemo(() => {
+    if (!selectedDomain) return evidenceByDomain;
+    return evidenceByDomain.filter(([d]) => d === selectedDomain);
+  }, [evidenceByDomain, selectedDomain]);
+
+  const domain_breakdown = summary?.domain_breakdown ?? {};
+  const domainsAllAtoH = useMemo(() => {
+    return DOMAIN_LIST.map((d) => {
+      const bd = domain_breakdown[d.id] ?? { total: 0, approved: 0, submitted: 0, draft: 0 };
+      const pct = bd.total > 0 ? Math.round((bd.approved / bd.total) * 100) : 0;
+      return { id: d.id, name: d.name, color: d.color, accent: d.accent, ...bd, pct };
+    });
+  }, [domain_breakdown]);
+
+  if (loading && !summary) {
+    return <LoadingState message="Loading approval status…" />;
+  }
+  if (!cycleId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
+        <p className="text-sm text-[var(--foreground-muted)]">No assessment cycle selected.</p>
+      </div>
+    );
+  }
+  if (!summary && error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
+        <p className="text-sm text-[var(--foreground)]">{error}</p>
+        <button
+          type="button"
+          onClick={fetchSummary}
+          className="mt-4 px-4 py-2 text-sm font-medium rounded-xl bg-[var(--primary)] text-white hover:opacity-90 transition-opacity"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+  if (!summary) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] text-sm text-[var(--foreground-muted)]">
+        Could not load approval data.
+      </div>
+    );
+  }
+
+  const {
+    overall_compliance_pct,
+    total_items,
+    approved_items,
+    review_level_stats,
+    all_l_cleared,
+    gates,
+  } = summary;
   const domains = Object.entries(domain_breakdown).sort(([a], [b]) => a.localeCompare(b));
-  const timeline = evidence_timeline ?? [];
   const approvedGateCount = gates.filter((g) => g.status === "approved").length;
-
   const finalGate = gates.find((g) => g.gate === "final_attestation");
   const preFinalGates = gates.filter((g) => g.gate !== "final_attestation");
 
-  return (
-    <div className="h-[calc(100vh-64px)] overflow-y-auto bg-gray-50/50">
-      <div className="max-w-6xl mx-auto py-6 px-4 space-y-6">
+  const readyGatesToShow = canApprove
+    ? preFinalGates.filter((g) => g.status !== "approved" && g.ready)
+    : [];
 
-        {/* Hero */}
-        <section className="rounded-2xl p-6 text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${overall_compliance_pct >= 80 ? "#059669" : "#d97706"} 0%, ${overall_compliance_pct >= 80 ? "#047857" : "#b45309"} 100%)` }}>
-          <div className="flex flex-wrap justify-between items-center gap-6">
-            <div>
-              <p className="text-sm font-medium opacity-90 mb-1">SWIFT CSP Compliance Assessment</p>
-              <h1 className="text-4xl font-bold">{overall_compliance_pct}%</h1>
-              <p className="text-xs opacity-80 mt-1">{approved_items} of {total_items} evidence items approved</p>
-              <p className="text-[11px] opacity-70 mt-2">Senior Sign-Off Authority: Head of Compliance / CISO</p>
+  const reportHref = `/cycles/${cycleId}/report`;
+
+  return (
+    <div className="min-h-[calc(100vh-64px)] w-full bg-[var(--background)]">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Header — same structure as Review Queue */}
+        <header className="mb-6 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-[var(--primary-muted)]">
+              <Icon path="M9 12l2 2 4-4m6 2a9 9A9 9 0 11-18 0 9 9 0 0118 0z" className="w-5 h-5 text-[var(--primary)]" />
             </div>
-            <div className="flex gap-2">
-              {gates.map((g) => {
-                const meta = GATE_META[g.gate];
-                return (
-                  <div key={g.gate} className={`rounded-xl px-4 py-3 text-center min-w-[80px] ${g.status === "approved" ? "bg-white/25" : "bg-white/10"}`}>
-                    <div className={`w-8 h-8 rounded-full mx-auto flex items-center justify-center text-sm font-bold mb-1 ${g.status === "approved" ? "bg-white/40" : "bg-white/20"}`}>
-                      {g.status === "approved" ? "✓" : meta?.icon || "?"}
-                    </div>
-                    <p className="text-[10px] font-medium">{meta?.label || g.gate}</p>
-                    <p className={`text-[11px] font-bold ${g.status === "approved" ? "text-green-200" : "text-white/70"}`}>
-                      {g.status === "approved" ? "Done" : `${g.progress_pct ?? 0}%`}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)]">Approval</h1>
           </div>
+          <Link
+            href={reportHref}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition-opacity shadow-md"
+          >
+            <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" className="w-4 h-4" />
+            Go to Report
+          </Link>
+        </header>
+
+        {/* Where to approve — move to Report */}
+        {/* Metrics — same pattern as Review Queue (left accent, colored icon) */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          <MetricCard
+            label="Evidence items"
+            value={total_items}
+            sub={`${approved_items} approved`}
+            iconPath="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            colorClass="bg-slate-200 text-slate-700 dark:bg-slate-500 dark:text-slate-100"
+            accent="border-l-slate-400"
+          />
+          <MetricCard
+            label="Gates cleared"
+            value={`${approvedGateCount}/${gates.length}`}
+            iconPath="M5 13l4 4L19 7"
+            colorClass="bg-emerald-400 text-emerald-900 dark:bg-emerald-500 dark:text-white"
+            accent="border-l-emerald-500"
+          />
+          <MetricCard
+            label="Review levels"
+            value={all_l_cleared ? "Cleared" : "In progress"}
+            sub={
+              review_level_stats
+                ? `L1 ${review_level_stats.L1?.approved ?? 0}/${review_level_stats.L1?.total ?? 0} · L2 ${review_level_stats.L2?.approved ?? 0}/${review_level_stats.L2?.total ?? 0} · L3 ${review_level_stats.L3?.approved ?? 0}/${review_level_stats.L3?.total ?? 0}`
+                : undefined
+            }
+            iconPath="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            colorClass="bg-violet-200 text-violet-800 dark:bg-violet-500 dark:text-white"
+            accent="border-l-violet-500"
+          />
+          <MetricCard
+            label="Final attestation"
+            value={finalGate?.status === "approved" ? "Signed" : finalGate?.ready ? "Ready" : "Pending"}
+            iconPath="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 0110.618 3.04A12.02 12.02 0 0123 12c0 2.37-.73 4.57-2.07 6.57A11.975 11.975 0 0112 22z"
+            colorClass="bg-amber-200 text-amber-900 dark:bg-amber-500 dark:text-white"
+            accent="border-l-amber-500"
+          />
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
-          {/* Left column */}
-          <div className="space-y-6">
-
-            {/* Journey Timeline */}
-            <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <header className="px-5 py-3 bg-gray-50 border-b border-gray-200">
-                <h2 className="text-sm font-bold text-gray-800">Approval Journey</h2>
-                <p className="text-[10px] text-gray-500 mt-0.5">Evidence lifecycle from submission to final attestation</p>
-              </header>
-              <div className="p-5">
-                <TimelineStep
-                  done={total_items > 0 && approved_items > 0}
-                  current={total_items > 0 && approved_items === 0}
-                  label="Evidence Submission"
-                  detail={`${total_items} items submitted`}
-                />
-                {(["L1", "L2", "L3"] as const).map((level) => {
-                  const stats = review_level_stats?.[level];
-                  const done = stats ? (stats.total === 0 || stats.approved >= stats.total) : false;
-                  const inProgress = stats ? stats.approved > 0 && stats.approved < stats.total : false;
-                  return (
-                    <TimelineStep
-                      key={level}
-                      done={done}
-                      current={inProgress}
-                      label={`${level} Review — ${LEVEL_LABELS[level]}`}
-                      detail={stats ? `${stats.approved}/${stats.total} approved` : "No reviews yet"}
-                    />
-                  );
-                })}
-                {preFinalGates.map((g) => {
-                  const meta = GATE_META[g.gate];
-                  return (
-                    <TimelineStep
-                      key={g.gate}
-                      done={g.status === "approved"}
-                      current={g.ready && g.status !== "approved"}
-                      label={`Gate: ${meta?.label || g.gate}`}
-                      detail={g.detail}
-                      date={g.approved_at ?? undefined}
-                    />
-                  );
-                })}
-                <TimelineStep
-                  done={finalGate?.status === "approved"}
-                  current={finalGate?.ready === true && finalGate?.status !== "approved"}
-                  label="Final Attestation — Head of Compliance"
-                  detail={finalGate?.status === "approved" ? "Signed off" : finalGate?.ready ? "Ready for sign-off" : "Waiting for previous gates"}
-                  date={finalGate?.approved_at ?? undefined}
-                />
-              </div>
-            </section>
-
-            {/* Evidence Cards with timeline */}
-            <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <header className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-bold text-gray-800">Evidence Items</h2>
-                  <p className="text-[10px] text-gray-500 mt-0.5">{timeline.length} items with full review journey</p>
-                </div>
-              </header>
-              <div className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
-                {timeline.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-8">No evidence items yet.</p>
-                ) : (
-                  timeline.map((item) => (
-                    <EvidenceJourneyCard key={item.id} item={item} onView={() => setViewingEvidenceId(item.id)} />
-                  ))
-                )}
-              </div>
-            </section>
-          </div>
-
-          {/* Right column */}
-          <div className="space-y-4">
-            {/* Review Levels */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Review Levels</h3>
-              <div className="space-y-2">
+        <div className="space-y-6">
+          {/* Top: Review Levels | Domains (A–H) | Approval gates — parallel */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Review levels */}
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow)] min-w-0">
+              <h3 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-3">Review levels</h3>
+              <div className="space-y-2.5">
                 {(["L1", "L2", "L3"] as const).map((level) => {
                   const s = review_level_stats?.[level];
-                  const pct = s?.pct ?? 0;
-                  const cleared = !s || s.total === 0 || s.approved >= s.total;
+                  const pct = s?.total === 0 ? 100 : (s?.pct ?? 0);
+                  const accent = LEVEL_ACCENT[level] ?? "border-l-slate-400";
                   return (
-                    <div key={level} className={`rounded-lg border-2 p-3 ${cleared ? "border-green-200 bg-green-50/40" : "border-amber-200 bg-amber-50/30"}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-gray-700">{level} — {LEVEL_LABELS[level]}</span>
-                        <span className="text-xs font-bold" style={{ color: scoreColor(s?.total === 0 ? 100 : pct) }}>{s?.approved ?? 0}/{s?.total ?? 0}</span>
+                    <div key={level} className={`rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 border-l-4 ${accent}`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-[var(--foreground)]">{level} — {LEVEL_LABELS[level]}</span>
+                        <span className="text-xs font-bold tabular-nums text-[var(--foreground-muted)]">{s?.approved ?? 0} / {s?.total ?? 0}</span>
                       </div>
-                      <ProgressBar pct={s?.total === 0 ? 100 : pct} h={5} />
+                      <div className="h-1.5 w-full rounded-full bg-[var(--border)] overflow-hidden">
+                        <div className="h-full rounded-full bg-[var(--foreground-muted)] transition-all duration-300" style={{ width: `${pct}%` }} />
+                      </div>
                     </div>
                   );
                 })}
               </div>
-              <div className={`mt-3 rounded-lg border-2 px-3 py-2 flex items-center gap-2 ${all_l_cleared ? "border-green-400 bg-green-50 text-green-800" : "border-gray-200 bg-gray-50 text-gray-600"}`}>
-                <span className="text-sm">{all_l_cleared ? "✓" : "○"}</span>
-                <span className="text-[11px] font-semibold">{all_l_cleared ? "All levels cleared" : "Waiting for reviews"}</span>
+              <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 flex items-center gap-2">
+                <span className="text-sm text-[var(--foreground-muted)]">{all_l_cleared ? "✓" : "○"}</span>
+                <span className="text-[11px] font-semibold text-[var(--foreground)]">{all_l_cleared ? "All levels cleared" : "Waiting for reviews"}</span>
               </div>
             </div>
 
-            {/* Domain Breakdown */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <header className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Domains</h3>
+            {/* Domains (A–H) — shown in parallel (grid) */}
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow)] min-w-0">
+              <header className="px-4 py-3 border-b border-[var(--border)] bg-[var(--background)]/50">
+                <h3 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Domains (A–H)</h3>
               </header>
-              <div className="p-3 space-y-2 max-h-[250px] overflow-y-auto">
-                {domains.map(([domain, bd]) => {
-                  const pct = bd.total > 0 ? Math.round((bd.approved / bd.total) * 100) : 0;
-                  const color = DOMAIN_COLORS[domain] || "#666";
+              <div className="p-3 grid grid-cols-4 gap-2">
+                {domainsAllAtoH.map((d) => {
+                  const isSelected = selectedDomain === d.id;
                   return (
-                    <button key={domain} onClick={() => router.push(`/cycles/${cycleId}/domains/${domain}`)} className="w-full text-left rounded-lg border border-gray-100 p-2.5 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded flex items-center justify-center text-white text-[9px] font-bold" style={{ backgroundColor: color }}>{domain}</span>
-                          <span className="text-xs font-semibold text-gray-700">Domain {domain}</span>
-                        </div>
-                        <span className="text-xs font-bold" style={{ color: scoreColor(pct) }}>{pct}%</span>
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setSelectedDomain(isSelected ? null : d.id)}
+                      className={`rounded-lg border p-2 transition-colors flex flex-col items-center text-center min-w-0 ${
+                        isSelected
+                          ? "border-[var(--primary)] bg-[var(--primary-muted)] ring-1 ring-[var(--primary)]/30"
+                          : "border-[var(--border)] hover:bg-[var(--background)]"
+                      }`}
+                    >
+                      <span
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm mb-1.5"
+                        style={{ backgroundColor: d.color }}
+                      >
+                        {d.id}
+                      </span>
+                      <span className="text-[10px] font-semibold text-[var(--foreground)] truncate w-full">Domain {d.id}</span>
+                      <span className="text-[10px] font-bold tabular-nums text-[var(--foreground-muted)] mt-0.5">{d.pct}%</span>
+                      <div className="w-full h-1.5 rounded-full bg-[var(--border)] overflow-hidden mt-1">
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{ width: `${d.pct}%`, backgroundColor: d.color }}
+                        />
                       </div>
-                      <ProgressBar pct={pct} h={4} />
+                      {d.total > 0 && (
+                        <p className="text-[8px] text-[var(--foreground-subtle)] mt-0.5">{d.approved}/{d.total}</p>
+                      )}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Summary */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Summary</h3>
-              <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between"><span className="text-gray-500">Evidence items</span><span className="font-bold text-gray-700">{total_items}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Approved</span><span className="font-bold text-green-600">{approved_items}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Gates cleared</span><span className="font-bold text-gray-700">{approvedGateCount}/{gates.length}</span></div>
-              </div>
-            </div>
-
-            {/* Approval Gates */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <header className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Approval Gates</h3>
+            {/* Approval gates — next to Domains */}
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow)] min-w-0">
+              <header className="px-4 py-3 border-b border-[var(--border)] bg-[var(--background)]/50">
+                <h3 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Approval gates</h3>
               </header>
-              <div className="p-3 space-y-2">
-                {gates.map((g, idx) => {
+              <div className="p-3 space-y-2 max-h-[220px] overflow-y-auto">
+                {gates.map((g) => {
                   const meta = GATE_META[g.gate];
-                  const isActive = g.status !== "approved" && (idx === 0 || gates[idx - 1]?.status === "approved");
                   return (
-                    <div key={g.gate} className={`rounded-lg border p-3 ${g.status === "approved" ? "border-green-200 bg-green-50/50" : isActive ? "border-blue-200 bg-blue-50/30" : "border-gray-200"}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-gray-700">{meta?.label || g.gate}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${g.status === "approved" ? "bg-green-100 text-green-700" : g.ready ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
-                          {g.status === "approved" ? "Approved" : g.ready ? "Ready" : "Pending"}
+                    <div key={g.gate} className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-[var(--foreground)]">{meta?.label ?? g.gate}</span>
+                        <span className="px-2 py-0.5 rounded-md text-[9px] font-bold border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)]">
+                          {g.status === "approved" ? "Done" : g.ready ? "Ready" : "Pending"}
                         </span>
                       </div>
-                      <ProgressBar pct={g.progress_pct ?? 0} h={4} />
-                      <p className="text-[10px] text-gray-500 mt-1">{g.detail}</p>
-                      {g.status === "approved" && g.approved_at && <p className="text-[9px] text-green-600 mt-0.5">Approved {new Date(g.approved_at).toLocaleDateString()}</p>}
+                      <div className="h-1 w-full rounded-full bg-[var(--border)] overflow-hidden">
+                        <div className="h-full rounded-full bg-[var(--foreground-muted)]" style={{ width: `${g.progress_pct ?? 0}%` }} />
+                      </div>
+                      <p className="text-[10px] text-[var(--foreground-muted)] mt-1.5">{g.detail}</p>
+                      {g.status === "approved" && g.approved_at && (
+                        <p className="text-[9px] text-[var(--foreground-subtle)] mt-1">
+                          Approved {new Date(g.approved_at).toLocaleDateString("en-US")}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
           </div>
+
+          {/* Below: Evidence items */}
+          <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow)]">
+            <header className="px-5 py-4 border-b border-[var(--border)] bg-[var(--background)]/50">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <h2 className="text-sm font-bold text-[var(--foreground)]">
+                    Evidence items{selectedDomain ? ` — Domain ${selectedDomain}` : ""}
+                  </h2>
+                  <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">
+                    {evidenceByDomainFiltered.reduce((acc, [, items]) => acc + items.length, 0)} items
+                    {selectedDomain && " (filtered)"}
+                  </p>
+                </div>
+                {selectedDomain && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDomain(null)}
+                    className="text-[11px] font-medium text-[var(--primary)] hover:underline"
+                  >
+                    Show all domains
+                  </button>
+                )}
+              </div>
+            </header>
+            <div className="p-4 space-y-5 max-h-[520px] overflow-y-auto">
+              {evidenceByDomainFiltered.length === 0 ? (
+                <p className="text-sm text-[var(--foreground-muted)] text-center py-8">
+                  {selectedDomain ? `No evidence items for Domain ${selectedDomain}.` : "No evidence items yet."}
+                </p>
+              ) : (
+                evidenceByDomainFiltered.map(([domain], idx) => {
+                  const items = evidenceByDomainFiltered.find(([d]) => d === domain)?.[1] ?? [];
+                  const accentColor = DOMAIN_ACCENT_COLORS[idx % DOMAIN_ACCENT_COLORS.length];
+                  return (
+                    <div key={domain}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${accentColor} text-white font-bold text-sm shadow`}>
+                          {domain}
+                        </span>
+                        <h2 className="text-sm font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Domain {domain}</h2>
+                        <span className="text-xs font-medium text-[var(--foreground-subtle)] bg-[var(--background)] px-2 py-0.5 rounded-full">({items.length})</span>
+                      </div>
+                      <div className="space-y-2">
+                        {items.map((item) => (
+                          <EvidenceJourneyCard
+                            key={item.id}
+                            item={item}
+                            onView={() => setViewingEvidenceId(item.id)}
+                            accentColor={accentColor}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
         </div>
 
-        {/* Final Attestation — Senior Sign-Off */}
-        <section className={`rounded-2xl border-2 overflow-hidden ${finalGate?.status === "approved" ? "border-green-300 bg-green-50/30" : finalGate?.ready ? "border-blue-300 bg-blue-50/20" : "border-gray-200 bg-gray-50/30"}`}>
-          <div className="px-6 py-4 border-b border-gray-200 bg-white/80">
+        {/* Gaps & Remediation */}
+        {(() => {
+          const gapItems = summary?.gap_items ?? [];
+          const gapsByDomain = new Map<string, GapItem[]>();
+          for (const g of gapItems) {
+            if (!gapsByDomain.has(g.domain)) gapsByDomain.set(g.domain, []);
+            gapsByDomain.get(g.domain)!.push(g);
+          }
+          const domainEntries = Array.from(gapsByDomain.entries()).sort(([a], [b]) => a.localeCompare(b));
+          const documented = gapItems.filter((g) => g.is_documented).length;
+          const total = gapItems.length;
+          const canEdit = userRole === "approver" || userRole === "admin" || userRole === "compliance_officer";
+
+          return (
+            <section className="mt-6 rounded-xl border border-[var(--border)] overflow-hidden shadow-[var(--shadow)] bg-[var(--surface)]">
+              <header className="px-5 py-4 border-b border-[var(--border)] bg-[var(--background)]/50 flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-orange-100 dark:bg-orange-900/30">
+                    <Icon path="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-[var(--foreground)]">Gaps & Remediation</h2>
+                    <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">
+                      {total === 0
+                        ? "No gaps identified — all evaluated items passed"
+                        : `${documented}/${total} gaps documented`}
+                    </p>
+                  </div>
+                </div>
+                {total > 0 && (
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                    documented === total
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      : "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
+                  }`}>
+                    {documented === total ? "All documented" : `${total - documented} need remediation`}
+                  </span>
+                )}
+              </header>
+
+              <div className="p-4 max-h-[520px] overflow-y-auto">
+                {total === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <div className="text-3xl mb-2 text-emerald-500">✓</div>
+                    <p className="text-sm font-semibold text-[var(--foreground)]">No gaps found</p>
+                    <p className="text-xs text-[var(--foreground-muted)] mt-1">All evaluated evidence items meet their criteria.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    {domainEntries.map(([domain, items]) => {
+                      const domainDoc = items.filter((g) => g.is_documented).length;
+                      return (
+                        <div key={domain}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-orange-500 text-white font-bold text-xs shadow">
+                              {domain}
+                            </span>
+                            <h3 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider">Domain {domain}</h3>
+                            <span className="text-[10px] text-[var(--foreground-muted)] ml-auto">{domainDoc}/{items.length} documented</span>
+                          </div>
+                          <div className="space-y-2">
+                            {items.map((gap) => (
+                              <div
+                                key={gap.submission_id}
+                                className={`rounded-lg border p-3 ${
+                                  gap.is_documented
+                                    ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20"
+                                    : "border-orange-200 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${gap.is_documented ? "bg-emerald-500" : "bg-orange-500"}`} />
+                                    <span className="text-xs font-bold text-[var(--foreground)]">{gap.evidence_item_id}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-[var(--foreground-muted)]">{gap.status}</span>
+                                  </div>
+                                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold flex-shrink-0 ${
+                                    gap.is_documented
+                                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400"
+                                      : "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-400"
+                                  }`}>
+                                    {gap.is_documented ? "Documented" : "Needs plan"}
+                                  </span>
+                                </div>
+
+                                {gap.eval_summary && (
+                                  <p className="text-[11px] text-[var(--foreground-muted)] mb-2 italic">{gap.eval_summary}</p>
+                                )}
+
+                                {gap.failed_criteria.length > 0 && (
+                                  <div className="mb-2">
+                                    <p className="text-[10px] font-semibold text-[var(--foreground-muted)] mb-1">Failed criteria:</p>
+                                    <ul className="space-y-0.5">
+                                      {gap.failed_criteria.map((c) => (
+                                        <li key={c.id} className="flex items-start gap-1.5 text-[10px] text-[var(--foreground-muted)]">
+                                          <span className="text-orange-500 mt-0.5 flex-shrink-0">✕</span>
+                                          <span>
+                                            <span className="font-semibold">{c.label}</span>
+                                            {c.description && <span className="text-[var(--foreground-subtle)]"> — {c.description}</span>}
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {gap.remediation_ai && (
+                                  <div className="rounded-md bg-[var(--background)] border border-[var(--border)] px-3 py-2 mb-2">
+                                    <p className="text-[10px] font-semibold text-[var(--foreground-muted)] mb-0.5">AI remediation</p>
+                                    <p className="text-[11px] text-[var(--foreground)] whitespace-pre-line">{gap.remediation_ai}</p>
+                                  </div>
+                                )}
+
+                                {gap.remediation_user && editingGapId !== gap.submission_id && (
+                                  <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2 mb-2">
+                                    <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 mb-0.5">Remediation plan</p>
+                                    <p className="text-[11px] text-[var(--foreground)] whitespace-pre-line">{gap.remediation_user}</p>
+                                  </div>
+                                )}
+
+                                {editingGapId === gap.submission_id ? (
+                                  <div className="mt-2 space-y-2">
+                                    <textarea
+                                      value={remediationDraft}
+                                      onChange={(e) => setRemediationDraft(e.target.value)}
+                                      rows={3}
+                                      placeholder="Describe remediation plan: what will be done, by whom, timeline…"
+                                      className="w-full text-xs border border-[var(--border)] rounded-lg p-2.5 resize-none bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSaveRemediation(gap.submission_id)}
+                                        disabled={savingRemediation || !remediationDraft.trim()}
+                                        className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                                      >
+                                        {savingRemediation ? "Saving…" : "Save remediation"}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => { setEditingGapId(null); setRemediationDraft(""); }}
+                                        className="px-3 py-1.5 text-[11px] font-semibold rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--background)] transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : canEdit ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingGapId(gap.submission_id);
+                                      setRemediationDraft(gap.remediation_user || "");
+                                    }}
+                                    className="mt-1 text-[11px] font-medium text-[var(--primary)] hover:underline"
+                                  >
+                                    {gap.remediation_user ? "Edit remediation plan" : "Add remediation plan"}
+                                  </button>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </section>
+          );
+        })()}
+
+        {/* Final attestation — approve here to then move to Report */}
+        <section id="final-attestation" className="mt-6 rounded-xl border border-[var(--border)] overflow-hidden shadow-[var(--shadow)] bg-[var(--surface)] scroll-mt-4">
+          <div className="px-6 py-4 border-b border-[var(--border)] bg-[var(--background)]/50">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${finalGate?.status === "approved" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
-                {finalGate?.status === "approved" ? "✓" : "4"}
+              <div className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold border-2 border-[var(--border-strong)] bg-[var(--surface)] text-[var(--foreground)]">
+                {finalGate?.status === "approved" ? (
+                  <Icon path="M5 13l4 4L19 7" className="w-5 h-5" />
+                ) : (
+                  "4"
+                )}
               </div>
-              <div>
-                <h2 className="text-base font-bold text-gray-900">Senior Sign-Off Authority</h2>
-                <p className="text-xs text-gray-500">Head of Compliance / CISO — Final Attestation</p>
-              </div>
+              <h2 className="text-base font-bold text-[var(--foreground)]">Final attestation</h2>
             </div>
           </div>
 
           <div className="p-6">
             {finalGate?.status === "approved" ? (
               <div className="text-center py-4">
-                <div className="text-4xl mb-2">✓</div>
-                <p className="text-sm font-bold text-green-700">Assessment Attested</p>
-                <p className="text-xs text-gray-500 mt-1">Signed off on {finalGate.approved_at ? new Date(finalGate.approved_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "—"}</p>
-                {finalGate.notes && <p className="text-xs text-gray-600 mt-2 italic">"{finalGate.notes}"</p>}
+                <div className="text-4xl mb-2 text-[var(--foreground)]">✓</div>
+                <p className="text-sm font-bold text-[var(--foreground)]">Assessment attested</p>
+                <p className="text-xs text-[var(--foreground-muted)] mt-1">
+                  Signed off on{" "}
+                  {finalGate.approved_at
+                    ? new Date(finalGate.approved_at).toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "—"}
+                </p>
+                {finalGate.notes && (
+                  <p className="text-xs text-[var(--foreground-muted)] mt-2 italic">"{finalGate.notes}"</p>
+                )}
+                <div className="mt-6 pt-4 border-t border-[var(--border)]">
+                  <Link
+                    href={reportHref}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition-opacity shadow-md"
+                  >
+                    <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" className="w-4 h-4" />
+                    Go to Report
+                  </Link>
+                </div>
               </div>
             ) : (
               <>
-                {/* Prerequisites */}
                 <div className="mb-4">
-                  <h4 className="text-xs font-bold text-gray-700 mb-2">Prerequisites</h4>
-                  <div className="space-y-1.5">
+                  <h4 className="text-xs font-bold text-[var(--foreground)] mb-2">Prerequisites</h4>
+                  <div className="space-y-2">
                     {preFinalGates.map((g) => {
                       const meta = GATE_META[g.gate];
                       return (
                         <div key={g.gate} className="flex items-center gap-2">
-                          <span className={`text-sm ${g.status === "approved" ? "text-green-600" : "text-gray-400"}`}>
+                          <span className="text-[var(--foreground-muted)]">
                             {g.status === "approved" ? "✓" : "○"}
                           </span>
-                          <span className={`text-xs ${g.status === "approved" ? "text-gray-700" : "text-gray-500"}`}>
-                            {meta?.label || g.gate}
+                          <span
+                            className={`text-xs ${g.status === "approved" ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)]"}`}
+                          >
+                            {meta?.label ?? g.gate}
                           </span>
-                          <span className="text-[10px] text-gray-400 ml-auto">{g.progress_pct ?? 0}%</span>
+                          <span className="text-[10px] text-[var(--foreground-subtle)] ml-auto">
+                            {g.progress_pct ?? 0}%
+                          </span>
                         </div>
                       );
                     })}
                     <div className="flex items-center gap-2">
-                      <span className={`text-sm ${all_l_cleared ? "text-green-600" : "text-gray-400"}`}>{all_l_cleared ? "✓" : "○"}</span>
-                      <span className={`text-xs ${all_l_cleared ? "text-gray-700" : "text-gray-500"}`}>All review levels (L1/L2/L3) cleared</span>
+                      <span className="text-[var(--foreground-muted)]">
+                        {all_l_cleared ? "✓" : "○"}
+                      </span>
+                      <span
+                        className={`text-xs ${all_l_cleared ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)]"}`}
+                      >
+                        All review levels (L1/L2/L3) cleared
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {canApprove && finalGate?.ready && (
-                  <div className="border-t border-gray-200 pt-4 space-y-3">
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-                      <p className="text-[11px] font-semibold text-amber-800">MFA verification required for final attestation.</p>
-                      <p className="text-[10px] text-amber-700 mt-0.5">By signing, you attest that all evidence has been reviewed and the organization is compliant with the SWIFT CSP framework.</p>
-                    </div>
-                    <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Attestation notes (optional)…" rows={2}
-                      className="w-full text-xs border border-gray-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400" />
-                    <input type="text" value={mfaToken} onChange={(e) => setMfaToken(e.target.value)} placeholder="Enter MFA token"
-                      className="w-full text-sm border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                    <button onClick={() => handleApproveGate("final_attestation")}
-                      disabled={approving === "final_attestation" || !mfaToken.trim()}
-                      className="w-full py-3 text-sm font-bold rounded-xl bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 shadow-md">
-                      {approving === "final_attestation" ? "Signing…" : "Attest and Sign Off"}
-                    </button>
-                  </div>
-                )}
-
-                {canApprove && !finalGate?.ready && (
-                  <p className="text-xs text-gray-400 text-center py-2">Complete all prerequisites before signing off.</p>
-                )}
-                {!canApprove && (
-                  <p className="text-xs text-gray-400 text-center py-2 italic">
-                    {userRole === "compliance_officer" ? "Final attestation requires the Approver role (CISO / Head of Compliance)." : "Read-only access."}
-                  </p>
-                )}
+                <div className="border-t border-[var(--border)] pt-4 space-y-3">
+                  {canApprove && finalGate?.ready && (
+                    <>
+                      <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5">
+                        <p className="text-[11px] font-semibold text-[var(--foreground)]">MFA required to sign off.</p>
+                      </div>
+                      <textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Attestation notes (optional)…"
+                        rows={2}
+                        className="w-full text-xs border border-[var(--border)] rounded-lg p-2.5 resize-none bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                      />
+                      <input
+                        type="text"
+                        value={mfaToken}
+                        onChange={(e) => setMfaToken(e.target.value)}
+                        placeholder="Enter MFA token"
+                        className="w-full text-sm border border-[var(--border)] rounded-lg p-2.5 bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                      />
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => canApprove && finalGate?.ready && handleApproveGate("final_attestation")}
+                    disabled={!canApprove || !finalGate?.ready || approving === "final_attestation" || (!!(canApprove && finalGate?.ready) && !mfaToken.trim())}
+                    className="w-full py-3 text-sm font-bold rounded-xl bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity"
+                  >
+                    {approving === "final_attestation" ? "Signing…" : "Approve"}
+                  </button>
+                  {canApprove && !finalGate?.ready && (
+                    <p className="text-xs text-[var(--foreground-muted)] text-center">
+                      Complete all prerequisites above before you can approve.
+                    </p>
+                  )}
+                  {!canApprove && (
+                    <p className="text-xs text-[var(--foreground-muted)] text-center italic">
+                      {userRole === "compliance_officer"
+                        ? "Final attestation requires the Approver role (CISO / Head of Compliance)."
+                        : "Read-only access."}
+                    </p>
+                  )}
+                </div>
               </>
             )}
           </div>
         </section>
 
-        {/* Non-final gate approval (for compliance_officer or approver) */}
-        {canApprove && preFinalGates.some((g) => g.status !== "approved" && g.ready) && (
-          <section className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="text-sm font-bold text-gray-800 mb-3">Approve Ready Gates</h3>
+        {/* Approve ready (non-final) gates */}
+        {readyGatesToShow.length > 0 && (
+          <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
+            <h3 className="text-sm font-bold text-[var(--foreground)] mb-3">Ready to approve</h3>
             <div className="space-y-3">
-              {preFinalGates.filter((g) => g.status !== "approved" && g.ready).map((g, idx) => {
-                const isFirst = idx === 0 || preFinalGates.filter((pg) => pg.status !== "approved")[0]?.gate === g.gate;
-                if (!isFirst) return null;
+              {readyGatesToShow.slice(0, 1).map((g) => {
                 const meta = GATE_META[g.gate];
                 return (
-                  <div key={g.gate} className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <span className="text-xs font-bold text-gray-700">{meta?.label || g.gate}</span>
-                      <span className="text-[10px] text-gray-500 ml-2">{g.detail}</span>
+                  <div
+                    key={g.gate}
+                    className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-bold text-[var(--foreground)]">
+                        {meta?.label ?? g.gate}
+                      </span>
+                      <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">{g.detail}</p>
                     </div>
-                    <button onClick={() => handleApproveGate(g.gate)} disabled={approving === g.gate}
-                      className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+                    <button
+                      type="button"
+                      onClick={() => handleApproveGate(g.gate)}
+                      disabled={approving === g.gate}
+                      className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    >
                       {approving === g.gate ? "Approving…" : "Approve"}
                     </button>
                   </div>
@@ -529,10 +953,14 @@ export default function CycleApprovalPage() {
         )}
       </div>
 
-      {/* Side panel: evidence detail */}
+      {/* Evidence detail panel */}
       {viewingEvidenceId && (
-        <div className="fixed inset-y-0 right-0 w-full max-w-lg bg-white border-l border-gray-200 shadow-xl z-50 flex flex-col">
-          <ApprovalEvidenceViewer cycleId={cycleId} submissionId={viewingEvidenceId} onClose={() => setViewingEvidenceId(null)} />
+        <div className="fixed inset-y-0 right-0 w-full max-w-md bg-[var(--surface)] border-l border-[var(--border)] shadow-xl z-50 flex flex-col">
+          <ApprovalEvidenceViewer
+            cycleId={cycleId}
+            submissionId={viewingEvidenceId}
+            onClose={() => setViewingEvidenceId(null)}
+          />
         </div>
       )}
     </div>

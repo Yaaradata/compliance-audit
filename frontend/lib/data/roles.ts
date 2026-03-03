@@ -25,20 +25,17 @@ export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?:
   ],
   compliance_officer: [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/evidence-model", label: "Evidence Model" },
     { href: "/review", label: "Review Queue" },
     { href: "/approval", label: "Approval" },
     { href: "/report", label: "Report" },
   ],
   it_sme: [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/evidence-model", label: "Evidence Model" },
     { href: "/report", label: "Report" },
   ],
   internal_reviewer: [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/review", label: "Review Queue" },
-    { href: "/evidence-model", label: "Evidence Model" },
     { href: "/report", label: "Report" },
   ],
   external_assessor: [

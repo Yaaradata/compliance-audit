@@ -9,6 +9,7 @@ from ..models.tenant import User
 from ..models.assessment import EvidenceSubmission, AssessmentCycle
 from ..models.review import ReviewAssignment
 from ..models.approval import ApprovalGate
+from pydantic import BaseModel as _BaseModel
 from ..schemas.approval import GateOut, ApproveGateRequest
 from ..services import evidence_status as evidence_status_svc
 from ..services.batch_loaders import load_users_by_ids
@@ -77,8 +78,31 @@ def _compute_gate_readiness(db: Session, cycle_id: UUID) -> dict[str, dict]:
     review_l3_pct = (l3_reviewed / l3_total * 100) if l3_total > 0 else 100
     review_pct = (review_l1_pct + review_l2_pct + review_l3_pct) / 3
 
-    gaps_with_plans = len(approved_subs)
-    gaps_pct = (gaps_with_plans / total_subs * 100) if total_subs > 0 else 0
+    # "Gaps Documented": items that failed evaluation need a remediation plan.
+    # Items that passed (overall_met True) or are approved have no gap.
+    # Items not yet evaluated are not counted as gaps.
+    subs_with_gap = []
+    subs_gap_documented = []
+    for s in subs:
+        if s.status == "approved":
+            continue
+        eval_res = s.evaluation_result or {}
+        if eval_res.get("overall_met") is False:
+            subs_with_gap.append(s)
+            has_remediation = bool(s.evaluation_remediation and s.evaluation_remediation.strip())
+            form = s.form_data or {}
+            has_form_gaps = bool(
+                (form.get("known_gaps") and str(form["known_gaps"]).strip())
+                or (form.get("known_gaps_and_plan") and str(form["known_gaps_and_plan"]).strip())
+                or (form.get("remediation_plan") and str(form["remediation_plan"]).strip())
+            )
+            if has_remediation or has_form_gaps:
+                subs_gap_documented.append(s)
+
+    total_gaps = len(subs_with_gap)
+    documented_gaps = len(subs_gap_documented)
+    gaps_pct = (documented_gaps / total_gaps * 100) if total_gaps > 0 else 100.0
+    gap_blockers = [s.evidence_item_id for s in subs_with_gap if s not in subs_gap_documented]
 
     prev_approved = all(
         gates.get(g, None) and gates[g].status == "approved"
@@ -102,8 +126,8 @@ def _compute_gate_readiness(db: Session, cycle_id: UUID) -> dict[str, dict]:
         "gaps_documented": {
             "ready": gaps_pct >= 100,
             "progress_pct": round(gaps_pct, 1),
-            "blockers": [],
-            "detail": f"{gaps_with_plans}/{total_subs} items have remediation plans",
+            "blockers": gap_blockers[:10],
+            "detail": f"{documented_gaps}/{total_gaps} gaps documented" if total_gaps > 0 else "No gaps identified",
         },
         "final_attestation": {
             "ready": prev_approved,
@@ -252,6 +276,34 @@ def get_approval_summary(
             "reviews": sorted(s_reviews, key=lambda r: {"L1": 0, "L2": 1, "L3": 2}.get(r["level"], 9)),
         })
 
+    gap_items = []
+    for s in subs:
+        eval_res = s.evaluation_result or {}
+        overall_met = eval_res.get("overall_met")
+        if s.status == "approved" or overall_met is not False:
+            continue
+        form = s.form_data or {}
+        remediation_ai = (s.evaluation_remediation or "").strip() or None
+        remediation_user = (
+            str(form.get("known_gaps") or form.get("known_gaps_and_plan") or form.get("remediation_plan") or "").strip() or None
+        )
+        failed_criteria = [
+            {"id": c.get("id", ""), "label": c.get("label", ""), "description": c.get("description")}
+            for c in (eval_res.get("criteria") or []) + (eval_res.get("sufficiency_results") or [])
+            if not c.get("met")
+        ]
+        gap_items.append({
+            "submission_id": str(s.id),
+            "evidence_item_id": s.evidence_item_id or "",
+            "domain": s.evidence_item_id[0] if s.evidence_item_id else "?",
+            "status": _display_status(s),
+            "eval_summary": eval_res.get("summary"),
+            "failed_criteria": failed_criteria,
+            "remediation_ai": remediation_ai,
+            "remediation_user": remediation_user,
+            "is_documented": bool(remediation_ai or remediation_user),
+        })
+
     return {
         "overall_compliance_pct": overall_pct,
         "total_items": total_items,
@@ -261,6 +313,7 @@ def get_approval_summary(
         "evidence_for_approval": evidence_for_approval,
         "evidence_timeline": evidence_timeline,
         "domain_breakdown": domain_breakdown,
+        "gap_items": gap_items,
         "gates": [
             {
                 "gate": _gate_display(g.gate),
@@ -327,3 +380,41 @@ def approve_gate(
     db.commit()
     db.refresh(gate)
     return gate
+
+
+# ---------------------------------------------------------------------------
+# Remediation / gap-documentation endpoint
+# ---------------------------------------------------------------------------
+
+class UpdateRemediationRequest(_BaseModel):
+    remediation_notes: str
+
+
+@router.patch("/assessments/{cycle_id}/submissions/{submission_id}/remediation")
+def update_remediation(
+    cycle_id: UUID,
+    submission_id: UUID,
+    req: UpdateRemediationRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Allow a user to add/update the remediation notes for a submission's gap."""
+    if user.role not in ("admin", "tenant_admin", "approver", "compliance_officer"):
+        raise HTTPException(status_code=403, detail="Not authorized to update remediation")
+
+    sub = (
+        db.query(EvidenceSubmission)
+        .filter(EvidenceSubmission.id == submission_id, EvidenceSubmission.cycle_id == cycle_id)
+        .first()
+    )
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    form = dict(sub.form_data or {})
+    form["known_gaps"] = req.remediation_notes.strip()
+    sub.form_data = form
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(sub, "form_data")
+    db.commit()
+
+    return {"ok": True, "evidence_item_id": sub.evidence_item_id}

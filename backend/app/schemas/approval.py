@@ -27,6 +27,7 @@ class ReportOut(BaseModel):
     cycle_id: UUID
     report_kind: str
     sections: list = []
+    snapshot_data: dict = {}
     finalized_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
