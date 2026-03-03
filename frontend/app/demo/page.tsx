@@ -289,7 +289,7 @@ export default function DemoPage() {
       <main className="flex-1 flex flex-col min-h-0 px-5 py-5">
         <div className="shrink-0 mb-4">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-0.5" style={{ color: "var(--foreground)" }}>
-            SWIFT Compliance Platform — CEO Demo
+            SWIFT Compliance Platform
           </h1>
           <p className="text-sm mb-3" style={{ color: "var(--foreground-muted)" }}>
             Cycle <strong>{DEMO_CYCLE_LABEL}</strong> ({DEMO_CYCLE_DISPLAY_ID}) · Each card opens in a new tab
@@ -402,7 +402,7 @@ export default function DemoPage() {
 
       <footer className="shrink-0 border-t py-2" style={{ borderColor: "var(--border)" }}>
         <div className="text-center text-xs" style={{ color: "var(--foreground-muted)" }}>
-          YaaraLabs SWIFT Compliance Platform · CEO Demo · Click a card to open in new tab
+          YaaraLabs SWIFT Compliance Platform ·  Click a card to open in new tab
         </div>
       </footer>
     </div>
