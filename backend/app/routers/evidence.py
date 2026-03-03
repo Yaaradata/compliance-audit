@@ -489,9 +489,14 @@ def _persist_ai_results(
 
     submission.ai_summary = result.get("summary")
     submission.ai_confidence = result.get("confidence")
-    submission.completion_pct = result.get("overall_score", 0)
-    remediation = result.get("remediation")
-    submission.evaluation_remediation = remediation if isinstance(remediation, str) and remediation.strip() else None
+    suf_list = result.get("sufficiency_results", [])
+    crit_list = result.get("criteria", [])
+    all_criteria = suf_list + crit_list
+    total_criteria = len(all_criteria)
+    met_criteria = sum(1 for c in all_criteria if c.get("met"))
+    submission.completion_pct = round(met_criteria / total_criteria * 100, 1) if total_criteria > 0 else 0
+    remediation = _normalize_remediation(result.get("remediation"))
+    submission.evaluation_remediation = remediation
     # Persist full evaluation so tick/cross status shows when user revisits
     submission.evaluation_result = {
         "evidence_item_id": submission.evidence_item_id,
@@ -501,6 +506,18 @@ def _persist_ai_results(
         "summary": result.get("summary"),
         "remediation": remediation,
     }
+
+
+def _normalize_remediation(value: str | list | None) -> str | None:
+    """AI may return remediation as a string or list of strings; coerce to str | None for schema/DB."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value.strip() or None
+    if isinstance(value, list):
+        parts = [str(x).strip() for x in value if x]
+        return "\n".join(parts) if parts else None
+    return None
 
 
 def _score_to_status(score: float) -> str:
@@ -858,7 +875,7 @@ def evaluate_evidence(
             sufficiency_results=sufficiency_results,
             criteria=criteria_results,
             summary=result.get("summary"),
-            remediation=result.get("remediation"),
+            remediation=_normalize_remediation(result.get("remediation")),
         )
 
     # --- Fallback: placeholder when no files uploaded yet ---

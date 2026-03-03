@@ -18,9 +18,41 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/data/architectures";
 import { A5_FORM_KEYS } from "@/lib/data/a5-criteria";
 import { A5IntakeForm } from "@/components/domain/a5-intake-form";
-import type { EvidenceItem, ControlRef, ControlCriteria, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
+import type { EvidenceItem, ControlRef, ControlCriteria, AiEvaluationResult as AiEvalResultType, AiCriterionResult } from "@/lib/types";
 
 const EVIDENCE_ITEM_A5 = "A5";
+
+function getControlStatusColor(
+  controlId: string,
+  sufficiencyResults: AiCriterionResult[] | null | undefined,
+  criteriaResults: AiCriterionResult[] | null | undefined,
+): "white" | "green" | "orange" | "red" {
+  const prefix = `${controlId}_`;
+  const relevant = [
+    ...(sufficiencyResults ?? []).filter((r) => r.id.startsWith(prefix) || r.id === controlId),
+    ...(criteriaResults ?? []).filter((r) => r.id.startsWith(prefix) || r.id === controlId),
+  ];
+  if (relevant.length === 0) return "white";
+  const met = relevant.filter((r) => r.met).length;
+  const ratio = met / relevant.length;
+  if (ratio >= 1) return "green";
+  if (ratio >= 0.5) return "orange";
+  return "red";
+}
+
+function getControlCriteriaScore(
+  controlId: string,
+  sufficiencyResults: AiCriterionResult[] | null | undefined,
+  criteriaResults: AiCriterionResult[] | null | undefined,
+): number {
+  const prefix = `${controlId}_`;
+  const relevant = [
+    ...(sufficiencyResults ?? []).filter((r) => r.id.startsWith(prefix) || r.id === controlId),
+    ...(criteriaResults ?? []).filter((r) => r.id.startsWith(prefix) || r.id === controlId),
+  ];
+  if (relevant.length === 0) return 0;
+  return Math.round((relevant.filter((r) => r.met).length / relevant.length) * 100);
+}
 
 interface ApiEvidenceItem {
   id: string;
@@ -224,9 +256,11 @@ export default function CycleItemIntakePage() {
   const controlScores = useMemo(() => {
     if (!item) return {};
     const scores: Record<string, number> = {};
-    item.controls.forEach((c) => { scores[c.id] = completionPct; });
+    item.controls.forEach((c) => {
+      scores[c.id] = getControlCriteriaScore(c.id, aiEvaluationResult?.sufficiency_results, aiEvaluationResult?.criteria);
+    });
     return scores;
-  }, [item, completionPct]);
+  }, [item, aiEvaluationResult]);
 
   if (loading) return <LoadingState message="Loading item…" />;
 
@@ -283,7 +317,7 @@ export default function CycleItemIntakePage() {
               <span className="opacity-90">controls (scoping)</span>
             </span>
           ) : (
-            item.controls.map((c) => <ControlBadge key={c.id} id={c.id} ma={c.ma} />)
+            item.controls.map((c) => <ControlBadge key={c.id} id={c.id} ma={c.ma} statusColor={getControlStatusColor(c.id, aiEvaluationResult?.sufficiency_results, aiEvaluationResult?.criteria)} />)
           )}
         </div>
       </div>
@@ -396,7 +430,7 @@ export default function CycleItemIntakePage() {
                 const score = controlScores[c.id] ?? 0;
                 return (
                   <div key={c.id} className="flex items-center gap-2 py-1 text-[11px]">
-                    <ControlBadge id={c.id} ma={c.ma} />
+                    <ControlBadge id={c.id} ma={c.ma} statusColor={getControlStatusColor(c.id, aiEvaluationResult?.sufficiency_results, aiEvaluationResult?.criteria)} />
                     <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: getStatusColor(score) }} />
                     </div>

@@ -53,6 +53,12 @@ def ensure_optional_columns():
                     'ADD COLUMN IF NOT EXISTS "evaluation_remediation" TEXT'
                 )
             )
+            conn.execute(
+                text(
+                    f'ALTER TABLE "{SCHEMA}"."review_assignments" '
+                    "ADD COLUMN IF NOT EXISTS \"checklist_results\" JSONB NOT NULL DEFAULT '{}'"
+                )
+            )
             conn.commit()
     except Exception as e:
         logger.warning("Could not ensure optional evidence_submissions columns (table may not exist yet): %s", e)

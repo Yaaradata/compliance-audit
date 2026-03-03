@@ -14,6 +14,13 @@ class CreateReviewRequest(BaseModel):
 
 class UpdateReviewRequest(BaseModel):
     decision: str  # approve, return, escalate
+    checklist_results: dict | None = None
+
+
+class UpdateReviewResponse(BaseModel):
+    """After approve: review is the approved one; next_review_id is the new L2/L3 assignment when evidence advances."""
+    review: "ReviewOut"
+    next_review_id: UUID | None = None
 
 
 class ReviewOut(BaseModel):

@@ -1,16 +1,20 @@
+import logging
 from uuid import UUID
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+logger = logging.getLogger(__name__)
+
 from ..dependencies import get_db, get_current_user
 from ..models.tenant import User
 from ..models.assessment import EvidenceSubmission, EvidenceAttachment
-from ..models.review import ReviewAssignment, ReviewComment
+from ..models.review import ReviewerChecklist, ReviewAssignment, ReviewComment
 from ..schemas.review import (
     CreateReviewRequest,
     UpdateReviewRequest,
+    UpdateReviewResponse,
     ReviewOut,
     ReviewDetailOut,
     CreateCommentRequest,
@@ -75,13 +79,18 @@ def _resolve_l1_reviewer(db: Session, tenant_id: UUID | None) -> User | None:
 
 
 def _resolve_reviewer_for_level(db: Session, submission: EvidenceSubmission, level: str) -> User | None:
-    """Resolve the reviewer for the given level. L1 uses fallback chain; L2/L3 use role only."""
+    """
+    Resolve the reviewer for the given level.
+    L1: Internal Reviewer → Compliance Officer → any tenant user.
+    L2/L3: Prefer role from LEVEL_ROLE_MAP; if none found, use same fallback as L1 so assignments are always created.
+    """
     if level == "L1":
         return _resolve_l1_reviewer(db, submission.tenant_id)
     role = LEVEL_ROLE_MAP.get(level)
-    if not role:
-        return None
-    return _find_reviewer_by_role(db, submission.tenant_id, role)
+    reviewer = _find_reviewer_by_role(db, submission.tenant_id, role) if role else None
+    if reviewer:
+        return reviewer
+    return _resolve_l1_reviewer(db, submission.tenant_id)
 
 
 def _ensure_review_assignment(db: Session, submission: EvidenceSubmission, level: str) -> ReviewAssignment | None:
@@ -91,6 +100,7 @@ def _ensure_review_assignment(db: Session, submission: EvidenceSubmission, level
     """
     reviewer = _resolve_reviewer_for_level(db, submission, level)
     if not reviewer:
+        logger.warning("[REVIEW] No reviewer found for %s level=%s sub=%s", submission.evidence_item_id, level, submission.id)
         return None
     level_db = LEVEL_TO_DB.get(level, level)
     existing = (
@@ -102,6 +112,7 @@ def _ensure_review_assignment(db: Session, submission: EvidenceSubmission, level
         .first()
     )
     if existing:
+        logger.info("[REVIEW] %s assignment already exists for sub=%s → review=%s", level, submission.id, existing.id)
         return existing
     review = ReviewAssignment(
         submission_id=submission.id,
@@ -110,7 +121,34 @@ def _ensure_review_assignment(db: Session, submission: EvidenceSubmission, level
     )
     db.add(review)
     db.flush()
+    logger.info("[REVIEW] Created %s assignment for sub=%s → review=%s reviewer=%s", level, submission.id, review.id, reviewer.id)
     return review
+
+
+def _advance_submission_after_approve(
+    db: Session,
+    submission: EvidenceSubmission,
+    approved_level: str,
+) -> ReviewAssignment | None:
+    """
+    L1 → L2 → L3 flow: after approving at a level, create the next level assignment
+    and set submission status. Returns the new review assignment if created.
+    """
+    if approved_level == "L1":
+        next_review = _ensure_review_assignment(db, submission, "L2")
+        submission.status = evidence_status_svc.evidence_status_to_db("in_review_L2")
+        return next_review
+    if approved_level == "L2":
+        next_review = _ensure_review_assignment(db, submission, "L3")
+        submission.status = (
+            evidence_status_svc.evidence_status_to_db("in_review_L3")
+            if next_review
+            else evidence_status_svc.evidence_status_to_db("approved")
+        )
+        return next_review
+    if approved_level == "L3":
+        submission.status = evidence_status_svc.evidence_status_to_db("approved")
+    return None
 
 
 # ── Submit evidence for review ──────────────────────────────
@@ -167,6 +205,9 @@ def list_reviews(
         return []
 
     l1_db = LEVEL_TO_DB["L1"]
+    l2_db = LEVEL_TO_DB["L2"]
+    l3_db = LEVEL_TO_DB["L3"]
+    changed = False
     for sub in submissions:
         if sub.status == "submitted":
             has_l1 = (
@@ -179,7 +220,61 @@ def list_reviews(
             )
             if not has_l1:
                 _ensure_review_assignment(db, sub, "L1")
-    db.commit()
+                changed = True
+    for sub in submissions:
+        l1 = (
+            db.query(ReviewAssignment)
+            .filter(
+                ReviewAssignment.submission_id == sub.id,
+                ReviewAssignment.level == l1_db,
+                ReviewAssignment.status == "approved",
+            )
+            .first()
+        )
+        if not l1:
+            continue
+        has_l2 = (
+            db.query(ReviewAssignment)
+            .filter(
+                ReviewAssignment.submission_id == sub.id,
+                ReviewAssignment.level == l2_db,
+            )
+            .first()
+        )
+        if not has_l2:
+            _ensure_review_assignment(db, sub, "L2")
+            sub.status = evidence_status_svc.evidence_status_to_db("in_review_L2")
+            changed = True
+    for sub in submissions:
+        l2 = (
+            db.query(ReviewAssignment)
+            .filter(
+                ReviewAssignment.submission_id == sub.id,
+                ReviewAssignment.level == l2_db,
+                ReviewAssignment.status == "approved",
+            )
+            .first()
+        )
+        if not l2:
+            continue
+        has_l3 = (
+            db.query(ReviewAssignment)
+            .filter(
+                ReviewAssignment.submission_id == sub.id,
+                ReviewAssignment.level == l3_db,
+            )
+            .first()
+        )
+        if not has_l3:
+            l3_review = _ensure_review_assignment(db, sub, "L3")
+            sub.status = (
+                evidence_status_svc.evidence_status_to_db("in_review_L3")
+                if l3_review
+                else evidence_status_svc.evidence_status_to_db("approved")
+            )
+            changed = True
+    if changed:
+        db.commit()
 
     q = db.query(ReviewAssignment).filter(ReviewAssignment.submission_id.in_(sub_ids))
 
@@ -294,6 +389,30 @@ def get_review_detail(
     )
 
     level_display = DB_TO_LEVEL.get(review.level, review.level)
+    level_check_col = {"L1": "l1_check", "L2": "l2_check", "L3": "l3_check"}.get(level_display, "l1_check")
+
+    checklist_rows = (
+        db.query(ReviewerChecklist)
+        .filter(ReviewerChecklist.item_code == submission.evidence_item_id)
+        .order_by(ReviewerChecklist.control_id)
+        .all()
+    )
+
+    checklist_items = []
+    for row in checklist_rows:
+        check_text = getattr(row, level_check_col, None)
+        if not check_text or not check_text.strip():
+            continue
+        checklist_items.append({
+            "id": str(row.id),
+            "control_id": row.control_id,
+            "control_name": row.control_name,
+            "mandatory_advisory": row.mandatory_advisory,
+            "check_text": check_text.strip(),
+        })
+
+    saved_results = getattr(review, "checklist_results", None) or {}
+
     return {
         "review": {
             "id": str(review.id),
@@ -304,6 +423,7 @@ def get_review_detail(
             "reviewer_name": reviewer.name if reviewer else None,
             "assigned_at": str(review.assigned_at),
             "completed_at": str(review.completed_at) if review.completed_at else None,
+            "checklist_results": saved_results,
         },
         "submission": {
             "id": str(submission.id),
@@ -314,6 +434,7 @@ def get_review_detail(
             "submitted_at": str(submission.submitted_at) if submission.submitted_at else None,
         },
         "attachments": file_list,
+        "checklist": checklist_items,
         "comments": [
             {
                 "id": str(c.id),
@@ -332,13 +453,14 @@ def get_review_detail(
                 "decision": ra.decision,
                 "assigned_at": str(ra.assigned_at),
                 "completed_at": str(ra.completed_at) if ra.completed_at else None,
+                "checklist_results": getattr(ra, "checklist_results", None) or {},
             }
             for ra in all_reviews
         ],
     }
 
 
-@router.put("/reviews/{review_id}", response_model=ReviewOut)
+@router.put("/reviews/{review_id}", response_model=UpdateReviewResponse)
 def update_review(
     review_id: UUID,
     req: UpdateReviewRequest,
@@ -357,24 +479,22 @@ def update_review(
 
     review.decision = req.decision
     review.completed_at = datetime.now(timezone.utc)
+    if req.checklist_results is not None:
+        review.checklist_results = req.checklist_results
 
     submission = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == review.submission_id).first()
+    next_review: ReviewAssignment | None = None
 
     if req.decision == "approve":
         review.status = "approved"
-        level_display = DB_TO_LEVEL.get(review.level, review.level)
-        if level_display == "L1" and submission:
-            _ensure_review_assignment(db, submission, "L2")
-            submission.status = evidence_status_svc.evidence_status_to_db("in_review_L2")
-        elif level_display == "L2" and submission:
-            l3_review = _ensure_review_assignment(db, submission, "L3")
-            submission.status = (
-                evidence_status_svc.evidence_status_to_db("in_review_L3")
-                if l3_review
-                else evidence_status_svc.evidence_status_to_db("approved")
-            )
-        elif level_display == "L3" and submission:
-            submission.status = evidence_status_svc.evidence_status_to_db("approved")
+        if submission:
+            logger.info("[REVIEW] Approving %s review=%s for sub=%s (item=%s)", level_display, review_id, review.submission_id, submission.evidence_item_id)
+            try:
+                next_review = _advance_submission_after_approve(db, submission, level_display)
+                logger.info("[REVIEW] Advance result: next_review=%s", next_review.id if next_review else None)
+            except Exception:
+                logger.exception("[REVIEW] Error advancing submission after %s approve", level_display)
+                raise
     elif req.decision == "return":
         review.status = "returned"
         if submission:
@@ -382,9 +502,35 @@ def update_review(
     else:
         review.status = "escalated"
 
-    db.commit()
+    next_review_id = next_review.id if next_review else None
+    try:
+        db.commit()
+        logger.info("[REVIEW] Committed. next_review_id=%s", next_review_id)
+    except Exception:
+        logger.exception("[REVIEW] Commit failed for review=%s", review_id)
+        raise
     db.refresh(review)
-    return ReviewOut.model_validate(review)
+    out = ReviewOut.model_validate(review)
+    return UpdateReviewResponse(review=out, next_review_id=next_review_id)
+
+
+# ── Save checklist progress (before approve/return) ─────────
+
+@router.patch("/reviews/{review_id}/checklist")
+def save_checklist_progress(
+    review_id: UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Save checklist tick/cross progress while reviewing (auto-save)."""
+    review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    checklist_results = body.get("checklist_results", {})
+    review.checklist_results = checklist_results
+    db.commit()
+    return {"ok": True}
 
 
 # ── Comments ────────────────────────────────────────────────

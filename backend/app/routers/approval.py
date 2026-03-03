@@ -11,6 +11,7 @@ from ..models.review import ReviewAssignment
 from ..models.approval import ApprovalGate
 from ..schemas.approval import GateOut, ApproveGateRequest
 from ..services import evidence_status as evidence_status_svc
+from ..services.batch_loaders import load_users_by_ids
 
 router = APIRouter()
 
@@ -27,10 +28,16 @@ def _gate_display(gate_db: str) -> str:
 
 
 def _ensure_gates_exist(db: Session, cycle_id: UUID):
-    """Create all four gates if they don't exist yet. Uses DB enum values only."""
+    """Create all four gates if they don't exist yet. Uses DB enum values only.
+    Normalizes any gates that were stored with display names (e.g. gaps_documented) to DB enum values
+    so PostgreSQL enum gate_type is not violated on flush."""
     gates = db.query(ApprovalGate).filter(ApprovalGate.cycle_id == cycle_id).all()
-    existing = {g.gate for g in gates}
     changed = False
+    for g in gates:
+        if g.gate in DISPLAY_TO_DB:
+            g.gate = DISPLAY_TO_DB[g.gate]
+            changed = True
+    existing = {g.gate for g in gates}
     for gate_db in GATE_ORDER_DB:
         if gate_db not in existing:
             db.add(ApprovalGate(cycle_id=cycle_id, gate=gate_db))
@@ -208,6 +215,43 @@ def get_approval_summary(
     order_index = {name: i for i, name in enumerate(GATE_ORDER)}
     gates_sorted = sorted(gates, key=lambda g: order_index.get(_gate_display(g.gate), 99))
 
+    DB_TO_LEVEL = {"l1_completeness": "L1", "l2_quality": "L2", "l3_assessment": "L3"}
+    reviewer_ids = list({r.reviewer_id for r in reviews})
+    submitter_ids = list({s.submitted_by for s in subs if s.submitted_by})
+    all_user_ids = list(set(reviewer_ids + submitter_ids))
+    users_map = load_users_by_ids(db, all_user_ids) if all_user_ids else {}
+
+    reviews_by_sub: dict[str, list] = {}
+    for r in reviews:
+        key = str(r.submission_id)
+        if key not in reviews_by_sub:
+            reviews_by_sub[key] = []
+        reviewer = users_map.get(r.reviewer_id)
+        reviews_by_sub[key].append({
+            "level": DB_TO_LEVEL.get(r.level, r.level),
+            "status": r.status,
+            "decision": r.decision,
+            "reviewer_name": reviewer.name if reviewer else None,
+            "assigned_at": str(r.assigned_at) if r.assigned_at else None,
+            "completed_at": str(r.completed_at) if r.completed_at else None,
+        })
+
+    evidence_timeline = []
+    for s in subs:
+        submitter = users_map.get(s.submitted_by) if s.submitted_by else None
+        s_reviews = reviews_by_sub.get(str(s.id), [])
+        eval_result = s.evaluation_result or {}
+        evidence_timeline.append({
+            "id": str(s.id),
+            "evidence_item_id": s.evidence_item_id or "",
+            "status": _display_status(s),
+            "submitted_at": str(s.submitted_at) if s.submitted_at else None,
+            "submitter_name": submitter.name if submitter else None,
+            "overall_met": eval_result.get("overall_met"),
+            "eval_summary": eval_result.get("summary"),
+            "reviews": sorted(s_reviews, key=lambda r: {"L1": 0, "L2": 1, "L3": 2}.get(r["level"], 9)),
+        })
+
     return {
         "overall_compliance_pct": overall_pct,
         "total_items": total_items,
@@ -215,6 +259,7 @@ def get_approval_summary(
         "review_level_stats": review_level_stats,
         "all_l_cleared": all_l_cleared,
         "evidence_for_approval": evidence_for_approval,
+        "evidence_timeline": evidence_timeline,
         "domain_breakdown": domain_breakdown,
         "gates": [
             {

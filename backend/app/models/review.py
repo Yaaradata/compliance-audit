@@ -2,10 +2,27 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import String, Boolean, DateTime, Text, text
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
+
+
+class ReviewerChecklist(Base):
+    __tablename__ = "reviewer_checklist"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    item_code: Mapped[str] = mapped_column(String(5), nullable=False)
+    evidence_item: Mapped[str] = mapped_column(String(500), nullable=False)
+    control_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    control_name: Mapped[str] = mapped_column(String(500), nullable=False)
+    mandatory_advisory: Mapped[str] = mapped_column(String(10), nullable=False, server_default="M")
+    l1_check: Mapped[str | None] = mapped_column(Text)
+    l2_check: Mapped[str | None] = mapped_column(Text)
+    l3_check: Mapped[str | None] = mapped_column(Text)
+    cscf_version: Mapped[str] = mapped_column(String(10), nullable=False, server_default="2025v")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
 
 
 class ReviewAssignment(Base):
@@ -17,6 +34,8 @@ class ReviewAssignment(Base):
     level: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="assigned")
     decision: Mapped[str | None] = mapped_column(String(20))
+    """Per-item checklist results: { "<checklist_id>": { "checked": bool, "note": str|null }, ... }"""
+    checklist_results: Mapped[dict] = mapped_column(JSONB, server_default="{}")
     sla_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

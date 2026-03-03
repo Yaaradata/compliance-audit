@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { EvidenceViewer } from "@/components/review/evidence-viewer";
+import { InlineEvidenceDetail } from "@/components/review/evidence-viewer";
 
 interface ApiReview {
   id: string;
@@ -26,10 +26,10 @@ const STATUS_TABS = [
   { key: "returned", label: "Returned" },
 ] as const;
 
-const LEVEL_COLORS: Record<string, { bg: string; text: string }> = {
-  L1: { bg: "bg-blue-100", text: "text-blue-700" },
-  L2: { bg: "bg-purple-100", text: "text-purple-700" },
-  L3: { bg: "bg-orange-100", text: "text-orange-700" },
+const LEVEL_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
+  L1: { bg: "bg-blue-100", text: "text-blue-700", ring: "ring-blue-300" },
+  L2: { bg: "bg-purple-100", text: "text-purple-700", ring: "ring-purple-300" },
+  L3: { bg: "bg-orange-100", text: "text-orange-700", ring: "ring-orange-300" },
 };
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -38,18 +38,85 @@ const LEVEL_LABELS: Record<string, string> = {
   L3: "Assessment",
 };
 
-/** Normalize API level (e.g. l1_completeness or L1) to display L1/L2/L3 */
 function normalizeLevel(level: string): string {
-  const map: Record<string, string> = {
-    l1_completeness: "L1",
-    l2_quality: "L2",
-    l3_assessment: "L3",
-  };
-  return map[level] || level;
+  return ({ l1_completeness: "L1", l2_quality: "L2", l3_assessment: "L3" } as Record<string, string>)[level] || level;
 }
 
 function domainFrom(itemId: string | null) {
   return itemId ? itemId.charAt(0) : "?";
+}
+
+function ReviewCard({
+  review,
+  expanded,
+  onToggle,
+  userRole,
+  onAction,
+}: {
+  review: ApiReview;
+  expanded: boolean;
+  onToggle: () => void;
+  userRole: string;
+  onAction: (decision: "approve" | "return", comment?: string, checklistResults?: Record<string, { checked: boolean; note?: string | null }>) => void;
+}) {
+  const displayLevel = normalizeLevel(review.level);
+  const lc = LEVEL_COLORS[displayLevel] || LEVEL_COLORS.L1;
+  const statusBg = review.status === "approved"
+    ? "bg-green-100 text-green-700"
+    : review.status === "returned"
+      ? "bg-red-100 text-red-700"
+      : "bg-yellow-100 text-yellow-700";
+
+  return (
+    <div className={`rounded-xl border-2 transition-all ${expanded ? "border-blue-300 shadow-md" : "border-gray-200 hover:border-gray-300 shadow-sm"} bg-white`}>
+      <button type="button" onClick={onToggle} className="w-full text-left p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-gray-900">{review.evidence_item_id || review.submission_id.slice(0, 8)}</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${lc.bg} ${lc.text}`}>
+              {displayLevel} {LEVEL_LABELS[displayLevel]}
+            </span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusBg}`}>
+              {review.status}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-gray-400">
+              {new Date(review.assigned_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </span>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+        {/* Mini pipeline */}
+        <div className="flex items-center gap-1 mt-2">
+          {(["L1", "L2", "L3"] as const).map((level, i) => {
+            const isCurrent = displayLevel === level;
+            const isDone = (["L1", "L2", "L3"].indexOf(displayLevel) > i) || (isCurrent && review.status === "approved");
+            return (
+              <div key={level} className="flex items-center gap-0.5">
+                {i > 0 && <span className="text-gray-300 text-[9px] mx-0.5">→</span>}
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isDone ? "bg-green-100 text-green-700" : isCurrent ? `${lc.bg} ${lc.text} ring-1 ${lc.ring}` : "bg-gray-100 text-gray-400"}`}>
+                  {isDone ? "✓" : isCurrent ? "●" : "○"} {level}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-gray-100 px-4 pb-4 pt-2">
+          <InlineEvidenceDetail
+            reviewId={review.id}
+            userRole={userRole}
+            onAction={onAction}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function CycleReviewPage() {
@@ -62,7 +129,7 @@ export default function CycleReviewPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const [levelFilter, setLevelFilter] = useState<string>("all");
-  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchReviews = useCallback(async () => {
     if (!cycleId) return;
@@ -77,16 +144,13 @@ export default function CycleReviewPage() {
     }
   }, [cycleId]);
 
-  useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
+  useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
   const metrics = useMemo(() => {
     const assigned = reviews.filter((r) => r.status === "assigned").length;
     const approved = reviews.filter((r) => r.status === "approved").length;
     const returned = reviews.filter((r) => r.status === "returned").length;
-    const total = reviews.length;
-    return { assigned, approved, returned, total };
+    return { assigned, approved, returned, total: reviews.length };
   }, [reviews]);
 
   const filtered = useMemo(() => {
@@ -112,158 +176,105 @@ export default function CycleReviewPage() {
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [filtered]);
 
-  const handleAction = async (decision: "approve" | "return") => {
-    if (!selectedReviewId) return;
+  const handleAction = async (
+    reviewId: string,
+    decision: "approve" | "return",
+    _comment?: string,
+    checklistResults?: Record<string, { checked: boolean; note?: string | null }>,
+  ) => {
     try {
-      await api.put(`/reviews/${selectedReviewId}`, { decision });
-      setSelectedReviewId(null);
-      fetchReviews();
+      const res = await api.put<{ review: ApiReview; next_review_id: string | null }>(
+        `/reviews/${reviewId}`,
+        { decision, checklist_results: checklistResults ?? null }
+      );
+      if (res?.next_review_id) {
+        setLevelFilter("all");
+        setFilter("all");
+      }
+      await fetchReviews();
+      if (res?.next_review_id) {
+        setExpandedId(res.next_review_id);
+      } else {
+        setExpandedId(null);
+      }
     } catch { /* ignore */ }
   };
 
   return (
-    <div className="flex h-[calc(100vh-64px)] gap-0">
-      {/* Left: Review queue */}
-      <div className="w-[380px] min-w-[320px] border-r border-gray-200 flex flex-col bg-white">
-        {/* Metrics */}
-        <div className="px-4 pt-4 pb-3 border-b border-gray-100">
-          <h2 className="text-sm font-bold text-gray-900 mb-3">Review Queue</h2>
-          <div className="grid grid-cols-4 gap-2">
+    <div className="h-[calc(100vh-64px)] overflow-y-auto bg-gray-50/50">
+      <div className="max-w-5xl mx-auto py-6 px-4">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-lg font-bold text-gray-900 mb-4">Review Queue</h1>
+
+          {/* Metrics */}
+          <div className="grid grid-cols-4 gap-3 mb-4">
             {[
-              { label: "Total", value: metrics.total, color: "text-gray-700", bg: "bg-gray-100" },
-              { label: "Queue", value: metrics.assigned, color: "text-blue-700", bg: "bg-blue-50" },
-              { label: "Approved", value: metrics.approved, color: "text-green-700", bg: "bg-green-50" },
-              { label: "Returned", value: metrics.returned, color: "text-red-700", bg: "bg-red-50" },
+              { label: "Total", value: metrics.total, color: "text-gray-700", bg: "bg-white border-gray-200" },
+              { label: "In Queue", value: metrics.assigned, color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
+              { label: "Approved", value: metrics.approved, color: "text-green-700", bg: "bg-green-50 border-green-200" },
+              { label: "Returned", value: metrics.returned, color: "text-red-700", bg: "bg-red-50 border-red-200" },
             ].map((m) => (
-              <div key={m.label} className={`rounded-lg p-2 text-center ${m.bg}`}>
-                <div className={`text-lg font-bold ${m.color}`}>{m.value}</div>
-                <div className={`text-[10px] font-medium ${m.color}`}>{m.label}</div>
+              <div key={m.label} className={`rounded-xl border p-3 text-center ${m.bg}`}>
+                <div className={`text-2xl font-bold ${m.color}`}>{m.value}</div>
+                <div className={`text-[11px] font-medium ${m.color}`}>{m.label}</div>
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Status filter */}
-        <div className="flex gap-1 px-4 py-2 border-b border-gray-100">
-          {STATUS_TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setFilter(t.key)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                filter === t.key
-                  ? "bg-blue-700 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        {/* Level filter + legend */}
-        <div className="px-4 py-2 border-b border-gray-100 space-y-1.5">
-          <div className="flex gap-1 flex-wrap">
-            {["all", "L1", "L2", "L3"].map((lv) => (
-              <button
-                key={lv}
-                onClick={() => setLevelFilter(lv)}
-                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                  levelFilter === lv
-                    ? lv === "all"
-                      ? "bg-gray-700 text-white"
-                      : `${LEVEL_COLORS[lv]?.bg || "bg-gray-100"} ${LEVEL_COLORS[lv]?.text || "text-gray-700"} ring-1 ring-offset-0 ring-gray-400`
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {lv === "all" ? "All levels" : lv}
-              </button>
-            ))}
-          </div>
-          <p className="text-[10px] text-gray-500">
-            <span className="font-medium text-gray-600">Review levels:</span>{" "}
-            L1 = Completeness · L2 = Quality · L3 = Assessment
-          </p>
-        </div>
-
-        {/* Review list */}
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="text-center py-10 text-sm text-gray-400">Loading…</div>
-          ) : grouped.length === 0 ? (
-            <div className="text-center py-10 px-4">
-              <p className="text-sm text-gray-400">No reviews found.</p>
-              <p className="text-xs text-gray-300 mt-1">Reviews appear once evidence is submitted for review.</p>
+          {/* Filters */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex gap-1">
+              {STATUS_TABS.map((t) => (
+                <button key={t.key} onClick={() => setFilter(t.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === t.key ? "bg-blue-700 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+                  {t.label}
+                </button>
+              ))}
             </div>
-          ) : (
-            grouped.map(([domain, items]) => (
-              <div key={domain}>
-                <div className="px-4 py-1.5 bg-gray-50 border-b border-gray-100">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                    Domain {domain}
-                  </span>
-                </div>
-                {items.map((r) => {
-                  const displayLevel = normalizeLevel(r.level);
-                  const lc = LEVEL_COLORS[displayLevel] || LEVEL_COLORS.L1;
-                  const isSelected = selectedReviewId === r.id;
-                  return (
-                    <button
-                      key={r.id}
-                      onClick={() => setSelectedReviewId(r.id)}
-                      className={`w-full text-left px-4 py-2.5 border-b border-gray-50 transition-colors ${
-                        isSelected ? "bg-blue-50 border-l-2 border-l-blue-600" : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-gray-800">
-                          {r.evidence_item_id || r.submission_id.slice(0, 8)}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${lc.bg} ${lc.text}`}
-                            title={`${displayLevel}: ${LEVEL_LABELS[displayLevel] ?? displayLevel}`}
-                          >
-                            {displayLevel}
-                          </span>
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                              r.status === "approved"
-                                ? "bg-green-100 text-green-700"
-                                : r.status === "returned"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {r.status}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-[10px] text-gray-400 mt-0.5">
-                        {displayLevel} {LEVEL_LABELS[displayLevel] ?? ""} · {new Date(r.assigned_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ))
-          )}
+            <div className="w-px h-6 bg-gray-200" />
+            <div className="flex gap-1">
+              {["all", "L1", "L2", "L3"].map((lv) => (
+                <button key={lv} onClick={() => setLevelFilter(lv)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                    levelFilter === lv
+                      ? lv === "all" ? "bg-gray-700 text-white" : `${LEVEL_COLORS[lv]?.bg} ${LEVEL_COLORS[lv]?.text} ring-1 ${LEVEL_COLORS[lv]?.ring}`
+                      : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}>
+                  {lv === "all" ? "All levels" : `${lv} ${LEVEL_LABELS[lv]}`}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Right: Evidence viewer */}
-      <div className="flex-1 flex flex-col bg-white">
-        {selectedReviewId ? (
-          <EvidenceViewer
-            reviewId={selectedReviewId}
-            userRole={userRole}
-            onAction={(decision) => handleAction(decision)}
-          />
+        {/* Cards */}
+        {loading ? (
+          <div className="text-center py-16 text-sm text-gray-400">Loading reviews…</div>
+        ) : grouped.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-sm text-gray-400">No reviews found.</p>
+            <p className="text-xs text-gray-300 mt-1">Reviews appear once evidence is submitted for review.</p>
+          </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-3xl mb-3 text-gray-300">📋</div>
-              <p className="text-sm text-gray-400 font-medium">Select a review from the queue</p>
-              <p className="text-xs text-gray-300 mt-1">Evidence details will appear here</p>
-            </div>
+          <div className="space-y-6">
+            {grouped.map(([domain, items]) => (
+              <div key={domain}>
+                <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Domain {domain}</h2>
+                <div className="space-y-3">
+                  {items.map((r) => (
+                    <ReviewCard
+                      key={r.id}
+                      review={r}
+                      expanded={expandedId === r.id}
+                      onToggle={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                      userRole={userRole}
+                      onAction={(decision, comment, checklistResults) => handleAction(r.id, decision, comment, checklistResults)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
