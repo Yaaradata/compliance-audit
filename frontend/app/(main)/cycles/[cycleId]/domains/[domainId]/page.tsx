@@ -370,6 +370,7 @@ export default function CycleDomainPage() {
         sufficiency_results: { id: string; label: string; met: boolean; description?: string | null }[];
         criteria: { id: string; label: string; met: boolean; description?: string | null }[];
         summary?: string | null;
+        remediation?: string | null;
       }>(
         `/assessments/${cycleId}/evidence/evaluate`,
         { evidence_item_id: currentItem.id, submission_id: subId }

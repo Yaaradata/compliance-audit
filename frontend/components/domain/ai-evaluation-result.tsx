@@ -112,12 +112,13 @@ export function AiEvaluationResult({ result, loading, placeholder, onEdit, edita
     if (section === "sufficiency_results") {
       updated.sufficiency_results = updateList(updated.sufficiency_results ?? []);
     } else {
-      updated.criteria = updateList(updated.criteria);
+      updated.criteria = updateList(updated.criteria ?? []);
     }
     updated.overall_met =
       (updated.sufficiency_results ?? []).every((c) => c.met) &&
-      updated.criteria.every((c) => c.met);
-    const criterion = (section === "sufficiency_results" ? updated.sufficiency_results : updated.criteria).find((c) => c.id === id);
+      (updated.criteria ?? []).every((c) => c.met);
+    const list = section === "sufficiency_results" ? (updated.sufficiency_results ?? []) : (updated.criteria ?? []);
+    const criterion = list.find((c) => c.id === id);
     const newEdits = { ...evaluationEdits, [id]: { met: criterion!.met, description: criterion!.description ?? null } };
     onEdit(updated, newEdits);
   }, [onEdit, result, evaluationEdits]);
@@ -130,9 +131,10 @@ export function AiEvaluationResult({ result, loading, placeholder, onEdit, edita
     if (section === "sufficiency_results") {
       updated.sufficiency_results = updateList(updated.sufficiency_results ?? []);
     } else {
-      updated.criteria = updateList(updated.criteria);
+      updated.criteria = updateList(updated.criteria ?? []);
     }
-    const criterion = (section === "sufficiency_results" ? updated.sufficiency_results : updated.criteria).find((c) => c.id === id);
+    const list = section === "sufficiency_results" ? (updated.sufficiency_results ?? []) : (updated.criteria ?? []);
+    const criterion = list.find((c) => c.id === id);
     const newEdits = { ...evaluationEdits, [id]: { met: criterion!.met, description: criterion!.description ?? null } };
     onEdit(updated, newEdits);
   }, [onEdit, result, evaluationEdits]);

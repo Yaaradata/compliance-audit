@@ -69,10 +69,10 @@ export default function AdminPage() {
       const tenant = await addTenant({
         name: name.trim(),
         slug: slug.trim() || name.trim().toLowerCase().replace(/\s+/g, "-"),
-        details: details.trim() || undefined,
+        details: details.trim() || "",
         initialUsers: usersToSend.length ? usersToSend : undefined,
       });
-      setTenants((prev) => [tenant as ApiTenant, ...prev]);
+      setTenants((prev) => [tenant as unknown as ApiTenant, ...prev]);
       setName("");
       setSlug("");
       setDetails("");

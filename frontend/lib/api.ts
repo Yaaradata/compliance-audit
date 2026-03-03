@@ -1,8 +1,13 @@
+import { getBackendUrl } from "./env";
+
+/** Relative API path; requests go through Next.js rewrite to backend. */
 const BASE_URL = "/api/v1";
-const BACKEND_DIRECT_URL =
-  (typeof window !== "undefined" && (window as unknown as Record<string, unknown>).__NEXT_PUBLIC_BACKEND_URL as string) ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  "http://127.0.0.1:8000/api/v1";
+
+/** Full backend API URL for direct calls (long timeouts, bypass proxy). */
+function getBackendDirectUrl(): string {
+  return getBackendUrl();
+}
+
 const TOKEN_KEY = "swift_compliance_token";
 
 class ApiClient {
@@ -55,7 +60,7 @@ class ApiClient {
     const token = this.getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const res = await fetch(`${BACKEND_DIRECT_URL}${path}`, {
+    const res = await fetch(`${getBackendDirectUrl()}${path}`, {
       method: "POST",
       headers,
       body: body ? JSON.stringify(body) : undefined,

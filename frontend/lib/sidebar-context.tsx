@@ -32,7 +32,17 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const toggle = useCallback(() => setOpen((prev) => !prev), [setOpen]);
+  const toggle = useCallback(() => {
+    setOpenState((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(STORAGE_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
 
   return (
     <SidebarContext.Provider value={{ open, toggle }}>

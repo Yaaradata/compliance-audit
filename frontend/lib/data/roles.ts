@@ -2,6 +2,8 @@ import type { UserRole } from "../types";
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Platform Administrator",
+  platform_admin: "Platform Administrator",
+  tenant_admin: "Tenant Administrator",
   compliance_officer: "Compliance Officer",
   it_sme: "IT Subject Matter Expert",
   internal_reviewer: "Internal Reviewer (L1/L2)",
@@ -11,6 +13,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   admin: "Onboard banks, manage tenants, assign bank admins.",
+  platform_admin: "Onboard banks, manage tenants, assign bank admins.",
+  tenant_admin: "Manage tenant users and settings.",
   compliance_officer: "Creates evidence requests, manages collection.",
   it_sme: "Subject matter expert; uploads evidence.",
   internal_reviewer: "L1/L2 reviewer for evidence and controls.",
@@ -22,6 +26,14 @@ export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?:
   admin: [
     { href: "/admin", label: "Bank Onboarding" },
     { href: "/admin/tenants", label: "Tenants" },
+  ],
+  platform_admin: [
+    { href: "/admin", label: "Bank Onboarding" },
+    { href: "/admin/tenants", label: "Tenants" },
+  ],
+  tenant_admin: [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/report", label: "Report" },
   ],
   compliance_officer: [
     { href: "/dashboard", label: "Dashboard" },

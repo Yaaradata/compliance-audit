@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       api.setToken(res.token);
       const user: User = { id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role, tenantId: res.user.tenant_id };
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      setState({ user, tenant: null, selectedArchitectureId: null, activeCycleId: loadActiveCycleId() });
+      setState({ user, tenant: null, selectedArchitectureId: null, activeCycleId: loadActiveCycleId(), activeCycleMeta: loadActiveCycleMeta() });
       return true;
     } catch {
       return false;
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       api.setToken(res.token);
       const user: User = { id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role, tenantId: res.user.tenant_id };
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      setState({ user, tenant: null, selectedArchitectureId: null, activeCycleId: null });
+      setState({ user, tenant: null, selectedArchitectureId: null, activeCycleId: null, activeCycleMeta: null });
       return true;
     } catch {
       return false;

@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
+import { getBackendUrl } from "./lib/env";
 
 const nextConfig: NextConfig = {
   async rewrites() {
+    const backendUrl = getBackendUrl();
     return [
       {
         source: "/api/v1/:path*",
-        destination: "http://127.0.0.1:8000/api/v1/:path*",
+        destination: `${backendUrl}/:path*`,
       },
     ];
   },

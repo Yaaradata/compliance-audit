@@ -17,7 +17,7 @@ export function EvidenceInputRenderer({
       return (
         <div>
           <label className={labelClass}>{input.label} {input.required && <span className="text-red-500">*</span>}</label>
-          <FileUploadZone onUpload={() => onFileUpload(input.id)} label={`Upload ${input.label}`} accept={input.accept} />
+          <FileUploadZone onUploadComplete={() => onFileUpload(input.id)} label={`Upload ${input.label}`} accept={input.accept} />
         </div>
       );
     case "checkbox":
