@@ -188,7 +188,7 @@ const DEMO_STEPS = [
     title: "Approval",
     why: "Head of Compliance attests to the audit.",
     forWhat: "Formal approval; evidence journey timeline; prerequisites.",
-    iconPath: "M9 12l2 2 4-4m6 2a9 9A9 9 0 11-18 0 9 9 0 0118 0z",
+    iconPath: "M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z",
     pathKey: "approval" as const,
   },
   {

@@ -51,6 +51,36 @@ class ApiClient {
   }
 
   /**
+   * GET the backend directly (bypassing Next.js rewrite proxy) with a long
+   * timeout. Use for slow endpoints that hit the proxy timeout (e.g. list reviews).
+   */
+  async getDirect<T>(path: string, timeoutMs = 60_000): Promise<T> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const token = this.getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${getBackendDirectUrl()}${path}`, {
+      method: "GET",
+      headers,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (res.status === 401) {
+      this.clearToken();
+      if (typeof window !== "undefined") window.location.href = "/login";
+      throw new Error("Unauthorized");
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Request failed");
+    }
+
+    if (res.status === 204) return undefined as T;
+    return res.json();
+  }
+
+  /**
    * Call the backend directly (bypassing Next.js rewrite proxy) with a long
    * timeout. Use for slow operations like AI evaluation that exceed the proxy's
    * default ~30 s timeout.

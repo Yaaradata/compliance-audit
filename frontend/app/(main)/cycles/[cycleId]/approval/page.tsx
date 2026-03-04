@@ -404,7 +404,7 @@ export default function CycleApprovalPage() {
         <header className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-[var(--primary-muted)]">
-              <Icon path="M9 12l2 2 4-4m6 2a9 9A9 9 0 11-18 0 9 9 0 0118 0z" className="w-5 h-5 text-[var(--primary)]" />
+              <Icon path="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" className="w-5 h-5 text-[var(--primary)]" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)]">Approval</h1>
           </div>

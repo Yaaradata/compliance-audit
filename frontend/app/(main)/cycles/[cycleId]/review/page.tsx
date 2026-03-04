@@ -22,9 +22,9 @@ interface ApiReview {
 
 const STATUS_TABS = [
   { key: "all", label: "All", icon: "M4 6h16M4 12h16M4 18h16" },
-  { key: "assigned", label: "My Queue", icon: "M12 8v4l3 3m6-3a9 9A9 9 0 11-18 0 9 9 0 0118 0z" },
-  { key: "approved", label: "Approved", icon: "M9 12l2 2 4-4m6 2a9 9A9 9 0 11-18 0 9 9 0 0118 0z" },
-  { key: "returned", label: "Returned", icon: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9A9 9 0 11-18 0 9 9 0 0118 0z" },
+  { key: "assigned", label: "My Queue", icon: "M12 8v4l3 3m-6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" },
+  { key: "approved", label: "Approved", icon: "M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" },
+  { key: "returned", label: "Returned", icon: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" },
 ] as const;
 
 const LEVEL_COLORS: Record<string, { bg: string; text: string; ring: string; border: string; light: string; gradient: string }> = {
@@ -304,7 +304,7 @@ export default function CycleReviewPage() {
     if (!cycleId) return;
     setLoading(true);
     try {
-      const data = await api.get<ApiReview[]>(`/assessments/${cycleId}/reviews`);
+      const data = await api.getDirect<ApiReview[]>(`/assessments/${cycleId}/reviews`);
       setReviews(data);
     } catch {
       setReviews([]);
@@ -416,9 +416,9 @@ export default function CycleReviewPage() {
         {/* Metrics — colorful left accent */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <MetricCard label="Total" value={metrics.total} iconPath="M4 6h16M4 10h16M4 14h16M4 18h16" colorClass="bg-slate-200 text-slate-700 dark:bg-slate-500 dark:text-slate-100" accent="border-l-slate-400" />
-          <MetricCard label="In queue" value={metrics.assigned} iconPath="M12 8v4l3 3m6-3a9 9A9 9 0 11-18 0 9 9 0 0118 0z" colorClass="bg-amber-400 text-amber-900 dark:bg-amber-500 dark:text-white" accent="border-l-amber-500" />
-          <MetricCard label="Approved" value={metrics.approved} iconPath="M9 12l2 2 4-4m6 2a9 9A9 9 0 11-18 0 9 9 0 0118 0z" colorClass="bg-emerald-400 text-emerald-900 dark:bg-emerald-500 dark:text-white" accent="border-l-emerald-500" />
-          <MetricCard label="Returned" value={metrics.returned} iconPath="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9A9 9 0 11-18 0 9 9 0 0118 0z" colorClass="bg-rose-400 text-rose-900 dark:bg-rose-500 dark:text-white" accent="border-l-rose-500" />
+          <MetricCard label="In queue" value={metrics.assigned} iconPath="M12 8v4l3 3m-6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" colorClass="bg-amber-400 text-amber-900 dark:bg-amber-500 dark:text-white" accent="border-l-amber-500" />
+          <MetricCard label="Approved" value={metrics.approved} iconPath="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" colorClass="bg-emerald-400 text-emerald-900 dark:bg-emerald-500 dark:text-white" accent="border-l-emerald-500" />
+          <MetricCard label="Returned" value={metrics.returned} iconPath="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" colorClass="bg-rose-400 text-rose-900 dark:bg-rose-500 dark:text-white" accent="border-l-rose-500" />
         </section>
 
         {/* Flexible filter bar: search + status chips with counts + level chips + clear + view toggle */}

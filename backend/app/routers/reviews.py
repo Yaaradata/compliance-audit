@@ -219,6 +219,21 @@ def list_reviews(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    logger.info("list_reviews: start cycle_id=%s", cycle_id)
+    try:
+        return _list_reviews_impl(cycle_id, status, level, db, user)
+    except Exception as e:
+        logger.exception("list_reviews failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to load reviews: {str(e)}") from e
+
+
+def _list_reviews_impl(
+    cycle_id: UUID,
+    status: str | None,
+    level: str | None,
+    db: Session,
+    user: User,
+) -> list:
     submissions_query = db.query(EvidenceSubmission).filter(EvidenceSubmission.cycle_id == cycle_id)
     if user.role not in ("admin", "tenant_admin"):
         submissions_query = submissions_query.filter(EvidenceSubmission.tenant_id == user.tenant_id)

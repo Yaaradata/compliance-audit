@@ -33,7 +33,7 @@ export function IconReview({ className }: { className?: string } = {}) {
 export function IconApproval({ className }: { className?: string } = {}) {
   return (
     <svg className={svgClass(className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
     </svg>
   );
 }
