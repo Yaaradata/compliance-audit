@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     GCS_PREFIX: str = "compliance-audit"
     STORAGE_BACKEND: str = "gcs"
 
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000","https://compliance-audit.vercel.app/"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000", "https://compliance-audit.vercel.app"]
 
     model_config = {"env_file": str(_env_file), "env_file_encoding": "utf-8"}
 

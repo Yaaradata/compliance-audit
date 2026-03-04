@@ -5,13 +5,7 @@ interface AiSuggestionsProps {
 }
 
 export function AiSuggestions({ suggestions = [] }: AiSuggestionsProps) {
-  if (suggestions.length === 0) {
-    return (
-      <div className="bg-sky-50 rounded-xl p-3 border border-sky-200">
-        <p className="text-[11px] text-sky-600">No suggestions yet. Upload evidence to get AI-driven recommendations.</p>
-      </div>
-    );
-  }
+  
   return (
     <div className="bg-sky-50 rounded-xl p-3 border border-sky-200">
       <div className="space-y-0 divide-y divide-sky-200">
