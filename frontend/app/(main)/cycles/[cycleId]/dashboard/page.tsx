@@ -9,7 +9,6 @@ import { getDomainsForArchitecture } from "@/lib/data/domains";
 import { OverallProgress } from "@/components/dashboard/overall-progress";
 import { DomainCard } from "@/components/dashboard/domain-card";
 import { ControlHeatmap } from "@/components/dashboard/control-heatmap";
-import { AiSuggestions } from "@/components/dashboard/ai-suggestions";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { LoadingState } from "@/components/ui/loading-state";
 import { scoreColor } from "@/lib/utils";
@@ -163,9 +162,6 @@ export default function CycleDashboardPage() {
             ) : (
               <p className="text-xs text-slate-500 py-4 text-center">No controls in scope yet. Complete architecture selection to see control sufficiency.</p>
             )}
-          </div>
-          <div className="mt-4">
-            <AiSuggestions suggestions={dashboard.suggestions ?? []} />
           </div>
         </div>
       </div>
