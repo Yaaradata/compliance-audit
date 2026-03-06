@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { api } from "@/lib/api";
+import { FileViewerModal } from "@/components/ui/file-viewer-modal";
 
 const ACCEPTED_TYPES = [
   "application/pdf",
@@ -89,6 +90,7 @@ export function FileUploadZone({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [viewingFile, setViewingFile] = useState<UploadedFile | null>(null);
 
   const fetchFiles = useCallback(async () => {
     if (!submissionId) return;
@@ -252,7 +254,15 @@ export function FileUploadZone({
           {files.map((f) => (
             <div key={f.id} className="flex items-center gap-2 px-3 py-2 text-xs">
               <FileIcon type={f.file_type} />
-              <span className="flex-1 truncate font-medium" style={{ color: "var(--foreground)" }}>{f.file_name}</span>
+              <button
+                type="button"
+                onClick={() => submissionId && setViewingFile(f)}
+                className="flex-1 truncate font-medium text-left hover:underline cursor-pointer"
+                style={{ color: "var(--foreground)" }}
+                title="View file"
+              >
+                {f.file_name}
+              </button>
               <span className="shrink-0" style={{ color: "var(--foreground-muted)" }}>{formatSize(f.file_size_bytes)}</span>
               <button
                 type="button"
@@ -267,6 +277,13 @@ export function FileUploadZone({
             </div>
           ))}
         </div>
+      )}
+      {viewingFile && submissionId && (
+        <FileViewerModal
+          attachment={{ id: viewingFile.id, file_name: viewingFile.file_name, file_type: viewingFile.file_type }}
+          submissionId={submissionId}
+          onClose={() => setViewingFile(null)}
+        />
       )}
     </div>
   );

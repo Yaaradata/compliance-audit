@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { FileViewerModal } from "@/components/ui/file-viewer-modal";
 
 const ACCEPTED_TYPES = [
   "application/pdf",
@@ -51,6 +52,7 @@ export function CompactDropzone({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [viewingFile, setViewingFile] = useState<UploadedFile | null>(null);
 
   const fetchFiles = useCallback(async () => {
     if (!submissionId) return;
@@ -151,14 +153,9 @@ export function CompactDropzone({
     }
   };
 
-  const handleViewFile = async (file: UploadedFile) => {
+  const handleViewFile = (file: UploadedFile) => {
     if (!submissionId) return;
-    try {
-      const resp = await api.get<{ url: string; file_name: string }>(`/evidence/${submissionId}/files/${file.id}/url`);
-      window.open(resp.url, "_blank");
-    } catch {
-      window.open(`/api/evidence/${submissionId}/files/${file.id}`, "_blank");
-    }
+    setViewingFile(file);
   };
 
   const canUpload = !!submissionId || !!onEnsureSubmission;
@@ -247,6 +244,13 @@ export function CompactDropzone({
             </li>
           ))}
         </ul>
+      )}
+      {viewingFile && submissionId && (
+        <FileViewerModal
+          attachment={{ id: viewingFile.id, file_name: viewingFile.file_name, file_type: viewingFile.file_type }}
+          submissionId={submissionId}
+          onClose={() => setViewingFile(null)}
+        />
       )}
     </div>
   );
