@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
-from ..dependencies import get_db, get_db_scoped, get_current_user
+from ..dependencies import get_db, get_db_scoped, get_db_for_review, get_current_user
 from ..models.tenant import User
 from ..models.assessment import EvidenceSubmission, EvidenceAttachment
 from ..models.review import ReviewerChecklist, ReviewAssignment, ReviewComment
@@ -200,13 +200,15 @@ def submit_for_review(
     submission.submitted_at = datetime.now(timezone.utc)
 
     review = _ensure_review_assignment(db, submission, "L1")
+    review_id = review.id if review else None
+    level_out = "L1" if review else None
     db.commit()
 
     return SubmitForReviewResponse(
         submission_id=sub_id,
         status="submitted",
-        review_id=review.id if review else None,
-        level="L1" if review else None,
+        review_id=review_id,
+        level=level_out,
     )
 
 
@@ -336,6 +338,8 @@ def _list_reviews_impl(
     result = []
     for r in reviews:
         sub = subs_map.get(r.submission_id)
+        if not sub:
+            sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == r.submission_id).first()
         out = ReviewOut.model_validate(r)
         if sub:
             out.evidence_item_id = sub.evidence_item_id
@@ -367,7 +371,7 @@ def create_review(
 @router.get("/reviews/{review_id}", response_model=ReviewOut)
 def get_review(
     review_id: UUID,
-    db: Session = Depends(get_db_scoped),
+    db: Session = Depends(get_db_for_review),
     user: User = Depends(get_current_user),
 ):
     review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
@@ -379,7 +383,7 @@ def get_review(
 @router.get("/reviews/{review_id}/detail")
 def get_review_detail(
     review_id: UUID,
-    db: Session = Depends(get_db_scoped),
+    db: Session = Depends(get_db_for_review),
     user: User = Depends(get_current_user),
 ):
     """Full review detail: submission + attachments (with signed URLs) + AI eval + comments."""
@@ -515,7 +519,7 @@ def get_review_detail(
 def update_review(
     review_id: UUID,
     req: UpdateReviewRequest,
-    db: Session = Depends(get_db_scoped),
+    db: Session = Depends(get_db_for_review),
     user: User = Depends(get_current_user),
 ):
     review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
@@ -593,7 +597,7 @@ def update_review(
 def save_checklist_progress(
     review_id: UUID,
     body: dict,
-    db: Session = Depends(get_db_scoped),
+    db: Session = Depends(get_db_for_review),
     user: User = Depends(get_current_user),
 ):
     """Save checklist tick/cross progress while reviewing (auto-save)."""
@@ -611,7 +615,7 @@ def save_checklist_progress(
 @router.get("/reviews/{review_id}/comments", response_model=list[CommentOut])
 def list_comments(
     review_id: UUID,
-    db: Session = Depends(get_db_scoped),
+    db: Session = Depends(get_db_for_review),
     user: User = Depends(get_current_user),
 ):
     comments = (
@@ -627,7 +631,7 @@ def list_comments(
 def add_comment(
     review_id: UUID,
     req: CreateCommentRequest,
-    db: Session = Depends(get_db_scoped),
+    db: Session = Depends(get_db_for_review),
     user: User = Depends(get_current_user),
 ):
     comment = ReviewComment(

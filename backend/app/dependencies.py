@@ -11,6 +11,7 @@ from .middleware.auth import decode_access_token
 from .models.tenant import User
 from .models.assessment import AssessmentCycle, EvidenceSubmission
 from .models.framework import AuditFramework
+from .models.review import ReviewAssignment
 from .constants import PLATFORM_ADMIN_ROLES
 
 security = HTTPBearer(auto_error=False)
@@ -94,6 +95,94 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
     return user
+
+
+def get_db_for_review(
+    review_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Generator[Session, None, None]:
+    """
+    Resolve which schema (swift_2025 or swift_2026) contains this review,
+    set search_path to that schema, and yield the session. Use for /reviews/{review_id}
+    and /reviews/{review_id}/detail when cycle_id is not in the path.
+    Raises 404 if review not found.
+    """
+    for schema in (SCHEMA_2025, SCHEMA_2026):
+        db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+        review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
+        if review is not None:
+            sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == review.submission_id).first()
+            if sub and user.tenant_id is not None and sub.tenant_id != user.tenant_id:
+                raise HTTPException(status_code=404, detail="Review not found")
+            yield db
+            return
+    raise HTTPException(status_code=404, detail="Review not found")
+
+
+def get_db_for_notes(
+    resource_type: str,
+    resource_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Generator[Session, None, None]:
+    """
+    Resolve which schema contains the resource, set search_path, and yield the session.
+    Use for notes list/create when resource is evidence_submission or review.
+    Raises 404 if resource not found.
+    """
+    if resource_type == "evidence_submission":
+        for schema in (SCHEMA_2025, SCHEMA_2026):
+            db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+            sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == resource_id).first()
+            if sub is not None:
+                if user.role != "admin" and user.tenant_id is not None and sub.tenant_id != user.tenant_id:
+                    raise HTTPException(status_code=403, detail="Access denied")
+                yield db
+                return
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if resource_type == "review":
+        for schema in (SCHEMA_2025, SCHEMA_2026):
+            db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+            rev = db.query(ReviewAssignment).filter(ReviewAssignment.id == resource_id).first()
+            if rev is not None:
+                sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == rev.submission_id).first()
+                if sub and user.role != "admin" and user.tenant_id is not None and sub.tenant_id != user.tenant_id:
+                    raise HTTPException(status_code=404, detail="Resource not found")
+                yield db
+                return
+        raise HTTPException(status_code=404, detail="Resource not found")
+    # approval_gate, gap: use default schema
+    yield db
+
+
+def resolve_schema_for_notes_resource(
+    db: Session, resource_type: str, resource_id: UUID, user: User
+) -> None:
+    """
+    Set search_path to the schema containing the resource. Call before _check_resource_access
+    when resource_type is evidence_submission or review (e.g. in create_note).
+    Raises 404 if resource not found, 403 if access denied.
+    """
+    if resource_type == "evidence_submission":
+        for schema in (SCHEMA_2025, SCHEMA_2026):
+            db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+            sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == resource_id).first()
+            if sub is not None:
+                if user.role != "admin" and user.tenant_id is not None and sub.tenant_id != user.tenant_id:
+                    raise HTTPException(status_code=403, detail="Access denied")
+                return
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if resource_type == "review":
+        for schema in (SCHEMA_2025, SCHEMA_2026):
+            db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+            rev = db.query(ReviewAssignment).filter(ReviewAssignment.id == resource_id).first()
+            if rev is not None:
+                sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == rev.submission_id).first()
+                if sub and user.role != "admin" and user.tenant_id is not None and sub.tenant_id != user.tenant_id:
+                    raise HTTPException(status_code=404, detail="Resource not found")
+                return
+        raise HTTPException(status_code=404, detail="Resource not found")
 
 
 def get_db_for_submission(

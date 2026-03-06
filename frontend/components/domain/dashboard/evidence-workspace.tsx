@@ -6,7 +6,6 @@ import { ControlBadge } from "@/components/ui/control-badge";
 import { PriorityBadge } from "@/components/ui/badge";
 import { CompactDropzone } from "@/components/domain/compact-dropzone";
 import { PerControlEvidence } from "@/components/domain/per-control-evidence";
-import { EvidenceCriteriaSections } from "@/components/domain/evidence-criteria-sections";
 import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { EvaluationResults } from "@/components/domain/evaluation-results";
@@ -779,7 +778,6 @@ export function EvidenceWorkspace({
         </TabsContent>
 
         <TabsContent value="control" className="px-3 pb-3 overflow-y-auto">
-          <p className="text-[11px] text-(--foreground-muted) mb-2">{currentItem.description}</p>
           {currentItem.id === A5_EVIDENCE_ITEM_ID ? (
             <>
               <div className="flex flex-wrap gap-1.5 mb-3">
@@ -818,7 +816,6 @@ export function EvidenceWorkspace({
               {currentItem.reductionNote}
             </div>
           )}
-          <EvidenceCriteriaSections evidenceDescription={currentItem.description} />
           <PerControlEvidence
             evidenceItemId={currentItem.id}
             matrix={currentItem.matrix ?? []}

@@ -10,7 +10,7 @@
  * Accessibility: role="navigation", aria-label, aria-current="page", aria-expanded on toggle, focus-visible rings.
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -57,7 +57,7 @@ export function AppSidebar() {
 
   const [domainScores, setDomainScores] = useState<DomainScore[]>([]);
 
-  useEffect(() => {
+  const fetchDomainScores = useCallback(() => {
     if (!cycleId) {
       setDomainScores([]);
       return;
@@ -68,9 +68,23 @@ export function AppSidebar() {
       .catch(() => setDomainScores([]));
   }, [cycleId]);
 
+  useEffect(() => {
+    fetchDomainScores();
+  }, [fetchDomainScores, pathname]);
+
+  // Refetch when evidence is submitted so sidebar percentages update immediately
+  useEffect(() => {
+    const onRefresh = () => fetchDomainScores();
+    window.addEventListener("dashboard-refresh", onRefresh);
+    return () => window.removeEventListener("dashboard-refresh", onRefresh);
+  }, [fetchDomainScores]);
+
   const scoreByDomainId = useMemo(() => {
     const map = new Map<string, number>();
-    domainScores.forEach((s) => map.set(s.id, s.score));
+    domainScores.forEach((s) => {
+      const key = (s.id ?? "").toString().trim().toUpperCase();
+      if (key) map.set(key, Number(s.score));
+    });
     return map;
   }, [domainScores]);
 
@@ -187,7 +201,8 @@ export function AppSidebar() {
               {domainsFiltered.map((d) => {
                 const href = `/cycles/${cycleId}/domains/${d.id}`;
                 const isActive = pathname?.includes(`/domains/${d.id}`);
-                const completionPct = scoreByDomainId.get(d.id);
+                const domainKey = (d.id ?? "").toString().trim().toUpperCase();
+                const completionPct = domainKey ? scoreByDomainId.get(domainKey) : undefined;
                 return (
                   <SidebarDomainRow
                     key={d.id}

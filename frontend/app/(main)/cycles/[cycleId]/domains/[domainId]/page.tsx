@@ -343,6 +343,7 @@ export default function CycleDomainPage() {
     try {
       await api.post(`/assessments/${cycleId}/evidence/${subId}/submit`, {});
       setSubmissionStatusMap((prev) => ({ ...prev, [currentItem.id]: "submitted" }));
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch { /* ignore */ }
     setSubmitForReviewLoading(false);
   }, [currentItem, cycleId, submissionMap]);

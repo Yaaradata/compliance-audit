@@ -343,11 +343,12 @@ export default function CycleReviewPage() {
     return list;
   }, [filter, levelFilter, reviews, user?.id, searchQuery]);
 
-  /** Group by evidence_item_id (one card per A1, A2, …), then by domain for section headers. */
+  /** One card per evidence item (A1, A2, A5, …). Group only by evidence_item_id so A1 appears once. */
   const groupedByItemThenDomain = useMemo(() => {
     const byItem = new Map<string, ApiReview[]>();
     for (const r of filtered) {
-      const id = r.evidence_item_id ?? r.submission_id;
+      const raw = r.evidence_item_id?.trim();
+      const id = raw ? raw.toUpperCase() : "_other";
       if (!byItem.has(id)) byItem.set(id, []);
       byItem.get(id)!.push(r);
     }
@@ -547,7 +548,7 @@ export default function CycleReviewPage() {
                     {itemRows.map(({ itemId, reviews: itemReviews }) => (
                       <EvidenceItemCard
                         key={itemId}
-                        evidenceItemId={itemId}
+                        evidenceItemId={itemId === "_other" ? "Other" : itemId}
                         reviews={itemReviews}
                         onOpenDetail={(reviewId, evidenceItemId) => {
                           setModalReviewId(reviewId);

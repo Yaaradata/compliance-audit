@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_current_user
+from ..dependencies import get_db, get_db_for_notes, get_current_user, resolve_schema_for_notes_resource
 from ..models.tenant import User
 from ..models.notes import Note
 from ..models.assessment import EvidenceSubmission
@@ -17,7 +17,7 @@ VALID_RESOURCE_TYPES = frozenset({"evidence_submission", "review", "approval_gat
 
 
 def _check_resource_access(db: Session, user: User, resource_type: str, resource_id: UUID) -> None:
-    """Ensure user has access to the resource (same tenant or admin)."""
+    """Ensure user has access to the resource (same tenant or admin). Call after schema is set via get_db_for_notes for evidence_submission/review."""
     if user.role == "admin":
         return
     if resource_type == "evidence_submission":
@@ -35,7 +35,6 @@ def _check_resource_access(db: Session, user: User, resource_type: str, resource
         if submission and submission.tenant_id != user.tenant_id:
             raise HTTPException(status_code=403, detail="Access denied")
         return
-    # approval_gate, gap: allow if authenticated (tenant check can be added when we have gate/gap models)
     if resource_type not in VALID_RESOURCE_TYPES:
         raise HTTPException(status_code=400, detail="Invalid resource_type")
 
@@ -48,7 +47,10 @@ def create_note(
 ):
     if req.resource_type not in VALID_RESOURCE_TYPES:
         raise HTTPException(status_code=400, detail="Invalid resource_type")
-    _check_resource_access(db, user, req.resource_type, req.resource_id)
+    if req.resource_type in ("evidence_submission", "review"):
+        resolve_schema_for_notes_resource(db, req.resource_type, req.resource_id, user)
+    else:
+        _check_resource_access(db, user, req.resource_type, req.resource_id)
 
     if req.parent_id:
         parent = db.query(Note).filter(Note.id == req.parent_id).first()
@@ -102,7 +104,13 @@ def create_note(
                 )
 
     db.commit()
-    db.refresh(note)
+    note_id = note.id
+    # Re-set schema after commit (connection may have reset search_path) so we can load the note
+    if req.resource_type in ("evidence_submission", "review"):
+        resolve_schema_for_notes_resource(db, req.resource_type, req.resource_id, user)
+    note = db.query(Note).filter(Note.id == note_id).first()
+    if not note:
+        raise HTTPException(status_code=500, detail="Could not load created note")
     out = NoteOut.model_validate(note)
     out.author_name = user.name
     return out
@@ -112,12 +120,13 @@ def create_note(
 def list_notes(
     resource_type: str = Query(...),
     resource_id: UUID = Query(...),
-  db: Session = Depends(get_db),
-  user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_for_notes),
+    user: User = Depends(get_current_user),
 ):
     if resource_type not in VALID_RESOURCE_TYPES:
         raise HTTPException(status_code=400, detail="Invalid resource_type")
-    _check_resource_access(db, user, resource_type, resource_id)
+    if resource_type not in ("evidence_submission", "review"):
+        _check_resource_access(db, user, resource_type, resource_id)
 
     notes = (
         db.query(Note)

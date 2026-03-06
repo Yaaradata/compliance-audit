@@ -226,6 +226,29 @@ def get_approval_summary(
         except Exception:
             return s.status or "draft"
 
+    # One entry per evidence_item_id (e.g. A1 once): prefer approved, then most recent submitted
+    def _item_key(s: EvidenceSubmission) -> str:
+        return (s.evidence_item_id or "").strip().upper() or str(s.id)
+
+    def _pick_one_per_item(submissions: list[EvidenceSubmission]) -> list[EvidenceSubmission]:
+        by_item: dict[str, EvidenceSubmission] = {}
+        for s in submissions:
+            key = _item_key(s)
+            if key not in by_item:
+                by_item[key] = s
+                continue
+            cur = by_item[key]
+            if s.status == "approved" and cur.status != "approved":
+                by_item[key] = s
+            elif cur.status != "approved" and (s.submitted_at or cur.submitted_at):
+                s_at = s.submitted_at
+                c_at = cur.submitted_at
+                if s_at and (not c_at or s_at > c_at):
+                    by_item[key] = s
+        return list(by_item.values())
+
+    subs_one_per_item = _pick_one_per_item(subs)
+
     evidence_for_approval = [
         {
             "id": str(s.id),
@@ -233,7 +256,7 @@ def get_approval_summary(
             "status": _display_status(s),
             "submitted_at": str(s.submitted_at) if s.submitted_at else None,
         }
-        for s in subs
+        for s in subs_one_per_item
     ]
 
     order_index = {name: i for i, name in enumerate(GATE_ORDER)}
@@ -261,7 +284,7 @@ def get_approval_summary(
         })
 
     evidence_timeline = []
-    for s in subs:
+    for s in subs_one_per_item:
         submitter = users_map.get(s.submitted_by) if s.submitted_by else None
         s_reviews = reviews_by_sub.get(str(s.id), [])
         eval_result = s.evaluation_result or {}

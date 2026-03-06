@@ -16,7 +16,6 @@ export default function AssessmentsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState("");
-  const [year, setYear] = useState(new Date().getFullYear());
   const [frameworkId, setFrameworkId] = useState<string | null>(null);
   const [complianceAssessment, setComplianceAssessment] = useState<"swift_cscf" | "pci_dss" | "iso">("swift_cscf");
   const [creating, setCreating] = useState(false);
@@ -47,7 +46,12 @@ export default function AssessmentsPage() {
     if (!label.trim()) return;
     setCreating(true);
     try {
-      const body: { label: string; cycle_year: number; framework_id?: string } = { label, cycle_year: year };
+      // Derive year from selected framework (e.g. v2025 -> 2025, v2026 -> 2026)
+      const selectedFw = frameworks.find((f) => f.id === frameworkId);
+      const cycleYear = selectedFw
+        ? (selectedFw.version === "v2026" ? 2026 : 2025)
+        : new Date().getFullYear();
+      const body: { label: string; cycle_year: number; framework_id?: string } = { label, cycle_year: cycleYear };
       if (frameworkId) body.framework_id = frameworkId;
       const cycle = await api.post<AssessmentCycle>("/assessments", body);
       router.push(`/cycles/${cycle.id}/team-setup`);
@@ -204,7 +208,7 @@ export default function AssessmentsPage() {
               </div>
               {complianceAssessment === "swift_cscf" && swiftFrameworks.length > 0 && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Framework version</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Framework</label>
                   <select
                     value={frameworkId ?? ""}
                     onChange={(e) => setFrameworkId(e.target.value || null)}
@@ -216,20 +220,11 @@ export default function AssessmentsPage() {
                       </option>
                     ))}
                   </select>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    The cycle year is derived from the selected framework.
+                  </p>
                 </div>
               )}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Year</label>
-                <select
-                  value={year}
-                  onChange={(e) => setYear(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                >
-                  {[2024, 2025, 2026, 2027].map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={handleCreate}

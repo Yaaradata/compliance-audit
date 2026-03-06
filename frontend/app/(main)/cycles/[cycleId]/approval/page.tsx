@@ -322,15 +322,31 @@ export default function CycleApprovalPage() {
   };
 
   const timeline = summary?.evidence_timeline ?? [];
+  /** One entry per evidence item (A1, A2, …): deduplicate by normalized evidence_item_id. */
+  const timelineOnePerItem = useMemo(() => {
+    const byItem = new Map<string, EvidenceTimelineItem>();
+    for (const item of timeline) {
+      const key = (item.evidence_item_id?.trim() ?? "").toUpperCase() || item.id;
+      if (!byItem.has(key)) {
+        byItem.set(key, item);
+        continue;
+      }
+      const cur = byItem.get(key)!;
+      if (item.status === "approved" && cur.status !== "approved") byItem.set(key, item);
+      else if (cur.status !== "approved" && item.submitted_at && (!cur.submitted_at || new Date(item.submitted_at) > new Date(cur.submitted_at!)))
+        byItem.set(key, item);
+    }
+    return Array.from(byItem.values());
+  }, [timeline]);
   const evidenceByDomain = useMemo(() => {
     const map = new Map<string, EvidenceTimelineItem[]>();
-    for (const item of timeline) {
+    for (const item of timelineOnePerItem) {
       const domain = item.evidence_item_id?.charAt(0)?.toUpperCase() || "?";
       if (!map.has(domain)) map.set(domain, []);
       map.get(domain)!.push(item);
     }
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [timeline]);
+  }, [timelineOnePerItem]);
 
   const evidenceByDomainFiltered = useMemo(() => {
     if (!selectedDomain) return evidenceByDomain;
