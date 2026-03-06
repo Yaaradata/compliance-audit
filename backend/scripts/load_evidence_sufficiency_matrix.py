@@ -43,7 +43,7 @@ except ImportError:
     pass
 
 DEFAULT_XLSX = PROJECT_ROOT / "CSCF_v2025_Complete_Sufficiency_Matrix.xlsx"
-SCHEMA = "cscf_2025_new"
+SCHEMA = "swift_2025"
 CSCF_VERSION = "2025v"
 
 # Sheet header → DB field. Order matters: first match wins.

@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from uuid import UUID
 from pydantic import BaseModel, field_validator
 
@@ -19,10 +20,22 @@ class FrameworkOut(BaseModel):
     code: str
     name: str
     version: str
+    schema_name: str | None = None
     effective_date: str | None = None
     is_active: bool = True
 
     model_config = {"from_attributes": True}
+
+    @field_validator("effective_date", mode="before")
+    @classmethod
+    def coerce_effective_date(cls, v: date | str | None) -> str | None:
+        if v is None:
+            return None
+        if isinstance(v, str):
+            return v
+        if hasattr(v, "isoformat"):
+            return v.isoformat()
+        return str(v)
 
 
 class DomainOut(BaseModel):

@@ -12,6 +12,11 @@ import type { ControlCriteria, AiCriterionResult as AiCriterionResultType } from
 
 const ALL_32_CONTROL_ID = "All";
 
+/**
+ * Parse criteria JSON for display.
+ * - For evaluation_criteria: if object has pass_if array, show only pass_if (not fail_if or cross_checks).
+ * - For sufficiency_criteria: if object has sufficiency_criteria array, use that; else numbered keys.
+ */
 function parseAsNumberedList(value: string | null | undefined): { id: string; label: string }[] | null {
   if (!value || typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -19,6 +24,16 @@ function parseAsNumberedList(value: string | null | undefined): { id: string; la
   try {
     const parsed = JSON.parse(trimmed);
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      if (Array.isArray(parsed.pass_if)) {
+        return parsed.pass_if
+          .map((label: string, i: number) => ({ id: String(i + 1), label: String(label).trim() }))
+          .filter((x: { label: string }) => x.label);
+      }
+      if (Array.isArray(parsed.sufficiency_criteria)) {
+        return parsed.sufficiency_criteria
+          .map((label: string, i: number) => ({ id: String(i + 1), label: String(label).trim() }))
+          .filter((x: { label: string }) => x.label);
+      }
       const keys = Object.keys(parsed).sort((a, b) => {
         const na = parseInt(a, 10);
         const nb = parseInt(b, 10);

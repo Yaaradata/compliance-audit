@@ -12,13 +12,14 @@ class AuditFramework(Base):
     __tablename__ = "audit_frameworks"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    code: Mapped[str] = mapped_column(String(30), nullable=False, unique=True)
+    code: Mapped[str] = mapped_column(String(30), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     version: Mapped[str] = mapped_column(String(20), nullable=False)
     effective_date: Mapped[date | None] = mapped_column(Date)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, server_default="{}")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     cscf_version: Mapped[str] = mapped_column(String(10), nullable=False, server_default="2025v")
+    schema_name: Mapped[str] = mapped_column(String(20), nullable=False, server_default="swift_2025")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
 
 

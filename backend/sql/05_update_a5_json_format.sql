@@ -3,7 +3,7 @@
 -- Run via: psql -U postgres -d compliance -f backend/sql/05_update_a5_json_format.sql
 BEGIN;
 
-SET search_path TO cscf_2025_new;
+SET search_path TO swift_2025;
 
 -- Ensure columns are JSONB (if they were TEXT, this will need to be run after alter)
 UPDATE canonical_evidence_items SET

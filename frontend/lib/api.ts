@@ -43,7 +43,12 @@ class ApiClient {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail || "Request failed");
+      const msg = err.detail || "Request failed";
+      const status = res.status;
+      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string };
+      error.status = status;
+      error.path = path;
+      throw error;
     }
 
     if (res.status === 204) return undefined as T;
@@ -73,7 +78,12 @@ class ApiClient {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail || "Request failed");
+      const msg = err.detail || "Request failed";
+      const status = res.status;
+      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string };
+      error.status = status;
+      error.path = path;
+      throw error;
     }
 
     if (res.status === 204) return undefined as T;
@@ -105,8 +115,12 @@ class ApiClient {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      const error = new Error(err.detail || "Request failed") as Error & { response?: { data?: { detail?: string }; status?: number } };
-      error.response = { data: err, status: res.status };
+      const msg = err.detail || "Request failed";
+      const status = res.status;
+      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string; response?: { data?: unknown; status?: number } };
+      error.status = status;
+      error.path = path;
+      error.response = { data: err, status };
       throw error;
     }
 
@@ -135,7 +149,12 @@ class ApiClient {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail || "Upload failed");
+      const msg = err.detail || "Upload failed";
+      const status = res.status;
+      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string };
+      error.status = status;
+      error.path = path;
+      throw error;
     }
 
     return res.json();

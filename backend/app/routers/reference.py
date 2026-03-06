@@ -1,9 +1,10 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse, RedirectResponse
+import re
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db
+from ..dependencies import get_db, get_db_ref
 from ..services import storage_service
 from ..services.batch_loaders import (
     load_controls_by_ids,
@@ -31,12 +32,12 @@ def list_frameworks(db: Session = Depends(get_db)):
 
 
 @router.get("/domains", response_model=list[DomainOut])
-def list_domains(db: Session = Depends(get_db)):
+def list_domains(db: Session = Depends(get_db_ref)):
     return db.query(EvidenceDomain).order_by(EvidenceDomain.sort_order).all()
 
 
 @router.get("/domains/{domain_id}")
-def get_domain(domain_id: str, db: Session = Depends(get_db)):
+def get_domain(domain_id: str, db: Session = Depends(get_db_ref)):
     # Normalize: take first char only (handles "A:1" from devtools), uppercase, default to "A"
     raw = (domain_id or "").strip()
     domain_id_clean = (raw.split(":")[0] or raw or "A")[:1].upper() or "A"
@@ -98,12 +99,12 @@ def get_domain(domain_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/controls", response_model=list[ControlOut])
-def list_controls(db: Session = Depends(get_db)):
+def list_controls(db: Session = Depends(get_db_ref)):
     return db.query(Control).order_by(Control.id).all()
 
 
 @router.get("/controls/{control_id}")
-def get_control(control_id: str, db: Session = Depends(get_db)):
+def get_control(control_id: str, db: Session = Depends(get_db_ref)):
     ctrl = db.query(Control).filter(Control.id == control_id).first()
     mappings = db.query(ItemControlMapping).filter(ItemControlMapping.control_id == control_id).all()
     return {
@@ -113,12 +114,12 @@ def get_control(control_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/evidence-items", response_model=list[EvidenceItemOut])
-def list_evidence_items(db: Session = Depends(get_db)):
+def list_evidence_items(db: Session = Depends(get_db_ref)):
     return db.query(CanonicalEvidenceItem).order_by(CanonicalEvidenceItem.domain_id, CanonicalEvidenceItem.sort_order).all()
 
 
 @router.get("/evidence-items/{item_id}")
-def get_evidence_item(item_id: str, db: Session = Depends(get_db)):
+def get_evidence_item(item_id: str, db: Session = Depends(get_db_ref)):
     item = db.query(CanonicalEvidenceItem).filter(CanonicalEvidenceItem.id == item_id).first()
     mappings = db.query(ItemControlMapping).filter(ItemControlMapping.evidence_item_id == item_id).all()
     return {
@@ -128,7 +129,7 @@ def get_evidence_item(item_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/evidence-items/{item_id}/matrix", response_model=list[EvidenceSufficiencyMatrixOut])
-def get_evidence_item_matrix(item_id: str, db: Session = Depends(get_db)):
+def get_evidence_item_matrix(item_id: str, db: Session = Depends(get_db_ref)):
     """Return all evidence_sufficiency_matrix rows for a given evidence item."""
     rows = db.query(EvidenceSufficiencyMatrix).filter(
         EvidenceSufficiencyMatrix.item_code == item_id
@@ -136,14 +137,37 @@ def get_evidence_item_matrix(item_id: str, db: Session = Depends(get_db)):
     return [EvidenceSufficiencyMatrixOut.model_validate(r) for r in rows]
 
 
-@router.get("/diagrams/{filename}")
-def get_diagram_url(filename: str):
-    """Return a signed URL (or local path) for an architecture diagram."""
-    import re
-    if not re.match(r"^[A-Za-z0-9_\-]+\.\w+$", filename):
+def _validate_diagram_filename(filename: str) -> None:
+    if not re.match(r"^[A-Za-z0-9_\-\.]+\.\w+$", filename):
         raise HTTPException(status_code=400, detail="Invalid filename")
-    url = storage_service.get_diagram_url(filename, expiry_minutes=60)
+
+
+@router.get("/diagrams/{filename}")
+def get_diagram_url(
+    filename: str,
+    version: str | None = Query(None, description="2025 or 2026 for diagram folder"),
+):
+    """Return a signed URL (or backend stream URL when signing fails) for an architecture diagram."""
+    _validate_diagram_filename(filename)
+    url = storage_service.get_diagram_url(filename, expiry_minutes=60, version=version)
     return {"url": url, "filename": filename}
+
+
+@router.get("/diagrams/{filename}/content")
+def stream_diagram_content(
+    filename: str,
+    version: str | None = Query(None, description="swift_2025 or swift_2026 for diagram folder"),
+):
+    """Stream diagram image bytes. Used when GCS signed URL cannot be generated (e.g. user credentials without private key)."""
+    _validate_diagram_filename(filename)
+    try:
+        data = storage_service.get_diagram_bytes(filename, version=version)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Diagram not found") from e
+    # Prefer image/png for .png; default to application/octet-stream
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    media_type = "image/png" if ext == "png" else "image/jpeg" if ext in ("jpg", "jpeg") else "application/octet-stream"
+    return Response(content=data, media_type=media_type)
 
 
 @router.get("/dependencies", response_model=list[DependencyOut])

@@ -92,12 +92,14 @@ def get_signed_url(storage_path: str, expiry_minutes: int = 15) -> str | None:
                 method="GET",
             )
         except AttributeError as e:
-            if "private key" in str(e).lower() or "sign" in str(e).lower():
-                logger.warning(
-                    "Cannot generate signed URL (credentials have no private key). "
-                    "Use a service account for signing, or files will be streamed through the backend. %s",
-                    e,
-                )
+            err = str(e).lower()
+            if "private key" in err or "sign" in err or "credentials" in err:
+                # Log once per process to avoid flooding logs; stream fallback is used for diagrams.
+                if not getattr(get_signed_url, "_logged_no_signing", False):
+                    logger.info(
+                        "GCS signed URLs unavailable (no private key). Diagram and file URLs will be streamed through the backend. Use a service account key for production signing."
+                    )
+                    setattr(get_signed_url, "_logged_no_signing", True)
                 return None
             raise
     return storage_path
@@ -170,15 +172,50 @@ def delete_prefix(relative_prefix: str) -> int:
     return deleted
 
 
-def upload_diagram(filename: str, data: bytes, content_type: str = "image/png") -> str:
-    """Upload an architecture diagram and return the storage path."""
-    return upload(f"diagrams/{filename}", data, content_type)
+def _diagram_version_folder(version: str | None) -> str:
+    """Map version param to GCS folder name: swift_2025 or swift_2026."""
+    if not version:
+        return "swift_2025"
+    v = str(version).strip().lower()
+    if v in ("2026", "swift_2026"):
+        return "swift_2026"
+    return "swift_2025"
 
 
-def get_diagram_url(filename: str, expiry_minutes: int = 60) -> str:
-    """Get a URL for an architecture diagram."""
+def upload_diagram(filename: str, data: bytes, content_type: str = "image/png", version: str | None = None) -> str:
+    """Upload an architecture diagram and return the storage path. version: 2025|2026 or swift_2025|swift_2026."""
+    folder = _diagram_version_folder(version)
+    return upload(f"diagrams/{folder}/{filename}", data, content_type)
+
+
+# Base path for diagram stream fallback when GCS signed URL cannot be generated (e.g. user credentials without private key).
+_DIAGRAM_STREAM_PATH = "/api/v1/ref/diagrams"
+
+
+def get_diagram_bytes(filename: str, version: str | None = None) -> bytes:
+    """Download diagram bytes from GCS or local. Raises if not found."""
+    folder = _diagram_version_folder(version)
     if _is_gcs():
-        obj_path = _gcs_object_path(f"diagrams/{filename}")
+        obj_path = _gcs_object_path(f"diagrams/{folder}/{filename}")
         full_path = f"gs://{settings.GCS_BUCKET_NAME}/{obj_path}"
-        return get_signed_url(full_path, expiry_minutes)
-    return f"/architecture-diagrams/{filename}"
+        return download(full_path)
+    local_path = _LOCAL_UPLOAD_DIR / "diagrams" / folder / filename
+    if not local_path.exists():
+        raise FileNotFoundError(f"Diagram not found: {local_path}")
+    return local_path.read_bytes()
+
+
+def get_diagram_url(filename: str, expiry_minutes: int = 60, version: str | None = None) -> str:
+    """Get a URL for an architecture diagram. When GCS signing fails (e.g. no private key), returns backend stream URL."""
+    from urllib.parse import quote
+    folder = _diagram_version_folder(version)
+    if _is_gcs():
+        obj_path = _gcs_object_path(f"diagrams/{folder}/{filename}")
+        full_path = f"gs://{settings.GCS_BUCKET_NAME}/{obj_path}"
+        signed = get_signed_url(full_path, expiry_minutes)
+        if signed is not None:
+            return signed
+        # Fallback: stream through backend so images still load without a service account key.
+        version_param = quote(version or "swift_2025")
+        return f"{_DIAGRAM_STREAM_PATH}/{quote(filename)}/content?version={version_param}"
+    return f"/architecture-diagrams/{folder}/{filename}"

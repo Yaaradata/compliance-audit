@@ -4,7 +4,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_current_user
+from ..dependencies import get_db, get_db_scoped, get_current_user
 from ..constants import PLATFORM_ADMIN_ROLES
 from ..models.tenant import User
 from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceSubmission
@@ -30,7 +30,7 @@ def _require_cycle_access(cycle: AssessmentCycle | None, user: User) -> None:
 
 
 @router.get("/assessments/{cycle_id}/controls", response_model=list[ControlScore])
-def list_controls(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def list_controls(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user)
 
@@ -59,7 +59,7 @@ def list_controls(cycle_id: UUID, db: Session = Depends(get_db), user: User = De
 
 
 @router.get("/assessments/{cycle_id}/control-matrix")
-def control_matrix(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def control_matrix(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user)
 

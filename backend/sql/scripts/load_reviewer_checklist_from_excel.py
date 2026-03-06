@@ -324,8 +324,8 @@ def _sql_esc(s: str) -> str:
 def write_sql_file(rows: list[dict], out_path: Path) -> None:
     """Write INSERT statements to a SQL file (for use with --dry-run or when DB is unavailable)."""
     lines = [
-        "-- Reviewer checklist from Reviewer_doc/Reviewer.xlsx (generated, run in cscf_2025_new)",
-        "SET search_path TO cscf_2025_new, public;",
+        "-- Reviewer checklist from Reviewer_doc/Reviewer.xlsx (generated, run in swift_2025)",
+        "SET search_path TO swift_2025, public;",
         "",
         "BEGIN;",
         "TRUNCATE reviewer_checklist CASCADE;",

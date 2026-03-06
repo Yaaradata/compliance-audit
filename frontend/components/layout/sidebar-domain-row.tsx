@@ -57,7 +57,7 @@ export function SidebarDomainRow({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-2 rounded-xl outline-none transition-all duration-200 hover:bg-[var(--sidebar-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sidebar-active-text)] min-w-0 ${!isOpen ? "justify-center" : ""}`}
+      className={`flex items-center gap-2 rounded-xl outline-none transition-all duration-200 hover:bg-(--sidebar-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--sidebar-active-text) min-w-0 ${!isOpen ? "justify-center" : ""}`}
       style={{
         padding: isOpen ? "10px 12px" : "10px 8px",
         backgroundColor: isActive ? "var(--sidebar-active-bg)" : "transparent",

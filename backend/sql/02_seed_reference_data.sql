@@ -4,7 +4,12 @@
 -- ============================================================
 
 BEGIN;
-SET search_path TO cscf_2025_new;
+SET search_path TO swift_2025;
+
+-- Ensure columns exist (idempotent; table may have been created by older 01 or before 03)
+ALTER TABLE canonical_evidence_items ADD COLUMN IF NOT EXISTS evidence_description TEXT DEFAULT '';
+ALTER TABLE canonical_evidence_items ADD COLUMN IF NOT EXISTS sufficiency_definition TEXT;
+ALTER TABLE canonical_evidence_items ADD COLUMN IF NOT EXISTS evaluation_criteria TEXT;
 
 -- ============================================================
 -- 1. audit_frameworks (1 row)
@@ -82,88 +87,88 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================
 
 -- Domain A (6 items)
-INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count) VALUES
-('A1', 'A', 1, 'Network Architecture Diagram',   'critical', 'Diagram + Text',     'Highest-reuse diagram. Single upload satisfies 6 controls.',                       '83% reduction — collected 6x without platform.',         6),
-('A2', 'A', 2, 'SWIFT Component Inventory',       'critical', 'Spreadsheet',         'Complete hardware/software list within SWIFT secure zone.',                         'Single inventory satisfies 5 control areas.',            5),
-('A3', 'A', 3, 'Data Flow Diagrams',              'high',     'Diagram + Matrix',    'All data flows between SWIFT, back-office, and external systems.',                  'One diagram covers 3 data flow controls. 67% reduction.',3),
-('A4', 'A', 4, 'Firewall Rule Sets',              'critical', 'Config Export',       'Firewall rule exports for every secure zone boundary.',                             'Single export satisfies 3 mandatory controls.',          3),
-('A5', 'A', 5, 'Architecture Type Declaration',   'critical', 'Document + Form',     'SWIFT architecture type declaration with scoping rationale.',                       'Foundational scoping document for all control applicability.',32),
-('A6', 'A', 6, 'Secure Zone Design Rationale',    'high',     'Document + Form',     'Zone boundary placement and segmentation rationale.',                               'Single rationale covers both 1.1 and 1.5. 50% reduction.',2)
+INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, evidence_description) VALUES
+('A1', 'A', 1, 'Network Architecture Diagram',   'critical', 'Diagram + Text',     'Highest-reuse diagram. Single upload satisfies 6 controls.',                       '83% reduction — collected 6x without platform.',         6, ''),
+('A2', 'A', 2, 'SWIFT Component Inventory',       'critical', 'Spreadsheet',         'Complete hardware/software list within SWIFT secure zone.',                         'Single inventory satisfies 5 control areas.',            5, ''),
+('A3', 'A', 3, 'Data Flow Diagrams',              'high',     'Diagram + Matrix',    'All data flows between SWIFT, back-office, and external systems.',                  'One diagram covers 3 data flow controls. 67% reduction.',3, ''),
+('A4', 'A', 4, 'Firewall Rule Sets',              'critical', 'Config Export',       'Firewall rule exports for every secure zone boundary.',                             'Single export satisfies 3 mandatory controls.',          3, ''),
+('A5', 'A', 5, 'Architecture Type Declaration',   'critical', 'Document + Form',     'SWIFT architecture type declaration with scoping rationale.',                       'Foundational scoping document for all control applicability.',32, ''),
+('A6', 'A', 6, 'Secure Zone Design Rationale',    'high',     'Document + Form',     'Zone boundary placement and segmentation rationale.',                               'Single rationale covers both 1.1 and 1.5. 50% reduction.',2, '')
 ON CONFLICT (id) DO NOTHING;
 
 -- Domain B (8 items)
-INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, per_system) VALUES
-('B1', 'B', 1, 'OS Hardening Configuration',       'critical', 'Config/Screenshots', 'Per-system OS hardening evidence.',                                                 '50% reduction — serves both 1.2 and 2.3.',              2, true),
-('B2', 'B', 2, 'SWIFT Application Security Config', 'critical', 'Config/SG Checklist','SWIFT application-level settings.',                                                 'Single config set covers 2.6 and 2.10. 50% reduction.', 2, false),
-('B7', 'B', 3, 'MFA Configuration Evidence',        'critical', 'Config Screenshots', 'Per-access-point MFA evidence.',                                                    'Control-specific for 4.2.',                              1, false),
-('B3', 'B', 4, 'Encryption Configuration',           'high',     'Config Exports',     'Highest-reuse in Domain B. 75% reduction.',                                         'One encryption config satisfies 4 data security controls.',4, false),
-('B6', 'B', 5, 'Hardening Baseline Comparison',      'high',     'Scan Report',        'Formal CIS/SWIFT SG baseline comparison.',                                          '67% reduction — covers 3 hardening & integrity controls.',3, false),
-('B5', 'B', 6, 'Password Policy Configuration',      'high',     'Policy + Config',    'Password policy settings across all SWIFT systems.',                                'Control-specific for 4.1.',                              1, false),
-('B8', 'B', 7, 'Operator Session Security Config',   'high',     'Config Exports',     'Detailed session management evidence.',                                             'Supplements B2 for session controls.',                   1, false),
-('B4', 'B', 8, 'Virtualisation/Cloud Platform Config','high',    'Config Exports',     'Conditional — only if virtualised SWIFT components exist.',                          'Advisory control 1.3.',                                  1, false)
+INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, per_system, evidence_description) VALUES
+('B1', 'B', 1, 'OS Hardening Configuration',       'critical', 'Config/Screenshots', 'Per-system OS hardening evidence.',                                                 '50% reduction — serves both 1.2 and 2.3.',              2, true, ''),
+('B2', 'B', 2, 'SWIFT Application Security Config', 'critical', 'Config/SG Checklist','SWIFT application-level settings.',                                                 'Single config set covers 2.6 and 2.10. 50% reduction.', 2, false, ''),
+('B7', 'B', 3, 'MFA Configuration Evidence',        'critical', 'Config Screenshots', 'Per-access-point MFA evidence.',                                                    'Control-specific for 4.2.',                              1, false, ''),
+('B3', 'B', 4, 'Encryption Configuration',           'high',     'Config Exports',     'Highest-reuse in Domain B. 75% reduction.',                                         'One encryption config satisfies 4 data security controls.',4, false, ''),
+('B6', 'B', 5, 'Hardening Baseline Comparison',      'high',     'Scan Report',        'Formal CIS/SWIFT SG baseline comparison.',                                          '67% reduction — covers 3 hardening & integrity controls.',3, false, ''),
+('B5', 'B', 6, 'Password Policy Configuration',      'high',     'Policy + Config',    'Password policy settings across all SWIFT systems.',                                'Control-specific for 4.1.',                              1, false, ''),
+('B8', 'B', 7, 'Operator Session Security Config',   'high',     'Config Exports',     'Detailed session management evidence.',                                             'Supplements B2 for session controls.',                   1, false, ''),
+('B4', 'B', 8, 'Virtualisation/Cloud Platform Config','high',    'Config Exports',     'Conditional — only if virtualised SWIFT components exist.',                          'Advisory control 1.3.',                                  1, false, '')
 ON CONFLICT (id) DO NOTHING;
 
 -- Domain C (9 items)
-INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, per_quarter) VALUES
-('C1', 'C', 1, 'Access Control Policy',             'critical', 'Policy Document',    'Highest-reuse policy. 80% reduction.',                                              'Covers 5 controls across 3 principles.',                 5, false),
-('C2', 'C', 2, 'Privileged Account Inventory',      'critical', 'Spreadsheet/PAM',    'All privileged accounts across SWIFT systems.',                                     '50% reduction — serves both 1.2 and 5.1.',              2, false),
-('C3', 'C', 3, 'User Access List',                  'high',     'System Export',       'All user accounts with role assignments.',                                           'Control-specific for 5.1.',                              1, false),
-('C4', 'C', 4, 'RBAC Role Definitions',             'high',     'Config/Matrix',       'Formal role definitions with SoD matrix.',                                           'Control-specific for 5.1.',                              1, false),
-('C5', 'C', 5, 'Quarterly Access Review Records',   'high',     'Review Docs',         '4 quarterly reviews with management sign-off.',                                     'Control-specific for 5.1.',                              1, true),
-('C6', 'C', 6, 'Joiner/Mover/Leaver Process',       'medium',   'Process Doc + Logs', 'JML process with execution evidence.',                                               'Control-specific for 5.1.',                              1, false),
-('C7', 'C', 7, 'Token/Certificate Inventory',        'high',     'Inventory/PKI',      'All tokens and certificates with lifecycle procedures.',                             'Control-specific for 5.2.',                              1, false),
-('C8', 'C', 8, 'Credential Storage Evidence',        'high',     'Config/Vault',       'Secure credential storage evidence.',                                                'Control-specific for 5.4.',                              1, false),
-('C9', 'C', 9, 'Personnel Vetting Records',          'medium',   'HR Documentation',   'Screening and vetting records.',                                                     'Advisory control 5.3A.',                                 1, false)
+INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, per_quarter, evidence_description) VALUES
+('C1', 'C', 1, 'Access Control Policy',             'critical', 'Policy Document',    'Highest-reuse policy. 80% reduction.',                                              'Covers 5 controls across 3 principles.',                 5, false, ''),
+('C2', 'C', 2, 'Privileged Account Inventory',      'critical', 'Spreadsheet/PAM',    'All privileged accounts across SWIFT systems.',                                     '50% reduction — serves both 1.2 and 5.1.',              2, false, ''),
+('C3', 'C', 3, 'User Access List',                  'high',     'System Export',       'All user accounts with role assignments.',                                           'Control-specific for 5.1.',                              1, false, ''),
+('C4', 'C', 4, 'RBAC Role Definitions',             'high',     'Config/Matrix',       'Formal role definitions with SoD matrix.',                                           'Control-specific for 5.1.',                              1, false, ''),
+('C5', 'C', 5, 'Quarterly Access Review Records',   'high',     'Review Docs',         '4 quarterly reviews with management sign-off.',                                     'Control-specific for 5.1.',                              1, true, ''),
+('C6', 'C', 6, 'Joiner/Mover/Leaver Process',       'medium',   'Process Doc + Logs', 'JML process with execution evidence.',                                               'Control-specific for 5.1.',                              1, false, ''),
+('C7', 'C', 7, 'Token/Certificate Inventory',        'high',     'Inventory/PKI',      'All tokens and certificates with lifecycle procedures.',                             'Control-specific for 5.2.',                              1, false, ''),
+('C8', 'C', 8, 'Credential Storage Evidence',        'high',     'Config/Vault',       'Secure credential storage evidence.',                                                'Control-specific for 5.4.',                              1, false, ''),
+('C9', 'C', 9, 'Personnel Vetting Records',          'medium',   'HR Documentation',   'Screening and vetting records.',                                                     'Advisory control 5.3A.',                                 1, false, '')
 ON CONFLICT (id) DO NOTHING;
 
 -- Domain D (6 items)
-INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, per_system) VALUES
-('D1', 'D', 1, 'Patch Management Policy',           'high',     'Policy Document',    'Patch policy covering SWIFT systems.',                                               'Control-specific for 2.2.',                              1, false),
-('D2', 'D', 2, 'Current Patch Levels',              'critical', 'Scan/WSUS Report',   'Current patch status for all SWIFT systems.',                                        'Control-specific for 2.2.',                              1, true),
-('D3', 'D', 3, 'Patch Deployment Records (12mo)',   'high',     'Deployment Logs',    '12-month patch deployment history.',                                                 'Control-specific for 2.2.',                              1, false),
-('D4', 'D', 4, 'Vulnerability Scan Reports',        'critical', 'Scanner Output',     'Vulnerability scan results for all SWIFT systems.',                                  'Control-specific for 2.7.',                              1, false),
-('D5', 'D', 5, 'Vulnerability Remediation Tracking','high',     'Tracking Log',       'Remediation tracker for scans and pen tests.',                                       '50% reduction — covers 2.7 and 7.3A.',                  2, false),
-('D6', 'D', 6, 'Penetration Test Reports',          'high',     'Pen Test Report',    'Annual pen test covering SWIFT infrastructure.',                                     'Advisory control 7.3A.',                                 1, false)
+INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, per_system, evidence_description) VALUES
+('D1', 'D', 1, 'Patch Management Policy',           'high',     'Policy Document',    'Patch policy covering SWIFT systems.',                                               'Control-specific for 2.2.',                              1, false, ''),
+('D2', 'D', 2, 'Current Patch Levels',              'critical', 'Scan/WSUS Report',   'Current patch status for all SWIFT systems.',                                        'Control-specific for 2.2.',                              1, true, ''),
+('D3', 'D', 3, 'Patch Deployment Records (12mo)',   'high',     'Deployment Logs',    '12-month patch deployment history.',                                                 'Control-specific for 2.2.',                              1, false, ''),
+('D4', 'D', 4, 'Vulnerability Scan Reports',        'critical', 'Scanner Output',     'Vulnerability scan results for all SWIFT systems.',                                  'Control-specific for 2.7.',                              1, false, ''),
+('D5', 'D', 5, 'Vulnerability Remediation Tracking','high',     'Tracking Log',       'Remediation tracker for scans and pen tests.',                                       '50% reduction — covers 2.7 and 7.3A.',                  2, false, ''),
+('D6', 'D', 6, 'Penetration Test Reports',          'high',     'Pen Test Report',    'Annual pen test covering SWIFT infrastructure.',                                     'Advisory control 7.3A.',                                 1, false, '')
 ON CONFLICT (id) DO NOTHING;
 
 -- Domain E (7 items)
-INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, per_system) VALUES
-('E1', 'E', 1, 'Anti-Malware Config & Updates',     'critical', 'Config/Console Export','AV config for all SWIFT Windows systems.',                                          'Control-specific for 6.1.',                              1, true),
-('E4', 'E', 2, 'Software Integrity Verification',   'high',     'Integrity/FIM Reports','SWIFT software integrity checks.',                                                  '50% reduction — serves 6.2 and 2.10.',                  2, false),
-('E5', 'E', 3, 'Database Integrity Evidence',        'high',     'Integrity/Audit Logs','Database integrity controls for SWIFT DBs.',                                         'Control-specific for 6.3.',                              1, false),
-('E2', 'E', 4, 'SIEM/Logging Configuration',         'critical', 'SIEM Config Export',  'SIEM config, log architecture, retention.',                                          'Control-specific for 6.4.',                              1, false),
-('E3', 'E', 5, 'Alert Rules & Escalation',           'high',     'Documentation',       'Alert rules, escalation, response procedures.',                                     '50% reduction — covers 6.4 and 6.5A.',                  2, false),
-('E7', 'E', 6, 'Admin Activity Monitoring Logs',     'high',     'Log Extracts/SIEM',  'Admin/privileged activity monitoring.',                                              '67% reduction — serves 3 mandatory controls.',           3, false),
-('E6', 'E', 7, 'IDS/IPS Configuration',              'medium',   'Config Export',       'IDS/IPS config for SWIFT segments.',                                                'Advisory control 6.5A.',                                 1, false)
+INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, per_system, evidence_description) VALUES
+('E1', 'E', 1, 'Anti-Malware Config & Updates',     'critical', 'Config/Console Export','AV config for all SWIFT Windows systems.',                                          'Control-specific for 6.1.',                              1, true, ''),
+('E4', 'E', 2, 'Software Integrity Verification',   'high',     'Integrity/FIM Reports','SWIFT software integrity checks.',                                                  '50% reduction — serves 6.2 and 2.10.',                  2, false, ''),
+('E5', 'E', 3, 'Database Integrity Evidence',        'high',     'Integrity/Audit Logs','Database integrity controls for SWIFT DBs.',                                         'Control-specific for 6.3.',                              1, false, ''),
+('E2', 'E', 4, 'SIEM/Logging Configuration',         'critical', 'SIEM Config Export',  'SIEM config, log architecture, retention.',                                          'Control-specific for 6.4.',                              1, false, ''),
+('E3', 'E', 5, 'Alert Rules & Escalation',           'high',     'Documentation',       'Alert rules, escalation, response procedures.',                                     '50% reduction — covers 6.4 and 6.5A.',                  2, false, ''),
+('E7', 'E', 6, 'Admin Activity Monitoring Logs',     'high',     'Log Extracts/SIEM',  'Admin/privileged activity monitoring.',                                              '67% reduction — serves 3 mandatory controls.',           3, false, ''),
+('E6', 'E', 7, 'IDS/IPS Configuration',              'medium',   'Config Export',       'IDS/IPS config for SWIFT segments.',                                                'Advisory control 6.5A.',                                 1, false, '')
 ON CONFLICT (id) DO NOTHING;
 
 -- Domain F (4 items)
-INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count) VALUES
-('F1', 'F', 1, 'Third-Party Vendor Inventory',      'critical', 'Spreadsheet',         'All third parties with SWIFT access.',                                               'Foundation for all Domain F evidence.',                  1),
-('F2', 'F', 2, 'Third-Party SLA/NDA Agreements',    'high',     'Contract Excerpts',   'SLA and NDA per vendor.',                                                           'Per-vendor contractual evidence.',                       1),
-('F3', 'F', 3, 'Third-Party Security Assessments',  'high',     'Assessment Reports',  'Risk assessments per vendor.',                                                       'Per-vendor risk assessment evidence.',                   1),
-('F4', 'F', 4, 'Third-Party Ongoing Monitoring',    'high',     'SOC Reports/Audits',  'SOC reports, certification tracking, incident history.',                             'Per-vendor ongoing monitoring evidence.',                1)
+INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, evidence_description) VALUES
+('F1', 'F', 1, 'Third-Party Vendor Inventory',      'critical', 'Spreadsheet',         'All third parties with SWIFT access.',                                               'Foundation for all Domain F evidence.',                  1, ''),
+('F2', 'F', 2, 'Third-Party SLA/NDA Agreements',    'high',     'Contract Excerpts',   'SLA and NDA per vendor.',                                                           'Per-vendor contractual evidence.',                       1, ''),
+('F3', 'F', 3, 'Third-Party Security Assessments',  'high',     'Assessment Reports',  'Risk assessments per vendor.',                                                       'Per-vendor risk assessment evidence.',                   1, ''),
+('F4', 'F', 4, 'Third-Party Ongoing Monitoring',    'high',     'SOC Reports/Audits',  'SOC reports, certification tracking, incident history.',                             'Per-vendor ongoing monitoring evidence.',                1, '')
 ON CONFLICT (id) DO NOTHING;
 
 -- Domain G (4 items)
-INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, per_system) VALUES
-('G1', 'G', 1, 'Physical Access Controls',          'high',     'Access System Config','Physical access controls for SWIFT equipment areas.',                                'Per-zone evidence.',                                     1, false),
-('G2', 'G', 2, 'Physical Access Logs (12mo)',        'high',     'Access Logs',         '12-month physical access logs.',                                                    'Per-zone time-series evidence.',                         1, false),
-('G3', 'G', 3, 'Video Surveillance Evidence',        'medium',   'Surveillance Config', 'Camera placement, recording, retention.',                                            'Per-zone environmental monitoring.',                     1, false),
-('G4', 'G', 4, 'Equipment Disposal Evidence',        'medium',   'Disposal Records',    'Secure disposal/sanitization procedures.',                                           'Equipment lifecycle evidence.',                          1, false)
+INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, per_system, evidence_description) VALUES
+('G1', 'G', 1, 'Physical Access Controls',          'high',     'Access System Config','Physical access controls for SWIFT equipment areas.',                                'Per-zone evidence.',                                     1, false, ''),
+('G2', 'G', 2, 'Physical Access Logs (12mo)',        'high',     'Access Logs',         '12-month physical access logs.',                                                    'Per-zone time-series evidence.',                         1, false, ''),
+('G3', 'G', 3, 'Video Surveillance Evidence',        'medium',   'Surveillance Config', 'Camera placement, recording, retention.',                                            'Per-zone environmental monitoring.',                     1, false, ''),
+('G4', 'G', 4, 'Equipment Disposal Evidence',        'medium',   'Disposal Records',    'Secure disposal/sanitization procedures.',                                           'Equipment lifecycle evidence.',                          1, false, '')
 ON CONFLICT (id) DO NOTHING;
 
 -- Domain H (9 items)
-INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count) VALUES
-('H1', 'H', 1, 'Cyber Incident Response Plan',      'critical', 'IR Plan/Runbook',    'IR plan with SWIFT-specific scenarios.',                                             'Foundation for IR evidence.',                            1),
-('H2', 'H', 2, 'IR Exercise Records',               'high',     'Exercise Records',   'Tabletop/functional exercise records.',                                              'Validates H1 plan effectiveness.',                       1),
-('H3', 'H', 3, 'SWIFT ISAC Participation',           'medium',   'Registration/Alerts','ISAC registration and alert acknowledgments.',                                       'Information sharing compliance.',                        1),
-('H4', 'H', 4, 'Security Training Program',          'high',     'Program Document',   'SWIFT security awareness training program.',                                         'Foundation for training evidence.',                      1),
-('H5', 'H', 5, 'Training Completion Records',        'high',     'LMS Export',         'Training completions for all SWIFT personnel.',                                      'Execution evidence for H4.',                             1),
-('H6', 'H', 6, 'Transaction Control Procedures',     'high',     'Process Docs',       'Transaction verification, dual auth, reconciliation.',                               'Business control procedures.',                           1),
-('H7', 'H', 7, 'Transaction Monitoring Config',      'high',     'System Config',      'Monitoring rules, thresholds, alert samples.',                                       'Technical implementation of H6.',                        1),
-('H8', 'H', 8, 'RMA Management Procedures',          'medium',   'Process Doc/Records','RMA due diligence and annual review.',                                               'Advisory control 2.11A.',                                1),
-('H9', 'H', 9, 'Risk Assessment & Register',         'medium',   'Risk Docs/Register', 'SWIFT risk assessment and risk register.',                                           'Advisory control 7.4A.',                                 1)
+INSERT INTO canonical_evidence_items (id, domain_id, sort_order, name, priority, evidence_type, description, reduction_note, control_count, evidence_description) VALUES
+('H1', 'H', 1, 'Cyber Incident Response Plan',      'critical', 'IR Plan/Runbook',    'IR plan with SWIFT-specific scenarios.',                                             'Foundation for IR evidence.',                            1, ''),
+('H2', 'H', 2, 'IR Exercise Records',               'high',     'Exercise Records',   'Tabletop/functional exercise records.',                                              'Validates H1 plan effectiveness.',                       1, ''),
+('H3', 'H', 3, 'SWIFT ISAC Participation',           'medium',   'Registration/Alerts','ISAC registration and alert acknowledgments.',                                       'Information sharing compliance.',                        1, ''),
+('H4', 'H', 4, 'Security Training Program',          'high',     'Program Document',   'SWIFT security awareness training program.',                                         'Foundation for training evidence.',                      1, ''),
+('H5', 'H', 5, 'Training Completion Records',        'high',     'LMS Export',         'Training completions for all SWIFT personnel.',                                      'Execution evidence for H4.',                             1, ''),
+('H6', 'H', 6, 'Transaction Control Procedures',     'high',     'Process Docs',       'Transaction verification, dual auth, reconciliation.',                               'Business control procedures.',                           1, ''),
+('H7', 'H', 7, 'Transaction Monitoring Config',      'high',     'System Config',      'Monitoring rules, thresholds, alert samples.',                                       'Technical implementation of H6.',                        1, ''),
+('H8', 'H', 8, 'RMA Management Procedures',          'medium',   'Process Doc/Records','RMA due diligence and annual review.',                                               'Advisory control 2.11A.',                                1, ''),
+('H9', 'H', 9, 'Risk Assessment & Register',         'medium',   'Risk Docs/Register', 'SWIFT risk assessment and risk register.',                                           'Advisory control 7.4A.',                                 1, '')
 ON CONFLICT (id) DO NOTHING;
 
 

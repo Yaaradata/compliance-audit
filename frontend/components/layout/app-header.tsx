@@ -7,6 +7,7 @@ import { getArchitecture } from "@/lib/data/architectures";
 import { ROLE_LABELS } from "@/lib/data/roles";
 import { useSidebar } from "@/lib/sidebar-context";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 function getBreadcrumb(pathname: string | null): { label: string; href?: string }[] {
   if (!pathname) return [{ label: "Dashboard" }];
@@ -83,8 +84,9 @@ export function AppHeader() {
         </nav>
       </div>
 
-      {/* Right: Role, User, Switch cycle, Log out, Theme */}
+      {/* Right: Notifications, Role, User, Switch cycle, Log out, Theme */}
       <div className="flex items-center gap-4 flex-wrap">
+        {user && <NotificationBell />}
         <ThemeToggle />
         {user && (
           <>

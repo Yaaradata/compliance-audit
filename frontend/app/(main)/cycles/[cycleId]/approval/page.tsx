@@ -144,11 +144,11 @@ function EvidenceJourneyCard({
 
   const statusBg = isApproved
     ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
-    : "bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)]";
+    : "bg-(--surface) text-(--foreground-muted) border-(--border)";
 
   return (
     <div
-      className="relative rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-[var(--border-strong)] hover:-translate-y-0.5"
+      className="relative rounded-xl border border-(--border) bg-(--surface) overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-(--border-strong) hover:-translate-y-0.5"
       style={{ boxShadow: "var(--shadow)" }}
     >
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${accentColor}`} />
@@ -156,12 +156,12 @@ function EvidenceJourneyCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-2">
-              <span className="font-bold text-[var(--foreground)]">{item.evidence_item_id}</span>
+              <span className="font-bold text-foreground">{item.evidence_item_id}</span>
               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusBg}`}>
                 {item.status.replace(/_/g, " ")}
               </span>
               {item.overall_met != null && (
-                <span className="text-xs font-semibold text-[var(--foreground-muted)]">
+                <span className="text-xs font-semibold text-(--foreground-muted)">
                   {item.overall_met ? "Met" : "Review"}
                 </span>
               )}
@@ -176,10 +176,10 @@ function EvidenceJourneyCard({
                 const active = step.data && step.data.status !== "approved";
                 return (
                   <span key={step.level} className="flex items-center gap-1">
-                    {i > 0 && <span className="w-4 h-0.5 rounded bg-[var(--border)]" />}
+                    {i > 0 && <span className="w-4 h-0.5 rounded bg-(--border)" />}
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border border-[var(--border)] ${
-                        done ? "bg-[var(--surface)] text-[var(--foreground)]" : "bg-[var(--background)] text-[var(--foreground-subtle)]"
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border border-(--border) ${
+                        done ? "bg-(--surface) text-foreground" : "bg-background text-(--foreground-subtle)"
                       }`}
                     >
                       {done ? "✓" : active ? "●" : "○"} {step.level}
@@ -189,7 +189,7 @@ function EvidenceJourneyCard({
               })}
             </div>
             {item.submitted_at && (
-              <p className="text-[10px] text-[var(--foreground-subtle)] mt-2">
+              <p className="text-[10px] text-(--foreground-subtle) mt-2">
                 Submitted {new Date(item.submitted_at).toLocaleDateString("en-US")}
                 {item.submitter_name && <> · {item.submitter_name}</>}
               </p>
@@ -201,7 +201,7 @@ function EvidenceJourneyCard({
               e.stopPropagation();
               onView();
             }}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--primary-muted)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-colors"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-(--primary-muted) text-(--primary) hover:bg-(--primary) hover:text-white transition-colors"
           >
             <Icon path="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" className="w-3.5 h-3.5" />
             View
@@ -228,12 +228,12 @@ function MetricCard({
   accent: string;
 }) {
   return (
-    <div className={`rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow)] hover:shadow-[var(--shadow-md)] transition-all duration-300 overflow-hidden border-l-4 ${accent}`}>
+    <div className={`rounded-xl border border-(--border) bg-(--surface) p-4 shadow-(--shadow) hover:shadow-(--shadow-md) transition-all duration-300 overflow-hidden border-l-4 ${accent}`}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{value}</p>
-          <p className="text-sm font-medium text-[var(--foreground-muted)] mt-0.5">{label}</p>
-          {sub != null && <p className="text-[10px] text-[var(--foreground-subtle)] mt-0.5">{sub}</p>}
+          <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
+          <p className="text-sm font-medium text-(--foreground-muted) mt-0.5">{label}</p>
+          {sub != null && <p className="text-[10px] text-(--foreground-subtle) mt-0.5">{sub}</p>}
         </div>
         <div className={`p-2.5 rounded-xl ${colorClass}`}>
           <Icon path={iconPath} className="w-5 h-5 text-current" />
@@ -352,18 +352,18 @@ export default function CycleApprovalPage() {
   if (!cycleId) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
-        <p className="text-sm text-[var(--foreground-muted)]">No assessment cycle selected.</p>
+        <p className="text-sm text-(--foreground-muted)">No assessment cycle selected.</p>
       </div>
     );
   }
   if (!summary && error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
-        <p className="text-sm text-[var(--foreground)]">{error}</p>
+        <p className="text-sm text-foreground">{error}</p>
         <button
           type="button"
           onClick={fetchSummary}
-          className="mt-4 px-4 py-2 text-sm font-medium rounded-xl bg-[var(--primary)] text-white hover:opacity-90 transition-opacity"
+          className="mt-4 px-4 py-2 text-sm font-medium rounded-xl bg-(--primary) text-white hover:opacity-90 transition-opacity"
         >
           Retry
         </button>
@@ -372,7 +372,7 @@ export default function CycleApprovalPage() {
   }
   if (!summary) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh] text-sm text-[var(--foreground-muted)]">
+      <div className="flex items-center justify-center min-h-[50vh] text-sm text-(--foreground-muted)">
         Could not load approval data.
       </div>
     );
@@ -398,19 +398,19 @@ export default function CycleApprovalPage() {
   const reportHref = `/cycles/${cycleId}/report`;
 
   return (
-    <div className="min-h-[calc(100vh-64px)] w-full bg-[var(--background)]">
+    <div className="min-h-[calc(100vh-64px)] w-full bg-background">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header — same structure as Review Queue */}
         <header className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[var(--primary-muted)]">
-              <Icon path="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" className="w-5 h-5 text-[var(--primary)]" />
+            <div className="p-2 rounded-lg bg-(--primary-muted)">
+              <Icon path="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" className="w-5 h-5 text-(--primary)" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)]">Approval</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Approval</h1>
           </div>
           <Link
             href={reportHref}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition-opacity shadow-md"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-(--primary) text-white hover:opacity-90 transition-opacity shadow-md"
           >
             <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" className="w-4 h-4" />
             Go to Report
@@ -460,36 +460,36 @@ export default function CycleApprovalPage() {
           {/* Top: Review Levels | Domains (A–H) | Approval gates — parallel */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Review levels */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow)] min-w-0">
-              <h3 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-3">Review levels</h3>
+            <div className="rounded-xl border border-(--border) bg-(--surface) p-4 shadow-(--shadow) min-w-0">
+              <h3 className="text-xs font-bold text-(--foreground-muted) uppercase tracking-wider mb-3">Review levels</h3>
               <div className="space-y-2.5">
                 {(["L1", "L2", "L3"] as const).map((level) => {
                   const s = review_level_stats?.[level];
                   const pct = s?.total === 0 ? 100 : (s?.pct ?? 0);
                   const accent = LEVEL_ACCENT[level] ?? "border-l-slate-400";
                   return (
-                    <div key={level} className={`rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 border-l-4 ${accent}`}>
+                    <div key={level} className={`rounded-lg border border-(--border) bg-background p-3 border-l-4 ${accent}`}>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-bold text-[var(--foreground)]">{level} — {LEVEL_LABELS[level]}</span>
-                        <span className="text-xs font-bold tabular-nums text-[var(--foreground-muted)]">{s?.approved ?? 0} / {s?.total ?? 0}</span>
+                        <span className="text-xs font-bold text-foreground">{level} — {LEVEL_LABELS[level]}</span>
+                        <span className="text-xs font-bold tabular-nums text-(--foreground-muted)">{s?.approved ?? 0} / {s?.total ?? 0}</span>
                       </div>
-                      <div className="h-1.5 w-full rounded-full bg-[var(--border)] overflow-hidden">
-                        <div className="h-full rounded-full bg-[var(--foreground-muted)] transition-all duration-300" style={{ width: `${pct}%` }} />
+                      <div className="h-1.5 w-full rounded-full bg-(--border) overflow-hidden">
+                        <div className="h-full rounded-full bg-(--foreground-muted) transition-all duration-300" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 flex items-center gap-2">
-                <span className="text-sm text-[var(--foreground-muted)]">{all_l_cleared ? "✓" : "○"}</span>
-                <span className="text-[11px] font-semibold text-[var(--foreground)]">{all_l_cleared ? "All levels cleared" : "Waiting for reviews"}</span>
+              <div className="mt-3 rounded-lg border border-(--border) bg-background px-3 py-2.5 flex items-center gap-2">
+                <span className="text-sm text-(--foreground-muted)">{all_l_cleared ? "✓" : "○"}</span>
+                <span className="text-[11px] font-semibold text-foreground">{all_l_cleared ? "All levels cleared" : "Waiting for reviews"}</span>
               </div>
             </div>
 
             {/* Domains (A–H) — shown in parallel (grid) */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow)] min-w-0">
-              <header className="px-4 py-3 border-b border-[var(--border)] bg-[var(--background)]/50">
-                <h3 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Domains (A–H)</h3>
+            <div className="rounded-xl border border-(--border) bg-(--surface) overflow-hidden shadow-(--shadow) min-w-0">
+              <header className="px-4 py-3 border-b border-(--border) bg-background/50">
+                <h3 className="text-xs font-bold text-(--foreground-muted) uppercase tracking-wider">Domains (A–H)</h3>
               </header>
               <div className="p-3 grid grid-cols-4 gap-2">
                 {domainsAllAtoH.map((d) => {
@@ -501,8 +501,8 @@ export default function CycleApprovalPage() {
                       onClick={() => setSelectedDomain(isSelected ? null : d.id)}
                       className={`rounded-lg border p-2 transition-colors flex flex-col items-center text-center min-w-0 ${
                         isSelected
-                          ? "border-[var(--primary)] bg-[var(--primary-muted)] ring-1 ring-[var(--primary)]/30"
-                          : "border-[var(--border)] hover:bg-[var(--background)]"
+                          ? "border-(--primary) bg-(--primary-muted) ring-1 ring-(--primary)/30"
+                          : "border-(--border) hover:bg-background"
                       }`}
                     >
                       <span
@@ -511,16 +511,16 @@ export default function CycleApprovalPage() {
                       >
                         {d.id}
                       </span>
-                      <span className="text-[10px] font-semibold text-[var(--foreground)] truncate w-full">Domain {d.id}</span>
-                      <span className="text-[10px] font-bold tabular-nums text-[var(--foreground-muted)] mt-0.5">{d.pct}%</span>
-                      <div className="w-full h-1.5 rounded-full bg-[var(--border)] overflow-hidden mt-1">
+                      <span className="text-[10px] font-semibold text-foreground truncate w-full">Domain {d.id}</span>
+                      <span className="text-[10px] font-bold tabular-nums text-(--foreground-muted) mt-0.5">{d.pct}%</span>
+                      <div className="w-full h-1.5 rounded-full bg-(--border) overflow-hidden mt-1">
                         <div
                           className="h-full rounded-full transition-all duration-300"
                           style={{ width: `${d.pct}%`, backgroundColor: d.color }}
                         />
                       </div>
                       {d.total > 0 && (
-                        <p className="text-[8px] text-[var(--foreground-subtle)] mt-0.5">{d.approved}/{d.total}</p>
+                        <p className="text-[8px] text-(--foreground-subtle) mt-0.5">{d.approved}/{d.total}</p>
                       )}
                     </button>
                   );
@@ -529,55 +529,55 @@ export default function CycleApprovalPage() {
             </div>
 
             {/* Approval gates — next to Domains */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow)] min-w-0">
-              <header className="px-4 py-3 border-b border-[var(--border)] bg-[var(--background)]/50">
-                <h3 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Approval gates</h3>
+            <div className="rounded-xl border border-(--border) bg-(--surface) overflow-hidden shadow-(--shadow) min-w-0">
+              <header className="px-4 py-3 border-b border-(--border) bg-background/50">
+                <h3 className="text-xs font-bold text-(--foreground-muted) uppercase tracking-wider">Approval gates</h3>
               </header>
               <div className="p-3 space-y-2 max-h-[220px] overflow-y-auto">
                 {gates.map((g) => {
                   const meta = GATE_META[g.gate];
                   return (
-                    <div key={g.gate} className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <div key={g.gate} className="rounded-lg border border-(--border) bg-background p-3">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-bold text-[var(--foreground)]">{meta?.label ?? g.gate}</span>
-                        <span className="px-2 py-0.5 rounded-md text-[9px] font-bold border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)]">
+                        <span className="text-xs font-bold text-foreground">{meta?.label ?? g.gate}</span>
+                        <span className="px-2 py-0.5 rounded-md text-[9px] font-bold border border-(--border) bg-(--surface) text-(--foreground-muted)">
                           {g.status === "approved" ? "Done" : g.ready ? "Ready" : "Pending"}
                         </span>
                       </div>
-                      <div className="h-1 w-full rounded-full bg-[var(--border)] overflow-hidden">
-                        <div className="h-full rounded-full bg-[var(--foreground-muted)]" style={{ width: `${g.progress_pct ?? 0}%` }} />
+                      <div className="h-1 w-full rounded-full bg-(--border) overflow-hidden">
+                        <div className="h-full rounded-full bg-(--foreground-muted)" style={{ width: `${g.progress_pct ?? 0}%` }} />
                       </div>
-                      <p className="text-[10px] text-[var(--foreground-muted)] mt-1.5">{g.detail}</p>
+                      <p className="text-[10px] text-(--foreground-muted) mt-1.5">{g.detail}</p>
                       {g.status === "approved" && g.approved_at && (
-                        <p className="text-[9px] text-[var(--foreground-subtle)] mt-1">
+                        <p className="text-[9px] text-(--foreground-subtle) mt-1">
                           Approved {new Date(g.approved_at).toLocaleDateString("en-US")}
                         </p>
                       )}
                     </div>
                   );
                 })}
-              </div>
-            </div>
           </div>
+        </div>
+      </div>
 
           {/* Below: Evidence items */}
-          <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow)]">
-            <header className="px-5 py-4 border-b border-[var(--border)] bg-[var(--background)]/50">
+          <section className="rounded-xl border border-(--border) bg-(--surface) overflow-hidden shadow-(--shadow)">
+            <header className="px-5 py-4 border-b border-(--border) bg-background/50">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div>
-                  <h2 className="text-sm font-bold text-[var(--foreground)]">
+        <div>
+                  <h2 className="text-sm font-bold text-foreground">
                     Evidence items{selectedDomain ? ` — Domain ${selectedDomain}` : ""}
                   </h2>
-                  <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">
+                  <p className="text-[10px] text-(--foreground-muted) mt-0.5">
                     {evidenceByDomainFiltered.reduce((acc, [, items]) => acc + items.length, 0)} items
                     {selectedDomain && " (filtered)"}
                   </p>
-                </div>
+                  </div>
                 {selectedDomain && (
                   <button
                     type="button"
                     onClick={() => setSelectedDomain(null)}
-                    className="text-[11px] font-medium text-[var(--primary)] hover:underline"
+                    className="text-[11px] font-medium text-(--primary) hover:underline"
                   >
                     Show all domains
                   </button>
@@ -586,7 +586,7 @@ export default function CycleApprovalPage() {
             </header>
             <div className="p-4 space-y-5 max-h-[520px] overflow-y-auto">
               {evidenceByDomainFiltered.length === 0 ? (
-                <p className="text-sm text-[var(--foreground-muted)] text-center py-8">
+                <p className="text-sm text-(--foreground-muted) text-center py-8">
                   {selectedDomain ? `No evidence items for Domain ${selectedDomain}.` : "No evidence items yet."}
                 </p>
               ) : (
@@ -599,8 +599,8 @@ export default function CycleApprovalPage() {
                         <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${accentColor} text-white font-bold text-sm shadow`}>
                           {domain}
                         </span>
-                        <h2 className="text-sm font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Domain {domain}</h2>
-                        <span className="text-xs font-medium text-[var(--foreground-subtle)] bg-[var(--background)] px-2 py-0.5 rounded-full">({items.length})</span>
+                        <h2 className="text-sm font-bold text-(--foreground-muted) uppercase tracking-wider">Domain {domain}</h2>
+                        <span className="text-xs font-medium text-(--foreground-subtle) bg-background px-2 py-0.5 rounded-full">({items.length})</span>
                       </div>
                       <div className="space-y-2">
                         {items.map((item) => (
@@ -615,8 +615,8 @@ export default function CycleApprovalPage() {
                     </div>
                   );
                 })
-              )}
-            </div>
+            )}
+          </div>
           </section>
         </div>
 
@@ -634,15 +634,15 @@ export default function CycleApprovalPage() {
           const canEdit = userRole === "approver" || userRole === "admin" || userRole === "compliance_officer";
 
           return (
-            <section className="mt-6 rounded-xl border border-[var(--border)] overflow-hidden shadow-[var(--shadow)] bg-[var(--surface)]">
-              <header className="px-5 py-4 border-b border-[var(--border)] bg-[var(--background)]/50 flex items-center justify-between gap-3 flex-wrap">
+            <section className="mt-6 rounded-xl border border-(--border) overflow-hidden shadow-(--shadow) bg-(--surface)">
+              <header className="px-5 py-4 border-b border-(--border) bg-background/50 flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-orange-100 dark:bg-orange-900/30">
                     <Icon path="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-[var(--foreground)]">Gaps & Remediation</h2>
-                    <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">
+                    <h2 className="text-sm font-bold text-foreground">Gaps & Remediation</h2>
+                    <p className="text-[10px] text-(--foreground-muted) mt-0.5">
                       {total === 0
                         ? "No gaps identified — all evaluated items passed"
                         : `${documented}/${total} gaps documented`}
@@ -664,8 +664,8 @@ export default function CycleApprovalPage() {
                 {total === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center">
                     <div className="text-3xl mb-2 text-emerald-500">✓</div>
-                    <p className="text-sm font-semibold text-[var(--foreground)]">No gaps found</p>
-                    <p className="text-xs text-[var(--foreground-muted)] mt-1">All evaluated evidence items meet their criteria.</p>
+                    <p className="text-sm font-semibold text-foreground">No gaps found</p>
+                    <p className="text-xs text-(--foreground-muted) mt-1">All evaluated evidence items meet their criteria.</p>
                   </div>
                 ) : (
                   <div className="space-y-5">
@@ -677,8 +677,8 @@ export default function CycleApprovalPage() {
                             <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-orange-500 text-white font-bold text-xs shadow">
                               {domain}
                             </span>
-                            <h3 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider">Domain {domain}</h3>
-                            <span className="text-[10px] text-[var(--foreground-muted)] ml-auto">{domainDoc}/{items.length} documented</span>
+                            <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Domain {domain}</h3>
+                            <span className="text-[10px] text-(--foreground-muted) ml-auto">{domainDoc}/{items.length} documented</span>
                           </div>
                           <div className="space-y-2">
                             {items.map((gap) => (
@@ -692,11 +692,11 @@ export default function CycleApprovalPage() {
                               >
                                 <div className="flex items-start justify-between gap-2 mb-2">
                                   <div className="flex items-center gap-2 min-w-0">
-                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${gap.is_documented ? "bg-emerald-500" : "bg-orange-500"}`} />
-                                    <span className="text-xs font-bold text-[var(--foreground)]">{gap.evidence_item_id}</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-[var(--foreground-muted)]">{gap.status}</span>
+                                    <span className={`w-2 h-2 rounded-full shrink-0 ${gap.is_documented ? "bg-emerald-500" : "bg-orange-500"}`} />
+                                    <span className="text-xs font-bold text-foreground">{gap.evidence_item_id}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-background border border-(--border) text-(--foreground-muted)">{gap.status}</span>
                                   </div>
-                                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold flex-shrink-0 ${
+                                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold shrink-0 ${
                                     gap.is_documented
                                       ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400"
                                       : "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-400"
@@ -706,19 +706,19 @@ export default function CycleApprovalPage() {
                                 </div>
 
                                 {gap.eval_summary && (
-                                  <p className="text-[11px] text-[var(--foreground-muted)] mb-2 italic">{gap.eval_summary}</p>
+                                  <p className="text-[11px] text-(--foreground-muted) mb-2 italic">{gap.eval_summary}</p>
                                 )}
 
                                 {gap.failed_criteria.length > 0 && (
                                   <div className="mb-2">
-                                    <p className="text-[10px] font-semibold text-[var(--foreground-muted)] mb-1">Failed criteria:</p>
+                                    <p className="text-[10px] font-semibold text-(--foreground-muted) mb-1">Failed criteria:</p>
                                     <ul className="space-y-0.5">
                                       {gap.failed_criteria.map((c) => (
-                                        <li key={c.id} className="flex items-start gap-1.5 text-[10px] text-[var(--foreground-muted)]">
-                                          <span className="text-orange-500 mt-0.5 flex-shrink-0">✕</span>
+                                        <li key={c.id} className="flex items-start gap-1.5 text-[10px] text-(--foreground-muted)">
+                                          <span className="text-orange-500 mt-0.5 shrink-0">✕</span>
                                           <span>
                                             <span className="font-semibold">{c.label}</span>
-                                            {c.description && <span className="text-[var(--foreground-subtle)]"> — {c.description}</span>}
+                                            {c.description && <span className="text-(--foreground-subtle)"> — {c.description}</span>}
                                           </span>
                                         </li>
                                       ))}
@@ -727,16 +727,16 @@ export default function CycleApprovalPage() {
                                 )}
 
                                 {gap.remediation_ai && (
-                                  <div className="rounded-md bg-[var(--background)] border border-[var(--border)] px-3 py-2 mb-2">
-                                    <p className="text-[10px] font-semibold text-[var(--foreground-muted)] mb-0.5">AI remediation</p>
-                                    <p className="text-[11px] text-[var(--foreground)] whitespace-pre-line">{gap.remediation_ai}</p>
+                                  <div className="rounded-md bg-background border border-(--border) px-3 py-2 mb-2">
+                                    <p className="text-[10px] font-semibold text-(--foreground-muted) mb-0.5">AI remediation</p>
+                                    <p className="text-[11px] text-foreground whitespace-pre-line">{gap.remediation_ai}</p>
                                   </div>
                                 )}
 
                                 {gap.remediation_user && editingGapId !== gap.submission_id && (
                                   <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2 mb-2">
                                     <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 mb-0.5">Remediation plan</p>
-                                    <p className="text-[11px] text-[var(--foreground)] whitespace-pre-line">{gap.remediation_user}</p>
+                                    <p className="text-[11px] text-foreground whitespace-pre-line">{gap.remediation_user}</p>
                                   </div>
                                 )}
 
@@ -747,21 +747,21 @@ export default function CycleApprovalPage() {
                                       onChange={(e) => setRemediationDraft(e.target.value)}
                                       rows={3}
                                       placeholder="Describe remediation plan: what will be done, by whom, timeline…"
-                                      className="w-full text-xs border border-[var(--border)] rounded-lg p-2.5 resize-none bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                                      className="w-full text-xs border border-(--border) rounded-lg p-2.5 resize-none bg-background text-foreground placeholder:text-(--foreground-subtle) focus:outline-none focus:ring-2 focus:ring-(--primary)/30"
                                     />
                                     <div className="flex items-center gap-2">
                                       <button
                                         type="button"
                                         onClick={() => handleSaveRemediation(gap.submission_id)}
                                         disabled={savingRemediation || !remediationDraft.trim()}
-                                        className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                                        className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-(--primary) text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
                                       >
                                         {savingRemediation ? "Saving…" : "Save remediation"}
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => { setEditingGapId(null); setRemediationDraft(""); }}
-                                        className="px-3 py-1.5 text-[11px] font-semibold rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--background)] transition-colors"
+                                        className="px-3 py-1.5 text-[11px] font-semibold rounded-lg border border-(--border) text-(--foreground-muted) hover:bg-background transition-colors"
                                       >
                                         Cancel
                                       </button>
@@ -774,45 +774,45 @@ export default function CycleApprovalPage() {
                                       setEditingGapId(gap.submission_id);
                                       setRemediationDraft(gap.remediation_user || "");
                                     }}
-                                    className="mt-1 text-[11px] font-medium text-[var(--primary)] hover:underline"
+                                    className="mt-1 text-[11px] font-medium text-(--primary) hover:underline"
                                   >
                                     {gap.remediation_user ? "Edit remediation plan" : "Add remediation plan"}
                                   </button>
                                 ) : null}
-                              </div>
-                            ))}
+                </div>
+              ))}
                           </div>
                         </div>
                       );
                     })}
-                  </div>
-                )}
-              </div>
+            </div>
+          )}
+        </div>
             </section>
           );
         })()}
 
         {/* Final attestation — approve here to then move to Report */}
-        <section id="final-attestation" className="mt-6 rounded-xl border border-[var(--border)] overflow-hidden shadow-[var(--shadow)] bg-[var(--surface)] scroll-mt-4">
-          <div className="px-6 py-4 border-b border-[var(--border)] bg-[var(--background)]/50">
+        <section id="final-attestation" className="mt-6 rounded-xl border border-(--border) overflow-hidden shadow-(--shadow) bg-(--surface) scroll-mt-4">
+          <div className="px-6 py-4 border-b border-(--border) bg-background/50">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold border-2 border-[var(--border-strong)] bg-[var(--surface)] text-[var(--foreground)]">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold border-2 border-(--border-strong) bg-(--surface) text-foreground">
                 {finalGate?.status === "approved" ? (
                   <Icon path="M5 13l4 4L19 7" className="w-5 h-5" />
                 ) : (
                   "4"
                 )}
               </div>
-              <h2 className="text-base font-bold text-[var(--foreground)]">Final attestation</h2>
+              <h2 className="text-base font-bold text-foreground">Final attestation</h2>
             </div>
           </div>
 
           <div className="p-6">
             {finalGate?.status === "approved" ? (
               <div className="text-center py-4">
-                <div className="text-4xl mb-2 text-[var(--foreground)]">✓</div>
-                <p className="text-sm font-bold text-[var(--foreground)]">Assessment attested</p>
-                <p className="text-xs text-[var(--foreground-muted)] mt-1">
+                <div className="text-4xl mb-2 text-foreground">✓</div>
+                <p className="text-sm font-bold text-foreground">Assessment attested</p>
+                <p className="text-xs text-(--foreground-muted) mt-1">
                   Signed off on{" "}
                   {finalGate.approved_at
                     ? new Date(finalGate.approved_at).toLocaleDateString("en-US", {
@@ -823,12 +823,12 @@ export default function CycleApprovalPage() {
                     : "—"}
                 </p>
                 {finalGate.notes && (
-                  <p className="text-xs text-[var(--foreground-muted)] mt-2 italic">"{finalGate.notes}"</p>
+                  <p className="text-xs text-(--foreground-muted) mt-2 italic">"{finalGate.notes}"</p>
                 )}
-                <div className="mt-6 pt-4 border-t border-[var(--border)]">
+                <div className="mt-6 pt-4 border-t border-(--border)">
                   <Link
                     href={reportHref}
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition-opacity shadow-md"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold bg-(--primary) text-white hover:opacity-90 transition-opacity shadow-md"
                   >
                     <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" className="w-4 h-4" />
                     Go to Report
@@ -838,32 +838,32 @@ export default function CycleApprovalPage() {
             ) : (
               <>
                 <div className="mb-4">
-                  <h4 className="text-xs font-bold text-[var(--foreground)] mb-2">Prerequisites</h4>
+                  <h4 className="text-xs font-bold text-foreground mb-2">Prerequisites</h4>
                   <div className="space-y-2">
                     {preFinalGates.map((g) => {
                       const meta = GATE_META[g.gate];
                       return (
                         <div key={g.gate} className="flex items-center gap-2">
-                          <span className="text-[var(--foreground-muted)]">
+                          <span className="text-(--foreground-muted)">
                             {g.status === "approved" ? "✓" : "○"}
                           </span>
                           <span
-                            className={`text-xs ${g.status === "approved" ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)]"}`}
+                            className={`text-xs ${g.status === "approved" ? "text-foreground" : "text-(--foreground-muted)"}`}
                           >
                             {meta?.label ?? g.gate}
                           </span>
-                          <span className="text-[10px] text-[var(--foreground-subtle)] ml-auto">
+                          <span className="text-[10px] text-(--foreground-subtle) ml-auto">
                             {g.progress_pct ?? 0}%
                           </span>
                         </div>
                       );
                     })}
                     <div className="flex items-center gap-2">
-                      <span className="text-[var(--foreground-muted)]">
+                      <span className="text-(--foreground-muted)">
                         {all_l_cleared ? "✓" : "○"}
                       </span>
                       <span
-                        className={`text-xs ${all_l_cleared ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)]"}`}
+                        className={`text-xs ${all_l_cleared ? "text-foreground" : "text-(--foreground-muted)"}`}
                       >
                         All review levels (L1/L2/L3) cleared
                       </span>
@@ -871,25 +871,25 @@ export default function CycleApprovalPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-[var(--border)] pt-4 space-y-3">
+                <div className="border-t border-(--border) pt-4 space-y-3">
                   {canApprove && finalGate?.ready && (
                     <>
-                      <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5">
-                        <p className="text-[11px] font-semibold text-[var(--foreground)]">MFA required to sign off.</p>
+                      <div className="rounded-lg border border-(--border) bg-background px-3 py-2.5">
+                        <p className="text-[11px] font-semibold text-foreground">MFA required to sign off.</p>
                       </div>
                       <textarea
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="Attestation notes (optional)…"
                         rows={2}
-                        className="w-full text-xs border border-[var(--border)] rounded-lg p-2.5 resize-none bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                        className="w-full text-xs border border-(--border) rounded-lg p-2.5 resize-none bg-background text-foreground placeholder:text-(--foreground-subtle) focus:outline-none focus:ring-2 focus:ring-(--primary)/30"
                       />
                       <input
                         type="text"
                         value={mfaToken}
                         onChange={(e) => setMfaToken(e.target.value)}
                         placeholder="Enter MFA token"
-                        className="w-full text-sm border border-[var(--border)] rounded-lg p-2.5 bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                        className="w-full text-sm border border-(--border) rounded-lg p-2.5 bg-background text-foreground placeholder:text-(--foreground-subtle) focus:outline-none focus:ring-2 focus:ring-(--primary)/30"
                       />
                     </>
                   )}
@@ -897,17 +897,17 @@ export default function CycleApprovalPage() {
                     type="button"
                     onClick={() => canApprove && finalGate?.ready && handleApproveGate("final_attestation")}
                     disabled={!canApprove || !finalGate?.ready || approving === "final_attestation" || (!!(canApprove && finalGate?.ready) && !mfaToken.trim())}
-                    className="w-full py-3 text-sm font-bold rounded-xl bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity"
+                    className="w-full py-3 text-sm font-bold rounded-xl bg-(--primary) text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-opacity"
                   >
                     {approving === "final_attestation" ? "Signing…" : "Approve"}
                   </button>
                   {canApprove && !finalGate?.ready && (
-                    <p className="text-xs text-[var(--foreground-muted)] text-center">
+                    <p className="text-xs text-(--foreground-muted) text-center">
                       Complete all prerequisites above before you can approve.
                     </p>
                   )}
                   {!canApprove && (
-                    <p className="text-xs text-[var(--foreground-muted)] text-center italic">
+                    <p className="text-xs text-(--foreground-muted) text-center italic">
                       {userRole === "compliance_officer"
                         ? "Final attestation requires the Approver role (CISO / Head of Compliance)."
                         : "Read-only access."}
@@ -921,41 +921,41 @@ export default function CycleApprovalPage() {
 
         {/* Approve ready (non-final) gates */}
         {readyGatesToShow.length > 0 && (
-          <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
-            <h3 className="text-sm font-bold text-[var(--foreground)] mb-3">Ready to approve</h3>
+          <section className="mt-6 rounded-xl border border-(--border) bg-(--surface) p-5 shadow-(--shadow)">
+            <h3 className="text-sm font-bold text-foreground mb-3">Ready to approve</h3>
             <div className="space-y-3">
               {readyGatesToShow.slice(0, 1).map((g) => {
                 const meta = GATE_META[g.gate];
                 return (
                   <div
                     key={g.gate}
-                    className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-(--border) bg-background"
                   >
                     <div className="flex-1 min-w-0">
-                      <span className="text-xs font-bold text-[var(--foreground)]">
+                      <span className="text-xs font-bold text-foreground">
                         {meta?.label ?? g.gate}
                       </span>
-                      <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">{g.detail}</p>
+                      <p className="text-[10px] text-(--foreground-muted) mt-0.5">{g.detail}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleApproveGate(g.gate)}
                       disabled={approving === g.gate}
-                      className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                      className="px-4 py-2 text-xs font-semibold rounded-lg bg-(--primary) text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
                     >
                       {approving === g.gate ? "Approving…" : "Approve"}
-                    </button>
+          </button>
                   </div>
                 );
               })}
-            </div>
+        </div>
           </section>
         )}
       </div>
 
       {/* Evidence detail panel */}
       {viewingEvidenceId && (
-        <div className="fixed inset-y-0 right-0 w-full max-w-md bg-[var(--surface)] border-l border-[var(--border)] shadow-xl z-50 flex flex-col">
+        <div className="fixed inset-y-0 right-0 w-full max-w-md bg-(--surface) border-l border-(--border) shadow-xl z-50 flex flex-col">
           <ApprovalEvidenceViewer
             cycleId={cycleId}
             submissionId={viewingEvidenceId}

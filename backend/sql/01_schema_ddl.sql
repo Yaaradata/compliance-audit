@@ -5,8 +5,8 @@
 
 BEGIN;
 
-CREATE SCHEMA IF NOT EXISTS cscf_2025_new;
-SET search_path TO cscf_2025_new;
+CREATE SCHEMA IF NOT EXISTS swift_2025;
+SET search_path TO swift_2025;
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -201,7 +201,7 @@ CREATE TABLE IF NOT EXISTS canonical_evidence_items (
     is_advisory           BOOLEAN NOT NULL DEFAULT false,
     is_conditional        BOOLEAN NOT NULL DEFAULT false,
     conditional_note       TEXT,
-    evidence_description   TEXT,
+    evidence_description   TEXT DEFAULT '',
     sufficiency_definition TEXT,
     evaluation_criteria    TEXT,
     cscf_version          VARCHAR(10) NOT NULL DEFAULT '2025v',

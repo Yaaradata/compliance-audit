@@ -25,6 +25,9 @@ export interface Tenant {
   createdAt: string;
 }
 
+/** Schema name from backend: swift_2025 (2025 framework) or swift_2026 (2026 framework). Drives diagrams and version copy. */
+export type CycleSchemaName = "swift_2025" | "swift_2026";
+
 /** Assessment cycle: one per creation; id is used for all evidence and evaluations for that cycle. */
 export interface AssessmentCycle {
   id: string;
@@ -34,6 +37,8 @@ export interface AssessmentCycle {
   architecture_type: string | null;
   display_id: string;
   created_at: string;
+  /** swift_2025 or swift_2026: which framework schema to use (2025 vs 2026). */
+  schema_name?: CycleSchemaName | null;
 }
 
 export type ArchitectureId = "A1" | "A2" | "A3" | "A4" | "B";

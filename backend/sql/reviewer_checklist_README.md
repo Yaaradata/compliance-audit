@@ -10,7 +10,7 @@ From repo root (or set `PGHOST`, `PGDATABASE`, etc.):
 psql -U postgres -d compliance -f backend/sql/reviewer_checklist_ddl.sql
 ```
 
-Or run the file in your SQL client. Uses schema **cscf_2025_new** (same as main app).
+Or run the file in your SQL client. Uses schema **swift_2025** (same as main app).
 
 ## 2. Load data from Excel
 

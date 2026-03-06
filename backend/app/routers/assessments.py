@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_current_user
+from ..dependencies import get_db, get_db_scoped, get_current_user
 from ..constants import PLATFORM_ADMIN_ROLES
 from ..middleware.auth import hash_password
 from ..models.tenant import User
@@ -25,12 +25,26 @@ router = APIRouter(prefix="/assessments")
 GATE_TYPES = ["evidence_complete", "internal_review", "assessment_complete", "final_attestation"]
 
 
+def _attach_schema_name(cycle: AssessmentCycle, db: Session) -> None:
+    """Attach schema_name (swift_2025 or swift_2026) from framework so frontend shows correct version and uses correct diagram/ref data."""
+    from ..dependencies import _normalize_schema_name
+    if cycle.framework_id:
+        fw = db.query(AuditFramework).filter(AuditFramework.id == cycle.framework_id).first()
+        raw = getattr(fw, "schema_name", None) if fw else None
+        setattr(cycle, "schema_name", _normalize_schema_name(raw))
+    else:
+        setattr(cycle, "schema_name", "swift_2025")
+
+
 @router.get("", response_model=list[CycleOut])
 def list_cycles(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     q = db.query(AssessmentCycle)
     if user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
         q = q.filter(AssessmentCycle.tenant_id == user.tenant_id)
-    return q.order_by(AssessmentCycle.created_at.desc()).all()
+    cycles = q.order_by(AssessmentCycle.created_at.desc()).all()
+    for c in cycles:
+        _attach_schema_name(c, db)
+    return cycles
 
 
 @router.post("", response_model=CycleOut, status_code=201)
@@ -83,7 +97,7 @@ def _require_compliance_officer_or_admin(user: User) -> None:
 def create_cycle_team(
     cycle_id: UUID,
     req: CycleTeamCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """
@@ -119,14 +133,15 @@ def create_cycle_team(
 
 
 @router.get("/{cycle_id}", response_model=CycleOut)
-def get_cycle(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user)
+    _attach_schema_name(cycle, db)
     return cycle
 
 
 @router.delete("/{cycle_id}", status_code=204)
-def delete_cycle(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def delete_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     """
     Delete an assessment cycle and all data tied to it.
 
@@ -152,7 +167,7 @@ def delete_cycle(cycle_id: UUID, db: Session = Depends(get_db), user: User = Dep
 
 
 @router.put("/{cycle_id}", response_model=CycleOut)
-def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user)
 
@@ -173,7 +188,7 @@ def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(
 
 
 @router.post("/{cycle_id}/advance-phase", response_model=CycleOut)
-def advance_phase(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def advance_phase(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user)
 
@@ -199,7 +214,7 @@ def sufficiency_detail(
 
 
 @router.get("/{cycle_id}/dashboard", response_model=DashboardResponse)
-def dashboard(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user)
 

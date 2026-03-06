@@ -1,10 +1,10 @@
 -- ============================================================
 -- Reviewer checklist (L1/L2/L3 what to check per evidence item – control)
 -- Source: Reviewer_doc/Reviewer.xlsx
--- Run after 01_schema_ddl.sql (same schema as app: cscf_2025_new).
+-- Run after 01_schema_ddl.sql (same schema as app: swift_2025).
 -- ============================================================
 
-SET search_path TO cscf_2025_new, public;
+SET search_path TO swift_2025, public;
 
 -- Table: reviewer_checklist
 -- One row per (evidence item, control) with L1/L2/L3 reviewer guidance.

@@ -113,9 +113,10 @@ export default function CycleItemIntakePage() {
   }, [cycleId, itemId, submissionId]);
 
   useEffect(() => {
+    const cycleParam = cycleId ? `?cycle_id=${cycleId}` : "";
     Promise.all([
-      api.get<ItemDetailResponse>(`/ref/evidence-items/${itemId}`),
-      api.get<ControlCriteria[]>(`/ref/evidence-items/${itemId}/matrix`).catch(() => [] as ControlCriteria[]),
+      api.get<ItemDetailResponse>(`/ref/evidence-items/${itemId}${cycleParam}`),
+      api.get<ControlCriteria[]>(`/ref/evidence-items/${itemId}/matrix${cycleParam}`).catch(() => [] as ControlCriteria[]),
     ])
       .then(([data, matrix]) => {
         if (data.item) {

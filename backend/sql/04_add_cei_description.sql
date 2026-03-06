@@ -3,7 +3,7 @@
 -- Or: python backend/scripts/run_migration.py
 BEGIN;
 
-SET search_path TO cscf_2025_new;
+SET search_path TO swift_2025;
 
 -- Add description if missing (required by ORM; older schemas may not have it)
 ALTER TABLE canonical_evidence_items ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';

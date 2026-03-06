@@ -45,8 +45,8 @@ function DemoCard({ step, title, why, forWhat, iconPath, phase, href, disabled, 
         group relative flex flex-col w-full min-w-0 rounded-xl border-l-[3px] text-left
         transition-all duration-200 ease-out overflow-hidden h-full
         ${disabled
-          ? "border-l-[var(--foreground-subtle)] bg-[var(--surface)] opacity-60 cursor-not-allowed border border-[var(--border)]"
-          : "border-l-[var(--primary)] bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--primary)] hover:shadow-lg hover:-translate-y-0.5 cursor-pointer active:translate-y-0"
+          ? "border-l-(--foreground-subtle) bg-(--surface) opacity-60 cursor-not-allowed border border-(--border)"
+          : "border-l-(--primary) bg-(--surface) border border-(--border) hover:border-(--primary) hover:shadow-lg hover:-translate-y-0.5 cursor-pointer active:translate-y-0"
         }
       `}
       style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}
@@ -330,22 +330,22 @@ export default function DemoPage() {
           <div className="flex-1 flex flex-col gap-2 min-h-0">
             <div className="grid gap-x-2 min-h-0" style={{ gridTemplateColumns: `repeat(${COLS_PER_ROW}, minmax(0, 1fr))` }}>
               {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="rounded-xl border border-l-[3px] border-l-[var(--border)] p-3 animate-pulse min-h-[180px]" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-                  <div className="h-3 w-14 rounded bg-[var(--border)] mb-2" />
-                  <div className="h-6 w-full rounded-lg bg-[var(--border)] mb-2" />
-                  <div className="h-2.5 w-full bg-[var(--border)] rounded mb-1.5" />
-                  <div className="h-2.5 w-full bg-[var(--border)] rounded" />
+                <div key={i} className="rounded-xl border border-l-[3px] border-l-(--border) p-3 animate-pulse min-h-[180px]" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+                  <div className="h-3 w-14 rounded bg-(--border) mb-2" />
+                  <div className="h-6 w-full rounded-lg bg-(--border) mb-2" />
+                  <div className="h-2.5 w-full bg-(--border) rounded mb-1.5" />
+                  <div className="h-2.5 w-full bg-(--border) rounded" />
                 </div>
               ))}
             </div>
             <div className="py-0.5" />
             <div className="grid gap-x-2 min-h-0" style={{ gridTemplateColumns: `repeat(${COLS_PER_ROW}, minmax(0, 1fr))` }}>
               {[4, 5, 6].map((i) => (
-                <div key={i} className="rounded-xl border border-l-[3px] border-l-[var(--border)] p-3 animate-pulse min-h-[180px]" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-                  <div className="h-3 w-14 rounded bg-[var(--border)] mb-2" />
-                  <div className="h-6 w-full rounded-lg bg-[var(--border)] mb-2" />
-                  <div className="h-2.5 w-full bg-[var(--border)] rounded mb-1.5" />
-                  <div className="h-2.5 w-full bg-[var(--border)] rounded" />
+                <div key={i} className="rounded-xl border border-l-[3px] border-l-(--border) p-3 animate-pulse min-h-[180px]" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+                  <div className="h-3 w-14 rounded bg-(--border) mb-2" />
+                  <div className="h-6 w-full rounded-lg bg-(--border) mb-2" />
+                  <div className="h-2.5 w-full bg-(--border) rounded mb-1.5" />
+                  <div className="h-2.5 w-full bg-(--border) rounded" />
                 </div>
               ))}
               <div />

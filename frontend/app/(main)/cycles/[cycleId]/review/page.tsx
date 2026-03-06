@@ -127,7 +127,7 @@ function EvidenceItemCard({
 
   return (
     <div
-      className="relative rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-visible transition-all duration-300 ease-out hover:border-[var(--border-strong)] hover:shadow-lg hover:-translate-y-0.5"
+      className="relative rounded-xl border border-(--border) bg-(--surface) overflow-visible transition-all duration-300 ease-out hover:border-(--border-strong) hover:shadow-lg hover:-translate-y-0.5"
       style={{ boxShadow: "var(--shadow)" }}
     >
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${lc.bg}`} />
@@ -137,12 +137,12 @@ function EvidenceItemCard({
         tabIndex={0}
         onClick={() => onOpenDetail(selectedReview.id, evidenceItemId)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDetail(selectedReview.id, evidenceItemId); } }}
-        className={`w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 rounded-xl cursor-pointer ${compact ? "p-3 pl-4" : "p-4 pl-5"}`}
+        className={`w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-(--primary) focus-visible:ring-offset-2 rounded-xl cursor-pointer ${compact ? "p-3 pl-4" : "p-4 pl-5"}`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className={`flex items-center gap-2 flex-wrap ${compact ? "mb-2" : "mb-3"}`}>
-              <span className="font-semibold text-[var(--foreground)] truncate">{evidenceItemId}</span>
+              <span className="font-semibold text-foreground truncate">{evidenceItemId}</span>
               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${statusStyle.bg} ${statusStyle.text}`}>
                 <span className={`w-1 h-1 rounded-full ${statusStyle.dot}`} />
                 {selectedReview.status}
@@ -152,7 +152,7 @@ function EvidenceItemCard({
               <button
                 type="button"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLevelMenuOpen((o) => !o); }}
-                className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-xs font-medium transition-colors ${lc.light} ${lc.text} border-[var(--border)] hover:border-[var(--border-strong)]`}
+                className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-xs font-medium transition-colors ${lc.light} ${lc.text} border-(--border) hover:border-(--border-strong)`}
               >
                 {levelDisplay}
                 <Icon path="M19 9l-7 7-7-7" className={`w-3.5 h-3.5 shrink-0 transition-transform ${levelMenuOpen ? "rotate-180" : ""}`} />
@@ -160,7 +160,7 @@ function EvidenceItemCard({
               {levelMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-10" aria-hidden onClick={() => setLevelMenuOpen(false)} />
-                  <div className="absolute left-0 top-full z-[100] mt-1 w-56 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xl py-1.5">
+                  <div className="absolute left-0 top-full z-100 mt-1 w-56 rounded-xl border border-(--border) bg-(--surface) shadow-xl py-1.5">
                     {levels.map((level) => {
                       const rev = reviewByLevel.get(level);
                       const isCurrent = displayLevel === level;
@@ -172,7 +172,7 @@ function EvidenceItemCard({
                           key={level}
                           type="button"
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLevelSelect(level); }}
-                          className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-left ${isDone ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300" : isCurrent ? `${levelColor.light} ${levelColor.text}` : "text-[var(--foreground-muted)]"} hover:bg-[var(--background)]`}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-left ${isDone ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300" : isCurrent ? `${levelColor.light} ${levelColor.text}` : "text-(--foreground-muted)"} hover:bg-background`}
                         >
                           <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-current">
                             {isDone ? <Icon path="M5 13l4 4L19 7" className="w-2.5 h-2.5" /> : isCurrent ? <span className="text-[8px] font-bold">●</span> : <span className="text-[8px]">○</span>}
@@ -187,11 +187,11 @@ function EvidenceItemCard({
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] sm:text-xs text-[var(--foreground-muted)]">
+            <span className="text-[10px] sm:text-xs text-(--foreground-muted)">
               {dateStr}{!compact && ` · ${timeStr}`}
             </span>
-            <span className="p-1 rounded-lg bg-[var(--background)]">
-              <Icon path="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
+            <span className="p-1 rounded-lg bg-background">
+              <Icon path="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" className="w-3.5 h-3.5 text-(--foreground-muted)" />
             </span>
           </div>
         </div>
@@ -214,11 +214,11 @@ function MetricCard({
   accent?: string;
 }) {
   return (
-    <div className={`rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow)] hover:shadow-[var(--shadow-md)] transition-all duration-300 hover:-translate-y-0.5 overflow-hidden ${accent ? `border-l-4 ${accent}` : ""}`}>
+    <div className={`rounded-xl border border-(--border) bg-(--surface) p-4 shadow-(--shadow) hover:shadow-(--shadow-md) transition-all duration-300 hover:-translate-y-0.5 overflow-hidden ${accent ? `border-l-4 ${accent}` : ""}`}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{value}</p>
-          <p className="text-sm font-medium text-[var(--foreground-muted)] mt-0.5">{label}</p>
+          <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
+          <p className="text-sm font-medium text-(--foreground-muted) mt-0.5">{label}</p>
         </div>
         <div className={`p-2.5 rounded-xl ${colorClass}`}>
           <Icon path={iconPath} className="w-5 h-5 text-current" />
@@ -233,18 +233,18 @@ function ReviewQueueSkeleton() {
     <div className="space-y-6">
       {[1, 2].map((g) => (
         <div key={g}>
-          <div className="h-4 w-24 bg-[var(--border)] rounded mb-3 animate-pulse" />
+          <div className="h-4 w-24 bg-(--border) rounded mb-3 animate-pulse" />
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 animate-pulse">
+              <div key={i} className="rounded-xl border border-(--border) bg-(--surface) p-4 animate-pulse">
                 <div className="flex justify-between mb-2">
-                  <div className="h-4 w-32 bg-[var(--border)] rounded" />
-                  <div className="h-4 w-20 bg-[var(--border)] rounded" />
+                  <div className="h-4 w-32 bg-(--border) rounded" />
+                  <div className="h-4 w-20 bg-(--border) rounded" />
                 </div>
                 <div className="flex gap-2">
-                  <div className="h-5 w-16 bg-[var(--border)] rounded" />
-                  <div className="h-5 w-20 bg-[var(--border)] rounded" />
-                  <div className="h-5 w-14 bg-[var(--border)] rounded" />
+                  <div className="h-5 w-16 bg-(--border) rounded" />
+                  <div className="h-5 w-20 bg-(--border) rounded" />
+                  <div className="h-5 w-14 bg-(--border) rounded" />
                 </div>
               </div>
             ))}
@@ -404,13 +404,13 @@ export default function CycleReviewPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] w-full bg-[var(--background)]">
+    <div className="min-h-[calc(100vh-64px)] w-full bg-background">
       <div className="w-full">
         <header className="mb-6 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-[var(--primary-muted)]">
-            <Icon path="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" className="w-5 h-5 text-[var(--primary)]" />
+          <div className="p-2 rounded-lg bg-(--primary-muted)">
+            <Icon path="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" className="w-5 h-5 text-(--primary)" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)]">Review Queue</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Review Queue</h1>
         </header>
 
         {/* Metrics — colorful left accent */}
@@ -422,21 +422,21 @@ export default function CycleReviewPage() {
         </section>
 
         {/* Flexible filter bar: search + status chips with counts + level chips + clear + view toggle */}
-        <section className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+        <section className="mb-6 rounded-xl border border-(--border) bg-(--surface) p-4 shadow-sm">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <label className="sr-only">Search</label>
               <div className="relative flex-1 min-w-[180px] max-w-xs">
-                <Icon path="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-muted)]" />
+                <Icon path="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--foreground-muted)" />
                 <input
                   type="search"
                   placeholder="Search by ID…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-(--border) rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-(--primary)/30"
                 />
               </div>
-              <span className="text-[var(--foreground-subtle)] text-sm hidden sm:inline">Status</span>
+              <span className="text-(--foreground-subtle) text-sm hidden sm:inline">Status</span>
               <div className="flex flex-wrap gap-1.5">
                 {STATUS_TABS.map((t) => {
                   const count = statusCounts[t.key];
@@ -453,15 +453,15 @@ export default function CycleReviewPage() {
                       className={`
                         flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border
                         ${isActive
-                          ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-md"
+                          ? "bg-(--primary) text-white border-(--primary) shadow-md"
                           : isDisabled
-                            ? "bg-[var(--background)] border-[var(--border)] text-[var(--foreground-subtle)] opacity-60 cursor-not-allowed"
-                            : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--border)] hover:text-[var(--foreground)]"}
+                            ? "bg-background border-(--border) text-(--foreground-subtle) opacity-60 cursor-not-allowed"
+                            : "bg-background border-(--border) text-(--foreground-muted) hover:bg-(--border) hover:text-foreground"}
                       `}
                     >
                       <Icon path={t.icon} className="w-4 h-4 shrink-0" />
                       {t.label}
-                      <span className={`tabular-nums ${isActive ? "text-white/90" : "text-[var(--foreground-subtle)]"}`}>({count})</span>
+                      <span className={`tabular-nums ${isActive ? "text-white/90" : "text-(--foreground-subtle)"}`}>({count})</span>
                     </button>
                   );
                 })}
@@ -478,8 +478,8 @@ export default function CycleReviewPage() {
                 </button>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-3">
-              <span className="text-[var(--foreground-subtle)] text-sm">Level</span>
+            <div className="flex flex-wrap items-center gap-2 border-t border-(--border) pt-3">
+              <span className="text-(--foreground-subtle) text-sm">Level</span>
               {LEVEL_FILTERS.map(({ key: lv, label: tabLabel }) => {
                 const count = levelCounts[lv];
                 const isActive = levelFilter === lv;
@@ -497,11 +497,11 @@ export default function CycleReviewPage() {
                       flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border
                       ${isActive
                         ? lv === "all"
-                          ? "bg-[var(--foreground)] text-[var(--surface)] border-[var(--foreground)]"
+                          ? "bg-foreground text-(--surface) border-foreground"
                           : `${LEVEL_COLORS[lv]?.light} ${LEVEL_COLORS[lv]?.text} border-current ring-1 ${LEVEL_COLORS[lv]?.ring}`
                         : isDisabled
-                          ? "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-subtle)] opacity-60 cursor-not-allowed"
-                          : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--background)] hover:text-[var(--foreground)]"}
+                          ? "bg-(--surface) border-(--border) text-(--foreground-subtle) opacity-60 cursor-not-allowed"
+                          : "bg-(--surface) border-(--border) text-(--foreground-muted) hover:bg-background hover:text-foreground"}
                     `}
                   >
                     {levelLabel}
@@ -515,8 +515,8 @@ export default function CycleReviewPage() {
 
         {/* Results count */}
         {!loading && (
-          <p className="text-sm text-[var(--foreground-muted)] mb-4">
-            Showing <strong className="text-[var(--foreground)]">{groupedByItemThenDomain.reduce((acc, [, rows]) => acc + rows.length, 0)}</strong> {groupedByItemThenDomain.reduce((acc, [, rows]) => acc + rows.length, 0) === 1 ? "item" : "items"}
+          <p className="text-sm text-(--foreground-muted) mb-4">
+            Showing <strong className="text-foreground">{groupedByItemThenDomain.reduce((acc, [, rows]) => acc + rows.length, 0)}</strong> {groupedByItemThenDomain.reduce((acc, [, rows]) => acc + rows.length, 0) === 1 ? "item" : "items"}
             {hasActiveFilters && " (filtered)"}
           </p>
         )}
@@ -540,8 +540,8 @@ export default function CycleReviewPage() {
                     <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${accentColor} text-white font-bold text-sm shadow`}>
                       {domain}
                     </span>
-                    <h2 className="text-sm font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Domain {domain}</h2>
-                    <span className="text-xs font-medium text-[var(--foreground-subtle)] bg-[var(--background)] px-2 py-0.5 rounded-full">({itemRows.length})</span>
+                    <h2 className="text-sm font-bold text-(--foreground-muted) uppercase tracking-wider">Domain {domain}</h2>
+                    <span className="text-xs font-medium text-(--foreground-subtle) bg-background px-2 py-0.5 rounded-full">({itemRows.length})</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {itemRows.map(({ itemId, reviews: itemReviews }) => (
@@ -565,8 +565,9 @@ export default function CycleReviewPage() {
         )}
       </div>
 
-      {modalReviewId && modalEvidenceItemId && (
+      {modalReviewId && modalEvidenceItemId && cycleId && (
         <EvidenceDetailModal
+          cycleId={cycleId}
           reviewId={modalReviewId}
           evidenceItemId={modalEvidenceItemId}
           userRole={userRole}

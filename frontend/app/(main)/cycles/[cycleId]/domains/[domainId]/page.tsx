@@ -148,7 +148,7 @@ export default function CycleDomainPage() {
     if (!cycleId || !domainId) return;
     setLoading(true);
 
-    const refPromise = api.get<{ domain: ApiDomain | null; evidence_items: ApiEvidenceItem[] }>(`/ref/domains/${domainId}`);
+    const refPromise = api.get<{ domain: ApiDomain | null; evidence_items: ApiEvidenceItem[] }>(`/ref/domains/${domainId}?cycle_id=${cycleId}`);
     const subsPromise = api.get<ApiSubmission[]>(`/assessments/${cycleId}/evidence?domain=${domainId}`);
     const controlsPromise = api.get<{ id: string; score: number }[]>(`/assessments/${cycleId}/controls`);
 

@@ -7,7 +7,8 @@ from .config import settings
 
 logger = logging.getLogger(__name__)
 
-SCHEMA = "cscf_2025_new"
+# Default schema for connections: core + public only. Framework schema (swift_2025/swift_2026) is set per-request via get_db_scoped.
+SCHEMA = "swift_2025"
 
 engine = create_engine(
     settings.database_url,
@@ -21,8 +22,9 @@ engine = create_engine(
 
 @event.listens_for(engine, "connect")
 def set_search_path(dbapi_conn, connection_record):
+    """Default: core, swift_2025, public so reference data (domains, controls, CEI) is visible. Per-request get_db_scoped(cycle_id) overrides to cycle's schema (swift_2025 or swift_2026)."""
     cursor = dbapi_conn.cursor()
-    cursor.execute(f"SET search_path TO {SCHEMA}, public")
+    cursor.execute("SET search_path TO core, swift_2025, public")
     cursor.close()
     dbapi_conn.commit()
 
@@ -36,29 +38,139 @@ class Base(DeclarativeBase):
 
 def ensure_optional_columns():
     """
-    Ensure optional columns exist on evidence_submissions without requiring a separate migration.
-    Idempotent: safe to call on every startup.
+    Ensure optional columns exist on evidence_submissions (and review_assignments) in both
+    swift_2025 and swift_2026. Idempotent: safe to call on every startup.
+    """
+    for schema in ("swift_2025", "swift_2026"):
+        try:
+            with engine.connect() as conn:
+                conn.execute(
+                    text(
+                        f'ALTER TABLE "{schema}"."evidence_submissions" '
+                        'ADD COLUMN IF NOT EXISTS "evaluation_result" JSONB'
+                    )
+                )
+                conn.execute(
+                    text(
+                        f'ALTER TABLE "{schema}"."evidence_submissions" '
+                        "ADD COLUMN IF NOT EXISTS \"evaluation_edits\" JSONB NOT NULL DEFAULT '{}'"
+                    )
+                )
+                conn.execute(
+                    text(
+                        f'ALTER TABLE "{schema}"."evidence_submissions" '
+                        'ADD COLUMN IF NOT EXISTS "evaluation_remediation" TEXT'
+                    )
+                )
+                conn.execute(
+                    text(
+                        f'ALTER TABLE "{schema}"."review_assignments" '
+                        "ADD COLUMN IF NOT EXISTS \"checklist_results\" JSONB NOT NULL DEFAULT '{}'"
+                    )
+                )
+                conn.commit()
+        except Exception as e:
+            logger.warning(
+                "Could not ensure optional columns in %s (table may not exist yet): %s",
+                schema,
+                e,
+            )
+
+
+def ensure_notes_notifications_tables():
+    """
+    Create notes and notifications tables if they do not exist.
+    Idempotent: safe to call on every startup. Uses same schema as migration 11.
     """
     try:
         with engine.connect() as conn:
             conn.execute(
                 text(
-                    f'ALTER TABLE "{SCHEMA}"."evidence_submissions" '
-                    "ADD COLUMN IF NOT EXISTS \"evaluation_edits\" JSONB NOT NULL DEFAULT '{}'"
+                    f"""
+                    CREATE TABLE IF NOT EXISTS "{SCHEMA}"."notes" (
+                        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                        tenant_id UUID NOT NULL REFERENCES core.tenants(id) ON DELETE CASCADE,
+                        resource_type VARCHAR(50) NOT NULL,
+                        resource_id UUID NOT NULL,
+                        parent_id UUID REFERENCES "{SCHEMA}"."notes"(id) ON DELETE CASCADE,
+                        author_id UUID NOT NULL REFERENCES core.users(id),
+                        body TEXT NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    )
+                    """
                 )
             )
             conn.execute(
                 text(
-                    f'ALTER TABLE "{SCHEMA}"."evidence_submissions" '
-                    'ADD COLUMN IF NOT EXISTS "evaluation_remediation" TEXT'
+                    f"""
+                    CREATE TABLE IF NOT EXISTS "{SCHEMA}"."notifications" (
+                        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                        user_id UUID NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
+                        resource_type VARCHAR(50) NOT NULL,
+                        resource_id UUID NOT NULL,
+                        action VARCHAR(50) NOT NULL,
+                        actor_id UUID REFERENCES core.users(id),
+                        title VARCHAR(255),
+                        body TEXT,
+                        read_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    )
+                    """
                 )
             )
+            # Index names are not schema-qualified in PostgreSQL; index is created in table's schema
+            conn.execute(text(f'CREATE INDEX IF NOT EXISTS idx_notes_resource ON "{SCHEMA}"."notes"(resource_type, resource_id)'))
+            conn.execute(text(f'CREATE INDEX IF NOT EXISTS idx_notes_created ON "{SCHEMA}"."notes"(resource_type, resource_id, created_at)'))
+            conn.execute(text(f'CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON "{SCHEMA}"."notifications"(user_id, created_at DESC)'))
             conn.execute(
                 text(
-                    f'ALTER TABLE "{SCHEMA}"."review_assignments" '
-                    "ADD COLUMN IF NOT EXISTS \"checklist_results\" JSONB NOT NULL DEFAULT '{}'"
+                    f'CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON "{SCHEMA}"."notifications"(user_id) WHERE read_at IS NULL'
                 )
             )
             conn.commit()
+        logger.info("Notes and notifications tables ensured.")
     except Exception as e:
-        logger.warning("Could not ensure optional evidence_submissions columns (table may not exist yet): %s", e)
+        logger.warning("Could not ensure notes/notifications tables (tenant/user tables may not exist yet): %s", e)
+
+
+def ensure_evidence_submission_history_table():
+    """
+    Create evidence_submission_history table if it does not exist.
+    Idempotent: safe to call on every startup. Uses same schema as migration 10.
+    """
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS "{SCHEMA}"."evidence_submission_history" (
+                        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                        submission_id UUID NOT NULL REFERENCES "{SCHEMA}"."evidence_submissions"(id) ON DELETE CASCADE,
+                        version INTEGER NOT NULL,
+                        changed_by UUID REFERENCES core.users(id),
+                        changed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        change_type VARCHAR(50) NOT NULL,
+                        snapshot_before JSONB,
+                        snapshot_after JSONB,
+                        justification TEXT
+                    )
+                    """
+                )
+            )
+            # Index names are not schema-qualified in PostgreSQL
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS idx_esh_submission ON "{SCHEMA}"."evidence_submission_history"(submission_id)'
+                )
+            )
+            conn.execute(
+                text(
+                    f'CREATE INDEX IF NOT EXISTS idx_esh_changed_at ON "{SCHEMA}"."evidence_submission_history"(changed_at)'
+                )
+            )
+            conn.commit()
+        logger.info("Evidence submission history table ensured.")
+    except Exception as e:
+        logger.warning(
+            "Could not ensure evidence_submission_history table (evidence_submissions may not exist yet): %s", e
+        )

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
-from ..dependencies import get_db, get_current_user
+from ..dependencies import get_db, get_db_scoped, get_current_user
 from ..models.tenant import User
 from ..models.assessment import EvidenceSubmission, EvidenceAttachment
 from ..models.review import ReviewerChecklist, ReviewAssignment, ReviewComment
@@ -30,6 +30,7 @@ from ..services.batch_loaders import (
     load_review_comments_by_review_ids,
     batch_sign_urls,
 )
+from .notifications import create_notification
 
 router = APIRouter()
 
@@ -180,7 +181,7 @@ def _advance_submission_after_approve(
 def submit_for_review(
     cycle_id: UUID,
     sub_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """Submit evidence for review. Creates L1 review assignment automatically."""
@@ -216,7 +217,7 @@ def list_reviews(
     cycle_id: UUID,
     status: str | None = Query(None),
     level: str | None = Query(None),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     logger.info("list_reviews: start cycle_id=%s", cycle_id)
@@ -349,7 +350,7 @@ def _list_reviews_impl(
 def create_review(
     cycle_id: UUID,
     req: CreateReviewRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     review = ReviewAssignment(
@@ -366,7 +367,7 @@ def create_review(
 @router.get("/reviews/{review_id}", response_model=ReviewOut)
 def get_review(
     review_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
@@ -378,7 +379,7 @@ def get_review(
 @router.get("/reviews/{review_id}/detail")
 def get_review_detail(
     review_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """Full review detail: submission + attachments (with signed URLs) + AI eval + comments."""
@@ -514,7 +515,7 @@ def get_review_detail(
 def update_review(
     review_id: UUID,
     req: UpdateReviewRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
@@ -549,6 +550,28 @@ def update_review(
         review.status = "returned"
         if submission:
             submission.status = evidence_status_svc.evidence_status_to_db("returned")
+            if submission.submitted_by:
+                latest_comment = (
+                    db.query(ReviewComment)
+                    .filter(ReviewComment.review_id == review_id)
+                    .order_by(ReviewComment.created_at.desc())
+                    .first()
+                )
+                body_msg = (
+                    latest_comment.body[:300] + ("..." if len(latest_comment.body) > 300 else "")
+                    if latest_comment and (latest_comment.body or "").strip()
+                    else f"Reviewer requested changes for {submission.evidence_item_id}"
+                )
+                create_notification(
+                    db,
+                    user_id=submission.submitted_by,
+                    resource_type="evidence_submission",
+                    resource_id=submission.id,
+                    action="evidence_returned",
+                    actor_id=user.id,
+                    title="Evidence returned",
+                    body=body_msg,
+                )
     else:
         review.status = "escalated"
 
@@ -570,7 +593,7 @@ def update_review(
 def save_checklist_progress(
     review_id: UUID,
     body: dict,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """Save checklist tick/cross progress while reviewing (auto-save)."""
@@ -588,7 +611,7 @@ def save_checklist_progress(
 @router.get("/reviews/{review_id}/comments", response_model=list[CommentOut])
 def list_comments(
     review_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     comments = (
@@ -604,7 +627,7 @@ def list_comments(
 def add_comment(
     review_id: UUID,
     req: CreateCommentRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     comment = ReviewComment(
@@ -624,7 +647,7 @@ def add_comment(
 def get_evidence_detail(
     cycle_id: UUID,
     sub_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """Full evidence detail with signed URLs, form data, AI eval, and review history."""

@@ -21,6 +21,7 @@ class UpdateSubmissionRequest(BaseModel):
     form_data: dict | None = None
     evaluation_result: dict | None = None
     evaluation_edits: dict | None = None
+    justification: str | None = None
 
 
 class SubmissionOut(BaseModel):
@@ -51,6 +52,21 @@ class AttachmentOut(BaseModel):
     file_size_bytes: int = 0
     upload_status: str
     uploaded_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class EvidenceHistoryEntryOut(BaseModel):
+    id: UUID
+    submission_id: UUID
+    version: int
+    changed_by: UUID | None = None
+    changed_at: datetime
+    change_type: str
+    snapshot_before: dict | None = None
+    snapshot_after: dict | None = None
+    justification: str | None = None
+    changed_by_name: str | None = None
 
     model_config = {"from_attributes": True}
 

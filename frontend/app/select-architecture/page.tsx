@@ -9,9 +9,15 @@ import {
   ARCHITECTURES,
   ARCHITECTURE_DIAGRAMS,
   getArchitectureDiagramUrl,
+  getArchitectureDiagramUrlAsync,
 } from "@/lib/data/architectures";
-import type { Architecture } from "@/lib/types";
+import type { Architecture, CycleSchemaName } from "@/lib/types";
 import { AppHeader } from "@/components/layout/app-header";
+
+/** True when cycle uses 2026 framework (swift_2026 schema). Drives all version-specific copy and diagram requests. */
+function is2026Schema(schemaName: CycleSchemaName | string | null | undefined): boolean {
+  return String(schemaName).toLowerCase() === "swift_2026";
+}
 
 const TYPE_COLORS: Record<string, { bg: string; border: string; badge: string }> = {
   A1: { bg: "#eff6ff", border: "#2563eb", badge: "#1e40af" },
@@ -53,21 +59,66 @@ function DiagramCaption({
   );
 }
 
-/** Inner carousel: one architecture's diagrams with thumbnails and detailed caption */
+/** Image that loads diagram URL from API when version is set and shouldLoad is true (lazy). */
+function DiagramImage({
+  filename,
+  alt,
+  version,
+  className,
+  shouldLoad = true,
+}: {
+  filename: string;
+  alt: string;
+  version?: string | null;
+  className?: string;
+  /** When false, use static placeholder only (lazy: load when slide is visible). */
+  shouldLoad?: boolean;
+}) {
+  const staticUrl = getArchitectureDiagramUrl(filename);
+  const [src, setSrc] = useState<string>(staticUrl);
+  useEffect(() => {
+    if (!shouldLoad) {
+      setSrc(staticUrl);
+      return;
+    }
+    if (version) {
+      getArchitectureDiagramUrlAsync(filename, version).then(setSrc);
+    } else {
+      setSrc(staticUrl);
+    }
+  }, [filename, version, shouldLoad, staticUrl]);
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
+
+/** Inner carousel: one architecture's diagrams with thumbnails and detailed caption. Only loads images when isVisible (lazy). */
 function ArchitectureImageCarousel({
   arch,
   selectedDiagramFilename,
   onSelectDiagram,
+  diagramVersion,
+  isVisible,
 }: {
   arch: Architecture;
   selectedDiagramFilename: string | null;
   onSelectDiagram: (filename: string) => void;
+  diagramVersion?: string | null;
+  /** When false, diagrams are not fetched (placeholder only) for lazy loading. */
+  isVisible?: boolean;
 }) {
   const diagrams = ARCHITECTURE_DIAGRAMS[arch.id] ?? [];
   const displayFilename = selectedDiagramFilename || diagrams[0];
   const hasMultiple = diagrams.length > 1;
   const [innerIndex, setInnerIndex] = useState(0);
   const effectiveIndex = displayFilename ? diagrams.indexOf(displayFilename) : 0;
+  const shouldLoad = isVisible ?? true;
 
   useEffect(() => {
     setInnerIndex(effectiveIndex >= 0 ? effectiveIndex : 0);
@@ -100,11 +151,19 @@ function ArchitectureImageCarousel({
         className="relative w-full min-h-[200px] sm:min-h-[280px] rounded-xl border-2 border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center p-3"
         style={{ borderColor: TYPE_COLORS[arch.id]?.border ?? "#e2e8f0" }}
       >
-        <img
-          src={getArchitectureDiagramUrl(currentFilename)}
-          alt={`${arch.name} – ${currentFilename}`}
-          className="w-full h-full min-h-[180px] sm:min-h-[260px] object-contain"
-        />
+        {shouldLoad ? (
+          <DiagramImage
+            filename={currentFilename}
+            alt={`${arch.name} – ${currentFilename}`}
+            version={diagramVersion}
+            className="w-full h-full min-h-[180px] sm:min-h-[260px] object-contain"
+            shouldLoad={true}
+          />
+        ) : (
+          <div className="w-full min-h-[180px] sm:min-h-[260px] flex items-center justify-center bg-slate-100 text-slate-400 text-sm">
+            {arch.id} diagram
+          </div>
+        )}
         {hasMultiple && (
           <>
             <button
@@ -132,7 +191,7 @@ function ArchitectureImageCarousel({
           </>
         )}
       </div>
-      {hasMultiple && (
+      {hasMultiple && shouldLoad && (
         <div className="flex gap-1.5 justify-center flex-wrap" role="group" aria-label="Select diagram">
           {diagrams.map((filename, i) => (
             <button
@@ -149,22 +208,26 @@ function ArchitectureImageCarousel({
                   : "border-slate-200 hover:border-slate-400"
               }`}
             >
-              <img
-                src={getArchitectureDiagramUrl(filename)}
+              <DiagramImage
+                filename={filename}
                 alt={`Diagram ${i + 1}`}
+                version={diagramVersion}
                 className="w-full h-full object-cover"
+                shouldLoad={true}
               />
             </button>
           ))}
         </div>
       )}
-      <DiagramCaption
-        architectureId={arch.id}
-        architectureName={arch.name}
-        diagramFilename={currentFilename}
-        diagramIndex={innerIndex}
-        totalDiagrams={diagrams.length}
-      />
+      {shouldLoad && (
+        <DiagramCaption
+          architectureId={arch.id}
+          architectureName={arch.name}
+          diagramFilename={currentFilename}
+          diagramIndex={innerIndex}
+          totalDiagrams={diagrams.length}
+        />
+      )}
     </div>
   );
 }
@@ -175,6 +238,9 @@ function SelectArchitectureInner() {
   const cycleId = searchParams.get("cycleId");
   const { user, isPlatformAdmin, setArchitecture, setActiveCycleId } = useAuth();
   const [selecting, setSelecting] = useState<string | null>(null);
+  /** Cycle schema from backend: swift_2025 (2025) or swift_2026 (2026). Single source of truth for framework version. */
+  const [schemaName, setSchemaName] = useState<CycleSchemaName | null>(null);
+  const is2026 = is2026Schema(schemaName);
   /** Current architecture slide index (0 = A1, 1 = A2, …). */
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   /** Per-architecture selected diagram filename (e.g. A1-1.png). */
@@ -188,6 +254,17 @@ function SelectArchitectureInner() {
     if (!user) router.replace("/login");
     if (isPlatformAdmin) router.replace("/admin");
   }, [user, isPlatformAdmin, router]);
+
+  useEffect(() => {
+    if (!cycleId) return;
+    api
+      .get<{ schema_name?: CycleSchemaName | string | null }>(`/assessments/${cycleId}`)
+      .then((c) => {
+        const raw = String(c.schema_name ?? "").toLowerCase();
+        setSchemaName(raw === "swift_2026" ? "swift_2026" : "swift_2025");
+      })
+      .catch(() => setSchemaName("swift_2025"));
+  }, [cycleId]);
 
   const goToSlide = useCallback((index: number) => {
     const i = Math.max(0, Math.min(index, totalSlides - 1));
@@ -229,7 +306,7 @@ function SelectArchitectureInner() {
       // Auto-attach the selected architecture diagram image as an evidence file
       if (diagramFilename && submissionId) {
         try {
-          const diagramUrl = getArchitectureDiagramUrl(diagramFilename);
+          const diagramUrl = await getArchitectureDiagramUrlAsync(diagramFilename, schemaName ?? undefined);
           const resp = await fetch(diagramUrl);
           if (resp.ok) {
             const blob = await resp.blob();
@@ -241,7 +318,7 @@ function SelectArchitectureInner() {
         }
       }
     },
-    [cycleId]
+    [cycleId, schemaName]
   );
 
   const handleSelect = async (architectureId: string) => {
@@ -299,8 +376,11 @@ function SelectArchitectureInner() {
             Select your SWIFT architecture type
           </h1>
           <p className="text-sm sm:text-base text-slate-600 mb-1">
-            CSCF v2025 defines 5 architecture types. Your selection determines which controls and
-            evidence items are in scope.
+            {schemaName == null ? (
+              <span className="text-slate-500">Loading framework version…</span>
+            ) : (
+              <>CSCF {is2026 ? "v2026" : "v2025"} defines 5 architecture types. Your selection determines which controls and evidence items are in scope.</>
+            )}
           </p>
           <p className="text-xs text-slate-500 mb-4">
             Use the carousel to view each architecture. Mandatory + Advisory controls shown per type.
@@ -321,7 +401,7 @@ function SelectArchitectureInner() {
                   <section
                     key={arch.id}
                     data-slide-index={index}
-                    className="flex-shrink-0 w-full snap-center snap-always"
+                    className="shrink-0 w-full snap-center snap-always"
                     style={{ minWidth: "100%" }}
                   >
                     <div
@@ -329,11 +409,13 @@ function SelectArchitectureInner() {
                       style={{ borderColor: colors.border }}
                     >
                       {/* Image carousel + caption (detailed identifier for selected image) */}
-                      <div className="sm:w-1/2 flex-shrink-0 p-4 sm:p-5">
+                      <div className="sm:w-1/2 shrink-0 p-4 sm:p-5">
                         <ArchitectureImageCarousel
                           arch={arch}
                           selectedDiagramFilename={selectedDiagramByArch[arch.id] ?? null}
                           onSelectDiagram={(filename) => setDiagramForArch(arch.id, filename)}
+                          diagramVersion={schemaName}
+                          isVisible={currentSlideIndex === index}
                         />
                       </div>
                       {/* Detailed identifier panel */}
@@ -476,12 +558,24 @@ function SelectArchitectureInner() {
             </p>
           </div>
 
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
-            <strong>CSCF v2025 note:</strong> Organisations previously attesting as Architecture B
-            that use application-to-application flows (middleware, API, file transfer) must
-            reclassify to A4. Only GUI-only access remains as B. New A4 controls are advisory in
-            v2025 and become mandatory in v2026.
-          </div>
+          {schemaName != null && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+              {is2026 ? (
+                <>
+                  <strong>CSCF v2026 note:</strong> Organisations previously attesting as Architecture B
+                  that use application-to-application flows (middleware, API, file transfer) must
+                  reclassify to A4. Only GUI-only access remains as B. A4 controls are mandatory in v2026.
+                </>
+              ) : (
+                <>
+                  <strong>CSCF v2025 note:</strong> Organisations previously attesting as Architecture B
+                  that use application-to-application flows (middleware, API, file transfer) must
+                  reclassify to A4. Only GUI-only access remains as B. New A4 controls are advisory in
+                  v2025 and become mandatory in v2026.
+                </>
+              )}
+            </div>
+          )}
 
           <p className="mt-4 text-center text-sm text-slate-500">
             <Link href="/assessments/new" className="text-blue-600 hover:underline">

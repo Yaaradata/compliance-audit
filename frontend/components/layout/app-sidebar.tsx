@@ -93,7 +93,7 @@ export function AppSidebar() {
     <aside
       className={`
         flex flex-col shrink-0 overflow-hidden border-r rounded-r-xl
-        max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:!w-64 max-md:transition-transform max-md:duration-200 max-md:ease-out
+        max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:w-64! max-md:transition-transform max-md:duration-200 max-md:ease-out
         md:rounded-r-xl
         ${!open ? "max-md:-translate-x-full" : "max-md:translate-x-0"}
       `}
@@ -149,7 +149,7 @@ export function AppSidebar() {
               <Link
                 key={item.href}
                 href={href || item.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-200 hover:bg-[var(--sidebar-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sidebar-active-text)] min-w-0 ${!open ? "justify-center" : ""}`}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-200 hover:bg-(--sidebar-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--sidebar-active-text) min-w-0 ${!open ? "justify-center" : ""}`}
                 style={{
                   color: isActive ? "var(--sidebar-active-text)" : "var(--sidebar-text-muted)",
                   backgroundColor: isActive ? "var(--sidebar-active-bg)" : "transparent",

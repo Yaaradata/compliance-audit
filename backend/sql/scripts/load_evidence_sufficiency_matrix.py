@@ -35,7 +35,7 @@ sys.path.insert(0, str(BACKEND))
 REPO_ROOT = BACKEND.parent
 XLSX_PATH = REPO_ROOT / "Reviewer_doc" / "Reviewer_L1_L2_L3_Checklists.xlsx"
 SQL_OUT = BACKEND / "sql" / "evidence_sufficiency_matrix_data.sql"
-SCHEMA = "cscf_2025_new"
+SCHEMA = "swift_2025"
 
 
 # ---------------------------------------------------------------------------

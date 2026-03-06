@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_current_user
+from ..dependencies import get_db, get_db_scoped, get_current_user
 from ..models.tenant import User
 from ..models.vendor import VendorRegistry
 from ..schemas.reference import VendorOut, VendorCreate
@@ -12,12 +12,12 @@ router = APIRouter()
 
 
 @router.get("/assessments/{cycle_id}/vendors", response_model=list[VendorOut])
-def list_vendors(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def list_vendors(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     return db.query(VendorRegistry).filter(VendorRegistry.cycle_id == cycle_id).order_by(VendorRegistry.created_at.desc()).all()
 
 
 @router.post("/assessments/{cycle_id}/vendors", response_model=VendorOut, status_code=201)
-def create_vendor(cycle_id: UUID, req: VendorCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def create_vendor(cycle_id: UUID, req: VendorCreate, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     vendor = VendorRegistry(
         cycle_id=cycle_id,
         tenant_id=user.tenant_id,
@@ -34,7 +34,7 @@ def create_vendor(cycle_id: UUID, req: VendorCreate, db: Session = Depends(get_d
 
 
 @router.put("/assessments/{cycle_id}/vendors/{vendor_id}", response_model=VendorOut)
-def update_vendor(cycle_id: UUID, vendor_id: UUID, req: VendorCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def update_vendor(cycle_id: UUID, vendor_id: UUID, req: VendorCreate, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     vendor = db.query(VendorRegistry).filter(VendorRegistry.id == vendor_id, VendorRegistry.cycle_id == cycle_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
@@ -46,7 +46,7 @@ def update_vendor(cycle_id: UUID, vendor_id: UUID, req: VendorCreate, db: Sessio
 
 
 @router.delete("/assessments/{cycle_id}/vendors/{vendor_id}", status_code=204)
-def delete_vendor(cycle_id: UUID, vendor_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def delete_vendor(cycle_id: UUID, vendor_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     vendor = db.query(VendorRegistry).filter(VendorRegistry.id == vendor_id, VendorRegistry.cycle_id == cycle_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")

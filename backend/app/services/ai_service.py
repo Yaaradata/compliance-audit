@@ -80,7 +80,10 @@ def prepare_file_part(file_path_or_bytes: str | bytes, mime_type: str) -> Part:
 
 
 def _parse_numbered_criteria(value: str | dict | Any | None) -> list[tuple[str, str]]:
-    """Parse sufficiency/evaluation_criteria JSON (string or dict) into [(id, label), ...], keys sorted numerically."""
+    """Parse sufficiency/evaluation_criteria JSON (string or dict) into [(id, label), ...], keys sorted numerically.
+    Handles sufficiency_criteria as {"sufficiency_criteria": ["a","b"]} -> [(1,a),(2,b)].
+    Does not handle evaluation_criteria pass_if/fail_if/cross_checks; use _parse_sufficiency_json and
+    _parse_evaluation_criteria_for_prompt / _eval_criteria_pass_if_only for those."""
     if value is None:
         return []
     if isinstance(value, dict):
@@ -97,8 +100,56 @@ def _parse_numbered_criteria(value: str | dict | Any | None) -> list[tuple[str, 
         return []
     if not isinstance(obj, dict):
         return []
+    # Array under key "sufficiency_criteria" (from 2025 JSON sheet)
+    if "sufficiency_criteria" in obj and isinstance(obj["sufficiency_criteria"], list):
+        return [(str(i), str(x).strip()) for i, x in enumerate(obj["sufficiency_criteria"], 1) if str(x).strip()]
     keys = sorted(obj.keys(), key=lambda k: (int(k) if str(k).isdigit() else 999, k))
     return [(k, str(obj[k]).strip()) for k in keys if str(obj[k]).strip()]
+
+
+def _parse_evaluation_criteria_structured(ev_raw: str | dict | Any | None) -> dict | None:
+    """If evaluation_criteria is {pass_if, fail_if, cross_checks}, return the dict; else None."""
+    if ev_raw is None:
+        return None
+    if isinstance(ev_raw, dict):
+        obj = ev_raw
+    elif isinstance(ev_raw, str):
+        ev_raw = ev_raw.strip()
+        if not ev_raw:
+            return None
+        try:
+            obj = json.loads(ev_raw)
+        except Exception:
+            return None
+    else:
+        return None
+    if not isinstance(obj, dict) or "pass_if" not in obj:
+        return None
+    return obj
+
+
+def _format_evaluation_structured_for_prompt(control_id: str, ev_obj: dict) -> str:
+    """Format pass_if, fail_if, cross_checks into prompt lines with stable IDs (eval_1.., eval_f1.., eval_c1..)."""
+    lines: list[str] = []
+    idx = 0
+    for label in ev_obj.get("pass_if") or []:
+        idx += 1
+        lines.append(f"  {control_id}_eval_{idx}: {str(label).strip()}")
+    for label in ev_obj.get("fail_if") or []:
+        idx += 1
+        lines.append(f"  {control_id}_eval_f{idx}: [FAIL IF] {str(label).strip()}")
+    for label in ev_obj.get("cross_checks") or []:
+        idx += 1
+        lines.append(f"  {control_id}_eval_c{idx}: [CROSS-CHECK] {str(label).strip()}")
+    return "\n".join(lines)
+
+
+def _eval_criteria_pass_if_only(ev_raw: str | dict | Any | None) -> list[tuple[str, str]]:
+    """Return [(id, label), ...] for UI display: only pass_if from evaluation_criteria JSON."""
+    ev_obj = _parse_evaluation_criteria_structured(ev_raw)
+    if not ev_obj:
+        return _parse_numbered_criteria(ev_raw)
+    return [(str(i), str(x).strip()) for i, x in enumerate(ev_obj.get("pass_if") or [], 1) if str(x).strip()]
 
 
 def _format_criteria_as_numbered_list(parsed: list[tuple[str, str]]) -> str:
@@ -135,15 +186,21 @@ def _build_prompt(
             suf_raw = getattr(row, "sufficiency_criteria", None) or row.get("sufficiency_criteria")
             ev_raw = getattr(row, "evaluation_criteria", None) or row.get("evaluation_criteria")
             suf_parsed = _parse_numbered_criteria(suf_raw)
-            ev_parsed = _parse_numbered_criteria(ev_raw)
+            ev_structured = _parse_evaluation_criteria_structured(ev_raw)
             if suf_parsed:
                 sufficiency_parts.append(
                     f"--- Control {cid} ({cname}) ---\n" + _format_criteria_with_control_ids(cid, suf_parsed, prefix="suf_")
                 )
-            if ev_parsed:
+            if ev_structured:
                 evaluation_parts.append(
-                    f"--- Control {cid} ({cname}) ---\n" + _format_criteria_with_control_ids(cid, ev_parsed, prefix="eval_")
+                    f"--- Control {cid} ({cname}) ---\n" + _format_evaluation_structured_for_prompt(cid, ev_structured)
                 )
+            elif ev_raw:
+                ev_parsed = _parse_numbered_criteria(ev_raw)
+                if ev_parsed:
+                    evaluation_parts.append(
+                        f"--- Control {cid} ({cname}) ---\n" + _format_criteria_with_control_ids(cid, ev_parsed, prefix="eval_")
+                    )
         sufficiency_definition = "\n\n".join(sufficiency_parts) if sufficiency_parts else "N/A"
         evaluation_criteria = "\n\n".join(evaluation_parts) if evaluation_parts else "N/A"
         evidence_description = (

@@ -57,6 +57,7 @@ class CycleOut(BaseModel):
     phase: str
     architecture_type: str | None = None
     framework_id: UUID | None = None
+    schema_name: str | None = None  # swift_2025 or swift_2026 for diagram/framework data
     start_date: date | None = None
     target_submission_date: date | None = None
     created_at: datetime

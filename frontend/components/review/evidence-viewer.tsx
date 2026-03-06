@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { api } from "@/lib/api";
 import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
+import { NoteList } from "@/components/notes/note-list";
+import { NoteInput } from "@/components/notes/note-input";
 
 interface Attachment {
   id: string;
@@ -296,7 +298,8 @@ export function InlineEvidenceDetail({
   const [actionComment, setActionComment] = useState("");
   const [checklistState, setChecklistState] = useState<Record<string, { checked: boolean; note: string }>>({});
   const [savingChecklist, setSavingChecklist] = useState(false);
-  const [activeTab, setActiveTab] = useState<"checklist" | "evidence" | "evaluation" | "comments" | "history">("checklist");
+  const [activeTab, setActiveTab] = useState<"checklist" | "evidence" | "evaluation" | "comments" | "notes" | "history">("checklist");
+  const [notesRefresh, setNotesRefresh] = useState(0);
 
   const fetchDetail = useCallback(async () => {
     try {
@@ -376,11 +379,13 @@ export function InlineEvidenceDetail({
   const levelLabel = LEVEL_LABELS[normalizeLevel(review.level)] ?? review.level;
   const levelDisplay = `${normalizeLevel(review.level)} — ${levelLabel}`;
 
+  const isReturned = submission.status === "returned" || String(submission.status || "").includes("returned");
   const TABS = [
     { id: "checklist" as const, label: "Checklist", badge: `${checklistChecked}/${checklistTotal}${savingChecklist ? " …" : ""}` },
     { id: "evidence" as const, label: "Evidence", badge: `${formKeys.length} fields, ${attachments.length} files` },
     { id: "evaluation" as const, label: "AI Evaluation", badge: evalResult ? (evalResult.overall_met ? "Met" : "Not met") : "—" },
     { id: "comments" as const, label: "Comments", badge: `${comments.length}` },
+    { id: "notes" as const, label: "Notes", badge: "" },
     { id: "history" as const, label: "History", badge: `${review_history.length} levels` },
   ];
 
@@ -389,6 +394,12 @@ export function InlineEvidenceDetail({
 
   return (
     <div className="flex flex-col gap-3">
+      {isReturned && (
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Reviewer requested revision</p>
+          <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">You can add a reply below in the Notes tab and update the evidence as needed.</p>
+        </div>
+      )}
       {/* Compact level + tabs row */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-wrap">
         <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
@@ -694,6 +705,27 @@ export function InlineEvidenceDetail({
           </div>
         )}
 
+        {activeTab === "notes" && (
+          <div className={`flex-1 flex flex-col ${tabContentClass} ${contentMaxHeight} p-3`}>
+            <div className="flex-1 overflow-y-auto space-y-3">
+              <NoteList
+                resourceType="evidence_submission"
+                resourceId={submission.id}
+                refreshTrigger={notesRefresh}
+                emptyMessage="No notes yet. Add a note or reply to the reviewer."
+              />
+            </div>
+            <div className="shrink-0 pt-3 border-t border-[var(--border)] mt-2">
+              <NoteInput
+                resourceType="evidence_submission"
+                resourceId={submission.id}
+                placeholder={isReturned ? "Add a reply to the reviewer…" : "Add a note…"}
+                onAdded={() => setNotesRefresh((r) => r + 1)}
+              />
+            </div>
+          </div>
+        )}
+
         {activeTab === "history" && (
           <div className={`flex-1 flex flex-col ${tabContentClass} ${contentMaxHeight} p-3`}>
             <div className="space-y-1.5">
@@ -762,17 +794,64 @@ function ModalSectionHeader({ title, badge }: { title: string; badge?: string })
   );
 }
 
+interface HistoryEntry {
+  id: string;
+  submission_id: string;
+  version: number;
+  changed_by: string | null;
+  changed_at: string;
+  change_type: string;
+  snapshot_before: Record<string, unknown> | null;
+  snapshot_after: Record<string, unknown> | null;
+  justification: string | null;
+  changed_by_name: string | null;
+}
+
+function EvidenceEditsHistorySection({ cycleId, submissionId }: { cycleId: string; submissionId: string }) {
+  const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api
+      .get<HistoryEntry[]>(`/assessments/${cycleId}/evidence/${submissionId}/history`)
+      .then((data) => setEntries(Array.isArray(data) ? data : []))
+      .catch(() => setEntries([]))
+      .finally(() => setLoading(false));
+  }, [cycleId, submissionId]);
+  if (loading) return <section><ModalSectionHeader title="Evidence edits" /><p className="text-sm text-[var(--foreground-muted)]">Loading…</p></section>;
+  if (entries.length === 0) return <section><ModalSectionHeader title="Evidence edits" /><p className="text-sm text-[var(--foreground-muted)]">No edit history.</p></section>;
+  return (
+    <section className="min-h-0 flex flex-col">
+      <ModalSectionHeader title="Evidence edits" badge={`${entries.length}`} />
+      <div className="space-y-2 max-h-[min(40vh,320px)] overflow-y-auto pr-1">
+        {entries.map((e) => (
+          <div key={e.id} className="bg-[var(--background)] rounded-xl px-3 py-2.5 border border-[var(--border)]">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-[var(--foreground)]">{e.change_type}</span>
+              <span className="text-[10px] text-[var(--foreground-muted)]">v{e.version}</span>
+              {e.changed_by_name && <span className="text-[10px] text-[var(--foreground-subtle)]">{e.changed_by_name}</span>}
+              <span className="text-[10px] text-[var(--foreground-subtle)] ml-auto">{new Date(e.changed_at).toLocaleString()}</span>
+            </div>
+            {e.justification && <p className="text-[11px] text-[var(--foreground-muted)] mt-1 italic">{e.justification}</p>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /**
  * Full-screen popup showing Checklist, Evidence, AI Evaluation, Comments, and History
  * in one scrollable view at large scale. Replaces the tabbed inline view.
  */
 export function EvidenceDetailModal({
+  cycleId,
   reviewId,
   evidenceItemId,
   userRole,
   onAction,
   onClose,
 }: {
+  cycleId: string;
   reviewId: string;
   evidenceItemId?: string;
   userRole: string;
@@ -787,6 +866,7 @@ export function EvidenceDetailModal({
   const [checklistState, setChecklistState] = useState<Record<string, { checked: boolean; note: string }>>({});
   const [savingChecklist, setSavingChecklist] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  const [notesRefresh, setNotesRefresh] = useState(0);
 
   const fetchDetail = useCallback(async () => {
     try {
@@ -1169,6 +1249,20 @@ export function EvidenceDetailModal({
               </div>
             </section>
 
+            {/* ——— Notes (chat) ——— */}
+            <section className="min-h-0 flex flex-col">
+              <ModalSectionHeader title="Notes" />
+              <div className="space-y-3">
+                <NoteList resourceType="evidence_submission" resourceId={submission.id} refreshTrigger={notesRefresh} emptyMessage="No notes yet." />
+                <NoteInput
+                  resourceType="evidence_submission"
+                  resourceId={submission.id}
+                  placeholder={submission.status === "returned" || String(submission.status || "").includes("returned") ? "Add a reply to the reviewer…" : "Add a note…"}
+                  onAdded={() => { setNotesRefresh((r) => r + 1); fetchDetail(); }}
+                />
+              </div>
+            </section>
+
             {/* ——— Comments & History: parallel, equal leveling ——— */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               <section className="min-h-0 flex flex-col">
@@ -1206,7 +1300,7 @@ export function EvidenceDetailModal({
                 </div>
               </section>
               <section className="min-h-0 flex flex-col">
-                <ModalSectionHeader title="History" />
+                <ModalSectionHeader title="Review history" />
                 <div className="space-y-2 max-h-[min(36vh,280px)] overflow-y-auto pr-1">
                   {review_history.map((rh) => (
                     <div key={rh.id} className="flex items-center gap-3 bg-[var(--background)] rounded-xl px-3 py-2.5 border border-[var(--border)]">
@@ -1222,6 +1316,11 @@ export function EvidenceDetailModal({
                 </div>
               </section>
             </div>
+
+            {/* ——— Evidence edits history ——— */}
+            {cycleId && (
+              <EvidenceEditsHistorySection cycleId={cycleId} submissionId={submission.id} />
+            )}
 
             {/* Action bar — at bottom of scroll */}
             {canAction && review.status === "assigned" && (

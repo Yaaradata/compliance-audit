@@ -63,7 +63,7 @@ export function SidebarHeader({
         <button
           type="button"
           onClick={toggle}
-          className="rounded-full w-9 h-9 flex items-center justify-center outline-none transition-all duration-200 hover:bg-[var(--sidebar-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sidebar-active-text)] shrink-0"
+          className="rounded-full w-9 h-9 flex items-center justify-center outline-none transition-all duration-200 hover:bg-(--sidebar-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--sidebar-active-text) shrink-0"
           style={{ background: "var(--sidebar-active-bg)", color: "var(--sidebar-active-text)" }}
           title="Expand sidebar"
           aria-label="Expand sidebar"
@@ -74,7 +74,7 @@ export function SidebarHeader({
         <button
           type="button"
           onClick={onSearchClick ?? toggle}
-          className="w-9 h-9 rounded-full flex items-center justify-center outline-none transition-all duration-200 hover:bg-[var(--sidebar-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sidebar-active-text)]"
+          className="w-9 h-9 rounded-full flex items-center justify-center outline-none transition-all duration-200 hover:bg-(--sidebar-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--sidebar-active-text)"
           style={{ color: "var(--sidebar-text-muted)" }}
           title="Expand sidebar / Search"
           aria-label="Expand sidebar"
@@ -97,7 +97,7 @@ export function SidebarHeader({
     >
       <Link
         href={href}
-        className="flex items-center gap-3 min-w-0 flex-1 outline-none rounded-lg focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sidebar-active-text)] transition-shadow duration-200 overflow-hidden"
+        className="flex items-center gap-3 min-w-0 flex-1 outline-none rounded-lg focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--sidebar-active-text) transition-shadow duration-200 overflow-hidden"
         aria-label="YaaraLabs SWIFT Compliance Platform — Home"
       >
         <span
@@ -122,7 +122,7 @@ export function SidebarHeader({
       <button
         type="button"
         onClick={toggle}
-        className="shrink-0 w-9 h-9 min-w-[36px] rounded-full flex items-center justify-center outline-none transition-all duration-200 hover:bg-[var(--sidebar-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sidebar-active-text)]"
+        className="shrink-0 w-9 h-9 min-w-[36px] rounded-full flex items-center justify-center outline-none transition-all duration-200 hover:bg-(--sidebar-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--sidebar-active-text)"
         style={{ color: "var(--sidebar-text)" }}
         title="Collapse sidebar"
         aria-label="Collapse sidebar"

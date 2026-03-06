@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from ..dependencies import get_db, get_current_user
+from ..dependencies import get_db, get_db_scoped, get_current_user
 from ..models.tenant import User
 from ..models.approval import AssessmentReport
 from ..schemas.approval import ReportOut, CreateReportRequest, UpdateReportRequest
@@ -53,7 +53,7 @@ def list_reports(cycle_id: UUID, db: Session = Depends(get_db), user: User = Dep
 
 
 @router.post("/assessments/{cycle_id}/reports", response_model=ReportOut, status_code=201)
-def create_report(cycle_id: UUID, req: CreateReportRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def create_report(cycle_id: UUID, req: CreateReportRequest, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     report = AssessmentReport(
         cycle_id=cycle_id,
         report_kind=req.report_kind,
@@ -67,7 +67,7 @@ def create_report(cycle_id: UUID, req: CreateReportRequest, db: Session = Depend
 
 
 @router.get("/assessments/{cycle_id}/reports/{report_id}", response_model=ReportOut)
-def get_report(cycle_id: UUID, report_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_report(cycle_id: UUID, report_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     report = db.query(AssessmentReport).filter(AssessmentReport.id == report_id, AssessmentReport.cycle_id == cycle_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -75,7 +75,7 @@ def get_report(cycle_id: UUID, report_id: UUID, db: Session = Depends(get_db), u
 
 
 @router.put("/assessments/{cycle_id}/reports/{report_id}", response_model=ReportOut)
-def update_report(cycle_id: UUID, report_id: UUID, req: UpdateReportRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def update_report(cycle_id: UUID, report_id: UUID, req: UpdateReportRequest, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     report = db.query(AssessmentReport).filter(AssessmentReport.id == report_id, AssessmentReport.cycle_id == cycle_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -89,7 +89,7 @@ def update_report(cycle_id: UUID, report_id: UUID, req: UpdateReportRequest, db:
 
 
 @router.post("/assessments/{cycle_id}/reports/{report_id}/finalize", response_model=ReportOut)
-def finalize_report(cycle_id: UUID, report_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def finalize_report(cycle_id: UUID, report_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     report = db.query(AssessmentReport).filter(AssessmentReport.id == report_id, AssessmentReport.cycle_id == cycle_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -107,7 +107,7 @@ def finalize_report(cycle_id: UUID, report_id: UUID, db: Session = Depends(get_d
 def generate_full_report(
     cycle_id: UUID,
     report_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """Build snapshot, then generate ALL AI sections sequentially."""
@@ -166,7 +166,7 @@ def regenerate_section(
     cycle_id: UUID,
     report_id: UUID,
     section_index: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """Regenerate a single section using the stored snapshot."""
@@ -219,7 +219,7 @@ def export_report(
     cycle_id: UUID,
     report_id: UUID,
     format: str = Query("docx", regex="^(docx|pdf)$"),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """Export report as PDF or Word document."""

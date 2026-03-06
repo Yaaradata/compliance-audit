@@ -128,7 +128,7 @@ def seed_jsonb_fields(conn, items_data):
     for item_id, data in items_data.items():
         cur.execute(
             """
-            UPDATE cscf_2025_new.canonical_evidence_items
+            UPDATE swift_2025.canonical_evidence_items
             SET input_schema = %s::jsonb,
                 sufficiency_dimensions = %s::jsonb
             WHERE id = %s
@@ -155,7 +155,7 @@ def seed_sufficiency_requirements(conn, mappings):
         if m["sufficiency_requirement"]:
             cur.execute(
                 """
-                UPDATE cscf_2025_new.item_control_mappings
+                UPDATE swift_2025.item_control_mappings
                 SET sufficiency_requirement = %s
                 WHERE evidence_item_id = %s AND control_id = %s
                 """,
@@ -248,7 +248,7 @@ def seed_evidence_sufficiency_matrix(conn, matrix_rows: list[dict]) -> None:
     for r in matrix_rows:
         cur.execute(
             """
-            INSERT INTO cscf_2025_new.evidence_sufficiency_matrix
+            INSERT INTO swift_2025.evidence_sufficiency_matrix
                 (item_code, control_id, evidence_item_name, control_name, ma, evidence_type, sufficiency_criteria, evaluation_criteria)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (item_code, control_id) DO UPDATE SET

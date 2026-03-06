@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ControlBadge } from "@/components/ui/control-badge";
 import { PriorityBadge } from "@/components/ui/badge";
@@ -84,6 +85,8 @@ import { H8_EVIDENCE_ITEM_ID, H8_UPLOAD_GUIDANCE, H8_FIELDS } from "@/lib/data/h
 import { H9_EVIDENCE_ITEM_ID, H9_UPLOAD_GUIDANCE, H9_FIELDS } from "@/lib/data/h9-evidence";
 
 import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/data/architectures";
+import { NoteList } from "@/components/notes/note-list";
+import { NoteInput } from "@/components/notes/note-input";
 
 interface GenericEvidenceDef {
   uploadTitle: string;
@@ -620,6 +623,8 @@ export function EvidenceWorkspace({
   onA2RemoveRow,
   onEvaluationEdit,
   evaluationEdits,
+  notesRefreshTrigger = 0,
+  onNoteAdded,
 }: {
   cycleId: string | null;
   domainId: string;
@@ -650,7 +655,12 @@ export function EvidenceWorkspace({
   onA2RemoveRow?: (index: number) => void;
   onEvaluationEdit?: (updated: AiEvalResultType, edits: EvaluationEditsMap) => void;
   evaluationEdits?: EvaluationEditsMap;
+  notesRefreshTrigger?: number;
+  onNoteAdded?: () => void;
 }) {
+  const [notesRefresh, setNotesRefresh] = useState(0);
+  const effectiveNotesRefresh = (notesRefreshTrigger ?? 0) + notesRefresh;
+
   if (!currentItem) {
     return (
       <div className="h-full flex items-center justify-center rounded-xl border border-(--border) bg-(--surface) text-(--foreground-muted) text-sm">
@@ -724,6 +734,7 @@ export function EvidenceWorkspace({
             <TabsTrigger value="common">Common Evidence</TabsTrigger>
             <TabsTrigger value="control">Per-Control</TabsTrigger>
             <TabsTrigger value="evaluation">Evaluation</TabsTrigger>
+            <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
         </div>
 
@@ -839,6 +850,36 @@ export function EvidenceWorkspace({
             <EvaluationResults
               score={completionPctByItem[currentItem.id] ?? getItemCompletion(currentItem.id)}
             />
+          )}
+        </TabsContent>
+
+        <TabsContent value="notes" className="px-3 pb-3 overflow-y-auto">
+          {!currentSubmissionId ? (
+            <p className="text-sm text-(--foreground-muted) py-4">
+              Add or save evidence for this item first to enable notes (e.g. upload a file or fill the form and save).
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <NoteList
+                resourceType="evidence_submission"
+                resourceId={currentSubmissionId}
+                refreshTrigger={effectiveNotesRefresh}
+                emptyMessage="No notes yet."
+              />
+              <NoteInput
+                resourceType="evidence_submission"
+                resourceId={currentSubmissionId}
+                placeholder={
+                  submissionStatus === "returned" || String(submissionStatus ?? "").includes("returned")
+                    ? "Add a reply to the reviewer…"
+                    : "Add a note…"
+                }
+                onAdded={() => {
+                  setNotesRefresh((r) => r + 1);
+                  onNoteAdded?.();
+                }}
+              />
+            </div>
           )}
         </TabsContent>
       </Tabs>

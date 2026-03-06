@@ -182,12 +182,12 @@ def _esc(s: str) -> str:
 def write_sql(rows: list[dict], out: Path) -> None:
     lines = [
         "-- reviewer_checklist with JSONB l1/l2/l3 from Reviewer_L1_L2_L3_Checklists.xlsx",
-        "SET search_path TO cscf_2025_new, public;",
+        "SET search_path TO swift_2025, public;",
         "",
         "-- Ensure JSONB columns (convert TEXT if needed)",
         "DO $$ BEGIN",
         "  IF EXISTS (SELECT 1 FROM information_schema.columns",
-        "             WHERE table_schema='cscf_2025_new' AND table_name='reviewer_checklist'",
+        "             WHERE table_schema='swift_2025' AND table_name='reviewer_checklist'",
         "               AND column_name='l1_check' AND data_type='text') THEN",
         "    ALTER TABLE reviewer_checklist ADD COLUMN IF NOT EXISTS l1_check_json JSONB;",
         "    ALTER TABLE reviewer_checklist ADD COLUMN IF NOT EXISTS l2_check_json JSONB;",

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_current_user
 from ..models.tenant import User
-from ..models.assessment import EvidenceAttachment
+from ..models.assessment import EvidenceAttachment, EvidenceSubmission, EvidenceSubmissionHistory
 from ..services import storage_service
 
 router = APIRouter()
@@ -40,6 +40,24 @@ def upload_file(
         relative_path, contents, attachment.file_type
     )
     attachment.storage_path = storage_path
+    sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id).first()
+    if sub:
+        from ..routers.evidence import _submission_snapshot
+        next_ver = (
+            db.query(EvidenceSubmissionHistory)
+            .filter(EvidenceSubmissionHistory.submission_id == sub_id)
+            .count()
+        ) + 1
+        hist = EvidenceSubmissionHistory(
+            submission_id=sub_id,
+            version=next_ver,
+            changed_by=user.id,
+            change_type="attachment_add",
+            snapshot_before=_submission_snapshot(sub),
+            snapshot_after=_submission_snapshot(sub),
+            justification=None,
+        )
+        db.add(hist)
     db.commit()
     db.refresh(attachment)
 
@@ -160,6 +178,24 @@ def delete_file(
     )
     if not attachment:
         raise HTTPException(status_code=404, detail="File not found")
+    sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id).first()
+    if sub:
+        from ..routers.evidence import _submission_snapshot
+        next_ver = (
+            db.query(EvidenceSubmissionHistory)
+            .filter(EvidenceSubmissionHistory.submission_id == sub_id)
+            .count()
+        ) + 1
+        hist = EvidenceSubmissionHistory(
+            submission_id=sub_id,
+            version=next_ver,
+            changed_by=user.id,
+            change_type="attachment_remove",
+            snapshot_before=_submission_snapshot(sub),
+            snapshot_after=_submission_snapshot(sub),
+            justification=None,
+        )
+        db.add(hist)
     try:
         storage_service.delete(attachment.storage_path)
     except Exception:

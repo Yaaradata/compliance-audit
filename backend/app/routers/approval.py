@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_current_user
+from ..dependencies import get_db, get_db_scoped, get_current_user
 from ..models.tenant import User
 from ..models.assessment import EvidenceSubmission, AssessmentCycle
 from ..models.review import ReviewAssignment
@@ -141,7 +141,7 @@ def _compute_gate_readiness(db: Session, cycle_id: UUID) -> dict[str, dict]:
 @router.get("/assessments/{cycle_id}/approval", response_model=list[GateOut])
 def get_approval_status(
     cycle_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     _ensure_gates_exist(db, cycle_id)
@@ -157,7 +157,7 @@ def get_approval_status(
 @router.get("/assessments/{cycle_id}/approval/summary")
 def get_approval_summary(
     cycle_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """Summary with per-gate progress, readiness, and blockers."""
@@ -334,7 +334,7 @@ def approve_gate(
     cycle_id: UUID,
     gate_type: str,
     req: ApproveGateRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     if user.role not in ("approver", "admin", "compliance_officer"):
@@ -395,7 +395,7 @@ def update_remediation(
     cycle_id: UUID,
     submission_id: UUID,
     req: UpdateRemediationRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """Allow a user to add/update the remediation notes for a submission's gap."""

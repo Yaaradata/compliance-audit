@@ -6,33 +6,50 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import type { AssessmentCycle } from "@/lib/types";
 
+export interface Framework { id: string; code: string; name: string; version: string; schema_name?: string | null; is_active: boolean }
+
 export default function AssessmentsPage() {
   const router = useRouter();
   const { user, activeCycleId, setActiveCycleId, setArchitecture } = useAuth();
   const [cycles, setCycles] = useState<AssessmentCycle[]>([]);
+  const [frameworks, setFrameworks] = useState<Framework[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState("");
   const [year, setYear] = useState(new Date().getFullYear());
+  const [frameworkId, setFrameworkId] = useState<string | null>(null);
   const [complianceAssessment, setComplianceAssessment] = useState<"swift_cscf" | "pci_dss" | "iso">("swift_cscf");
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const canProceedWithCreate = complianceAssessment === "swift_cscf";
+  const swiftFrameworks = frameworks.filter((f) => f.code === "SWIFT_CSCF");
 
   useEffect(() => {
     if (!user) return;
-    api.get<AssessmentCycle[]>("/assessments").then((data) => {
-      setCycles(data);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    Promise.all([
+      api.get<AssessmentCycle[]>("/assessments"),
+      api.get<Framework[]>("/ref/frameworks"),
+    ])
+      .then(([cyclesData, frameworksData]) => {
+        setCycles(cyclesData);
+        setFrameworks(frameworksData);
+        if (frameworksData.length > 0 && !frameworkId) {
+          const defaultFw = frameworksData.find((f) => f.code === "SWIFT_CSCF" && (f.version === "v2025" || f.schema_name === "swift_2025")) ?? frameworksData[0];
+          setFrameworkId(defaultFw.id);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [user]);
 
   const handleCreate = async () => {
     if (!label.trim()) return;
     setCreating(true);
     try {
-      const cycle = await api.post<AssessmentCycle>("/assessments", { label, cycle_year: year });
+      const body: { label: string; cycle_year: number; framework_id?: string } = { label, cycle_year: year };
+      if (frameworkId) body.framework_id = frameworkId;
+      const cycle = await api.post<AssessmentCycle>("/assessments", body);
       router.push(`/cycles/${cycle.id}/team-setup`);
     } catch {
       setCreating(false);
@@ -185,6 +202,22 @@ export default function AssessmentsPage() {
                   Only SWIFT CSCF is available for new cycles at this time.
                 </p>
               </div>
+              {complianceAssessment === "swift_cscf" && swiftFrameworks.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Framework version</label>
+                  <select
+                    value={frameworkId ?? ""}
+                    onChange={(e) => setFrameworkId(e.target.value || null)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  >
+                    {swiftFrameworks.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        SWIFT CSCF {f.version === "v2026" ? "2026" : "2025"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Year</label>
                 <select

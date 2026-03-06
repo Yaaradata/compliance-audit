@@ -1,10 +1,23 @@
+import warnings
 from contextlib import asynccontextmanager
+
+# Suppress noisy Google Auth warning when using user credentials (e.g. gcloud auth application-default login).
+# For production, use a service account key; then signed URLs work and this warning does not apply.
+warnings.filterwarnings(
+    "ignore",
+    message=".*end user credentials from Google Cloud SDK without a quota project.*",
+    category=UserWarning,
+)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .database import ensure_optional_columns
+from .database import (
+    ensure_optional_columns,
+    ensure_notes_notifications_tables,
+    ensure_evidence_submission_history_table,
+)
 from .routers import (
     auth,
     tenants,
@@ -20,11 +33,15 @@ from .routers import (
     vendors,
     reference,
     audit_log,
+    notes,
+    notifications,
 )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     ensure_optional_columns()
+    ensure_notes_notifications_tables()
+    ensure_evidence_submission_history_table()
     yield
 
 
@@ -45,7 +62,10 @@ app.add_middleware(
 
 PREFIX = "/api/v1"
 
-app.include_router(auth.router,         prefix=PREFIX, tags=["auth"])
+app.include_router(auth.router,          prefix=PREFIX, tags=["auth"])
+# Notes and notifications registered early so /api/v1/notes and /api/v1/notifications are matched first
+app.include_router(notes.router,        prefix=PREFIX, tags=["notes"])
+app.include_router(notifications.router, prefix=PREFIX, tags=["notifications"])
 app.include_router(tenants.router,      prefix=PREFIX, tags=["tenants"])
 app.include_router(users.router,        prefix=PREFIX, tags=["users"])
 app.include_router(assessments.router,  prefix=PREFIX, tags=["assessments"])

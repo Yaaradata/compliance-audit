@@ -28,11 +28,11 @@ const STATUS_DOT: Record<string, string> = {
   complete: "bg-emerald-500",
   generating: "bg-amber-400 animate-pulse",
   in_progress: "bg-blue-400",
-  draft: "bg-[var(--border)]",
+  draft: "bg-(--border)",
 };
 
 function SimpleMarkdown({ content }: { content: string }) {
-  if (!content) return <p className="text-xs italic text-[var(--foreground-muted)]">No content yet.</p>;
+  if (!content) return <p className="text-xs italic text-(--foreground-muted)">No content yet.</p>;
 
   const lines = content.split("\n");
   const elements: React.ReactNode[] = [];
@@ -42,12 +42,12 @@ function SimpleMarkdown({ content }: { content: string }) {
     const line = lines[i];
 
     if (line.startsWith("### ")) {
-      elements.push(<h4 key={i} className="text-sm font-bold text-[var(--foreground)] mt-4 mb-1">{line.slice(4)}</h4>);
+      elements.push(<h4 key={i} className="text-sm font-bold text-foreground mt-4 mb-1">{line.slice(4)}</h4>);
       i++;
       continue;
     }
     if (line.startsWith("## ")) {
-      elements.push(<h3 key={i} className="text-base font-bold text-[var(--foreground)] mt-5 mb-2">{line.slice(3)}</h3>);
+      elements.push(<h3 key={i} className="text-base font-bold text-foreground mt-5 mb-2">{line.slice(3)}</h3>);
       i++;
       continue;
     }
@@ -68,7 +68,7 @@ function SimpleMarkdown({ content }: { content: string }) {
               <thead>
                 <tr>
                   {rows[0]?.map((cell, ci) => (
-                    <th key={ci} className="border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-left font-bold text-[var(--foreground)]">
+                    <th key={ci} className="border border-(--border) bg-background px-2 py-1.5 text-left font-bold text-foreground">
                       {cell}
                     </th>
                   ))}
@@ -78,7 +78,7 @@ function SimpleMarkdown({ content }: { content: string }) {
                 {rows.slice(1).map((row, ri) => (
                   <tr key={ri}>
                     {row.map((cell, ci) => (
-                      <td key={ci} className="border border-[var(--border)] px-2 py-1.5 text-[var(--foreground-muted)]">
+                      <td key={ci} className="border border-(--border) px-2 py-1.5 text-(--foreground-muted)">
                         {cell}
                       </td>
                     ))}
@@ -94,7 +94,7 @@ function SimpleMarkdown({ content }: { content: string }) {
 
     if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
       elements.push(
-        <li key={i} className="text-xs text-[var(--foreground)] ml-4 list-disc mb-0.5">
+        <li key={i} className="text-xs text-foreground ml-4 list-disc mb-0.5">
           <RichText text={line.trim().slice(2)} />
         </li>
       );
@@ -104,7 +104,7 @@ function SimpleMarkdown({ content }: { content: string }) {
 
     if (/^\d+\.\s/.test(line.trim())) {
       elements.push(
-        <li key={i} className="text-xs text-[var(--foreground)] ml-4 list-decimal mb-0.5">
+        <li key={i} className="text-xs text-foreground ml-4 list-decimal mb-0.5">
           <RichText text={line.trim().replace(/^\d+\.\s/, "")} />
         </li>
       );
@@ -115,7 +115,7 @@ function SimpleMarkdown({ content }: { content: string }) {
     if (!line.trim()) { i++; continue; }
 
     elements.push(
-      <p key={i} className="text-xs text-[var(--foreground)] leading-relaxed mb-2">
+      <p key={i} className="text-xs text-foreground leading-relaxed mb-2">
         <RichText text={line} />
       </p>
     );
@@ -327,22 +327,22 @@ export default function CycleReportPage() {
       : null;
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-[50vh] text-sm text-[var(--foreground-muted)]">Loading report…</div>;
+    return <div className="flex items-center justify-center min-h-[50vh] text-sm text-(--foreground-muted)">Loading report…</div>;
   }
 
   if (sections.length === 0) {
     return (
-      <div className="min-h-[calc(100vh-64px)] w-full bg-[var(--background)] flex flex-col items-center justify-center text-center px-4">
-        <div className="w-16 h-16 rounded-2xl bg-[var(--primary-muted)] flex items-center justify-center mb-4">
-          <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" className="w-8 h-8 text-[var(--primary)]" />
+      <div className="min-h-[calc(100vh-64px)] w-full bg-background flex flex-col items-center justify-center text-center px-4">
+        <div className="w-16 h-16 rounded-2xl bg-(--primary-muted) flex items-center justify-center mb-4">
+          <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" className="w-8 h-8 text-(--primary)" />
         </div>
-        <h2 className="text-lg font-bold text-[var(--foreground)] mb-1">No report yet</h2>
-        <p className="text-sm text-[var(--foreground-muted)] mb-6 max-w-md">
+        <h2 className="text-lg font-bold text-foreground mb-1">No report yet</h2>
+        <p className="text-sm text-(--foreground-muted) mb-6 max-w-md">
           Create a draft report to get started. The report will have 14 sections structured by domain (A–H), plus executive summary, gap analysis, and attestation.
         </p>
         <button
           onClick={handleCreateReport}
-          className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition-opacity shadow-md"
+          className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-(--primary) text-white hover:opacity-90 transition-opacity shadow-md"
         >
           Create Draft Report
         </button>
@@ -351,17 +351,17 @@ export default function CycleReportPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-64px)] w-full bg-[var(--background)]">
+    <div className="min-h-[calc(100vh-64px)] w-full bg-background">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
         <header className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[var(--primary-muted)]">
-              <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" className="w-5 h-5 text-[var(--primary)]" />
+            <div className="p-2 rounded-lg bg-(--primary-muted)">
+              <Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" className="w-5 h-5 text-(--primary)" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)]">Report</h1>
-              <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Report</h1>
+              <p className="text-[10px] text-(--foreground-muted) mt-0.5">
                 SWIFT CSP Assessment Report
                 {snapshotMeta.bank_name && ` · ${snapshotMeta.bank_name}`}
                 {snapshotMeta.assessment_year && ` · ${snapshotMeta.assessment_year}`}
@@ -380,7 +380,7 @@ export default function CycleReportPage() {
             <button
               onClick={handleGenerate}
               disabled={generating}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50 transition-opacity shadow-md"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-(--primary) text-white hover:opacity-90 disabled:opacity-50 transition-opacity shadow-md"
             >
               <Icon path="M13 10V3L4 14h7v7l9-11h-7z" className="w-3.5 h-3.5" />
               {generating
@@ -401,7 +401,7 @@ export default function CycleReportPage() {
             <button
               type="button"
               onClick={() => { setGenerateError(null); setRegenerateError(null); }}
-              className="flex-shrink-0 text-amber-600 dark:text-amber-400 hover:underline"
+              className="shrink-0 text-amber-600 dark:text-amber-400 hover:underline"
             >
               Dismiss
             </button>
@@ -411,10 +411,10 @@ export default function CycleReportPage() {
         {/* Main layout */}
         <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-5">
           {/* Left sidebar — section navigator */}
-          <aside className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow)] overflow-hidden">
-            <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--background)]/50">
-              <p className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Sections</p>
-              <p className="text-[10px] text-[var(--foreground-subtle)] mt-0.5">{completeSections}/{sections.length} complete</p>
+          <aside className="rounded-xl border border-(--border) bg-(--surface) shadow-(--shadow) overflow-hidden">
+            <div className="px-4 py-3 border-b border-(--border) bg-background/50">
+              <p className="text-xs font-bold text-(--foreground-muted) uppercase tracking-wider">Sections</p>
+              <p className="text-[10px] text-(--foreground-subtle) mt-0.5">{completeSections}/{sections.length} complete</p>
             </div>
             <div className="p-2 space-y-0.5 max-h-[calc(100vh-280px)] overflow-y-auto">
               {sections.map((s, i) => (
@@ -423,19 +423,19 @@ export default function CycleReportPage() {
                   onClick={() => { setActiveSection(i); setEditing(false); }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
                     i === activeSection
-                      ? "bg-[var(--primary-muted)] ring-1 ring-[var(--primary)]/20"
-                      : "hover:bg-[var(--background)]"
+                      ? "bg-(--primary-muted) ring-1 ring-(--primary)/20"
+                      : "hover:bg-background"
                   }`}
                 >
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[s.status] || STATUS_DOT.draft}`} />
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[s.status] || STATUS_DOT.draft}`} />
                   <span className={`text-[11px] truncate flex-1 ${
-                    i === activeSection ? "font-semibold text-[var(--foreground)]" : "text-[var(--foreground-muted)]"
+                    i === activeSection ? "font-semibold text-foreground" : "text-(--foreground-muted)"
                   }`}>
                     {s.name}
                   </span>
-                  {s.ai && <span className="text-[8px] px-1.5 py-0.5 rounded bg-[var(--primary-muted)] text-[var(--primary)] font-bold flex-shrink-0">AI</span>}
+                  {s.ai && <span className="text-[8px] px-1.5 py-0.5 rounded bg-(--primary-muted) text-(--primary) font-bold shrink-0">AI</span>}
                   {s.status === "generating" && (
-                    <span className="w-3 h-3 flex-shrink-0">
+                    <span className="w-3 h-3 shrink-0">
                       <svg className="animate-spin w-3 h-3 text-amber-500" viewBox="0 0 24 24" fill="none">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -448,19 +448,19 @@ export default function CycleReportPage() {
           </aside>
 
           {/* Main content area */}
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col shadow-[var(--shadow)] overflow-hidden">
+          <div className="rounded-xl border border-(--border) bg-(--surface) flex flex-col shadow-(--shadow) overflow-hidden">
             {currentSection && (
               <>
                 {/* Section toolbar */}
-                <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--background)]/50 flex items-center justify-between gap-2 flex-wrap">
+                <div className="px-4 py-3 border-b border-(--border) bg-background/50 flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-bold text-[var(--foreground)]">{currentSection.name}</h2>
+                    <h2 className="text-sm font-bold text-foreground">{currentSection.name}</h2>
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
                       isCurrentSectionGenerating
                         ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
                         : currentSection.status === "complete"
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                          : "bg-[var(--background)] text-[var(--foreground-muted)] border border-[var(--border)]"
+                          : "bg-background text-(--foreground-muted) border border-(--border)"
                     }`}>
                       {isCurrentSectionGenerating ? "generating" : currentSection.status}
                     </span>
@@ -470,7 +470,7 @@ export default function CycleReportPage() {
                       <button
                         onClick={() => handleRegenerate(activeSection)}
                         disabled={regeneratingIdx === activeSection || generating}
-                        className="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[10px] font-semibold text-[var(--foreground-muted)] hover:bg-[var(--background)] disabled:opacity-50 transition-colors"
+                        className="px-2.5 py-1.5 rounded-lg border border-(--border) bg-(--surface) text-[10px] font-semibold text-(--foreground-muted) hover:bg-background disabled:opacity-50 transition-colors"
                       >
                         {regeneratingIdx === activeSection ? "Generating…" : "Regenerate"}
                       </button>
@@ -478,7 +478,7 @@ export default function CycleReportPage() {
                     {!editing ? (
                       <button
                         onClick={() => { setEditing(true); setEditDraft(currentSection.content || ""); }}
-                        className="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[10px] font-semibold text-[var(--foreground-muted)] hover:bg-[var(--background)] transition-colors"
+                        className="px-2.5 py-1.5 rounded-lg border border-(--border) bg-(--surface) text-[10px] font-semibold text-(--foreground-muted) hover:bg-background transition-colors"
                       >
                         Edit
                       </button>
@@ -487,13 +487,13 @@ export default function CycleReportPage() {
                         <button
                           onClick={handleSave}
                           disabled={saving}
-                          className="px-2.5 py-1.5 rounded-lg bg-[var(--primary)] text-white text-[10px] font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
+                          className="px-2.5 py-1.5 rounded-lg bg-(--primary) text-white text-[10px] font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
                         >
                           {saving ? "Saving…" : "Save"}
                         </button>
                         <button
                           onClick={() => setEditing(false)}
-                          className="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[10px] font-semibold text-[var(--foreground-muted)] hover:bg-[var(--background)] transition-colors"
+                          className="px-2.5 py-1.5 rounded-lg border border-(--border) bg-(--surface) text-[10px] font-semibold text-(--foreground-muted) hover:bg-background transition-colors"
                         >
                           Cancel
                         </button>
@@ -509,7 +509,7 @@ export default function CycleReportPage() {
                     ) : (
                       <button
                         onClick={() => handleMarkStatus("draft")}
-                        className="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[10px] font-semibold text-[var(--foreground-muted)] hover:bg-[var(--background)] transition-colors"
+                        className="px-2.5 py-1.5 rounded-lg border border-(--border) bg-(--surface) text-[10px] font-semibold text-(--foreground-muted) hover:bg-background transition-colors"
                       >
                         Revert to draft
                       </button>
@@ -523,18 +523,18 @@ export default function CycleReportPage() {
                     <textarea
                       value={editDraft}
                       onChange={(e) => setEditDraft(e.target.value)}
-                      className="w-full h-full min-h-[500px] p-5 text-xs font-mono bg-[var(--background)] text-[var(--foreground)] resize-none focus:outline-none leading-relaxed"
+                      className="w-full h-full min-h-[500px] p-5 text-xs font-mono bg-background text-foreground resize-none focus:outline-none leading-relaxed"
                       placeholder="Write markdown content here…"
                     />
                   ) : (
                     <div className="p-5">
                       {isCurrentSectionGenerating ? (
                         <div className="flex flex-col items-center gap-3 py-10 justify-center">
-                          <svg className="animate-spin w-5 h-5 text-[var(--primary)]" viewBox="0 0 24 24" fill="none">
+                          <svg className="animate-spin w-5 h-5 text-(--primary)" viewBox="0 0 24 24" fill="none">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                           </svg>
-                          <span className="text-sm text-[var(--foreground-muted)]">
+                          <span className="text-sm text-(--foreground-muted)">
                             {generatingProgress
                               ? `Generating section ${generatingProgress.current} of ${generatingProgress.total}…`
                               : "AI is generating this section…"}
@@ -544,7 +544,7 @@ export default function CycleReportPage() {
                         <SimpleMarkdown content={currentSection.content} />
                       ) : (
                         <div className="text-center py-10">
-                          <p className="text-sm text-[var(--foreground-muted)]">
+                          <p className="text-sm text-(--foreground-muted)">
                             {currentSection.ai
                               ? 'No content yet. Click "Generate All Sections" or "Regenerate" to draft with AI.'
                               : "This section requires manual content. Click Edit to add content."}
@@ -558,12 +558,12 @@ export default function CycleReportPage() {
             )}
 
             {/* Export bar */}
-            <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--background)]/50 flex items-center justify-between gap-2 flex-wrap">
+            <div className="px-4 py-3 border-t border-(--border) bg-background/50 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleExport("docx")}
                   disabled={!!exporting}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[var(--primary)] text-white text-[11px] font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-(--primary) text-white text-[11px] font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity shadow-sm"
                 >
                   <Icon path="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" className="w-3.5 h-3.5" />
                   {exporting === "docx" ? "Exporting…" : "Export Word"}
@@ -571,13 +571,13 @@ export default function CycleReportPage() {
                 <button
                   onClick={() => handleExport("pdf")}
                   disabled={!!exporting}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-muted)] text-[11px] font-semibold hover:bg-[var(--background)] disabled:opacity-50 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-(--border) bg-(--surface) text-(--foreground-muted) text-[11px] font-semibold hover:bg-background disabled:opacity-50 transition-colors"
                 >
                   <Icon path="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" className="w-3.5 h-3.5" />
                   {exporting === "pdf" ? "Exporting…" : "Export PDF"}
                 </button>
               </div>
-              <span className="text-[10px] text-[var(--foreground-subtle)]">
+              <span className="text-[10px] text-(--foreground-subtle)">
                 {reportId ? `Report ${reportId.slice(0, 8)}` : ""}
                 {completeSections === sections.length && sections.length > 0 && " · All sections complete"}
               </span>

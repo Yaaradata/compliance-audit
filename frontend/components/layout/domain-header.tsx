@@ -46,7 +46,7 @@ export function DomainHeader({ config, completionPct }: { config: DomainConfig; 
       }}
     >
       <div className="flex items-center gap-6 flex-wrap">
-        <div className="flex-shrink-0" title={`${completionPct}% complete`}>
+        <div className="shrink-0" title={`${completionPct}% complete`}>
           <ScoreRing pct={completionPct} size={80} stroke={6} />
         </div>
         <div className="flex-1 min-w-0">

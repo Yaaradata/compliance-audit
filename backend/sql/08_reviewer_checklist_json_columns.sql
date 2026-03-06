@@ -1,6 +1,6 @@
 -- Add JSONB columns for L1/L2/L3 checklist (structured JSON).
 -- Run before the Python backfill script. After script completes, it will drop TEXT and rename these to l1_check, l2_check, l3_check.
-SET search_path TO cscf_2025_new, public;
+SET search_path TO swift_2025, public;
 
 ALTER TABLE reviewer_checklist
   ADD COLUMN IF NOT EXISTS l1_check_json JSONB,

@@ -3,7 +3,7 @@
 -- Or via Python: python backend/scripts/run_migration.py
 BEGIN;
 
-SET search_path TO cscf_2025_new;
+SET search_path TO swift_2025;
 
 ALTER TABLE canonical_evidence_items ADD COLUMN IF NOT EXISTS evidence_description TEXT;
 ALTER TABLE canonical_evidence_items ADD COLUMN IF NOT EXISTS sufficiency_definition TEXT;

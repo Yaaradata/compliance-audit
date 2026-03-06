@@ -3,7 +3,7 @@
 -- Run via: psql -U postgres -d compliance -f backend/sql/07_a5_sufficiency_evaluation_criteria.sql
 BEGIN;
 
-SET search_path TO cscf_2025_new;
+SET search_path TO swift_2025;
 
 UPDATE canonical_evidence_items SET
   sufficiency_definition = $$• Formal declaration of architecture type: A1, A2, A3, A4, or B

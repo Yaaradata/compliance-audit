@@ -6,7 +6,7 @@
 
 BEGIN;
 
-SET search_path TO cscf_2025_new;
+SET search_path TO swift_2025;
 
 -- evidence_sufficiency_matrix: source of truth for sufficiency and evaluation criteria per (item, control)
 CREATE TABLE IF NOT EXISTS evidence_sufficiency_matrix (

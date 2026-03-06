@@ -1,13 +1,16 @@
 from typing import Generator
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal
 from .middleware.auth import decode_access_token
 from .models.tenant import User
+from .models.assessment import AssessmentCycle
+from .models.framework import AuditFramework
 from .constants import PLATFORM_ADMIN_ROLES
 
 security = HTTPBearer(auto_error=False)
@@ -19,6 +22,56 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+# Schema names for framework versions: 2025 -> swift_2025, 2026 -> swift_2026.
+# All cycle-scoped queries use one of these so domains, controls, evidence_submissions match the selected framework.
+SCHEMA_2025 = "swift_2025"
+SCHEMA_2026 = "swift_2026"
+
+
+def _normalize_schema_name(raw: str | None) -> str:
+    """Return swift_2025 or swift_2026. If framework is 2026 (version/v2026/schema swift_2026), return swift_2026."""
+    if not raw:
+        return SCHEMA_2025
+    v = str(raw).strip().lower()
+    if v in ("swift_2026", "2026", "v2026"):
+        return SCHEMA_2026
+    return SCHEMA_2025
+
+
+def _resolve_schema_for_cycle(db: Session, cycle_id: UUID) -> str:
+    """Return framework schema for cycle: swift_2025 (2025) or swift_2026 (2026). Drives search_path for all cycle-scoped data."""
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    if cycle and cycle.framework_id:
+        framework = db.query(AuditFramework).filter(AuditFramework.id == cycle.framework_id).first()
+        if framework:
+            return _normalize_schema_name(getattr(framework, "schema_name", None))
+    return SCHEMA_2025
+
+
+def get_db_scoped(cycle_id: UUID, db: Session = Depends(get_db)) -> Generator[Session, None, None]:
+    """
+    Set search_path to core, <framework_schema>, public for this request so queries see the correct framework tables.
+    Use in routes that have cycle_id in path. Resolves schema from cycle -> audit_frameworks.schema_name.
+    """
+    schema = _resolve_schema_for_cycle(db, cycle_id)
+    db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+    yield db
+
+
+def get_db_ref(
+    cycle_id: UUID | None = Query(None, description="Optional; when set, ref data from this cycle's schema (2025/2026)"),
+    db: Session = Depends(get_db),
+) -> Generator[Session, None, None]:
+    """
+    For reference routes: when cycle_id is provided (e.g. via Query), set search_path to that cycle's schema
+    so framework-specific data (domains, controls, evidence items, matrix) matches the cycle's year (2025/2026).
+    """
+    if cycle_id is not None:
+        schema = _resolve_schema_for_cycle(db, cycle_id)
+        db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+    yield db
 
 
 def get_current_user(

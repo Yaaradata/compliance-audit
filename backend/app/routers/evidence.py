@@ -6,20 +6,22 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_current_user
+from ..dependencies import get_db, get_db_scoped, get_current_user
 from ..models.tenant import User
-from ..models.assessment import EvidenceSubmission, EvidenceAttachment, ControlApplicability
+from ..models.assessment import EvidenceSubmission, EvidenceAttachment, EvidenceSubmissionHistory, ControlApplicability
 from ..models.framework import CanonicalEvidenceItem, ItemControlMapping, EvidenceSufficiencyMatrix
 from ..models.sufficiency import SufficiencyEvaluation, SufficiencyScore
 from ..schemas.evidence import (
     CreateSubmissionRequest,
     UpdateSubmissionRequest,
     SubmissionOut,
+    EvidenceHistoryEntryOut,
     EvaluateEvidenceRequest,
     EvaluateEvidenceResponse,
     AiCriterionResultOut,
 )
 from ..services import ai_service
+from ..services.ai_service import _eval_criteria_pass_if_only, _parse_numbered_criteria as _parse_criteria_ai
 from ..services import evidence_status as evidence_status_svc
 from ..services.batch_loaders import (
     load_mappings_by_control_ids,
@@ -71,7 +73,7 @@ def list_evidence(
     cycle_id: UUID,
     domain: str | None = Query(None),
     status: str | None = Query(None),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     q = db.query(EvidenceSubmission).filter(EvidenceSubmission.cycle_id == cycle_id)
@@ -88,8 +90,17 @@ def list_evidence(
 EVIDENCE_WRITE_ROLES = ("compliance_officer", "it_sme", "admin", "tenant_admin")
 
 
+def _submission_snapshot(sub: EvidenceSubmission) -> dict:
+    return {
+        "status": sub.status,
+        "form_data": sub.form_data or {},
+        "evaluation_result": sub.evaluation_result,
+        "evaluation_edits": getattr(sub, "evaluation_edits", None) or {},
+    }
+
+
 @router.post("/assessments/{cycle_id}/evidence", response_model=SubmissionOut, status_code=201)
-def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     if user.role not in EVIDENCE_WRITE_ROLES:
         raise HTTPException(status_code=403, detail="Not authorized to create evidence")
     sub = EvidenceSubmission(
@@ -100,43 +111,127 @@ def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = 
         scope_key=req.scope_key,
     )
     db.add(sub)
+    db.flush()
+    hist = EvidenceSubmissionHistory(
+        submission_id=sub.id,
+        version=1,
+        changed_by=user.id,
+        change_type="create",
+        snapshot_before=None,
+        snapshot_after=_submission_snapshot(sub),
+        justification=None,
+    )
+    db.add(hist)
+    submission_id = sub.id  # capture before commit; sub is expired after commit
     db.commit()
-    db.refresh(sub)
+    # Re-query so we don't rely on expired instance or search_path after commit.
+    sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == submission_id, EvidenceSubmission.cycle_id == cycle_id).first()
+    if not sub:
+        raise HTTPException(status_code=500, detail="Submission not found after create")
     return _submission_to_out(sub, db)
 
 
 @router.get("/assessments/{cycle_id}/evidence/{sub_id}", response_model=SubmissionOut)
-def get_evidence(cycle_id: UUID, sub_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_evidence(cycle_id: UUID, sub_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
     return _submission_to_out(sub, db)
 
 
+@router.get("/assessments/{cycle_id}/evidence/{sub_id}/history", response_model=list[EvidenceHistoryEntryOut])
+def get_evidence_history(
+    cycle_id: UUID,
+    sub_id: UUID,
+    db: Session = Depends(get_db_scoped),
+    user: User = Depends(get_current_user),
+):
+    sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if user.role != "admin" and sub.tenant_id != user.tenant_id:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    from ..models.tenant import User as U
+    entries = (
+        db.query(EvidenceSubmissionHistory)
+        .filter(EvidenceSubmissionHistory.submission_id == sub_id)
+        .order_by(EvidenceSubmissionHistory.changed_at.asc())
+        .all()
+    )
+    user_ids = {e.changed_by for e in entries if e.changed_by}
+    users_map = {}
+    if user_ids:
+        for u in db.query(U).filter(U.id.in_(user_ids)).all():
+            users_map[u.id] = u.name
+    return [
+        EvidenceHistoryEntryOut(
+            id=e.id,
+            submission_id=e.submission_id,
+            version=e.version,
+            changed_by=e.changed_by,
+            changed_at=e.changed_at,
+            change_type=e.change_type,
+            snapshot_before=e.snapshot_before,
+            snapshot_after=e.snapshot_after,
+            justification=e.justification,
+            changed_by_name=users_map.get(e.changed_by) if e.changed_by else None,
+        )
+        for e in entries
+    ]
+
+
 @router.put("/assessments/{cycle_id}/evidence/{sub_id}", response_model=SubmissionOut)
-def update_evidence(cycle_id: UUID, sub_id: UUID, req: UpdateSubmissionRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def update_evidence(cycle_id: UUID, sub_id: UUID, req: UpdateSubmissionRequest, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     if user.role not in EVIDENCE_WRITE_ROLES:
         raise HTTPException(status_code=403, detail="Not authorized to update evidence")
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
 
+    snapshot_before = _submission_snapshot(sub)
+    change_types = []
     if req.status:
         sub.status = evidence_status_svc.evidence_status_to_db(req.status)
+        change_types.append("status_change")
     if req.form_data is not None:
         sub.form_data = req.form_data
+        change_types.append("form_edit")
     if req.evaluation_result is not None:
         sub.evaluation_result = req.evaluation_result
+        change_types.append("evaluation_edit")
     if req.evaluation_edits is not None:
         sub.evaluation_edits = req.evaluation_edits
+        if "evaluation_edit" not in change_types:
+            change_types.append("evaluation_edit")
+
+    if change_types:
+        next_version = (
+            db.query(EvidenceSubmissionHistory)
+            .filter(EvidenceSubmissionHistory.submission_id == sub.id)
+            .count()
+        ) + 1
+        hist = EvidenceSubmissionHistory(
+            submission_id=sub.id,
+            version=next_version,
+            changed_by=user.id,
+            change_type=change_types[0] if len(change_types) == 1 else "update",
+            snapshot_before=snapshot_before,
+            snapshot_after=_submission_snapshot(sub),
+            justification=req.justification,
+        )
+        db.add(hist)
 
     db.commit()
-    db.refresh(sub)
+    # Re-query instead of refresh: after commit, connection may be recycled and search_path reset,
+    # so refresh() can raise InvalidRequestError when the row lives in swift_2025/swift_2026.
+    sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
+    if not sub:
+        raise HTTPException(status_code=500, detail="Submission not found after update")
     return _submission_to_out(sub, db)
 
 
 @router.delete("/assessments/{cycle_id}/evidence/{sub_id}", status_code=204)
-def delete_evidence(cycle_id: UUID, sub_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def delete_evidence(cycle_id: UUID, sub_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
@@ -728,7 +823,7 @@ def _recalculate_control_sufficiency(
 def evaluate_evidence(
     cycle_id: UUID,
     req: EvaluateEvidenceRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
     """Evaluate evidence for this item using Vertex AI.
@@ -879,14 +974,14 @@ def evaluate_evidence(
         )
 
     # --- Fallback: placeholder when no files uploaded yet ---
-    # Use per-control criteria from evidence_sufficiency_matrix
+    # Use per-control criteria from evidence_sufficiency_matrix. UI shows only pass_if for evaluation.
     sufficiency_items: list[tuple[str, str]] = []
     criteria_items: list[tuple[str, str]] = []
     for row in matrix_rows:
         prefix = f"[{row.control_id}] "
-        for id_, label in _parse_numbered_json(getattr(row, "sufficiency_criteria", None)):
+        for id_, label in _parse_criteria_ai(getattr(row, "sufficiency_criteria", None)):
             sufficiency_items.append((f"{row.control_id}_{id_}", prefix + label))
-        for id_, label in _parse_numbered_json(getattr(row, "evaluation_criteria", None)):
+        for id_, label in _eval_criteria_pass_if_only(getattr(row, "evaluation_criteria", None)):
             criteria_items.append((f"{row.control_id}_{id_}", prefix + label))
 
     sufficiency_results = [
