@@ -59,7 +59,7 @@ function DiagramCaption({
   );
 }
 
-/** Image that loads diagram URL from API when version is set and shouldLoad is true (lazy). */
+/** Image that loads diagram URL from API. When version is set, never shows static/2025 URL first — avoids v2025 flash before v2026. */
 function DiagramImage({
   filename,
   alt,
@@ -71,22 +71,36 @@ function DiagramImage({
   alt: string;
   version?: string | null;
   className?: string;
-  /** When false, use static placeholder only (lazy: load when slide is visible). */
   shouldLoad?: boolean;
 }) {
   const staticUrl = getArchitectureDiagramUrl(filename);
-  const [src, setSrc] = useState<string>(staticUrl);
+  // When version is set, start with empty so we never paint the static (possibly 2025) URL before the versioned one loads.
+  const [src, setSrc] = useState<string>(() => (version ? "" : staticUrl));
   useEffect(() => {
     if (!shouldLoad) {
-      setSrc(staticUrl);
+      setSrc(version ? "" : staticUrl);
       return;
     }
     if (version) {
+      setSrc(""); // clear immediately when version changes so we don't show stale image
       getArchitectureDiagramUrlAsync(filename, version).then(setSrc);
     } else {
       setSrc(staticUrl);
     }
   }, [filename, version, shouldLoad, staticUrl]);
+
+  // Don't render an img with empty src (can cause 404 or unwanted request). Show placeholder until we have the real URL.
+  if (version && !src) {
+    return (
+      <div
+        className={className}
+        style={{ background: "#e2e8f0", minHeight: 180 }}
+        aria-label="Loading diagram"
+        role="img"
+      />
+    );
+  }
+
   return (
     <img
       src={src}
@@ -98,27 +112,30 @@ function DiagramImage({
   );
 }
 
-/** Inner carousel: one architecture's diagrams with thumbnails and detailed caption. Only loads images when isVisible (lazy). */
+/** Inner carousel: one architecture's diagrams with thumbnails and caption.
+ * Diagrams load only when framework version is known (no v2025 flash before v2026). */
 function ArchitectureImageCarousel({
   arch,
   selectedDiagramFilename,
   onSelectDiagram,
   diagramVersion,
   isVisible,
+  frameworkVersionReady,
 }: {
   arch: Architecture;
   selectedDiagramFilename: string | null;
   onSelectDiagram: (filename: string) => void;
   diagramVersion?: string | null;
-  /** When false, diagrams are not fetched (placeholder only) for lazy loading. */
   isVisible?: boolean;
+  /** When false, show placeholder only — do not load any image (avoids showing v2025 then switching to v2026). */
+  frameworkVersionReady?: boolean;
 }) {
   const diagrams = ARCHITECTURE_DIAGRAMS[arch.id] ?? [];
   const displayFilename = selectedDiagramFilename || diagrams[0];
   const hasMultiple = diagrams.length > 1;
   const [innerIndex, setInnerIndex] = useState(0);
   const effectiveIndex = displayFilename ? diagrams.indexOf(displayFilename) : 0;
-  const shouldLoad = isVisible ?? true;
+  const shouldLoad = (isVisible ?? true) && (frameworkVersionReady === true);
 
   useEffect(() => {
     setInnerIndex(effectiveIndex >= 0 ? effectiveIndex : 0);
@@ -160,11 +177,18 @@ function ArchitectureImageCarousel({
             shouldLoad={true}
           />
         ) : (
-          <div className="w-full min-h-[180px] sm:min-h-[260px] flex items-center justify-center bg-slate-100 text-slate-400 text-sm">
-            {arch.id} diagram
+          <div className="w-full min-h-[180px] sm:min-h-[260px] flex flex-col items-center justify-center gap-2 bg-slate-100 text-slate-500 text-sm px-4">
+            {frameworkVersionReady === false ? (
+              <>
+                <span className="font-medium">Loading framework &amp; diagrams…</span>
+                <span className="text-xs">Diagrams will match your cycle (v2025 or v2026).</span>
+              </>
+            ) : (
+              <span>{arch.id} diagram</span>
+            )}
           </div>
         )}
-        {hasMultiple && (
+        {hasMultiple && shouldLoad && (
           <>
             <button
               type="button"
@@ -416,6 +440,7 @@ function SelectArchitectureInner() {
                           onSelectDiagram={(filename) => setDiagramForArch(arch.id, filename)}
                           diagramVersion={schemaName}
                           isVisible={currentSlideIndex === index}
+                          frameworkVersionReady={schemaName != null}
                         />
                       </div>
                       {/* Detailed identifier panel */}

@@ -4,9 +4,10 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_db_scoped, get_current_user
+from ..dependencies import get_db, get_db_scoped, get_current_user, _resolve_schema_for_cycle
 from ..models.tenant import User
 from ..models.assessment import EvidenceSubmission, EvidenceAttachment, EvidenceSubmissionHistory, ControlApplicability
 from ..models.framework import CanonicalEvidenceItem, ItemControlMapping, EvidenceSufficiencyMatrix
@@ -124,7 +125,9 @@ def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = 
     db.add(hist)
     submission_id = sub.id  # capture before commit; sub is expired after commit
     db.commit()
-    # Re-query so we don't rely on expired instance or search_path after commit.
+    # Re-apply search_path then re-query (connection may have been recycled with default path).
+    schema = _resolve_schema_for_cycle(db, cycle_id)
+    db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == submission_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=500, detail="Submission not found after create")
@@ -222,8 +225,9 @@ def update_evidence(cycle_id: UUID, sub_id: UUID, req: UpdateSubmissionRequest, 
         db.add(hist)
 
     db.commit()
-    # Re-query instead of refresh: after commit, connection may be recycled and search_path reset,
-    # so refresh() can raise InvalidRequestError when the row lives in swift_2025/swift_2026.
+    # Re-apply search_path then re-query (connection may have been recycled with default path).
+    schema = _resolve_schema_for_cycle(db, cycle_id)
+    db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=500, detail="Submission not found after update")

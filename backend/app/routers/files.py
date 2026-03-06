@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_current_user
+from ..dependencies import get_db, get_db_for_submission, get_current_user
 from ..models.tenant import User
 from ..models.assessment import EvidenceAttachment, EvidenceSubmission, EvidenceSubmissionHistory
 from ..services import storage_service
@@ -17,7 +17,7 @@ router = APIRouter()
 def upload_file(
     sub_id: UUID,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_for_submission),
     user: User = Depends(get_current_user),
 ):
     contents = file.file.read()
@@ -58,20 +58,22 @@ def upload_file(
             justification=None,
         )
         db.add(hist)
+    attachment_id = attachment.id
+    file_name = attachment.file_name
+    file_size_bytes = attachment.file_size_bytes
     db.commit()
-    db.refresh(attachment)
 
     return {
-        "id": str(attachment.id),
-        "file_name": attachment.file_name,
-        "file_size_bytes": attachment.file_size_bytes,
+        "id": str(attachment_id),
+        "file_name": file_name,
+        "file_size_bytes": file_size_bytes,
     }
 
 
 @router.get("/evidence/{sub_id}/files")
 def list_files(
     sub_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_for_submission),
     user: User = Depends(get_current_user),
 ):
     files = (
@@ -95,7 +97,7 @@ def list_files(
 def get_file_url(
     sub_id: UUID,
     file_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_for_submission),
     user: User = Depends(get_current_user),
 ):
     """Return a short-lived signed URL for inline viewing / download."""
@@ -122,7 +124,7 @@ def get_file_url(
 def download_file(
     sub_id: UUID,
     file_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_for_submission),
     user: User = Depends(get_current_user),
 ):
     """Redirect to a signed URL for the file, or stream through backend when signing is unavailable."""
@@ -165,7 +167,7 @@ def download_file(
 def delete_file(
     sub_id: UUID,
     file_id: UUID,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_for_submission),
     user: User = Depends(get_current_user),
 ):
     attachment = (

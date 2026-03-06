@@ -23,6 +23,8 @@ from . import controls as controls_router
 router = APIRouter(prefix="/assessments")
 
 GATE_TYPES = ["evidence_complete", "internal_review", "assessment_complete", "final_attestation"]
+# Synthetic control used only for ESM/scoping (e.g. A5). Excluded from dashboard and control lists like v2025.
+CONTROL_ID_ALL = "ALL"
 
 
 def _attach_schema_name(cycle: AssessmentCycle, db: Session) -> None:
@@ -245,6 +247,8 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
     mandatory_count = 0
     gaps = []
     for ca in cas:
+        if (ca.control_id or "").strip().upper() == CONTROL_ID_ALL:
+            continue
         control = controls_map.get(ca.control_id)
         cname = (control.name if control else ca.control_id) or ca.control_id or ""
         applicability = (ca.applicability or "").lower()
@@ -268,7 +272,7 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
     return DashboardResponse(
         overall_score=overall,
         mandatory_controls=mandatory_count,
-        total_controls=len(cas),
+        total_controls=len(control_scores),
         evidence_items=completed_evidence,
         total_evidence_items=total_evidence,
         gaps_identified=len(gaps),
@@ -280,11 +284,13 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
 
 
 def _generate_control_applicability(db: Session, cycle: AssessmentCycle):
-    """Auto-generate control_applicability rows based on architecture type."""
+    """Auto-generate control_applicability rows based on architecture type. Excludes synthetic 'ALL' (same as v2025)."""
     controls = db.query(Control).all()
     arch = cycle.architecture_type
 
     for ctrl in controls:
+        if (ctrl.id or "").strip().upper() == CONTROL_ID_ALL:
+            continue
         applicability_list = ctrl.architecture_applicability or []
         if arch in applicability_list:
             app_type = ctrl.control_type

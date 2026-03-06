@@ -20,6 +20,9 @@ from ..services.batch_loaders import (
 
 router = APIRouter()
 
+# Synthetic control "ALL" (ESM/scoping only). Excluded from list and matrix so UI matches v2025.
+CONTROL_ID_ALL = "ALL"
+
 
 def _require_cycle_access(cycle: AssessmentCycle | None, user: User) -> None:
     if not cycle:
@@ -42,6 +45,8 @@ def list_controls(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: Us
 
     result = []
     for ca in cas:
+        if (ca.control_id or "").strip().upper() == CONTROL_ID_ALL:
+            continue
         ctrl = controls_map.get(ca.control_id)
         suf = scores_map.get(ca.control_id)
         score_val = (suf.overall_score if suf else ca.score) if (suf or ca) else 0
@@ -71,6 +76,8 @@ def control_matrix(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: U
 
     result = []
     for ca in cas:
+        if (ca.control_id or "").strip().upper() == CONTROL_ID_ALL:
+            continue
         ctrl = controls_map.get(ca.control_id)
         mappings = mappings_map.get(ca.control_id, [])
         result.append({
@@ -146,7 +153,7 @@ def get_sufficiency_detail(cycle_id: UUID, db: Session, user: User):
     _require_cycle_access(cycle, user)
 
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()
-    control_ids = [ca.control_id for ca in cas]
+    control_ids = [ca.control_id for ca in cas if (ca.control_id or "").strip().upper() != CONTROL_ID_ALL]
     if not control_ids:
         return []
 
@@ -205,6 +212,8 @@ def get_sufficiency_detail(cycle_id: UUID, db: Session, user: User):
     result = []
     for ca in cas:
         cid = ca.control_id
+        if (cid or "").strip().upper() == CONTROL_ID_ALL:
+            continue
         items_info = control_item_matrix.get(cid, [])
         total_items = len(items_info)
         weight_per_item = round(100.0 / total_items, 2) if total_items > 0 else 0

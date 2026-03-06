@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .middleware.auth import decode_access_token
 from .models.tenant import User
-from .models.assessment import AssessmentCycle
+from .models.assessment import AssessmentCycle, EvidenceSubmission
 from .models.framework import AuditFramework
 from .constants import PLATFORM_ADMIN_ROLES
 
@@ -94,6 +94,28 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
     return user
+
+
+def get_db_for_submission(
+    sub_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Generator[Session, None, None]:
+    """
+    Resolve which schema (swift_2025 or swift_2026) contains this evidence submission,
+    set search_path to that schema, and yield the session. Use for file upload/list/delete
+    so evidence_attachments and evidence_submissions are in the same schema (avoids FK violation).
+    Raises 404 if submission not found, 403 if user has no access to that tenant.
+    """
+    for schema in (SCHEMA_2025, SCHEMA_2026):
+        db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+        sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id).first()
+        if sub is not None:
+            if user.tenant_id is not None and sub.tenant_id != user.tenant_id:
+                raise HTTPException(status_code=403, detail="Access denied to this evidence submission")
+            yield db
+            return
+    raise HTTPException(status_code=404, detail="Evidence submission not found")
 
 
 def role_required(*roles: str):
