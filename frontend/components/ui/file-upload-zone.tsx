@@ -103,8 +103,14 @@ export function FileUploadZone({
   }, [submissionId]);
 
   useEffect(() => {
+    setViewingFile(null);
+    if (!submissionId) {
+      setFiles([]);
+      return;
+    }
+    setFiles([]);
     fetchFiles();
-  }, [fetchFiles]);
+  }, [submissionId, fetchFiles]);
 
   const getSubmissionId = useCallback(async (): Promise<string | null> => {
     if (submissionId) return submissionId;

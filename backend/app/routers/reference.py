@@ -174,21 +174,39 @@ def list_evidence_items(db: Session = Depends(get_db_ref)):
 
 
 @router.get("/evidence-items/{item_id}")
-def get_evidence_item(item_id: str, db: Session = Depends(get_db_ref)):
+def get_evidence_item(
+    item_id: str,
+    cycle_id: UUID | None = Query(None, description="When set, only controls in scope (applicable) for this cycle are returned."),
+    db: Session = Depends(get_db_ref),
+):
     item = db.query(CanonicalEvidenceItem).filter(CanonicalEvidenceItem.id == item_id).first()
+    if not item:
+        return {"item": None, "controls": []}
     mappings = db.query(ItemControlMapping).filter(ItemControlMapping.evidence_item_id == item_id).all()
+    if cycle_id is not None:
+        applicable = _applicable_control_ids_for_cycle(db, cycle_id)
+        mappings = [m for m in mappings if (m.control_id or "") in applicable]
+    item_out = EvidenceItemOut.model_validate(item)
+    item_out.control_count = len(mappings)
     return {
-        "item": EvidenceItemOut.model_validate(item) if item else None,
+        "item": item_out,
         "controls": [MappingOut.model_validate(m) for m in mappings],
     }
 
 
 @router.get("/evidence-items/{item_id}/matrix", response_model=list[EvidenceSufficiencyMatrixOut])
-def get_evidence_item_matrix(item_id: str, db: Session = Depends(get_db_ref)):
-    """Return all evidence_sufficiency_matrix rows for a given evidence item."""
+def get_evidence_item_matrix(
+    item_id: str,
+    cycle_id: UUID | None = Query(None, description="When set, only rows for controls in scope (applicable) for this cycle are returned."),
+    db: Session = Depends(get_db_ref),
+):
+    """Return evidence_sufficiency_matrix rows for this evidence item. With cycle_id, only applicable controls (same as Per-Control tab)."""
     rows = db.query(EvidenceSufficiencyMatrix).filter(
         EvidenceSufficiencyMatrix.item_code == item_id
     ).all()
+    if cycle_id is not None:
+        applicable = _applicable_control_ids_for_cycle(db, cycle_id)
+        rows = [r for r in rows if (r.control_id or "") in applicable]
     return [EvidenceSufficiencyMatrixOut.model_validate(r) for r in rows]
 
 

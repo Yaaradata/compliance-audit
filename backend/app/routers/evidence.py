@@ -33,6 +33,20 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+_CONTROL_ID_ALL = "ALL"
+
+
+def _applicable_control_ids_for_cycle(db: Session, cycle_id: UUID) -> set[str]:
+    """Return set of control_id in scope (scoping_decision == 'applicable') for this cycle. Same logic as ref/domains cycle filter."""
+    applicable = set()
+    for ca in db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all():
+        if (ca.control_id or "").strip().upper() == _CONTROL_ID_ALL:
+            continue
+        if (getattr(ca, "scoping_decision", None) or "applicable") != "applicable":
+            continue
+        applicable.add(ca.control_id or "")
+    return applicable
+
 
 def _submission_to_out(sub: EvidenceSubmission, db: Session | None = None) -> SubmissionOut:
     """Build SubmissionOut with last_evaluation from stored evaluation_result.
@@ -104,6 +118,21 @@ def _submission_snapshot(sub: EvidenceSubmission) -> dict:
 def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     if user.role not in EVIDENCE_WRITE_ROLES:
         raise HTTPException(status_code=403, detail="Not authorized to create evidence")
+
+    # Get-or-create: avoid duplicate submissions for same (cycle, tenant, evidence_item_id, scope_key)
+    q = db.query(EvidenceSubmission).filter(
+        EvidenceSubmission.cycle_id == cycle_id,
+        EvidenceSubmission.tenant_id == user.tenant_id,
+        EvidenceSubmission.evidence_item_id == req.evidence_item_id,
+    )
+    if req.scope_key is None:
+        q = q.filter(EvidenceSubmission.scope_key.is_(None))
+    else:
+        q = q.filter(EvidenceSubmission.scope_key == req.scope_key)
+    existing = q.first()
+    if existing:
+        return _submission_to_out(existing, db)
+
     sub = EvidenceSubmission(
         cycle_id=cycle_id,
         tenant_id=user.tenant_id,
@@ -849,16 +878,24 @@ def evaluate_evidence(
     if not canonical:
         raise HTTPException(status_code=404, detail="Evidence item not found")
 
+    # Restrict to controls in scope for this cycle (same set as Per-Control tab and ref matrix with cycle_id)
+    applicable_control_ids = _applicable_control_ids_for_cycle(db, cycle_id)
+
     control_mappings = (
         db.query(ItemControlMapping)
         .filter(ItemControlMapping.evidence_item_id == req.evidence_item_id)
         .all()
     )
+    if applicable_control_ids:
+        control_mappings = [m for m in control_mappings if (m.control_id or "") in applicable_control_ids]
+
     matrix_rows = (
         db.query(EvidenceSufficiencyMatrix)
         .filter(EvidenceSufficiencyMatrix.item_code == req.evidence_item_id)
         .all()
     )
+    if applicable_control_ids:
+        matrix_rows = [r for r in matrix_rows if (getattr(r, "control_id", None) or "") in applicable_control_ids]
     # A5 uses canonical item sufficiency/evaluation criteria (single set), not per-control matrix
     if req.evidence_item_id == "A5":
         matrix_rows = []

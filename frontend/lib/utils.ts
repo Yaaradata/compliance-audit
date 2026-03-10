@@ -1,10 +1,16 @@
-const CRITERIA_HIDE_PREFIXES = ["FAIL:", "CROSS-CHECK:"];
+/** Prefixes that indicate a criterion should be hidden in the UI (fail-if and cross-check). */
+const CRITERIA_HIDE_PREFIXES = [
+  "FAIL:",
+  "CROSS-CHECK:",
+  "[FAIL IF]",
+  "[CROSS-CHECK]",
+];
 
-/** Strip PASS:, FAIL:, CROSS-CHECK: prefix from criterion label for display. */
+/** Strip PASS:, FAIL:, CROSS-CHECK:, [FAIL IF], [CROSS-CHECK] prefix from criterion label for display. */
 export function stripCriteriaPrefix(label: string | null | undefined): string {
   if (!label || typeof label !== "string") return label ?? "";
   const t = label.trim();
-  const prefixes = ["PASS:", "FAIL:", "CROSS-CHECK:"];
+  const prefixes = ["PASS:", "FAIL:", "CROSS-CHECK:", "[FAIL IF]", "[CROSS-CHECK]"];
   for (const p of prefixes) {
     if (t.toUpperCase().startsWith(p.toUpperCase())) {
       return t.slice(p.length).trim();
@@ -13,7 +19,7 @@ export function stripCriteriaPrefix(label: string | null | undefined): string {
   return t;
 }
 
-/** True if this criterion should be shown in the UI. FAIL and CROSS-CHECK are hidden. */
+/** True if this criterion should be shown in the UI. [FAIL IF] and [CROSS-CHECK] (and FAIL:, CROSS-CHECK:) are hidden. */
 export function shouldShowCriterion(label: string | null | undefined): boolean {
   if (!label || typeof label !== "string") return true;
   const upper = label.trim().toUpperCase();

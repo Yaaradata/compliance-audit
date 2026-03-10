@@ -22,9 +22,11 @@ interface NoteListProps {
   criterionId?: string | null;
   refreshTrigger?: number;
   emptyMessage?: string;
+  /** When provided, no API call is made; these notes are shown (e.g. from a single parent fetch). */
+  preFetchedNotes?: NoteItem[] | null;
 }
 
-export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger = 0, emptyMessage = "No notes yet." }: NoteListProps) {
+export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger = 0, emptyMessage = "No notes yet.", preFetchedNotes }: NoteListProps) {
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,8 +44,14 @@ export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger
   };
 
   useEffect(() => {
+    if (preFetchedNotes !== undefined && preFetchedNotes !== null) {
+      setNotes(Array.isArray(preFetchedNotes) ? preFetchedNotes : []);
+      setLoading(false);
+      setError("");
+      return;
+    }
     fetchNotes();
-  }, [resourceType, resourceId, criterionId ?? "", refreshTrigger]);
+  }, [resourceType, resourceId, criterionId ?? "", refreshTrigger, preFetchedNotes]);
 
   if (loading) return <p className="text-xs text-[var(--foreground-muted)] py-2">Loading notes…</p>;
   if (error) return <p className="text-xs text-red-600 py-2">{error.includes("Not Found") ? "Notes unavailable." : error}</p>;
