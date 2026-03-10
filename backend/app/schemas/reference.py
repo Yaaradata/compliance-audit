@@ -118,6 +118,14 @@ class EvidenceItemWithControlsOut(EvidenceItemOut):
     matrix: list[EvidenceSufficiencyMatrixOut] = []
 
 
+class ArchitectureTypeOut(BaseModel):
+    """Architecture type metadata for display (id, name, subtitle, description)."""
+    id: str
+    name: str
+    subtitle: str
+    description: str
+
+
 class DependencyOut(BaseModel):
     source_item_id: str
     target_item_id: str

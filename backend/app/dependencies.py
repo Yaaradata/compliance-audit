@@ -99,21 +99,36 @@ def get_current_user(
 
 def get_db_for_review(
     review_id: UUID,
+    cycle_id: UUID | None = Query(None, description="Optional; when provided (e.g. from review queue context), use this cycle's schema so detail matches list."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Generator[Session, None, None]:
     """
     Resolve which schema (swift_2025 or swift_2026) contains this review,
     set search_path to that schema, and yield the session. Use for /reviews/{review_id}
-    and /reviews/{review_id}/detail when cycle_id is not in the path.
+    and /reviews/{review_id}/detail. When cycle_id is provided, try that cycle's schema first
+    so the same schema as the list endpoint is used.
     Raises 404 if review not found.
     """
-    for schema in (SCHEMA_2025, SCHEMA_2026):
-        db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+    # If caller has cycle context, try that schema first (same as list_reviews)
+    schemas_to_try: list[str] = []
+    if cycle_id is not None:
+        schema = _resolve_schema_for_cycle(db, cycle_id)
+        schemas_to_try.append(schema)
+    for s in (SCHEMA_2025, SCHEMA_2026):
+        if s not in schemas_to_try:
+            schemas_to_try.append(s)
+
+    for schema in schemas_to_try:
+        # Use literal schema name (we control the value) so search_path sees a proper identifier
+        db.execute(text(f"SET search_path TO core, {schema!r}, public"))
         review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
         if review is not None:
             sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == review.submission_id).first()
             if sub and user.tenant_id is not None and sub.tenant_id != user.tenant_id:
+                raise HTTPException(status_code=404, detail="Review not found")
+            if cycle_id is not None and sub and str(sub.cycle_id) != str(cycle_id):
+                # Caller asked for a specific cycle; this review belongs to another cycle
                 raise HTTPException(status_code=404, detail="Review not found")
             yield db
             return

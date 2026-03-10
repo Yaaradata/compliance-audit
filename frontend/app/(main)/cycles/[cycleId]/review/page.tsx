@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { EvidenceDetailModal } from "@/components/review/evidence-viewer";
 import { EmptyState } from "@/components/ui/loading-state";
 
 interface ApiReview {
@@ -20,11 +19,19 @@ interface ApiReview {
   submission_status: string | null;
 }
 
+interface RefDomain {
+  id: string;
+  name: string;
+  sort_order: number;
+}
+
+
 const STATUS_TABS = [
   { key: "all", label: "All", icon: "M4 6h16M4 12h16M4 18h16" },
   { key: "assigned", label: "My Queue", icon: "M12 8v4l3 3m-6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" },
   { key: "approved", label: "Approved", icon: "M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" },
-  { key: "returned", label: "Returned", icon: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" },
+  { key: "returned", label: "Returned", icon: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" },
+  { key: "hold", label: "Hold", icon: "M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" },
 ] as const;
 
 const LEVEL_COLORS: Record<string, { bg: string; text: string; ring: string; border: string; light: string; gradient: string }> = {
@@ -61,6 +68,7 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; dot: string }> =
   assigned: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500" },
   approved: { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500" },
   returned: { bg: "bg-rose-50 dark:bg-rose-950/40", text: "text-rose-700 dark:text-rose-300", dot: "bg-rose-500" },
+  hold: { bg: "bg-slate-50 dark:bg-slate-950/40", text: "text-slate-700 dark:text-slate-300", dot: "bg-slate-500" },
 };
 
 function normalizeLevel(level: string): string {
@@ -200,34 +208,6 @@ function EvidenceItemCard({
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  iconPath,
-  colorClass,
-  accent,
-}: {
-  label: string;
-  value: number;
-  iconPath: string;
-  colorClass: string;
-  accent?: string;
-}) {
-  return (
-    <div className={`rounded-xl border border-(--border) bg-(--surface) p-4 shadow-(--shadow) hover:shadow-(--shadow-md) transition-all duration-300 hover:-translate-y-0.5 overflow-hidden ${accent ? `border-l-4 ${accent}` : ""}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
-          <p className="text-sm font-medium text-(--foreground-muted) mt-0.5">{label}</p>
-        </div>
-        <div className={`p-2.5 rounded-xl ${colorClass}`}>
-          <Icon path={iconPath} className="w-5 h-5 text-current" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ReviewQueueSkeleton() {
   return (
     <div className="space-y-6">
@@ -273,9 +253,10 @@ export default function CycleReviewPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const [levelFilter, setLevelFilter] = useState<string>(initialLevel);
-  const [modalReviewId, setModalReviewId] = useState<string | null>(null);
-  const [modalEvidenceItemId, setModalEvidenceItemId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [domains, setDomains] = useState<RefDomain[]>([]);
+  const [itemNames, setItemNames] = useState<Record<string, string>>({});
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
 
   useEffect(() => {
     if (levelFromUrl && VALID_LEVELS.includes(levelFromUrl as (typeof VALID_LEVELS)[number])) {
@@ -315,12 +296,30 @@ export default function CycleReviewPage() {
 
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
-  const metrics = useMemo(() => {
-    const assigned = reviews.filter((r) => r.status === "assigned").length;
-    const approved = reviews.filter((r) => r.status === "approved").length;
-    const returned = reviews.filter((r) => r.status === "returned").length;
-    return { assigned, approved, returned, total: reviews.length };
-  }, [reviews]);
+  useEffect(() => {
+    api.get<RefDomain[]>("/ref/domains").then(setDomains).catch(() => setDomains([]));
+  }, []);
+
+  useEffect(() => {
+    if (!cycleId || reviews.length === 0) {
+      setItemNames({});
+      return;
+    }
+    const domainLetters = [...new Set(reviews.map((r) => domainFrom(r.evidence_item_id ?? "")))].filter(Boolean);
+    const map: Record<string, string> = {};
+    Promise.all(
+      domainLetters.map((letter) =>
+        api
+          .get<{ domain: { id: string; name: string }; evidence_items: { id: string; name: string }[] }>(`/ref/domains/${letter}?cycle_id=${cycleId}`)
+          .then((res) => {
+            for (const item of res.evidence_items ?? []) {
+              map[item.id] = item.name;
+            }
+          })
+          .catch(() => {})
+      )
+    ).then(() => setItemNames((prev) => ({ ...prev, ...map })));
+  }, [cycleId, reviews.length]);
 
   const filtered = useMemo(() => {
     let list = reviews;
@@ -363,26 +362,39 @@ export default function CycleReviewPage() {
       .map(([domain, items]) => [domain, items.sort((x, y) => x.itemId.localeCompare(y.itemId))] as const);
   }, [filtered]);
 
-  const handleAction = async (
-    reviewId: string,
-    decision: "approve" | "return",
-    _comment?: string,
-    checklistResults?: Record<string, { checked: boolean; note?: string | null }>,
-  ) => {
-    try {
-      const res = await api.put<{ review: ApiReview; next_review_id: string | null }>(
-        `/reviews/${reviewId}`,
-        { decision, checklist_results: checklistResults ?? null }
-      );
-      if (res?.next_review_id) {
-        updateLevelFilter("all");
-        setFilter("all");
+  /** Flatten to one row per review for table; optionally filter by selected domain. */
+  const tableRows = useMemo(() => {
+    const rows: { domain: string; itemId: string; review: ApiReview }[] = [];
+    for (const [domain, items] of groupedByItemThenDomain) {
+      if (selectedDomain != null && selectedDomain !== domain) continue;
+      for (const { itemId, reviews: revs } of items) {
+        for (const review of revs) {
+          rows.push({ domain, itemId, review });
+        }
       }
-      await fetchReviews();
-      setModalReviewId(null);
-      setModalEvidenceItemId(null);
-    } catch { /* ignore */ }
-  };
+    }
+    return rows.sort((a, b) => {
+      const d = a.domain.localeCompare(b.domain);
+      if (d !== 0) return d;
+      const i = a.itemId.localeCompare(b.itemId);
+      if (i !== 0) return i;
+      return (a.review.assigned_at > b.review.assigned_at ? -1 : 1);
+    });
+  }, [groupedByItemThenDomain, selectedDomain]);
+
+  const domainListWithCounts = useMemo(() => {
+    return groupedByItemThenDomain.map(([domainId, items]) => {
+      const total = items.reduce((acc, { reviews }) => acc + reviews.length, 0);
+      const approved = items.reduce((acc, { reviews }) => acc + reviews.filter((r) => r.status === "approved").length, 0);
+      const domainMeta = domains.find((d) => d.id === domainId);
+      return {
+        id: domainId,
+        name: domainMeta?.name ?? `Domain ${domainId}`,
+        total,
+        approved,
+      };
+    });
+  }, [domains, groupedByItemThenDomain]);
 
   const hasActiveFilters = filter !== "all" || levelFilter !== "all" || searchQuery.trim() !== "";
   const statusCounts = useMemo(() => ({
@@ -390,6 +402,7 @@ export default function CycleReviewPage() {
     assigned: reviews.filter((r) => r.status === "assigned" && r.reviewer_id === user?.id).length,
     approved: reviews.filter((r) => r.status === "approved").length,
     returned: reviews.filter((r) => r.status === "returned").length,
+    hold: reviews.filter((r) => r.status === "hold").length,
   }), [reviews, user?.id]);
   const levelCounts = useMemo(() => ({
     all: reviews.length,
@@ -407,20 +420,13 @@ export default function CycleReviewPage() {
   return (
     <div className="min-h-[calc(100vh-64px)] w-full bg-background">
       <div className="w-full">
+        <>
         <header className="mb-6 flex items-center gap-3">
           <div className="p-2 rounded-lg bg-(--primary-muted)">
             <Icon path="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" className="w-5 h-5 text-(--primary)" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Review Queue</h1>
         </header>
-
-        {/* Metrics — colorful left accent */}
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
-          <MetricCard label="Total" value={metrics.total} iconPath="M4 6h16M4 10h16M4 14h16M4 18h16" colorClass="bg-slate-200 text-slate-700 dark:bg-slate-500 dark:text-slate-100" accent="border-l-slate-400" />
-          <MetricCard label="In queue" value={metrics.assigned} iconPath="M12 8v4l3 3m-6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" colorClass="bg-amber-400 text-amber-900 dark:bg-amber-500 dark:text-white" accent="border-l-amber-500" />
-          <MetricCard label="Approved" value={metrics.approved} iconPath="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" colorClass="bg-emerald-400 text-emerald-900 dark:bg-emerald-500 dark:text-white" accent="border-l-emerald-500" />
-          <MetricCard label="Returned" value={metrics.returned} iconPath="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" colorClass="bg-rose-400 text-rose-900 dark:bg-rose-500 dark:text-white" accent="border-l-rose-500" />
-        </section>
 
         {/* Flexible filter bar: search + status chips with counts + level chips + clear + view toggle */}
         <section className="mb-6 rounded-xl border border-(--border) bg-(--surface) p-4 shadow-sm">
@@ -514,15 +520,7 @@ export default function CycleReviewPage() {
           </div>
         </section>
 
-        {/* Results count */}
-        {!loading && (
-          <p className="text-sm text-(--foreground-muted) mb-4">
-            Showing <strong className="text-foreground">{groupedByItemThenDomain.reduce((acc, [, rows]) => acc + rows.length, 0)}</strong> {groupedByItemThenDomain.reduce((acc, [, rows]) => acc + rows.length, 0) === 1 ? "item" : "items"}
-            {hasActiveFilters && " (filtered)"}
-          </p>
-        )}
-
-        {/* Content */}
+        {/* Content: Domain sidebar + Table (JSX-style layout) */}
         {loading ? (
           <ReviewQueueSkeleton />
         ) : groupedByItemThenDomain.length === 0 ? (
@@ -531,54 +529,131 @@ export default function CycleReviewPage() {
             description={hasActiveFilters ? "Try clearing filters or different criteria." : "Reviews appear here once evidence is submitted for review."}
           />
         ) : (
-          <div className="space-y-6">
-            {groupedByItemThenDomain.map(([domain], idx) => {
-              const itemRows = groupedByItemThenDomain.find(([d]) => d === domain)?.[1] ?? [];
-              const accentColor = DOMAIN_ACCENT_COLORS[idx % DOMAIN_ACCENT_COLORS.length];
-              return (
-                <section key={domain}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${accentColor} text-white font-bold text-sm shadow`}>
-                      {domain}
+          <div className="flex flex-1 overflow-hidden rounded-xl border border-(--border) bg-(--surface) shadow-sm">
+            {/* Domain sidebar */}
+            <div className="w-56 flex-shrink-0 border-r border-(--border) flex flex-col bg-(--background) overflow-hidden">
+              <div className="flex-shrink-0 px-4 py-3 border-b border-(--border)">
+                <p className="text-[10px] font-bold text-(--foreground-muted) uppercase tracking-widest">Domains</p>
+              </div>
+              <div className="flex-1 overflow-y-auto py-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDomain(null)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-l-2 ${selectedDomain === null ? "bg-(--surface) border-(--primary) shadow-sm" : "border-transparent hover:bg-(--surface) hover:border-(--border)"}`}
+                >
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 ${selectedDomain === null ? "bg-(--primary) text-(--surface)" : "bg-(--border) text-(--foreground-muted)"}`}>
+                    •
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold truncate ${selectedDomain === null ? "text-foreground" : "text-(--foreground-muted)"}`}>All domains</p>
+                    <p className="text-[10px] text-(--foreground-subtle) mt-0.5">{filtered.length} items</p>
+                  </div>
+                </button>
+                {domainListWithCounts.map((d) => {
+                  const isActive = selectedDomain === d.id;
+                  const accentColor = DOMAIN_ACCENT_COLORS[domainListWithCounts.indexOf(d) % DOMAIN_ACCENT_COLORS.length];
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setSelectedDomain(d.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-l-2 ${isActive ? "bg-(--surface) border-(--primary) shadow-sm" : "border-transparent hover:bg-(--surface) hover:border-(--border)"}`}
+                    >
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 ${isActive ? accentColor + " text-white" : "bg-(--border) text-(--foreground-muted)"}`}>
+                        {d.id}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-semibold truncate ${isActive ? "text-foreground" : "text-(--foreground-muted)"}`}>{d.name}</p>
+                        <p className="text-[10px] text-(--foreground-subtle) mt-0.5">{d.total} items · {d.approved} approved</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Main: domain header + table */}
+            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+              <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-(--border) bg-(--surface)">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold text-(--primary) bg-(--primary-muted) border border-(--primary)/30 px-2.5 py-1 rounded-lg">
+                      {selectedDomain ?? "All"}
                     </span>
-                    <h2 className="text-sm font-bold text-(--foreground-muted) uppercase tracking-wider">Domain {domain}</h2>
-                    <span className="text-xs font-medium text-(--foreground-subtle) bg-background px-2 py-0.5 rounded-full">({itemRows.length})</span>
+                    <h2 className="text-lg font-bold text-foreground">
+                      {selectedDomain ? domainListWithCounts.find((d) => d.id === selectedDomain)?.name ?? `Domain ${selectedDomain}` : "All domains"}
+                    </h2>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {itemRows.map(({ itemId, reviews: itemReviews }) => (
-                      <EvidenceItemCard
-                        key={itemId}
-                        evidenceItemId={itemId === "_other" ? "Other" : itemId}
-                        reviews={itemReviews}
-                        onOpenDetail={(reviewId, evidenceItemId) => {
-                          setModalReviewId(reviewId);
-                          setModalEvidenceItemId(evidenceItemId);
-                        }}
-                        userRole={userRole}
-                        compact={true}
-                      />
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
+                  <p className="text-xs text-(--foreground-muted) mt-0.5 ml-0.5">
+                    {tableRows.length} review{tableRows.length !== 1 ? "s" : ""} — click a row to open and review
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-(--border)">
+                      <th className="pb-3 pt-2 px-4 text-left text-[11px] font-bold text-(--foreground-muted) uppercase tracking-widest w-20">Control</th>
+                      <th className="pb-3 pt-2 px-4 text-left text-[11px] font-bold text-(--foreground-muted) uppercase tracking-widest">Title</th>
+                      <th className="pb-3 pt-2 px-4 text-left text-[11px] font-bold text-(--foreground-muted) uppercase tracking-widest w-20">Level</th>
+                      <th className="pb-3 pt-2 px-4 text-left text-[11px] font-bold text-(--foreground-muted) uppercase tracking-widest w-28">Submitted</th>
+                      <th className="pb-3 pt-2 px-4 text-left text-[11px] font-bold text-(--foreground-muted) uppercase tracking-widest w-28">Date</th>
+                      <th className="pb-3 pt-2 px-4 text-left text-[11px] font-bold text-(--foreground-muted) uppercase tracking-widest w-28">Status</th>
+                      <th className="pb-3 pt-2 w-24"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-(--border)">
+                    {tableRows.map(({ itemId, review }) => {
+                      const st = review.status;
+                      const style = STATUS_STYLES[st] ?? STATUS_STYLES.assigned;
+                      const displayLevel = normalizeLevel(review.level);
+                      const lc = LEVEL_COLORS[displayLevel] ?? LEVEL_COLORS.L1;
+                      const dateStr = new Date(review.assigned_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                      const title = itemNames[itemId] ?? itemId;
+                      return (
+                        <tr
+                          key={review.id}
+                          onClick={() => router.push(`/cycles/${cycleId}/review/${review.id}`)}
+                          className="cursor-pointer hover:bg-(--primary-muted)/20 transition-colors group"
+                        >
+                          <td className="py-4 px-4 align-top">
+                            <span className="font-semibold text-foreground">{itemId === "_other" ? "Other" : itemId}</span>
+                          </td>
+                          <td className="py-4 px-4 align-top">
+                            <p className="text-sm font-medium text-foreground group-hover:text-(--primary) transition-colors line-clamp-1">{title}</p>
+                            <p className="text-xs text-(--foreground-muted) mt-0.5 line-clamp-1 max-w-md">Evidence submission</p>
+                          </td>
+                          <td className="py-4 px-4 align-top">
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${lc.light} ${lc.text} border-(--border)`}>
+                              {displayLevel} — {LEVEL_LABELS[displayLevel] ?? displayLevel}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 align-top text-xs text-(--foreground-muted)">—</td>
+                          <td className="py-4 px-4 align-top text-xs text-(--foreground-muted)">{dateStr}</td>
+                          <td className="py-4 px-4 align-top">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${style.bg} ${style.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`} />
+                              {st}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 align-top">
+                            <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-(--primary-muted) text-(--primary) border border-(--primary)/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                              Review
+                              <Icon path="M9 5l7 7-7 7" className="w-3 h-3" />
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
+        </>
       </div>
-
-      {modalReviewId && modalEvidenceItemId && cycleId && (
-        <EvidenceDetailModal
-          cycleId={cycleId}
-          reviewId={modalReviewId}
-          evidenceItemId={modalEvidenceItemId}
-          userRole={userRole}
-          onAction={(decision, comment, checklistResults) => handleAction(modalReviewId, decision, comment, checklistResults)}
-          onClose={() => {
-            setModalReviewId(null);
-            setModalEvidenceItemId(null);
-          }}
-        />
-      )}
     </div>
   );
 }

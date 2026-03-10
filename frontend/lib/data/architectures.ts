@@ -1,4 +1,4 @@
-import type { Architecture, ArchitectureId } from "../types";
+import type { Architecture } from "../types";
 
 /**
  * SWIFT CSCF v2025 — 5 architecture types.
@@ -189,10 +189,3 @@ export function getArchitectureDiagramPath(
   return filename ? `/architecture-diagrams/${filename}` : `/architecture-diagrams/${architectureId}.png`;
 }
 
-export function getControlApplicability(archId: ArchitectureId, controlId: string): "mandatory" | "advisory" | "n/a" {
-  const arch = getArchitecture(archId);
-  if (!arch) return "n/a";
-  if (arch.mandatoryControls.includes(controlId)) return "mandatory";
-  if (arch.advisoryControls.includes(controlId)) return "advisory";
-  return "n/a";
-}

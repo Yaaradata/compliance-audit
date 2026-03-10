@@ -177,9 +177,25 @@ export default function CycleDomainPage() {
         const evalByItem: Record<string, AiEvalResultType> = {};
         const completionByItem: Record<string, number> = {};
         const editsByItem: Record<string, EvaluationEditsMap> = {};
+        // Prefer submitted/in-review submission when multiple exist for same evidence_item_id (avoid showing empty duplicate)
+        const isNonDraft = (status: string) =>
+          status !== "draft" && status != null && String(status).toLowerCase() !== "draft";
+        const byItem = new Map<string, ApiSubmission[]>();
         subs.forEach((s) => {
-          sMap[s.evidence_item_id] = s.id;
-          statusMap[s.evidence_item_id] = s.status;
+          const list = byItem.get(s.evidence_item_id) ?? [];
+          list.push(s);
+          byItem.set(s.evidence_item_id, list);
+        });
+        byItem.forEach((list, evidenceItemId) => {
+          const preferred = list.find((s) => isNonDraft(s.status)) ?? list[0];
+          if (preferred) {
+            sMap[evidenceItemId] = preferred.id;
+            statusMap[evidenceItemId] = preferred.status;
+          }
+        });
+        subs.forEach((s) => {
+          const chosenId = sMap[s.evidence_item_id];
+          if (chosenId !== s.id) return;
           if (s.form_data) {
             Object.entries(s.form_data).forEach(([k, v]) => {
               data[`${s.evidence_item_id}_${k}`] = String(v);
@@ -203,14 +219,14 @@ export default function CycleDomainPage() {
           }
         });
         setEvaluationEditsByItem(editsByItem);
-        subs.forEach((s) => {
-          if (s.evidence_item_id === A2_EVIDENCE_ITEM_ID && s.form_data?.inventory_rows) {
-            try {
-              const parsed = JSON.parse(s.form_data.inventory_rows);
-              if (Array.isArray(parsed) && parsed.length > 0) setA2Rows(parsed);
-            } catch { /* ignore */ }
-          }
-        });
+        const a2ChosenId = sMap[A2_EVIDENCE_ITEM_ID];
+        const a2Sub = a2ChosenId ? subs.find((s) => s.evidence_item_id === A2_EVIDENCE_ITEM_ID && s.id === a2ChosenId) : null;
+        if (a2Sub?.form_data?.inventory_rows) {
+          try {
+            const parsed = JSON.parse(a2Sub.form_data.inventory_rows);
+            if (Array.isArray(parsed) && parsed.length > 0) setA2Rows(parsed);
+          } catch { /* ignore */ }
+        }
         setFormData(data);
         setSubmissionMap(sMap);
         setSubmissionStatusMap(statusMap);
@@ -335,6 +351,32 @@ export default function CycleDomainPage() {
     setA2Rows((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index));
   }, []);
 
+  const refetchSubmissions = useCallback(async () => {
+    if (!cycleId || !domainId) return;
+    try {
+      const subs = await api.get<ApiSubmission[]>(`/assessments/${cycleId}/evidence?domain=${domainId}`);
+      const isNonDraft = (status: string) =>
+        status !== "draft" && status != null && String(status).toLowerCase() !== "draft";
+      const byItem = new Map<string, ApiSubmission[]>();
+      subs.forEach((s) => {
+        const list = byItem.get(s.evidence_item_id) ?? [];
+        list.push(s);
+        byItem.set(s.evidence_item_id, list);
+      });
+      const sMap: Record<string, string> = {};
+      const statusMap: Record<string, string> = {};
+      byItem.forEach((list, evidenceItemId) => {
+        const preferred = list.find((s) => isNonDraft(s.status)) ?? list[0];
+        if (preferred) {
+          sMap[evidenceItemId] = preferred.id;
+          statusMap[evidenceItemId] = preferred.status;
+        }
+      });
+      setSubmissionMap((prev) => ({ ...prev, ...sMap }));
+      setSubmissionStatusMap((prev) => ({ ...prev, ...statusMap }));
+    } catch { /* ignore */ }
+  }, [cycleId, domainId]);
+
   const handleSubmitForReview = useCallback(async () => {
     if (!currentItem || !cycleId) return;
     const subId = submissionMap[currentItem.id];
@@ -343,10 +385,11 @@ export default function CycleDomainPage() {
     try {
       await api.post(`/assessments/${cycleId}/evidence/${subId}/submit`, {});
       setSubmissionStatusMap((prev) => ({ ...prev, [currentItem.id]: "submitted" }));
+      await refetchSubmissions();
       if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch { /* ignore */ }
     setSubmitForReviewLoading(false);
-  }, [currentItem, cycleId, submissionMap]);
+  }, [currentItem, cycleId, submissionMap, refetchSubmissions]);
 
   const handleEvaluateEvidence = useCallback(async () => {
     if (!currentItem || !cycleId) return;

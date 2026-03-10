@@ -482,6 +482,7 @@ def get_review_detail(
         },
         "submission": {
             "id": str(submission.id),
+            "cycle_id": str(submission.cycle_id),
             "evidence_item_id": submission.evidence_item_id,
             "status": evidence_status_svc.evidence_display_status(submission.status, db, submission.id),
             "form_data": submission.form_data or {},
@@ -576,6 +577,9 @@ def update_review(
                     title="Evidence returned",
                     body=body_msg,
                 )
+    elif req.decision == "hold":
+        review.status = "hold"
+        # Submission stays in current state (temp hold); no notification
     else:
         review.status = "escalated"
 

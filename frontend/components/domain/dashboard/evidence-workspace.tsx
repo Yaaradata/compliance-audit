@@ -200,6 +200,7 @@ function UploadSection({ id, title, description, label, submissionId, onUploadCo
       <h2 id={id} className="text-xs font-semibold text-foreground mb-1.5">{title}</h2>
       {description && <p className="text-[11px] text-(--foreground-muted) mb-2">{description}</p>}
       <CompactDropzone
+        key={`upload-${itemId}-${submissionId ?? "none"}`}
         submissionId={submissionId}
         label={label}
         onUploadComplete={onUploadComplete}
@@ -703,6 +704,7 @@ export function EvidenceWorkspace({
               Upload evidence files that apply to all controls for this evidence item.
             </p>
             <CompactDropzone
+              key={`upload-${currentItem.id}-${currentSubmissionId ?? "none"}`}
               submissionId={currentSubmissionId}
               label="Drop files or click to upload"
               onUploadComplete={onUploadComplete}
