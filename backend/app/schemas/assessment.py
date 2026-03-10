@@ -90,6 +90,27 @@ class ControlScore(BaseModel):
     evidence_count: int = 0
 
 
+class ControlScopingItem(BaseModel):
+    """One control's scoping decision for the applicability page."""
+    control_id: str
+    control_name: str
+    type: str  # M or A
+    scoping_decision: str  # applicable | not_applicable | risk_accepted
+    scoping_justification_text: str | None = None
+    scoping_justification_file_path: str | None = None
+
+
+class ControlScopingUpdateItem(BaseModel):
+    control_id: str
+    scoping_decision: str  # applicable | not_applicable | risk_accepted
+    scoping_justification_text: str | None = None
+    scoping_justification_file_path: str | None = None
+
+
+class ControlScopingUpdateRequest(BaseModel):
+    decisions: list[ControlScopingUpdateItem]
+
+
 class DashboardResponse(BaseModel):
     overall_score: float = 0
     mandatory_controls: int = 0

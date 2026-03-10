@@ -47,6 +47,8 @@ def list_controls(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: Us
     for ca in cas:
         if (ca.control_id or "").strip().upper() == CONTROL_ID_ALL:
             continue
+        if (getattr(ca, "scoping_decision", None) or "applicable") != "applicable":
+            continue
         ctrl = controls_map.get(ca.control_id)
         suf = scores_map.get(ca.control_id)
         score_val = (suf.overall_score if suf else ca.score) if (suf or ca) else 0
@@ -77,6 +79,8 @@ def control_matrix(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: U
     result = []
     for ca in cas:
         if (ca.control_id or "").strip().upper() == CONTROL_ID_ALL:
+            continue
+        if (getattr(ca, "scoping_decision", None) or "applicable") != "applicable":
             continue
         ctrl = controls_map.get(ca.control_id)
         mappings = mappings_map.get(ca.control_id, [])
@@ -153,7 +157,8 @@ def get_sufficiency_detail(cycle_id: UUID, db: Session, user: User):
     _require_cycle_access(cycle, user)
 
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()
-    control_ids = [ca.control_id for ca in cas if (ca.control_id or "").strip().upper() != CONTROL_ID_ALL]
+    cas_applicable = [ca for ca in cas if (getattr(ca, "scoping_decision", None) or "applicable") == "applicable"]
+    control_ids = [ca.control_id for ca in cas_applicable if (ca.control_id or "").strip().upper() != CONTROL_ID_ALL]
     if not control_ids:
         return []
 
@@ -205,12 +210,12 @@ def get_sufficiency_detail(cycle_id: UUID, db: Session, user: User):
     # Control names — single batch query
     controls_map = load_controls_by_ids(db, control_ids)
     ctrl_name_map: dict[str, str] = {}
-    for ca in cas:
+    for ca in cas_applicable:
         ctrl = controls_map.get(ca.control_id)
         ctrl_name_map[ca.control_id] = (ctrl.name if ctrl else ca.control_id) or ca.control_id or ""
 
     result = []
-    for ca in cas:
+    for ca in cas_applicable:
         cid = ca.control_id
         if (cid or "").strip().upper() == CONTROL_ID_ALL:
             continue

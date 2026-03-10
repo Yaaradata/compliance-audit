@@ -36,6 +36,41 @@ class Base(DeclarativeBase):
     pass
 
 
+def ensure_control_scoping_columns():
+    """
+    Ensure control scoping columns exist on control_applicability in both schemas.
+    Idempotent: safe to call on every startup.
+    """
+    for schema in ("swift_2025", "swift_2026"):
+        try:
+            with engine.connect() as conn:
+                conn.execute(
+                    text(
+                        f'ALTER TABLE "{schema}"."control_applicability" '
+                        "ADD COLUMN IF NOT EXISTS scoping_decision VARCHAR(20) NOT NULL DEFAULT 'applicable'"
+                    )
+                )
+                conn.execute(
+                    text(
+                        f'ALTER TABLE "{schema}"."control_applicability" '
+                        "ADD COLUMN IF NOT EXISTS scoping_justification_text TEXT"
+                    )
+                )
+                conn.execute(
+                    text(
+                        f'ALTER TABLE "{schema}"."control_applicability" '
+                        "ADD COLUMN IF NOT EXISTS scoping_justification_file_path VARCHAR(500)"
+                    )
+                )
+                conn.commit()
+        except Exception as e:
+            logger.warning(
+                "Could not ensure control_scoping columns in %s: %s",
+                schema,
+                e,
+            )
+
+
 def ensure_optional_columns():
     """
     Ensure optional columns exist on evidence_submissions (and review_assignments) in both

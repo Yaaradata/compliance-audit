@@ -16,8 +16,8 @@ export function ContextBar() {
   const initials = user?.name?.split(/\s+/).map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 py-1.5 mb-1 border-b border-[var(--border)] min-h-0">
-      <div className="flex items-center gap-1.5 min-w-0 flex-wrap text-xs text-[var(--foreground)]">
+    <div className="flex flex-wrap items-center justify-between gap-2 py-1.5 mb-1 border-b border-(--border) min-h-0">
+      <div className="flex items-center gap-1.5 min-w-0 flex-wrap text-xs text-foreground">
         {activeCycleId && (
           <span className="truncate" title={`Cycle ID: ${activeCycleId}`}>
             {activeCycleMeta ? (
@@ -27,9 +27,9 @@ export function ContextBar() {
             )}
           </span>
         )}
-        {activeCycleId && arch && <span className="text-[var(--foreground-subtle)]">·</span>}
+        {activeCycleId && arch && <span className="text-(--foreground-subtle)">·</span>}
         {arch && (
-          <span className="truncate text-[var(--foreground-muted)]">
+          <span className="truncate text-(--foreground-muted)">
             {arch.id} — {arch.subtitle}
           </span>
         )}
@@ -38,17 +38,17 @@ export function ContextBar() {
         <ThemeToggle />
         {user && (
           <>
-            <span className="text-xs text-[var(--foreground-muted)]">{ROLE_LABELS[user.role]}</span>
+            <span className="text-xs text-(--foreground-muted)">{ROLE_LABELS[user.role]}</span>
             <div
-              className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-medium shrink-0 bg-[var(--foreground-muted)]"
+              className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-medium shrink-0 bg-(--foreground-muted)"
               title={user.email}
             >
               {initials}
             </div>
-            <Link href="/assessments/new" className="text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:underline">
+            <Link href="/assessments/new" className="text-xs text-(--foreground-muted) hover:text-foreground hover:underline">
               Switch cycle
             </Link>
-            <button type="button" onClick={() => logout()} className="text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:underline">
+            <button type="button" onClick={() => logout()} className="text-xs text-(--foreground-muted) hover:text-foreground hover:underline">
               Log out
             </button>
           </>

@@ -46,6 +46,10 @@ class ControlApplicability(Base):
     evidence_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     cscf_version: Mapped[str] = mapped_column(String(10), nullable=False, server_default="2025v")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    # Scoping: applicable (default), not_applicable, risk_accepted (justification required for latter two)
+    scoping_decision: Mapped[str] = mapped_column(String(20), nullable=False, server_default="applicable")
+    scoping_justification_text: Mapped[str | None] = mapped_column(Text)
+    scoping_justification_file_path: Mapped[str | None] = mapped_column(String(500))
 
     cycle = relationship("AssessmentCycle", back_populates="control_applicabilities", foreign_keys=[cycle_id])
 

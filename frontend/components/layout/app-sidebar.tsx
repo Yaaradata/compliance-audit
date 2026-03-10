@@ -180,6 +180,27 @@ export function AppSidebar() {
           })}
         </nav>
 
+        {/* Control applicability — when in a cycle */}
+        {cycleId && (
+          <nav className="px-3 pt-1 pb-2 flex flex-col gap-0.5" aria-label="Setup">
+            <Link
+              href={`/cycles/${cycleId}/control-scoping`}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-200 hover:bg-(--sidebar-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--sidebar-active-text) min-w-0 ${!open ? "justify-center" : ""}`}
+              style={{
+                color: pathname?.includes("/control-scoping") ? "var(--sidebar-active-text)" : "var(--sidebar-text-muted)",
+                backgroundColor: pathname?.includes("/control-scoping") ? "var(--sidebar-active-bg)" : "transparent",
+              }}
+              title={!open ? "Control applicability" : undefined}
+              aria-current={pathname?.includes("/control-scoping") ? "page" : undefined}
+            >
+              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              {open && <span className="truncate">Control applicability</span>}
+            </Link>
+          </nav>
+        )}
+
         {/* Domains: smart rows */}
         {staticDomains.length > 0 && cycleId && (() => {
           const domainsFiltered = q

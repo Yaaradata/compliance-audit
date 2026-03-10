@@ -52,7 +52,7 @@ function ConnectorSegment({ green }: { green: boolean }) {
     <div className="flex items-center flex-1 min-w-[16px] max-w-[40px] shrink-0" aria-hidden>
       <div className={`h-[3px] flex-1 rounded-full ${bg}`} />
       <span
-        className="shrink-0 w-0 h-0 ml-px border-y-[5px] border-l-[8px] border-y-transparent"
+        className="shrink-0 w-0 h-0 ml-px border-y-[5px] border-l-8 border-y-transparent"
         style={{ borderLeftColor: arrowColor }}
       />
     </div>
@@ -103,7 +103,7 @@ function StageCircle({ step }: { step: ApprovalJourneyStep }) {
   return (
     <div className="flex flex-col items-center shrink-0">
       <div
-        className={`w-[52px] h-[52px] rounded-full flex items-center justify-center border-[4px] shadow-md ${borderColor} ${bgColor}`}
+        className={`w-[52px] h-[52px] rounded-full flex items-center justify-center border-4 shadow-md ${borderColor} ${bgColor}`}
         style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
       >
         {content}
@@ -119,10 +119,10 @@ function StageCircle({ step }: { step: ApprovalJourneyStep }) {
 
 export function ApprovalJourneyTimeline() {
   return (
-    <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow)]">
-      <header className="px-5 py-4 border-b border-[var(--border)] bg-[var(--background)]/50">
-        <h2 className="text-sm font-bold text-[var(--foreground)]">Approval Journey</h2>
-        <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">
+    <section className="rounded-xl border border-(--border) bg-(--surface) overflow-hidden shadow-(--shadow)">
+      <header className="px-5 py-4 border-b border-(--border) bg-(--background)/50">
+        <h2 className="text-sm font-bold text-foreground">Approval Journey</h2>
+        <p className="text-[10px] text-(--foreground-muted) mt-0.5">
           Lifecycle by domain (A–H) → Final attestation · Static view
         </p>
       </header>

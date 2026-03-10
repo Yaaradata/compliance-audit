@@ -7,12 +7,13 @@ interface NoteInputProps {
   resourceType: string;
   resourceId: string;
   parentId?: string | null;
+  criterionId?: string | null;
   placeholder?: string;
   onAdded?: () => void;
   disabled?: boolean;
 }
 
-export function NoteInput({ resourceType, resourceId, parentId, placeholder = "Add a note…", onAdded, disabled }: NoteInputProps) {
+export function NoteInput({ resourceType, resourceId, parentId, criterionId, placeholder = "Add a note…", onAdded, disabled }: NoteInputProps) {
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -28,6 +29,7 @@ export function NoteInput({ resourceType, resourceId, parentId, placeholder = "A
         resource_id: resourceId,
         body: trimmed,
         ...(parentId ? { parent_id: parentId } : {}),
+        ...(criterionId ? { criterion_id: criterionId } : {}),
       });
       setBody("");
       onAdded?.();

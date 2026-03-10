@@ -370,7 +370,7 @@ function SelectArchitectureInner() {
         });
       }
       setArchitecture(architectureId);
-      router.replace(`/cycles/${cycleId}/dashboard`);
+      router.replace(`/cycles/${cycleId}/control-scoping`);
     } catch {
       setSelecting(null);
     }

@@ -85,6 +85,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return <>{children}</>;
   }
 
+  // Control scoping: standalone page without sidebar or header (table-only view)
+  if (pathname?.includes("/control-scoping")) {
+    return <>{children}</>;
+  }
+
   // Role-based route protection
   const role = user?.role;
   if (role && pathname) {

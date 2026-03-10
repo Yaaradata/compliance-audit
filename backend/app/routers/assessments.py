@@ -1,6 +1,7 @@
 from uuid import UUID
+import uuid as uuid_lib
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_db_scoped, get_current_user
@@ -15,9 +16,11 @@ from ..schemas.assessment import (
     CreateCycleRequest, UpdateCycleRequest, CycleOut,
     CycleTeamCreate, CycleTeamUserCreate,
     DashboardResponse, DomainScore, ControlScore,
+    ControlScopingItem, ControlScopingUpdateRequest,
 )
 from ..services.cycle_cleanup import delete_cycle_evidence_and_related
 from ..services.batch_loaders import load_controls_by_ids
+from ..services import storage_service
 from . import controls as controls_router
 
 router = APIRouter(prefix="/assessments")
@@ -189,6 +192,105 @@ def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(
     return cycle
 
 
+@router.get("/{cycle_id}/control-scoping", response_model=list[ControlScopingItem])
+def get_control_scoping(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
+    """List all controls for this cycle with current scoping decision (Applicable / Not applicable / Accept risk)."""
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user)
+    cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).order_by(ControlApplicability.control_id).all()
+    # If cycle has architecture but no rows (e.g. old cycle or race), ensure control_applicability is generated
+    if not cas and cycle.architecture_type:
+        _generate_control_applicability(db, cycle)
+        db.commit()
+        cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).order_by(ControlApplicability.control_id).all()
+    control_ids = [ca.control_id for ca in cas if (ca.control_id or "").strip().upper() != CONTROL_ID_ALL]
+    controls_map = load_controls_by_ids(db, control_ids)
+    result = []
+    for ca in cas:
+        if (ca.control_id or "").strip().upper() == CONTROL_ID_ALL:
+            continue
+        ctrl = controls_map.get(ca.control_id)
+        cname = (ctrl.name if ctrl else ca.control_id) or ca.control_id or ""
+        ctype = "M" if (ca.applicability or "").lower() == "mandatory" else "A"
+        decision = getattr(ca, "scoping_decision", None) or "applicable"
+        result.append(ControlScopingItem(
+            control_id=ca.control_id or "",
+            control_name=cname,
+            type=ctype,
+            scoping_decision=decision,
+            scoping_justification_text=getattr(ca, "scoping_justification_text", None),
+            scoping_justification_file_path=getattr(ca, "scoping_justification_file_path", None),
+        ))
+    return result
+
+
+def _scoping_decision_applicable(ca: ControlApplicability) -> bool:
+    """True if this control is in scope (only 'applicable' counts; not_applicable and risk_accepted are excluded)."""
+    decision = getattr(ca, "scoping_decision", None) or "applicable"
+    return decision == "applicable"
+
+
+@router.post("/{cycle_id}/control-scoping/upload-justification")
+def upload_scoping_justification(
+    cycle_id: UUID,
+    file: UploadFile = File(...),
+    control_id: str = Form(...),
+    db: Session = Depends(get_db_scoped),
+    user: User = Depends(get_current_user),
+):
+    """Upload a supporting document for control scoping (Not applicable / Accept risk). Returns path to store in PATCH."""
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user)
+    ca = db.query(ControlApplicability).filter(
+        ControlApplicability.cycle_id == cycle_id,
+        ControlApplicability.control_id == control_id,
+    ).first()
+    if not ca or (control_id or "").strip().upper() == CONTROL_ID_ALL:
+        raise HTTPException(status_code=404, detail="Control not found in this cycle")
+    contents = file.file.read()
+    safe_name = (file.filename or "document").replace("..", "").strip() or "document"
+    relative_path = f"scoping/{cycle_id}/{control_id}/{uuid_lib.uuid4().hex}_{safe_name}"
+    storage_path = storage_service.upload(
+        relative_path, contents, file.content_type or "application/octet-stream"
+    )
+    return {"path": storage_path, "file_name": safe_name}
+
+
+@router.patch("/{cycle_id}/control-scoping", response_model=list[ControlScopingItem])
+def update_control_scoping(
+    cycle_id: UUID,
+    req: ControlScopingUpdateRequest,
+    db: Session = Depends(get_db_scoped),
+    user: User = Depends(get_current_user),
+):
+    """Update scoping decisions. For Not applicable and Accept risk, both justification text AND file are required."""
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user)
+    cas_by_id = {ca.control_id: ca for ca in db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()}
+    for item in req.decisions:
+        ca = cas_by_id.get(item.control_id)
+        if not ca or (ca.control_id or "").strip().upper() == CONTROL_ID_ALL:
+            continue
+        if item.scoping_decision not in ("applicable", "not_applicable", "risk_accepted"):
+            continue
+        if item.scoping_decision in ("not_applicable", "risk_accepted"):
+            has_text = bool((item.scoping_justification_text or "").strip())
+            has_file = bool((item.scoping_justification_file_path or "").strip())
+            if not has_text or not has_file:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Both justification text and a supporting document are required for control {item.control_id} when decision is Not applicable or Accept risk.",
+                )
+        if hasattr(ca, "scoping_decision"):
+            ca.scoping_decision = item.scoping_decision
+        if hasattr(ca, "scoping_justification_text"):
+            ca.scoping_justification_text = (item.scoping_justification_text or "").strip() or None
+        if hasattr(ca, "scoping_justification_file_path"):
+            ca.scoping_justification_file_path = (item.scoping_justification_file_path or "").strip() or None
+    db.commit()
+    return get_control_scoping(cycle_id, db, user)
+
+
 @router.post("/{cycle_id}/advance-phase", response_model=CycleOut)
 def advance_phase(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
@@ -248,6 +350,8 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
     gaps = []
     for ca in cas:
         if (ca.control_id or "").strip().upper() == CONTROL_ID_ALL:
+            continue
+        if not _scoping_decision_applicable(ca):
             continue
         control = controls_map.get(ca.control_id)
         cname = (control.name if control else ca.control_id) or ca.control_id or ""

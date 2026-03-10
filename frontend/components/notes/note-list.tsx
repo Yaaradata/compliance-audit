@@ -8,6 +8,7 @@ export interface NoteItem {
   tenant_id: string;
   resource_type: string;
   resource_id: string;
+  criterion_id?: string | null;
   parent_id: string | null;
   author_id: string;
   body: string;
@@ -18,11 +19,12 @@ export interface NoteItem {
 interface NoteListProps {
   resourceType: string;
   resourceId: string;
+  criterionId?: string | null;
   refreshTrigger?: number;
   emptyMessage?: string;
 }
 
-export function NoteList({ resourceType, resourceId, refreshTrigger = 0, emptyMessage = "No notes yet." }: NoteListProps) {
+export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger = 0, emptyMessage = "No notes yet." }: NoteListProps) {
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,8 +32,10 @@ export function NoteList({ resourceType, resourceId, refreshTrigger = 0, emptyMe
   const fetchNotes = () => {
     setLoading(true);
     setError("");
+    const params = new URLSearchParams({ resource_type: resourceType, resource_id: resourceId });
+    if (criterionId) params.set("criterion_id", criterionId);
     api
-      .get<NoteItem[]>(`/notes?resource_type=${encodeURIComponent(resourceType)}&resource_id=${encodeURIComponent(resourceId)}`)
+      .get<NoteItem[]>(`/notes?${params.toString()}`)
       .then((data) => setNotes(Array.isArray(data) ? data : []))
       .catch((e: Error) => setError(e.message || "Notes unavailable."))
       .finally(() => setLoading(false));
@@ -39,7 +43,7 @@ export function NoteList({ resourceType, resourceId, refreshTrigger = 0, emptyMe
 
   useEffect(() => {
     fetchNotes();
-  }, [resourceType, resourceId, refreshTrigger]);
+  }, [resourceType, resourceId, criterionId ?? "", refreshTrigger]);
 
   if (loading) return <p className="text-xs text-[var(--foreground-muted)] py-2">Loading notes…</p>;
   if (error) return <p className="text-xs text-red-600 py-2">{error.includes("Not Found") ? "Notes unavailable." : error}</p>;

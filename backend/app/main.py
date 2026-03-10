@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import (
     ensure_optional_columns,
+    ensure_control_scoping_columns,
     ensure_notes_notifications_tables,
     ensure_evidence_submission_history_table,
 )
@@ -40,6 +41,7 @@ from .routers import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     ensure_optional_columns()
+    ensure_control_scoping_columns()
     ensure_notes_notifications_tables()
     ensure_evidence_submission_history_table()
     yield
