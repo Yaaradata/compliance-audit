@@ -18,7 +18,7 @@ INSERT INTO swift_2026.evidence_domains (id, name, color, accent_color, item_cou
 ('H', 'Policies & Governance',        '#BF360C', '#FFCCBC', 9,  8, '2026v')
 ON CONFLICT (id) DO NOTHING;
 
--- 2026: 2.4 is Mandatory (was 2.4A Advisory in 2025). Include both 2.4 and 2.4A for compatibility with data.
+-- 2026: 2.4 is Mandatory (Back Office Data Flow Security).
 -- 'ALL' is a synthetic control for ESM rows (e.g. A5 scoping) that apply to all 32 controls.
 INSERT INTO swift_2026.controls (id, name, control_type, objective, architecture_applicability, cscf_version) VALUES
 ('ALL',   'All 32 Controls (Scoping)',               'mandatory', 1, '{A1,A2,A3,A4,B}', '2026v'),
@@ -31,7 +31,6 @@ INSERT INTO swift_2026.controls (id, name, control_type, objective, architecture
 ('2.2',   'Security Updates',                         'mandatory', 1, '{A1,A2,A3,A4,B}', '2026v'),
 ('2.3',   'System Hardening',                         'mandatory', 1, '{A1,A2,A3,A4,B}', '2026v'),
 ('2.4',   'Back Office Data Flow Security',          'mandatory', 1, '{A1,A2,A3,A4}', '2026v'),
-('2.4A',  'Back Office Data Flow Security',           'advisory',  1, '{A1,A2,A3,A4}', '2026v'),
 ('2.5A',  'External Transmission Data Protection',    'advisory',  1, '{A1,A2,A3,A4}', '2026v'),
 ('2.6',   'Operator Session Confidentiality',         'mandatory', 1, '{A1,A2,A3,A4,B}', '2026v'),
 ('2.7',   'Vulnerability Scanning',                   'mandatory', 1, '{A1,A2,A3,A4}', '2026v'),
