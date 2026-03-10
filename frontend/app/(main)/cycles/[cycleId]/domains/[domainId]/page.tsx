@@ -139,6 +139,15 @@ export default function CycleDomainPage() {
   const [submitForReviewLoading, setSubmitForReviewLoading] = useState(false);
   const [submissionStatusMap, setSubmissionStatusMap] = useState<Record<string, string>>({});
   const [evaluationEditsByItem, setEvaluationEditsByItem] = useState<Record<string, EvaluationEditsMap>>({});
+  const [schemaName, setSchemaName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!cycleId) return;
+    api
+      .get<{ schema_name?: string | null }>(`/assessments/${cycleId}`)
+      .then((c) => setSchemaName(c.schema_name ?? null))
+      .catch(() => setSchemaName(null));
+  }, [cycleId]);
 
   useEffect(() => {
     setSelectedControlId(null);
@@ -502,6 +511,7 @@ export default function CycleDomainPage() {
   return (
     <div className="h-[calc(100vh-64px)] min-h-[360px] flex flex-col overflow-hidden -m-5">
       <DomainWorkspaceLayout
+        schemaName={schemaName}
         cycleId={cycleId}
         domainId={domainId}
         config={config}
