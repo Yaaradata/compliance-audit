@@ -1,8 +1,8 @@
 /**
- * Maps form_data keys to the same labels and order as the evidence (submission) page.
+ * Maps form_data keys to the same labels and order as the evidence (submission) page (SWIFT CSCF).
  * Review page uses this so evidence displays identically (no raw JSON, proper table and labels).
  */
-import { A2_FORM_LABELS, A2_SPREADSHEET_COLUMNS } from "./a2-evidence";
+import { A2_FORM_LABELS, A2_SPREADSHEET_COLUMNS } from "./evidence/a2-evidence";
 
 const EVIDENCE_FIELD_LABELS: Record<string, Record<string, string>> = {
   A2: {

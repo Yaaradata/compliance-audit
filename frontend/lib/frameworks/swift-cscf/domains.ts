@@ -1,4 +1,4 @@
-import { Domain } from "../types";
+import type { Domain } from "@/lib/types";
 
 export const DOMAINS: Domain[] = [
   { id: "A", name: "Network & Architecture", color: "#0F4C75", accent: "#BBE1FA", controls: ["1.1","1.3","1.4","1.5","2.1","2.4A","2.5A"], items: 6, completed: 5, gap: null },

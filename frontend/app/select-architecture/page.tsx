@@ -10,7 +10,7 @@ import {
   ARCHITECTURE_DIAGRAMS,
   getArchitectureDiagramUrl,
   getArchitectureDiagramUrlAsync,
-} from "@/lib/data/architectures";
+} from "@/lib/frameworks/swift-cscf";
 import type { Architecture, CycleSchemaName } from "@/lib/types";
 import { AppHeader } from "@/components/layout/app-header";
 

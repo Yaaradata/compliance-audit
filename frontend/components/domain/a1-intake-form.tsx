@@ -4,7 +4,7 @@ import {
   A1_FORM_KEYS,
   A1_FORM_LABELS,
   A1_FORM_PLACEHOLDERS,
-} from "@/lib/data/a1-evidence";
+} from "@/lib/frameworks/swift-cscf/evidence/a1-evidence";
 
 export interface A1IntakeFormProps {
   formData: Record<string, string>;

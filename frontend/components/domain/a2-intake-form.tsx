@@ -5,7 +5,7 @@ import {
   A2_FORM_LABELS,
   A2_FORM_PLACEHOLDERS,
   A2_SPREADSHEET_COLUMNS,
-} from "@/lib/data/a2-evidence";
+} from "@/lib/frameworks/swift-cscf/evidence/a2-evidence";
 
 export interface A2IntakeFormProps {
   rows: Record<string, string>[];

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { api } from "@/lib/api";
 import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
-import { getEvidenceFieldLabel, getOrderedEvidenceKeys, getEvidenceTableColumnLabels } from "@/lib/data/evidence-review-labels";
+import { getEvidenceFieldLabel, getOrderedEvidenceKeys, getEvidenceTableColumnLabels } from "@/lib/frameworks/swift-cscf";
 import { NoteList, type NoteItem } from "@/components/notes/note-list";
 import { NoteInput } from "@/components/notes/note-input";
 

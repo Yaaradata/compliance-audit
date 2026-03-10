@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getArchitecture } from "@/lib/data/architectures";
+import { getArchitecture } from "@/lib/frameworks/swift-cscf";
 import { ROLE_LABELS } from "@/lib/data/roles";
 import { useSidebar } from "@/lib/sidebar-context";
 import { ThemeToggle } from "@/components/ui/theme-toggle";

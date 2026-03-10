@@ -6,7 +6,7 @@ import {
   A5_EVIDENCE_ITEM_ID,
   A5_SUFFICIENCY_ITEMS,
   A5_EVALUATION_ITEMS,
-} from "@/lib/data/a5-criteria";
+} from "@/lib/frameworks/swift-cscf/evidence/a5-criteria";
 import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
 import type { ControlCriteria, AiCriterionResult as AiCriterionResultType } from "@/lib/types";
 

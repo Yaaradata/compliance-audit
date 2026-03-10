@@ -6,7 +6,7 @@
  * PLC-style: large circles, thick connector line with arrows, labels below.
  */
 
-import { DOMAINS } from "@/lib/data/approval-ideology";
+import { DOMAINS } from "@/lib/frameworks/swift-cscf";
 
 export type TimelineStepState = "completed" | "in_progress" | "pending";
 

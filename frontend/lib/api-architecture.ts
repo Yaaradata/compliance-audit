@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { getArchitecture } from "@/lib/data/architectures";
+import { getArchitecture } from "@/lib/frameworks/swift-cscf";
 
 export interface ArchitectureTypeFromApi {
   id: string;

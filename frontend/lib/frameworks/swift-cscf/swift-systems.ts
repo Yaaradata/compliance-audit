@@ -1,4 +1,4 @@
-import { SwiftSystem, AccessPoint, SwiftZone, Vendor } from "../types";
+import type { SwiftSystem, AccessPoint, SwiftZone, Vendor } from "@/lib/types";
 
 export const SWIFT_SYSTEMS: SwiftSystem[] = [
   { name: "Alliance Gateway" },

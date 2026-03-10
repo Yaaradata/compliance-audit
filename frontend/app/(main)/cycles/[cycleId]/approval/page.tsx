@@ -6,7 +6,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { ApprovalEvidenceViewer } from "@/components/approval/approval-evidence-viewer";
-import { DOMAINS as DOMAIN_LIST } from "@/lib/data/domains";
+import { DOMAINS as DOMAIN_LIST } from "@/lib/frameworks/swift-cscf";
 import { LoadingState } from "@/components/ui/loading-state";
 
 interface GateInfo {

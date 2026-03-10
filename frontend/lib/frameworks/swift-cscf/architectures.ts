@@ -1,4 +1,4 @@
-import type { Architecture } from "../types";
+import type { Architecture } from "@/lib/types";
 
 /**
  * SWIFT CSCF v2025 — 5 architecture types.
@@ -131,11 +131,6 @@ export function getArchitecture(id: string): Architecture | undefined {
   return ARCHITECTURES.find((a) => a.id === id);
 }
 
-/**
- * Diagram filenames per architecture (from Swift Architecture Diagrams folder).
- * Each filename is served from /architecture-diagrams/<filename> (e.g. A1-1.png).
- * One architecture can have multiple diagrams for the user to choose from.
- */
 export const ARCHITECTURE_DIAGRAMS: Record<string, string[]> = {
   A1: ["A1-1.png", "A1-2.png"],
   A2: ["A2-1.png"],
@@ -144,18 +139,12 @@ export const ARCHITECTURE_DIAGRAMS: Record<string, string[]> = {
   B: ["B-1.png", "B-2.png"],
 };
 
-/** Diagram version folder: 2025 -> swift_2025, 2026 -> swift_2026. Default swift_2025. */
 export function getDiagramFolder(version?: string | null): "swift_2025" | "swift_2026" | "" {
   if (!version) return "";
   const v = String(version).trim().toLowerCase();
   return v === "2026" || v === "swift_2026" ? "swift_2026" : "swift_2025";
 }
 
-/**
- * URL for an architecture diagram. Uses backend endpoint to get a signed URL
- * from GCS when available, falls back to local static path.
- * version: "2025" | "2026" from cycle/framework for correct folder (swift_2025 vs swift_2026).
- */
 export async function getArchitectureDiagramUrlAsync(
   diagramFilename: string,
   version?: string | null
@@ -164,7 +153,6 @@ export async function getArchitectureDiagramUrlAsync(
     const { api } = await import("@/lib/api");
     const params = version ? `?version=${encodeURIComponent(version)}` : "";
     const resp = await api.get<{ url: string | null }>(`/ref/diagrams/${encodeURIComponent(diagramFilename)}${params}`);
-    // Backend may return null when GCS signed URL fails; it may also return a stream URL. Use as-is or fallback.
     if (resp.url) return resp.url;
     const ver = version ? encodeURIComponent(version) : "swift_2025";
     return `/api/v1/ref/diagrams/${encodeURIComponent(diagramFilename)}/content?version=${ver}`;
@@ -173,12 +161,10 @@ export async function getArchitectureDiagramUrlAsync(
   }
 }
 
-/** Sync fallback for static contexts. Use for local dev; with GCS, prefer getArchitectureDiagramUrlAsync. */
 export function getArchitectureDiagramUrl(diagramFilename: string, _version?: string | null): string {
   return `/architecture-diagrams/${diagramFilename}`;
 }
 
-/** Path to a single diagram image by architecture and index (legacy fallback: first diagram). */
 export function getArchitectureDiagramPath(
   architectureId: string,
   _extension?: "png" | "jpg" | "svg" | "webp",
@@ -188,4 +174,3 @@ export function getArchitectureDiagramPath(
   const filename = list?.[0];
   return filename ? `/architecture-diagrams/${filename}` : `/architecture-diagrams/${architectureId}.png`;
 }
-

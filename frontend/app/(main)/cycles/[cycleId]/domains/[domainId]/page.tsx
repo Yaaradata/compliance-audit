@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { DomainWorkspaceLayout } from "@/components/domain/dashboard/domain-workspace-layout";
 import { LoadingState } from "@/components/ui/loading-state";
-import { A2_EVIDENCE_ITEM_ID } from "@/lib/data/a2-evidence";
+import { A2_EVIDENCE_ITEM_ID } from "@/lib/frameworks/swift-cscf/evidence/a2-evidence";
 import type { DomainConfig, EvidenceItem, ControlCriteria, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 
 interface ApiDomain {

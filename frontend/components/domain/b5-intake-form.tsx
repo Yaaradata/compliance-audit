@@ -4,7 +4,7 @@ import {
   B5_FORM_KEYS,
   B5_FORM_LABELS,
   B5_FORM_PLACEHOLDERS,
-} from "@/lib/data/b5-evidence";
+} from "@/lib/frameworks/swift-cscf/evidence/b5-evidence";
 
 export interface B5IntakeFormProps {
   formData: Record<string, string>;

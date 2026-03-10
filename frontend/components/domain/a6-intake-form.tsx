@@ -4,7 +4,7 @@ import {
   A6_FORM_KEYS,
   A6_FORM_LABELS,
   A6_FORM_PLACEHOLDERS,
-} from "@/lib/data/a6-evidence";
+} from "@/lib/frameworks/swift-cscf/evidence/a6-evidence";
 
 export interface A6IntakeFormProps {
   formData: Record<string, string>;

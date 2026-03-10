@@ -1,5 +1,5 @@
 "use client";
-import { SWIFT_SYSTEMS } from "@/lib/data/swift-systems";
+import { SWIFT_SYSTEMS } from "@/lib/frameworks/swift-cscf";
 
 export function SystemSelector({ active, onSelect }: { active: string; onSelect: (s: string) => void }) {
   return (

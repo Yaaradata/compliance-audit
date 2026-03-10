@@ -15,8 +15,8 @@ import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { PerControlEvidence } from "@/components/domain/per-control-evidence";
 import { getStatusColor, getStatusIcon } from "@/lib/utils";
 import { LoadingState } from "@/components/ui/loading-state";
-import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/data/architectures";
-import { A5_FORM_KEYS } from "@/lib/data/a5-criteria";
+import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
+import { A5_FORM_KEYS } from "@/lib/frameworks/swift-cscf/evidence/a5-criteria";
 import { A5IntakeForm } from "@/components/domain/a5-intake-form";
 import type { EvidenceItem, ControlRef, ControlCriteria, AiEvaluationResult as AiEvalResultType, AiCriterionResult } from "@/lib/types";
 

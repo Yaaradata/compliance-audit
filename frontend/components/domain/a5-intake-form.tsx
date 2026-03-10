@@ -5,8 +5,8 @@ import {
   A5_FORM_LABELS,
   A5_FORM_PLACEHOLDERS,
   type A5FormKey,
-} from "@/lib/data/a5-criteria";
-import { ARCHITECTURES } from "@/lib/data/architectures";
+} from "@/lib/frameworks/swift-cscf/evidence/a5-criteria";
+import { ARCHITECTURES } from "@/lib/frameworks/swift-cscf";
 
 const ARCH_OPTIONS = ARCHITECTURES.map((a) => ({ value: a.id, label: `${a.id}: ${a.subtitle}` }));
 
