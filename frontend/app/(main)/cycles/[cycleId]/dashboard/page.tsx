@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import { getArchitectureTypeFromApi } from "@/lib/api-architecture";
 import { getArchitecture } from "@/lib/data/architectures";
 import { getDomainsForArchitecture } from "@/lib/data/domains";
 import { OverallProgress } from "@/components/dashboard/overall-progress";
@@ -48,12 +49,23 @@ export default function CycleDashboardPage() {
   const params = useParams();
   const cycleId = params.cycleId as string;
   const { selectedArchitectureId } = useAuth();
-  const arch = selectedArchitectureId ? getArchitecture(selectedArchitectureId) : null;
-  const staticDomains = getDomainsForArchitecture(arch?.domainIds);
+  const fallbackArch = selectedArchitectureId ? getArchitecture(selectedArchitectureId) : null;
+  const staticDomains = getDomainsForArchitecture(fallbackArch?.domainIds);
 
+  const [archMeta, setArchMeta] = useState<{ id: string; name: string; subtitle: string } | null>(null);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedControl, setSelectedControl] = useState<Control | null>(null);
+
+  useEffect(() => {
+    if (!selectedArchitectureId) {
+      setArchMeta(null);
+      return;
+    }
+    getArchitectureTypeFromApi(selectedArchitectureId)
+      .then((a) => setArchMeta(a ? { id: a.id, name: a.name, subtitle: a.subtitle } : null))
+      .catch(() => setArchMeta(null));
+  }, [selectedArchitectureId]);
 
   useEffect(() => {
     if (!cycleId) {
@@ -121,12 +133,14 @@ export default function CycleDashboardPage() {
         totalItems={dashboard.total_evidence_items}
         gaps={dashboard.gaps_identified}
       />
-      {arch && (
+      {(archMeta || fallbackArch) && (
         <div className="mb-4 flex items-center gap-2 text-xs text-slate-600">
-          <span className="font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">{arch.id}</span>
-          <span>{arch.subtitle}</span>
+          <span className="font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">{archMeta?.id ?? fallbackArch?.id}</span>
+          <span>{archMeta?.subtitle ?? fallbackArch?.subtitle}</span>
           <span className="text-slate-400">·</span>
-          <span>{arch.mandatoryControls.length}M + {arch.advisoryControls.length}A controls</span>
+          <span>
+            {(dashboard?.control_scores?.filter((c) => c.type === "M").length ?? 0)}M + {(dashboard?.control_scores?.filter((c) => c.type === "A").length ?? 0)}A controls
+          </span>
           <span className="text-slate-400">·</span>
           <span>{domainsForCards.length} domains</span>
         </div>

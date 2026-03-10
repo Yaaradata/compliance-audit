@@ -1,10 +1,12 @@
 import logging
 import re
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_db_ref
+from ..models.assessment import ControlApplicability
 from ..services import storage_service
 from ..services.batch_loaders import (
     load_controls_by_ids,
@@ -20,10 +22,34 @@ from ..models.framework import (
 from ..schemas.reference import (
     FrameworkOut, DomainOut, ControlOut, EvidenceItemOut,
     EvidenceItemWithControlsOut, MappingOut, ControlRefOut, DependencyOut,
-    EvidenceSufficiencyMatrixOut,
+    EvidenceSufficiencyMatrixOut, ArchitectureTypeOut,
 )
 
 router = APIRouter(prefix="/ref")
+
+# Architecture type metadata (display labels). Control lists and counts come from DB per cycle.
+REF_ARCHITECTURE_TYPES: list[dict] = [
+    {"id": "A1", "name": "Architecture A1", "subtitle": "Full Local SWIFT Infrastructure", "description": "User owns and operates all SWIFT infrastructure on-premises or in their own data centre."},
+    {"id": "A2", "name": "Architecture A2", "subtitle": "Shared SWIFT Infrastructure (Service Bureau Managed)", "description": "User communicates via SWIFT through a service bureau; user has local SWIFT-related components in a secure zone."},
+    {"id": "A3", "name": "Architecture A3", "subtitle": "Connector (Alliance Lite2 / Similar)", "description": "User connects using an application-level connector within their secure zone."},
+    {"id": "A4", "name": "Architecture A4", "subtitle": "Customer Connector (Middleware / API / File Transfer)", "description": "User operates a customer connector that connects to SWIFT directly or via a service bureau."},
+    {"id": "B", "name": "Architecture B", "subtitle": "No Local SWIFT Footprint (GUI Access Only)", "description": "User has no local SWIFT infrastructure. Access is exclusively via a service bureau's GUI with no A2A flows."},
+]
+
+
+@router.get("/architecture-types", response_model=list[ArchitectureTypeOut])
+def list_architecture_types():
+    """Return architecture type metadata (id, name, subtitle, description). Control counts come from GET /assessments/{cycle_id}/controls."""
+    return [ArchitectureTypeOut.model_validate(a) for a in REF_ARCHITECTURE_TYPES]
+
+
+@router.get("/architecture-types/{architecture_id}", response_model=ArchitectureTypeOut)
+def get_architecture_type(architecture_id: str):
+    """Return a single architecture type by id (A1, A2, A3, A4, B)."""
+    for a in REF_ARCHITECTURE_TYPES:
+        if (a.get("id") or "").strip().upper() == (architecture_id or "").strip().upper():
+            return ArchitectureTypeOut.model_validate(a)
+    raise HTTPException(status_code=404, detail="Architecture type not found")
 
 
 @router.get("/frameworks", response_model=list[FrameworkOut])
@@ -36,11 +62,34 @@ def list_domains(db: Session = Depends(get_db_ref)):
     return db.query(EvidenceDomain).order_by(EvidenceDomain.sort_order).all()
 
 
+CONTROL_ID_ALL = "ALL"
+
+
+def _applicable_control_ids_for_cycle(db: Session, cycle_id: UUID) -> set[str]:
+    """Return set of control_id that are in scope (scoping_decision == 'applicable') for this cycle."""
+    applicable = set()
+    for ca in db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all():
+        if (ca.control_id or "").strip().upper() == CONTROL_ID_ALL:
+            continue
+        if (getattr(ca, "scoping_decision", None) or "applicable") != "applicable":
+            continue
+        applicable.add(ca.control_id or "")
+    return applicable
+
+
 @router.get("/domains/{domain_id}")
-def get_domain(domain_id: str, db: Session = Depends(get_db_ref)):
+def get_domain(
+    domain_id: str,
+    cycle_id: UUID | None = Query(None, description="When set, only controls in scope (applicable) for this cycle are returned."),
+    db: Session = Depends(get_db_ref),
+):
     # Normalize: take first char only (handles "A:1" from devtools), uppercase, default to "A"
     raw = (domain_id or "").strip()
     domain_id_clean = (raw.split(":")[0] or raw or "A")[:1].upper() or "A"
+
+    applicable_control_ids: set[str] | None = None
+    if cycle_id is not None:
+        applicable_control_ids = _applicable_control_ids_for_cycle(db, cycle_id)
 
     try:
         domain = db.query(EvidenceDomain).filter(EvidenceDomain.id == domain_id_clean).first()
@@ -74,14 +123,20 @@ def get_domain(domain_id: str, db: Session = Depends(get_db_ref)):
             item_mappings = mappings_by_item.get(i.id, [])
             control_refs = []
             for m in item_mappings:
+                if applicable_control_ids is not None and m.control_id not in applicable_control_ids:
+                    continue
                 ctrl = controls_map.get(m.control_id)
                 ma = "M" if ctrl and ctrl.control_type and str(ctrl.control_type).lower() == "mandatory" else "A"
                 control_refs.append(ControlRefOut(control_id=m.control_id, ma=ma))
 
             matrix_rows = matrix_by_item.get(i.id, [])
+            if applicable_control_ids is not None:
+                matrix_rows = [r for r in matrix_rows if r.control_id in applicable_control_ids]
             matrix = [EvidenceSufficiencyMatrixOut.model_validate(r) for r in matrix_rows]
 
             base = EvidenceItemOut.model_validate(i).model_dump()
+            # Count must match the controls list (applicable-only when cycle_id set) so list shows same number as Per-Control.
+            base["control_count"] = len(control_refs)
             evidence_with_controls.append(
                 EvidenceItemWithControlsOut(**base, controls=control_refs, matrix=matrix)
             )

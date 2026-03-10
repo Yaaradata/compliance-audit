@@ -176,11 +176,17 @@ def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user)
 
-    if req.architecture_type and not cycle.architecture_type:
-        cycle.architecture_type = req.architecture_type
-        _generate_control_applicability(db, cycle)
-        _generate_approval_gates(db, cycle)
-        cycle.phase = "collection"
+    if req.architecture_type:
+        if not cycle.architecture_type:
+            cycle.architecture_type = req.architecture_type
+            _generate_control_applicability(db, cycle)
+            _generate_approval_gates(db, cycle)
+            cycle.phase = "collection"
+        elif cycle.architecture_type != req.architecture_type:
+            # Architecture changed: regenerate control_applicability so only controls for the new arch are in scope (e.g. B must not show 1.1).
+            db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).delete(synchronize_session=False)
+            cycle.architecture_type = req.architecture_type
+            _generate_control_applicability(db, cycle)
 
     if req.label:
         cycle.label = req.label
