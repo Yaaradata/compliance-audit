@@ -112,6 +112,46 @@ class EvidenceSufficiencyMatrixOut(BaseModel):
         return _normalize_json_field(v)
 
 
+class EvidenceFormMetadataOut(BaseModel):
+    """Form metadata derived from evidence_based_questions: labels, order, spreadsheet column labels."""
+    field_labels: dict[str, str] = {}
+    key_order: list[str] = []
+    table_column_labels: dict[str, dict[str, str]] = {}
+
+
+class EvidenceQuestionOut(BaseModel):
+    """One row from evidence_based_questions for DB-driven form."""
+    id: UUID
+    evidence_item_id: str
+    question_key: str
+    label: str
+    question_type: str
+    required: bool = True
+    placeholder: str | None = None
+    options: list = []
+    sort_order: int = 0
+    control_id: str | None = None
+    rows: int | None = None
+    accept: str | None = None
+    upload_label: str | None = None
+
+    model_config = {"from_attributes": True}
+
+    @field_validator("options", mode="before")
+    @classmethod
+    def normalize_options(cls, v) -> list:
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            try:
+                return json.loads(v) if v else []
+            except json.JSONDecodeError:
+                return []
+        return []
+
+
 class EvidenceItemWithControlsOut(EvidenceItemOut):
     """Evidence item with its control mappings and per-control criteria matrix for domain view."""
     controls: list[ControlRefOut] = []

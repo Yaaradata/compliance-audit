@@ -1,8 +1,6 @@
 /**
- * SWIFT CSCF framework data: single entry point for domains, architectures,
- * approval ideology, evidence-review labels, and swift-systems.
- * Evidence item definitions (A1–H9, A5 criteria) live in ./evidence/*.ts —
- * import from "@/lib/frameworks/swift-cscf/evidence/a1-evidence" etc.
+ * SWIFT CSCF framework data: domains, architectures, approval ideology, swift-systems.
+ * Form definitions and labels come from the database (evidence_based_questions, form-metadata API).
  */
 
 export { DOMAIN_GRADIENTS, getDomainsForArchitecture } from "./domains";
@@ -18,12 +16,6 @@ export {
 } from "./architectures";
 
 export { DOMAINS, DOMAIN_APPROVAL_ORDER, APPROVAL_IDEOLOGY_DESCRIPTION } from "./approval-ideology";
-
-export {
-  getEvidenceFieldLabel,
-  getOrderedEvidenceKeys,
-  getEvidenceTableColumnLabels,
-} from "./evidence-review-labels";
 
 export {
   SWIFT_SYSTEMS,

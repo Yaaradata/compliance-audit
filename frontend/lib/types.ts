@@ -106,6 +106,23 @@ export interface EvidenceInput {
   scope?: "global" | "per-system" | "per-zone" | "per-quarter";
 }
 
+/** DB-driven evidence question from evidence_based_questions table. */
+export interface EvidenceQuestion {
+  id: string;
+  evidence_item_id: string;
+  question_key: string;
+  label: string;
+  question_type: "text" | "textarea" | "select" | "date" | "file" | "checkbox" | "spreadsheet";
+  required: boolean;
+  placeholder: string | null;
+  options: (string | Record<string, unknown>)[];
+  sort_order: number;
+  control_id: string | null;
+  rows: number | null;
+  accept: string | null;
+  upload_label: string | null;
+}
+
 /** Per-control criteria from evidence_sufficiency_matrix. */
 export interface ControlCriteria {
   item_code: string;

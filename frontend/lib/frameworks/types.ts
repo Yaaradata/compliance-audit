@@ -35,10 +35,6 @@ export interface EvidenceWorkspaceProps {
   itemFormData: Record<string, string>;
   onItemFormChange: (key: string, value: string) => void;
   onItemFormBlur: () => void;
-  a2Rows?: Record<string, string>[];
-  onA2RowChange?: (index: number, key: string, value: string) => void;
-  onA2AddRow?: () => void;
-  onA2RemoveRow?: (index: number) => void;
   onEvaluationEdit?: (updated: AiEvalResultType, edits: EvaluationEditsMap) => void;
   evaluationEdits?: EvaluationEditsMap;
   notesRefreshTrigger?: number;

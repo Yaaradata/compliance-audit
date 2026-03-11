@@ -28,9 +28,6 @@ export {
   getArchitectureDiagramUrl,
   getArchitectureDiagramPath,
   getArchitectureDiagramUrlAsync,
-  getEvidenceFieldLabel,
-  getOrderedEvidenceKeys,
-  getEvidenceTableColumnLabels,
   DOMAIN_APPROVAL_ORDER,
   APPROVAL_IDEOLOGY_DESCRIPTION,
 } from "./data";

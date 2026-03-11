@@ -113,3 +113,24 @@ class CrossDomainDependency(Base):
     description: Mapped[str | None] = mapped_column(Text)
     cscf_version: Mapped[str] = mapped_column(String(10), nullable=False, server_default="2025v")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+
+class EvidenceBasedQuestion(Base):
+    """Form questions per evidence item for DB-driven generalized form. Schema via search_path (swift_2025/swift_2026)."""
+    __tablename__ = "evidence_based_questions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    evidence_item_id: Mapped[str] = mapped_column(String(5), nullable=False)
+    question_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    question_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    required: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    placeholder: Mapped[str | None] = mapped_column(Text)
+    options: Mapped[list] = mapped_column(JSONB, server_default="[]")
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    control_id: Mapped[str | None] = mapped_column(String(10))
+    rows: Mapped[int | None] = mapped_column(Integer)
+    accept: Mapped[str | None] = mapped_column(String(255))
+    upload_label: Mapped[str | None] = mapped_column(String(255))
+    cscf_version: Mapped[str] = mapped_column(String(10), nullable=False, server_default="2025v")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))

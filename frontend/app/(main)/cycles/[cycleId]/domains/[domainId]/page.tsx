@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { DomainWorkspaceLayout } from "@/components/domain/dashboard/domain-workspace-layout";
 import { LoadingState } from "@/components/ui/loading-state";
-import { A2_EVIDENCE_ITEM_ID } from "@/lib/frameworks/swift-cscf/evidence/a2-evidence";
 import type { DomainConfig, EvidenceItem, ControlCriteria, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 
 interface ApiDomain {
@@ -136,7 +135,6 @@ export default function CycleDomainPage() {
   const [lastEvaluationByItem, setLastEvaluationByItem] = useState<Record<string, AiEvalResultType>>({});
   const [completionPctByItem, setCompletionPctByItem] = useState<Record<string, number>>({});
   const [selectedControlId, setSelectedControlId] = useState<string | null>(null);
-  const [a2Rows, setA2Rows] = useState<Record<string, string>[]>([{}]);
   const [submitForReviewLoading, setSubmitForReviewLoading] = useState(false);
   const [submissionStatusMap, setSubmissionStatusMap] = useState<Record<string, string>>({});
   const [evaluationEditsByItem, setEvaluationEditsByItem] = useState<Record<string, EvaluationEditsMap>>({});
@@ -153,6 +151,23 @@ export default function CycleDomainPage() {
   useEffect(() => {
     setSelectedControlId(null);
   }, [activeItem]);
+
+  // Save current item's form data when switching evidence items, so data persists when user returns.
+  const prevActiveItemRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevActiveItemRef.current;
+    prevActiveItemRef.current = activeItem;
+    if (!prev || prev === activeItem || !cycleId) return;
+    const sid = submissionMap[prev];
+    if (!sid) return;
+    const prefix = `${prev}_`;
+    const fd: Record<string, string> = {};
+    Object.entries(formData).forEach(([k, v]) => {
+      if (k.startsWith(prefix)) fd[k.slice(prefix.length)] = v;
+    });
+    if (Object.keys(fd).length === 0) return;
+    api.put(`/assessments/${cycleId}/evidence/${sid}`, { form_data: fd }).catch(() => {});
+  }, [activeItem, cycleId, submissionMap, formData]);
 
   useEffect(() => {
     if (!cycleId || !domainId) return;
@@ -231,14 +246,6 @@ export default function CycleDomainPage() {
           }
         });
         setEvaluationEditsByItem(editsByItem);
-        const a2ChosenId = sMap[A2_EVIDENCE_ITEM_ID];
-        const a2Sub = a2ChosenId ? subs.find((s) => s.evidence_item_id === A2_EVIDENCE_ITEM_ID && s.id === a2ChosenId) : null;
-        if (a2Sub?.form_data?.inventory_rows) {
-          try {
-            const parsed = JSON.parse(a2Sub.form_data.inventory_rows);
-            if (Array.isArray(parsed) && parsed.length > 0) setA2Rows(parsed);
-          } catch { /* ignore */ }
-        }
         setFormData(data);
         setSubmissionMap(sMap);
         setSubmissionStatusMap(statusMap);
@@ -340,28 +347,8 @@ export default function CycleDomainPage() {
     Object.entries(formData).forEach(([k, v]) => {
       if (k.startsWith(prefix)) fd[k.slice(prefix.length)] = v;
     });
-    if (activeItem === A2_EVIDENCE_ITEM_ID) {
-      fd.inventory_rows = JSON.stringify(a2Rows);
-    }
     try { await api.put(`/assessments/${cycleId}/evidence/${sid}`, { form_data: fd }); } catch { /* ignore */ }
-  }, [cycleId, activeItem, submissionMap, formData, ensureSubmission, a2Rows]);
-
-  /* --- A2 spreadsheet row handlers --- */
-  const handleA2RowChange = useCallback((index: number, key: string, value: string) => {
-    setA2Rows((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], [key]: value };
-      return next;
-    });
-  }, []);
-
-  const handleA2AddRow = useCallback(() => {
-    setA2Rows((prev) => [...prev, {}]);
-  }, []);
-
-  const handleA2RemoveRow = useCallback((index: number) => {
-    setA2Rows((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index));
-  }, []);
+  }, [cycleId, activeItem, submissionMap, formData, ensureSubmission]);
 
   const refetchSubmissions = useCallback(async () => {
     if (!cycleId || !domainId) return;
@@ -404,7 +391,7 @@ export default function CycleDomainPage() {
   }, [currentItem, cycleId, submissionMap, refetchSubmissions]);
 
   // API: POST /assessments/:cycleId/evidence/evaluate { evidence_item_id, submission_id }
-  // Backend uses submission form_data + attachments for AI; result → aiEvaluationResult; edits via PUT submission.
+  // Backend uses submission form_data + attachments for AI. Save form data first so evaluation uses latest.
   const handleEvaluateEvidence = useCallback(async () => {
     if (!currentItem || !cycleId) return;
     setAiEvaluationLoading(true);
@@ -419,6 +406,18 @@ export default function CycleDomainPage() {
       } catch {
         subId = null;
       }
+    }
+
+    // Save form data before evaluate so backend has latest evidence; user sees persisted data on return.
+    if (subId && activeItem === currentItem.id) {
+      const prefix = `${currentItem.id}_`;
+      const fd: Record<string, string> = {};
+      Object.entries(formData).forEach(([k, v]) => {
+        if (k.startsWith(prefix)) fd[k.slice(prefix.length)] = v;
+      });
+      try {
+        await api.put(`/assessments/${cycleId}/evidence/${subId}`, { form_data: fd });
+      } catch { /* ignore */ }
     }
 
     try {
@@ -468,7 +467,7 @@ export default function CycleDomainPage() {
     } finally {
       setAiEvaluationLoading(false);
     }
-  }, [currentItem, cycleId, currentSubmissionId, ensureSubmission, fetchControlScores, domainId]);
+  }, [currentItem, cycleId, currentSubmissionId, ensureSubmission, fetchControlScores, domainId, formData, activeItem]);
 
   const handleEvaluationEdit = useCallback(async (updated: AiEvalResultType, edits: EvaluationEditsMap) => {
     if (!currentItem || !cycleId) return;
@@ -535,10 +534,6 @@ export default function CycleDomainPage() {
         itemFormData={itemFormData}
         onItemFormChange={handleItemFormChange}
         onItemFormBlur={handleItemFormBlur}
-        a2Rows={a2Rows}
-        onA2RowChange={handleA2RowChange}
-        onA2AddRow={handleA2AddRow}
-        onA2RemoveRow={handleA2RemoveRow}
         onEvaluationEdit={handleEvaluationEdit}
         evaluationEdits={currentItem ? evaluationEditsByItem[currentItem.id] : undefined}
       />

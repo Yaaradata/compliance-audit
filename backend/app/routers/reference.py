@@ -18,11 +18,13 @@ logger = logging.getLogger(__name__)
 from ..models.framework import (
     AuditFramework, Control, EvidenceDomain, CanonicalEvidenceItem,
     ItemControlMapping, CrossDomainDependency, EvidenceSufficiencyMatrix,
+    EvidenceBasedQuestion,
 )
 from ..schemas.reference import (
     FrameworkOut, DomainOut, ControlOut, EvidenceItemOut,
     EvidenceItemWithControlsOut, MappingOut, ControlRefOut, DependencyOut,
-    EvidenceSufficiencyMatrixOut, ArchitectureTypeOut,
+    EvidenceSufficiencyMatrixOut, EvidenceQuestionOut, EvidenceFormMetadataOut,
+    ArchitectureTypeOut,
 )
 
 router = APIRouter(prefix="/ref")
@@ -132,6 +134,11 @@ def get_domain(
             matrix_rows = matrix_by_item.get(i.id, [])
             if applicable_control_ids is not None:
                 matrix_rows = [r for r in matrix_rows if r.control_id in applicable_control_ids]
+                # A5 "All 32 controls (scoping)": always include ALL row when present so Per-Control tab can show criteria
+                if i.id == "A5":
+                    all_row = next((r for r in matrix_by_item.get(i.id, []) if r.control_id == "ALL"), None)
+                    if all_row and not any(r.control_id == "ALL" for r in matrix_rows):
+                        matrix_rows = [all_row] + matrix_rows
             matrix = [EvidenceSufficiencyMatrixOut.model_validate(r) for r in matrix_rows]
 
             base = EvidenceItemOut.model_validate(i).model_dump()
@@ -192,6 +199,52 @@ def get_evidence_item(
         "item": item_out,
         "controls": [MappingOut.model_validate(m) for m in mappings],
     }
+
+
+@router.get("/evidence-items/{item_id}/questions", response_model=list[EvidenceQuestionOut])
+def get_evidence_item_questions(
+    item_id: str,
+    cycle_id: UUID = Query(..., description="Required to resolve schema (swift_2025 or swift_2026) for questions."),
+    db: Session = Depends(get_db_ref),
+):
+    """Return evidence_based_questions for this evidence item. Schema resolved from cycle_id."""
+    questions = (
+        db.query(EvidenceBasedQuestion)
+        .filter(EvidenceBasedQuestion.evidence_item_id == item_id.upper())
+        .order_by(EvidenceBasedQuestion.sort_order, EvidenceBasedQuestion.question_key)
+        .all()
+    )
+    return [EvidenceQuestionOut.model_validate(q) for q in questions]
+
+
+@router.get("/evidence-items/{item_id}/form-metadata", response_model=EvidenceFormMetadataOut)
+def get_evidence_item_form_metadata(
+    item_id: str,
+    cycle_id: UUID = Query(..., description="Required to resolve schema for questions."),
+    db: Session = Depends(get_db_ref),
+):
+    """Return form metadata (labels, key order, spreadsheet column labels) from evidence_based_questions."""
+    questions = (
+        db.query(EvidenceBasedQuestion)
+        .filter(EvidenceBasedQuestion.evidence_item_id == item_id.upper())
+        .order_by(EvidenceBasedQuestion.sort_order, EvidenceBasedQuestion.question_key)
+        .all()
+    )
+    field_labels: dict[str, str] = {}
+    key_order: list[str] = []
+    table_column_labels: dict[str, dict[str, str]] = {}
+    for q in questions:
+        field_labels[q.question_key] = q.label
+        key_order.append(q.question_key)
+        if q.question_type == "spreadsheet" and q.options:
+            for opt in q.options:
+                if isinstance(opt, dict) and "key" in opt and "label" in opt:
+                    table_column_labels.setdefault(q.question_key, {})[opt["key"]] = opt["label"]
+    return EvidenceFormMetadataOut(
+        field_labels=field_labels,
+        key_order=key_order,
+        table_column_labels=table_column_labels,
+    )
 
 
 @router.get("/evidence-items/{item_id}/matrix", response_model=list[EvidenceSufficiencyMatrixOut])

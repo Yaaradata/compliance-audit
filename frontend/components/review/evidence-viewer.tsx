@@ -4,7 +4,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { api } from "@/lib/api";
 import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
-import { getEvidenceFieldLabel, getOrderedEvidenceKeys, getEvidenceTableColumnLabels } from "@/lib/frameworks/swift-cscf";
+import {
+  useEvidenceFormMetadata,
+  getFieldLabelFromMetadata,
+  getOrderedKeysFromMetadata,
+  getTableColumnLabelsFromMetadata,
+} from "@/lib/hooks/use-evidence-form-metadata";
 import { NoteList, type NoteItem } from "@/components/notes/note-list";
 import { NoteInput } from "@/components/notes/note-input";
 
@@ -543,6 +548,8 @@ export function InlineEvidenceDetail({
     setSubmittingComment(false);
   };
 
+  const formMetadata = useEvidenceFormMetadata(data?.submission?.evidence_item_id, data?.submission?.cycle_id);
+
   if (loading) return <div className="py-6 text-center text-sm text-(--foreground-muted)">Loading details…</div>;
   if (!data) return <div className="py-6 text-center text-sm text-(--foreground-muted)">Could not load details.</div>;
 
@@ -622,7 +629,7 @@ export function InlineEvidenceDetail({
             </div>
             <div className="flex-1 p-4 flex flex-col gap-6 overflow-y-auto">
               {formKeys.length > 0 && (() => {
-                const orderedFormKeys = getOrderedEvidenceKeys(submission.evidence_item_id, formKeys);
+                const orderedFormKeys = getOrderedKeysFromMetadata(formMetadata, formKeys);
                 return (
                   <section className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
@@ -649,13 +656,13 @@ export function InlineEvidenceDetail({
                             <tr key={key} className="border-b border-slate-200 dark:border-slate-700 last:border-b-0 bg-(--surface)">
                               <td className="w-[min(200px,38%)] py-3.5 px-4 align-top border-r border-slate-200 dark:border-slate-700">
                                 <span className="text-[11px] font-semibold text-foreground">
-                                  {getEvidenceFieldLabel(submission.evidence_item_id, key)}
+                                  {getFieldLabelFromMetadata(formMetadata, key)}
                                 </span>
                               </td>
                               <td className="py-3.5 px-4 text-xs align-top">
                                 <EvidenceFieldValue
                                   value={formData[key]}
-                                  columnLabels={getEvidenceTableColumnLabels(submission.evidence_item_id, key)}
+                                  columnLabels={getTableColumnLabelsFromMetadata(formMetadata, key)}
                                 />
                               </td>
                             </tr>
@@ -983,6 +990,7 @@ export function EvidenceDetailModal({
   const evidenceItemIdForMatrix = data?.submission?.evidence_item_id;
   // Use submission.cycle_id when available so matrix is always filtered by the same cycle as the submission
   const cycleIdForMatrix = data?.submission?.cycle_id ?? cycleId ?? "";
+  const formMetadata = useEvidenceFormMetadata(data?.submission?.evidence_item_id, data?.submission?.cycle_id ?? cycleId);
   // Fixed-length deps so array size never changes between renders (React requirement)
   const matrixItemId = evidenceItemIdForMatrix ?? "";
   const matrixCycleId = cycleIdForMatrix;
@@ -1250,7 +1258,7 @@ export function EvidenceDetailModal({
                       {/* Left column: scrollable so both panels have independent scroll */}
                       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 space-y-4">
                         {formKeys.length > 0 && (() => {
-                          const orderedFormKeys = getOrderedEvidenceKeys(submission.evidence_item_id, formKeys);
+                          const orderedFormKeys = getOrderedKeysFromMetadata(formMetadata, formKeys);
                           return (
                             <div className="rounded-2xl overflow-hidden border border-(--border) shadow-sm">
                               <table className="w-full text-left border-collapse text-sm">
@@ -1263,9 +1271,9 @@ export function EvidenceDetailModal({
                                 <tbody>
                                   {orderedFormKeys.map((key, i) => (
                                     <tr key={key} className={`border-t border-(--border) ${i % 2 === 0 ? "bg-(--surface)" : "bg-background/70"} hover:bg-(--primary-muted)/20 transition-colors`}>
-                                      <td className="w-44 py-3.5 px-5 text-[11px] font-medium align-top text-(--foreground-muted)">{getEvidenceFieldLabel(submission.evidence_item_id, key)}</td>
+                                      <td className="w-44 py-3.5 px-5 text-[11px] font-medium align-top text-(--foreground-muted)">{getFieldLabelFromMetadata(formMetadata, key)}</td>
                                       <td className="py-3.5 px-5 text-sm align-top text-foreground">
-                                        <EvidenceFieldValue value={formData[key]} columnLabels={getEvidenceTableColumnLabels(submission.evidence_item_id, key)} />
+                                        <EvidenceFieldValue value={formData[key]} columnLabels={getTableColumnLabelsFromMetadata(formMetadata, key)} />
                                       </td>
                                     </tr>
                                   ))}
@@ -1427,7 +1435,7 @@ export function EvidenceDetailModal({
                     </div>
                     <div className="pt-4 space-y-4">
                       {formKeys.length > 0 && (() => {
-                        const orderedFormKeys = getOrderedEvidenceKeys(submission.evidence_item_id, formKeys);
+                        const orderedFormKeys = getOrderedKeysFromMetadata(formMetadata, formKeys);
                         return (
                           <div className="overflow-hidden rounded-lg border border-(--border)/70">
                             <table className="w-full text-left border-collapse text-sm">
@@ -1441,10 +1449,10 @@ export function EvidenceDetailModal({
                                 {orderedFormKeys.map((key) => (
                                   <tr key={key} className="border-b border-(--border)/50 last:border-b-0">
                                     <td className="w-[min(180px,38%)] py-2.5 px-3 align-top border-r border-(--border)/50 text-xs font-medium text-foreground">
-                                      {getEvidenceFieldLabel(submission.evidence_item_id, key)}
+                                      {getFieldLabelFromMetadata(formMetadata, key)}
                                     </td>
                                     <td className="py-2.5 px-3 text-xs align-top text-foreground">
-                                      <EvidenceFieldValue value={formData[key]} columnLabels={getEvidenceTableColumnLabels(submission.evidence_item_id, key)} />
+                                      <EvidenceFieldValue value={formData[key]} columnLabels={getTableColumnLabelsFromMetadata(formMetadata, key)} />
                                     </td>
                                   </tr>
                                 ))}

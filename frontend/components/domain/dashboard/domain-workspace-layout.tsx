@@ -39,10 +39,6 @@ export interface DomainWorkspaceLayoutProps {
   itemFormData: Record<string, string>;
   onItemFormChange: (key: string, value: string) => void;
   onItemFormBlur: () => void;
-  a2Rows?: Record<string, string>[];
-  onA2RowChange?: (index: number, key: string, value: string) => void;
-  onA2AddRow?: () => void;
-  onA2RemoveRow?: (index: number) => void;
   onEvaluationEdit?: (updated: AiEvalResultType, edits: import("@/components/domain/ai-evaluation-result").EvaluationEditsMap) => void;
   evaluationEdits?: import("@/components/domain/ai-evaluation-result").EvaluationEditsMap;
 }
@@ -76,10 +72,6 @@ export function DomainWorkspaceLayout({
   itemFormData,
   onItemFormChange,
   onItemFormBlur,
-  a2Rows,
-  onA2RowChange,
-  onA2AddRow,
-  onA2RemoveRow,
   onEvaluationEdit,
   evaluationEdits,
 }: DomainWorkspaceLayoutProps) {
@@ -152,10 +144,6 @@ export function DomainWorkspaceLayout({
             itemFormData={itemFormData}
             onItemFormChange={onItemFormChange}
             onItemFormBlur={onItemFormBlur}
-            a2Rows={a2Rows}
-            onA2RowChange={onA2RowChange}
-            onA2AddRow={onA2AddRow}
-            onA2RemoveRow={onA2RemoveRow}
             onEvaluationEdit={onEvaluationEdit}
             evaluationEdits={evaluationEdits}
           />

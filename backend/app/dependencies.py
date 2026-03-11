@@ -71,7 +71,7 @@ def get_db_ref(
     """
     if cycle_id is not None:
         schema = _resolve_schema_for_cycle(db, cycle_id)
-        db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+        db.execute(text(f"SET search_path TO core, {schema!r}, public"))
     yield db
 
 

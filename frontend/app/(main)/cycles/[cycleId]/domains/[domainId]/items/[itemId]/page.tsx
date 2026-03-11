@@ -6,7 +6,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { ControlBadge } from "@/components/ui/control-badge";
 import { PriorityBadge } from "@/components/ui/badge";
-import { EvidenceInputRenderer } from "@/components/domain/evidence-input-renderer";
+import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
 import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
 import { PerControlPanel } from "@/components/domain/per-control-panel";
 import { EvaluationResults } from "@/components/domain/evaluation-results";
@@ -16,8 +16,7 @@ import { PerControlEvidence } from "@/components/domain/per-control-evidence";
 import { getStatusColor, getStatusIcon } from "@/lib/utils";
 import { LoadingState } from "@/components/ui/loading-state";
 import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
-import { A5_FORM_KEYS } from "@/lib/frameworks/swift-cscf/evidence/a5-criteria";
-import { A5IntakeForm } from "@/components/domain/a5-intake-form";
+import { A5_ARCHITECTURE_KEYS } from "@/lib/frameworks/swift-cscf/constants";
 import type { EvidenceItem, ControlRef, ControlCriteria, AiEvaluationResult as AiEvalResultType, AiCriterionResult } from "@/lib/types";
 
 const EVIDENCE_ITEM_A5 = "A5";
@@ -176,8 +175,8 @@ export default function CycleItemIntakePage() {
     setAiEvaluationResult(null);
   }, []);
 
-  const persistA5Form = useCallback(async () => {
-    if (!cycleId || itemId !== EVIDENCE_ITEM_A5) return;
+  const persistForm = useCallback(async () => {
+    if (!cycleId || !itemId) return;
     let sid = submissionId;
     if (!sid) {
       try {
@@ -229,21 +228,33 @@ export default function CycleItemIntakePage() {
       .finally(() => setAiEvaluationLoading(false));
   }, [item, cycleId, submissionId]);
 
+  const [questionKeys, setQuestionKeys] = useState<string[]>([]);
+  useEffect(() => {
+    if (!itemId || !cycleId) return;
+    api.get<{ question_key: string; question_type: string }[]>(`/ref/evidence-items/${itemId}/questions?cycle_id=${cycleId}`)
+      .then((qs) => setQuestionKeys(qs.filter((q) => q.question_type !== "file").map((q) => q.question_key)))
+      .catch(() => setQuestionKeys([]));
+  }, [itemId, cycleId]);
+
   const completionPct = useMemo(() => {
     if (!item) return 0;
     if (item.id === EVIDENCE_ITEM_A5) {
       const hasArch = !!formData.architecture_type;
       const hasDiagram = !!formData.selected_diagram;
-      const hasRationale = !!formData[A5_FORM_KEYS.decision_rationale]?.trim();
-      const hasBics = !!formData[A5_FORM_KEYS.bics]?.trim();
-      const hasInfra = !!formData[A5_FORM_KEYS.infrastructure_characteristics]?.trim();
+      const hasRationale = !!formData[A5_ARCHITECTURE_KEYS.decision_rationale]?.trim();
+      const hasBics = !!formData[A5_ARCHITECTURE_KEYS.bics]?.trim();
+      const hasInfra = !!formData[A5_ARCHITECTURE_KEYS.infrastructure_characteristics]?.trim();
       const count = [hasArch, hasDiagram, hasRationale, hasBics, hasInfra].filter(Boolean).length;
       return Math.round((count / 5) * 100);
     }
-    if (!item.inputs.length) return 0;
-    const filled = item.inputs.filter((inp) => formData[inp.id] || uploadedFiles[inp.id]).length;
-    return Math.round((filled / item.inputs.length) * 100);
-  }, [item, formData, uploadedFiles]);
+    if (questionKeys.length === 0) return 0;
+    const filled = questionKeys.filter((k) => {
+      const v = formData[k];
+      if (v && String(v).trim()) return true;
+      return false;
+    }).length;
+    return Math.round((filled / questionKeys.length) * 100);
+  }, [item, formData, questionKeys]);
 
   const a5Evidence = useMemo(() => {
     if (item?.id !== EVIDENCE_ITEM_A5) return null;
@@ -363,39 +374,56 @@ export default function CycleItemIntakePage() {
             criteriaResults={aiEvaluationResult?.criteria ?? null}
             onEnsureSubmission={() => ensureSubmission()}
           />
-          {item.id === EVIDENCE_ITEM_A5 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="text-sm font-semibold text-gray-700 mb-3">Architecture declaration form</div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="text-sm font-semibold text-gray-700 mb-3">
+              {item.id === EVIDENCE_ITEM_A5 ? "Architecture declaration form" : "Evidence Inputs"}
+            </div>
+            {item.id === EVIDENCE_ITEM_A5 && (
               <p className="text-xs text-gray-500 mb-4">
                 Complete the form below. Your declared architecture (from cycle selection) is stored as evidence and used for AI evaluation.
               </p>
-              <A5IntakeForm
-                formData={formData}
-                onChange={updateField}
-                onBlur={persistA5Form}
-                architectureFromCycle={!!formData.architecture_type}
-              />
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="text-sm font-semibold text-gray-700 mb-3">Evidence Inputs</div>
-              <div className="space-y-4">
-                {item.inputs.length > 0 ? (
-                  item.inputs.map((input) => (
-                    <EvidenceInputRenderer key={input.id} input={input}
-                      value={formData[input.id] || ""}
-                      onChangeValue={(val) => updateField(input.id, val)}
-                      onFileUpload={(key) => markFileUploaded(key)} />
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    <p>Evidence inputs are configured at the detailed intake level.</p>
-                    <p className="text-xs mt-1">Upload files and fill in evidence details to proceed.</p>
+            )}
+            {formData.architecture_type && item.id === EVIDENCE_ITEM_A5 && (
+              <div className="mb-4 rounded-lg border border-gray-200 p-3 bg-gray-50">
+                <div className="text-[11px] font-semibold text-gray-700 mb-2">Architecture Evidence (from cycle selection)</div>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="text-[10px] text-gray-500">Declared type</div>
+                    <div className="text-sm font-bold text-gray-900">
+                      {getArchitecture(formData.architecture_type)?.name ?? formData.architecture_type}
+                    </div>
                   </div>
-                )}
+                  {formData.selected_diagram && (
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] text-gray-500 mb-1">Selected diagram</div>
+                      <img
+                        src={getArchitectureDiagramUrl(formData.selected_diagram)}
+                        alt="Architecture diagram"
+                        className="rounded border border-gray-200 max-h-40 object-contain"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+            <EvidenceQuestionsForm
+              evidenceItemId={item.id}
+              cycleId={cycleId}
+              formData={formData}
+              onChange={updateField}
+              onBlur={persistForm}
+              submissionId={submissionId}
+              onUploadComplete={() => markFileUploaded("evidence")}
+              onEnsureSubmission={async () => {
+                try {
+                  const sid = await ensureSubmission();
+                  return sid;
+                } catch {
+                  return null;
+                }
+              }}
+            />
+          </div>
           <button onClick={handleEvaluateEvidence}
             className="btn-primary w-full py-3 text-sm"
             style={{ background: domainStyle.color }}>
