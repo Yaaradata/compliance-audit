@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_db_scoped, get_current_user
-from ..constants import PLATFORM_ADMIN_ROLES
+from ..constants import PLATFORM_ADMIN_ROLES, CYCLE_SCOPED_ROLES
 from ..middleware.auth import hash_password
 from ..models.tenant import User
-from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceSubmission
+from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceSubmission, CycleUserAssignment
 from ..models.approval import ApprovalGate
 from ..models.framework import Control, EvidenceDomain, CanonicalEvidenceItem, AuditFramework
 from ..models.sufficiency import SufficiencyScore
@@ -44,7 +44,16 @@ def _attach_schema_name(cycle: AssessmentCycle, db: Session) -> None:
 @router.get("", response_model=list[CycleOut])
 def list_cycles(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     q = db.query(AssessmentCycle)
-    if user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
+    if user.role in CYCLE_SCOPED_ROLES:
+        # Cycle-scoped: only cycles they are assigned to
+        assigned_cycle_ids = db.query(CycleUserAssignment.cycle_id).filter(
+            CycleUserAssignment.user_id == user.id
+        ).distinct().all()
+        cycle_ids = [c[0] for c in assigned_cycle_ids]
+        if not cycle_ids:
+            return []
+        q = q.filter(AssessmentCycle.id.in_(cycle_ids))
+    elif user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
         q = q.filter(AssessmentCycle.tenant_id == user.tenant_id)
     cycles = q.order_by(AssessmentCycle.created_at.desc()).all()
     for c in cycles:
@@ -80,11 +89,20 @@ def create_cycle(req: CreateCycleRequest, db: Session = Depends(get_db), user: U
     return cycle
 
 
-def _require_cycle_access(cycle: AssessmentCycle | None, user: User) -> None:
+def _require_cycle_access(cycle: AssessmentCycle | None, user: User, db: Session | None = None) -> None:
     """Raise 404 if cycle missing, 403 if user may not access."""
     if not cycle:
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
-    if user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
+    if user.role in CYCLE_SCOPED_ROLES:
+        if not db:
+            raise HTTPException(status_code=500, detail="Database session required for cycle access check")
+        assigned = db.query(CycleUserAssignment).filter(
+            CycleUserAssignment.cycle_id == cycle.id,
+            CycleUserAssignment.user_id == user.id,
+        ).first()
+        if not assigned:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
         if cycle.tenant_id != user.tenant_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
@@ -106,12 +124,13 @@ def create_cycle_team(
     user: User = Depends(get_current_user),
 ):
     """
-    Create user accounts for this cycle (IT SME, Internal Reviewer, External Assessor, Approver).
+    Create user accounts for this cycle (IT SME, Internal Reviewer L1, Internal Reviewer L2, External Assessor).
     Only compliance officer (or platform admin) with access to the cycle can call this.
     Users are created in the same tenant as the cycle and can log in with the given email/password.
+    Each user is assigned to this cycle via cycle_user_assignments for cycle-scoped access.
     """
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
     _require_compliance_officer_or_admin(user)
 
     tenant_id = cycle.tenant_id
@@ -131,6 +150,13 @@ def create_cycle_team(
             tenant_id=tenant_id,
         )
         db.add(new_user)
+        db.flush()
+        assignment = CycleUserAssignment(
+            cycle_id=cycle_id,
+            user_id=new_user.id,
+            role=u.role,
+        )
+        db.add(assignment)
         created.append({"id": str(new_user.id), "email": new_user.email, "role": new_user.role})
 
     db.commit()
@@ -140,7 +166,7 @@ def create_cycle_team(
 @router.get("/{cycle_id}", response_model=CycleOut)
 def get_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
     _attach_schema_name(cycle, db)
     return cycle
 
@@ -157,7 +183,7 @@ def delete_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: Use
       control applicability and approval gates).
     """
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
 
     # Delete evidence files from storage and all related DB rows (attachments, submissions, reviews, etc.)
     delete_cycle_evidence_and_related(db, cycle_id)
@@ -174,7 +200,7 @@ def delete_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: Use
 @router.put("/{cycle_id}", response_model=CycleOut)
 def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
 
     if req.architecture_type:
         if not cycle.architecture_type:
@@ -202,7 +228,7 @@ def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(
 def get_control_scoping(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     """List all controls for this cycle with current scoping decision (Applicable / Not applicable / Accept risk)."""
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).order_by(ControlApplicability.control_id).all()
     # If cycle has architecture but no rows (e.g. old cycle or race), ensure control_applicability is generated
     if not cas and cycle.architecture_type:
@@ -246,7 +272,7 @@ def upload_scoping_justification(
 ):
     """Upload a supporting document for control scoping (Not applicable / Accept risk). Returns path to store in PATCH."""
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
     ca = db.query(ControlApplicability).filter(
         ControlApplicability.cycle_id == cycle_id,
         ControlApplicability.control_id == control_id,
@@ -271,7 +297,7 @@ def update_control_scoping(
 ):
     """Update scoping decisions. For Not applicable and Accept risk, both justification text AND file are required."""
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
     cas_by_id = {ca.control_id: ca for ca in db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()}
     for item in req.decisions:
         ca = cas_by_id.get(item.control_id)
@@ -300,7 +326,7 @@ def update_control_scoping(
 @router.post("/{cycle_id}/advance-phase", response_model=CycleOut)
 def advance_phase(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
 
     phases = ["setup", "collection", "review", "approval", "reporting", "submitted", "archived"]
     idx = phases.index(cycle.phase)
@@ -326,7 +352,7 @@ def sufficiency_detail(
 @router.get("/{cycle_id}/dashboard", response_model=DashboardResponse)
 def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
 
     domains = db.query(EvidenceDomain).order_by(EvidenceDomain.sort_order).all()
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()

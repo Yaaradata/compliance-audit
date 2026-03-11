@@ -551,9 +551,11 @@ export function InlineEvidenceDetail({
   const formData = submission.form_data || {};
   const formKeys = Object.keys(formData).filter((k) => formData[k]);
 
+  const rLevel = normalizeLevel(review.level);
   const canAction =
-    (userRole === "internal_reviewer" && (review.level === "L1" || review.level === "L2")) ||
-    (userRole === "external_assessor" && review.level === "L3") ||
+    (userRole === "internal_reviewer_l1" && rLevel === "L1") ||
+    (userRole === "internal_reviewer_l2" && rLevel === "L2") ||
+    (userRole === "external_assessor" && rLevel === "L3") ||
     userRole === "compliance_officer" ||
     userRole === "admin";
 
@@ -1131,9 +1133,11 @@ export function EvidenceDetailModal({
   const formData = submission.form_data || {};
   const formKeys = Object.keys(formData).filter((k) => formData[k]);
 
+  const rLevel = normalizeLevel(review.level);
   const canAction =
-    (userRole === "internal_reviewer" && (review.level === "L1" || review.level === "L2")) ||
-    (userRole === "external_assessor" && review.level === "L3") ||
+    (userRole === "internal_reviewer_l1" && rLevel === "L1") ||
+    (userRole === "internal_reviewer_l2" && rLevel === "L2") ||
+    (userRole === "external_assessor" && rLevel === "L3") ||
     userRole === "compliance_officer" ||
     userRole === "admin";
 

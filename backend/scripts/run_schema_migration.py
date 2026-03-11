@@ -46,6 +46,8 @@ SQL_MIGRATIONS = [
     "14_seed_swift_2026_domains_controls.sql",
     "16_seed_swift_2026_evidence_items_mappings.sql",
     "17_seed_swift_2026_a7_control.sql",
+    "20_cycle_user_assignments.sql",
+    "21_remove_deprecated_user_roles.sql",
 ]
 
 # Data load scripts (run from repo root)

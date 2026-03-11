@@ -246,8 +246,9 @@ export default function CycleReviewPage() {
   const { user } = useAuth();
   const userRole = user?.role || "compliance_officer";
 
+  const roleLevel = userRole === "internal_reviewer_l1" ? "L1" : userRole === "internal_reviewer_l2" ? "L2" : userRole === "external_assessor" ? "L3" : null;
   const levelFromUrl = searchParams.get("level");
-  const initialLevel = levelFromUrl && VALID_LEVELS.includes(levelFromUrl as (typeof VALID_LEVELS)[number]) ? levelFromUrl : "all";
+  const initialLevel = levelFromUrl && VALID_LEVELS.includes(levelFromUrl as (typeof VALID_LEVELS)[number]) ? levelFromUrl : (roleLevel ?? "all");
 
   const [reviews, setReviews] = useState<ApiReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -262,9 +263,17 @@ export default function CycleReviewPage() {
     if (levelFromUrl && VALID_LEVELS.includes(levelFromUrl as (typeof VALID_LEVELS)[number])) {
       setLevelFilter(levelFromUrl);
     } else if (levelFromUrl === null || levelFromUrl === "") {
-      setLevelFilter("all");
+      setLevelFilter(roleLevel ?? "all");
     }
-  }, [levelFromUrl]);
+  }, [levelFromUrl, roleLevel]);
+
+  useEffect(() => {
+    if (roleLevel && (!levelFromUrl || levelFromUrl !== roleLevel)) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("level", roleLevel);
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+  }, [roleLevel, levelFromUrl, pathname, router, searchParams]);
 
   const updateLevelFilter = useCallback(
     (lv: string) => {
@@ -285,14 +294,15 @@ export default function CycleReviewPage() {
     if (!cycleId) return;
     setLoading(true);
     try {
-      const data = await api.getDirect<ApiReview[]>(`/assessments/${cycleId}/reviews`);
+      const levelParam = roleLevel ? `?level=${roleLevel}` : "";
+      const data = await api.getDirect<ApiReview[]>(`/assessments/${cycleId}/reviews${levelParam}`);
       setReviews(data);
     } catch {
       setReviews([]);
     } finally {
       setLoading(false);
     }
-  }, [cycleId]);
+  }, [cycleId, roleLevel]);
 
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
@@ -485,7 +495,7 @@ export default function CycleReviewPage() {
                 </button>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-2 border-t border-(--border) pt-3">
+            <div className={`flex flex-wrap items-center gap-2 border-t border-(--border) pt-3 ${roleLevel ? "hidden" : ""}`}>
               <span className="text-(--foreground-subtle) text-sm">Level</span>
               {LEVEL_FILTERS.map(({ key: lv, label: tabLabel }) => {
                 const count = levelCounts[lv];

@@ -96,3 +96,5 @@ class EvaluateEvidenceResponse(BaseModel):
     summary: str | None = None
     """When overall_met is false: AI-generated list of what is required to make the evidence correct. Stored separately for UI display."""
     remediation: str | None = None
+    """Per-form-field feedback: key = form field key (e.g. diagram_date, connector_zone_statement), value = null if adequate or message for 'AI — needs more info'."""
+    field_feedback: dict[str, str | None] = {}

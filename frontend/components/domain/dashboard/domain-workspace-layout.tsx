@@ -112,10 +112,11 @@ export function DomainWorkspaceLayout({
       <div
         className={cn(
           "flex-1 min-h-0 grid gap-4 overflow-hidden",
-          "grid-cols-1 md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]"
+          "grid-cols-1 md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]",
+          "grid-rows-[minmax(0,1fr)]"
         )}
       >
-        <div className="hidden md:flex flex-col min-h-0 md:min-w-[220px] lg:min-w-[280px]">
+        <div className="hidden md:flex flex-col min-h-0 md:min-w-[220px] lg:min-w-[280px] overflow-hidden">
           <EvidenceListPanel
             config={config}
             activeItem={activeItem}
@@ -125,7 +126,7 @@ export function DomainWorkspaceLayout({
           />
         </div>
 
-        <div className="min-h-0 min-w-0 flex flex-col">
+        <div className="min-h-0 min-w-0 flex flex-col overflow-hidden">
           <EvidenceWorkspace
             schemaName={schemaName}
             cycleId={cycleId}

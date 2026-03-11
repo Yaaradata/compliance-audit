@@ -9,7 +9,7 @@ import { ROLE_LABELS } from "@/lib/data/roles";
 import { PasswordInput } from "@/components/ui/password-input";
 import type { AssessmentCycle } from "@/lib/types";
 
-const TEAM_ROLES = ["it_sme", "internal_reviewer", "external_assessor", "approver"] as const;
+const TEAM_ROLES = ["it_sme", "internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"] as const;
 
 interface TeamUserEntry {
   role: (typeof TEAM_ROLES)[number];
@@ -81,15 +81,12 @@ export default function CycleTeamSetupPage() {
           role,
           email: email.trim().toLowerCase(),
           password,
-          name: name.trim() || undefined,
+          name: (name || "").trim() || "",
         })),
       });
       router.push(`/select-architecture?cycleId=${cycleId}`);
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        (err as Error)?.message ||
-        "Failed to create team accounts.";
+      const msg = (err as Error)?.message ?? "Failed to create team accounts.";
       setError(typeof msg === "string" ? msg : "Failed to create team accounts.");
       setSubmitting(false);
     }

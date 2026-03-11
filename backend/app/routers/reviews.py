@@ -35,7 +35,7 @@ from .notifications import create_notification
 router = APIRouter()
 
 REVIEW_LEVELS = ("L1", "L2", "L3")
-LEVEL_ROLE_MAP = {"L1": "internal_reviewer", "L2": "internal_reviewer", "L3": "external_assessor"}
+LEVEL_ROLE_MAP = {"L1": "internal_reviewer_l1", "L2": "internal_reviewer_l2", "L3": "external_assessor"}
 
 # DB uses enum review_level: 'l1_completeness', 'l2_quality', 'l3_assessment'
 LEVEL_TO_DB = {"L1": "l1_completeness", "L2": "l2_quality", "L3": "l3_assessment"}
@@ -83,11 +83,9 @@ def _find_reviewer_by_role(db: Session, tenant_id: UUID | None, role: str) -> Us
 def _resolve_l1_reviewer(db: Session, tenant_id: UUID | None) -> User | None:
     """
     Resolve who should perform L1 review for this tenant.
-    Priority: Internal Reviewer → Compliance Officer → any tenant user.
-    Ensures evidence appears in the review queue and can be viewed/actioned even
-    when team setup was skipped.
+    Priority: internal_reviewer_l1 → compliance_officer → any tenant user.
     """
-    reviewer = _find_reviewer_by_role(db, tenant_id, "internal_reviewer")
+    reviewer = _find_reviewer_by_role(db, tenant_id, "internal_reviewer_l1")
     if reviewer:
         return reviewer
     reviewer = _find_reviewer_by_role(db, tenant_id, "compliance_officer")
@@ -102,18 +100,30 @@ def _resolve_l1_reviewer(db: Session, tenant_id: UUID | None) -> User | None:
     )
 
 
+def _resolve_l2_reviewer(db: Session, tenant_id: UUID | None) -> User | None:
+    """Resolve who should perform L2 review. Priority: internal_reviewer_l2 → L1 fallback."""
+    reviewer = _find_reviewer_by_role(db, tenant_id, "internal_reviewer_l2")
+    if reviewer:
+        return reviewer
+    return _resolve_l1_reviewer(db, tenant_id)
+
+
 def _resolve_reviewer_for_level(db: Session, submission: EvidenceSubmission, level: str) -> User | None:
     """
     Resolve the reviewer for the given level.
-    L1: Internal Reviewer → Compliance Officer → any tenant user.
-    L2/L3: Prefer role from LEVEL_ROLE_MAP; if none found, use same fallback as L1 so assignments are always created.
+    L1: internal_reviewer_l1 → compliance_officer → any tenant user.
+    L2: internal_reviewer_l2 → L1 fallback.
+    L3: external_assessor → L1 fallback.
     """
     if level == "L1":
         return _resolve_l1_reviewer(db, submission.tenant_id)
-    role = LEVEL_ROLE_MAP.get(level)
-    reviewer = _find_reviewer_by_role(db, submission.tenant_id, role) if role else None
-    if reviewer:
-        return reviewer
+    if level == "L2":
+        return _resolve_l2_reviewer(db, submission.tenant_id)
+    if level == "L3":
+        reviewer = _find_reviewer_by_role(db, submission.tenant_id, "external_assessor")
+        if reviewer:
+            return reviewer
+        return _resolve_l1_reviewer(db, submission.tenant_id)
     return _resolve_l1_reviewer(db, submission.tenant_id)
 
 
@@ -319,8 +329,10 @@ def _list_reviews_impl(
 
     q = db.query(ReviewAssignment).filter(ReviewAssignment.submission_id.in_(sub_ids))
 
-    if user.role == "internal_reviewer":
-        q = q.filter(ReviewAssignment.level.in_([LEVEL_TO_DB["L1"], LEVEL_TO_DB["L2"]]))
+    if user.role == "internal_reviewer_l1":
+        q = q.filter(ReviewAssignment.level == LEVEL_TO_DB["L1"])
+    elif user.role == "internal_reviewer_l2":
+        q = q.filter(ReviewAssignment.level == LEVEL_TO_DB["L2"])
     elif user.role == "external_assessor":
         q = q.filter(ReviewAssignment.level == LEVEL_TO_DB["L3"])
 
@@ -666,7 +678,7 @@ def get_evidence_detail(
     )
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
-    if user.role not in ("admin", "tenant_admin", "approver") and submission.tenant_id != user.tenant_id:
+    if user.role not in ("admin", "tenant_admin", "external_assessor") and submission.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="Submission not found")
 
     attachments = (

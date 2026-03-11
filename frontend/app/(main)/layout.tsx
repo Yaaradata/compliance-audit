@@ -96,7 +96,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const isReviewRoute = pathname.includes("/review");
     const isApprovalRoute = pathname.includes("/approval");
     const isDomainRoute = pathname.includes("/domains/");
-    const isEvidenceRoute = isDomainRoute;
 
     if (role === "it_sme" && (isReviewRoute || isApprovalRoute)) {
       return (
@@ -107,14 +106,23 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </AppShell>
       );
     }
-    if (role === "internal_reviewer" && isEvidenceRoute) {
-      // Allow read-only — the page itself handles edit restrictions
+    if ((role === "internal_reviewer_l1" || role === "internal_reviewer_l2") && (isApprovalRoute || isDomainRoute)) {
+      return (
+        <AppShell>
+          <div className="flex items-center justify-center h-64">
+            <p className="text-sm text-gray-500">You do not have access to this page.</p>
+          </div>
+        </AppShell>
+      );
     }
-    if (role === "external_assessor" && isEvidenceRoute) {
-      // Allow read-only
-    }
-    if (role === "approver" && isReviewRoute) {
-      // Approvers can view review status but not take review actions — page handles this
+    if (role === "external_assessor" && isDomainRoute) {
+      return (
+        <AppShell>
+          <div className="flex items-center justify-center h-64">
+            <p className="text-sm text-gray-500">You do not have access to this page.</p>
+          </div>
+        </AppShell>
+      );
     }
   }
 

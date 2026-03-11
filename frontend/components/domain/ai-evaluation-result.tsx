@@ -91,13 +91,14 @@ export function AiEvaluationResult({ result, loading, placeholder, onEdit, edita
       <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
         <div className="text-xs font-semibold text-amber-800 mb-2">Evaluation results</div>
         <p className="text-xs text-amber-700">
-          Fill in evidence and upload files in the <strong>Common Evidence</strong> tab, then click <strong>Evaluate Evidence</strong> there. The AI will compare your submission to the Evidence Description, Sufficiency Definition, and Evaluation Criteria and return:
+          Fill in evidence and upload files above, then click <strong>Run AI Evaluation</strong>. The AI will compare your submission to the Evidence Description, Sufficiency Definition, and Evaluation Criteria and return:
         </p>
         <ul className="text-[11px] text-amber-800 mt-2 list-disc list-inside space-y-1">
           <li>✓ Tick for each criterion met</li>
           <li>✗ Cross and a short description for any criterion not met</li>
+          <li>Per-field feedback when more info is needed</li>
         </ul>
-        <p className="text-[11px] text-amber-600 mt-2">Results will appear in this tab after you run evaluation.</p>
+        <p className="text-[11px] text-amber-600 mt-2">Results will appear below after you run evaluation.</p>
       </div>
     );
   }

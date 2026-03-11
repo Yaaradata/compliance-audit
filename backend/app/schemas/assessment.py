@@ -4,7 +4,7 @@ from pydantic import BaseModel, computed_field, field_validator
 
 
 # Roles a compliance officer can create when setting up a cycle (excludes compliance_officer and admin).
-CYCLE_TEAM_ROLES = ["it_sme", "internal_reviewer", "external_assessor", "approver"]
+CYCLE_TEAM_ROLES = ["it_sme", "internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"]
 
 
 class CycleTeamUserCreate(BaseModel):

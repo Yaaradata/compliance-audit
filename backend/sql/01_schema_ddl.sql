@@ -18,8 +18,16 @@ DO $$ BEGIN
   CREATE TYPE architecture_type     AS ENUM ('A1','A2','A3','A4','B');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- user_role: internal_reviewer_l1/L2 for L1/L2 review; external_assessor (L3) acts as approver
 DO $$ BEGIN
-  CREATE TYPE user_role              AS ENUM ('admin','compliance_officer','it_sme','internal_reviewer','external_assessor','approver');
+  CREATE TYPE user_role AS ENUM (
+    'admin',
+    'compliance_officer',
+    'it_sme',
+    'internal_reviewer_l1',
+    'internal_reviewer_l2',
+    'external_assessor'
+  );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN

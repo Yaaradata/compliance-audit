@@ -1,5 +1,7 @@
 "use client";
 
+import { FieldAINote } from "@/components/domain/field-ai-note";
+
 export type FieldType = "textarea" | "select" | "text" | "date";
 
 export interface FieldDef {
@@ -18,16 +20,22 @@ export interface GenericIntakeFormProps {
   onChange: (key: string, value: string) => void;
   onBlur?: () => void;
   disabled?: boolean;
+  /** AI per-field feedback for "AI — needs more info". */
+  fieldFeedback?: Record<string, string | null>;
 }
 
-export function GenericIntakeForm({ fields, formData, onChange, onBlur, disabled }: GenericIntakeFormProps) {
+const inputBase =
+  "w-full rounded-xl border border-(--border) bg-background px-4 py-2.5 text-sm text-foreground outline-none transition placeholder:text-(--foreground-muted)/70 focus:border-(--primary) focus:ring-2 focus:ring-(--primary)/20 disabled:opacity-60 disabled:cursor-not-allowed";
+
+export function GenericIntakeForm({ fields, formData, onChange, onBlur, disabled, fieldFeedback }: GenericIntakeFormProps) {
+  const fb = fieldFeedback ?? {};
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {fields.map((f) => (
-        <div key={f.key}>
-          <label className="mb-1 block text-xs font-medium text-gray-700">
+        <div key={f.key} className="space-y-2">
+          <label className="block text-sm font-medium text-foreground">
             {f.label}
-            {f.required !== false && <span className="text-red-500"> *</span>}
+            {f.required !== false && <span className="text-red-500 ml-0.5">*</span>}
           </label>
           {f.type === "select" ? (
             <select
@@ -35,7 +43,7 @@ export function GenericIntakeForm({ fields, formData, onChange, onBlur, disabled
               onChange={(e) => onChange(f.key, e.target.value)}
               onBlur={onBlur}
               disabled={disabled}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+              className={inputBase}
             >
               <option value="">Select</option>
               {(f.options ?? ["Yes", "Partial", "No"]).map((o) => (
@@ -49,7 +57,7 @@ export function GenericIntakeForm({ fields, formData, onChange, onBlur, disabled
               onChange={(e) => onChange(f.key, e.target.value)}
               onBlur={onBlur}
               disabled={disabled}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+              className={inputBase}
             />
           ) : f.type === "text" ? (
             <input
@@ -59,7 +67,7 @@ export function GenericIntakeForm({ fields, formData, onChange, onBlur, disabled
               onBlur={onBlur}
               disabled={disabled}
               placeholder={f.placeholder}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+              className={inputBase}
             />
           ) : (
             <textarea
@@ -68,10 +76,11 @@ export function GenericIntakeForm({ fields, formData, onChange, onBlur, disabled
               onBlur={onBlur}
               disabled={disabled}
               placeholder={f.placeholder}
-              rows={f.rows ?? 2}
-              className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+              rows={f.rows ?? 4}
+              className={`${inputBase} resize-y min-h-[100px]`}
             />
           )}
+          <FieldAINote text={fb[f.key]} fieldLabel={f.label} />
         </div>
       ))}
     </div>

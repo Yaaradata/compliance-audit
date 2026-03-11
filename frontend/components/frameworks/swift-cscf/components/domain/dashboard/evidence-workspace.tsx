@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ControlBadge } from "@/components/ui/control-badge";
 import { PriorityBadge } from "@/components/ui/badge";
 import { CompactDropzone } from "@/components/domain/compact-dropzone";
@@ -11,8 +12,8 @@ import { EvaluationResults } from "@/components/domain/evaluation-results";
 import { cn } from "@/lib/utils";
 
 import { A1IntakeForm } from "@/components/domain/a1-intake-form";
-import { getEvidenceFieldLabel, getOrderedEvidenceKeys, getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
-import { A1_DIAGRAM_DERIVED_CHECKS, A1_EVIDENCE_ITEM_ID } from "@/lib/frameworks/swift-cscf/evidence/a1-evidence";
+import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
+import { A1_EVIDENCE_ITEM_ID, A1_FORM_KEYS } from "@/lib/frameworks/swift-cscf/evidence/a1-evidence";
 import { A5_EVIDENCE_ITEM_ID, A5_FORM_KEYS } from "@/lib/frameworks/swift-cscf/evidence/a5-criteria";
 import { A5IntakeForm } from "@/components/domain/a5-intake-form";
 import { A2IntakeForm } from "@/components/domain/a2-intake-form";
@@ -171,15 +172,17 @@ interface CommonFormProps {
   onUploadComplete: () => void;
   onEnsureSubmission: (itemId: string) => Promise<string | null>;
   itemId: string;
+  /** AI per-field feedback for "AI — needs more info" (key = form field key). */
+  fieldFeedback?: Record<string, string | null>;
 }
   
 function GuidanceList({ id, title, items }: { id: string; title: string; items: { id: string; label: string }[] }) {
   return (
-    <section className="rounded-xl border border-(--border) bg-background p-4" aria-labelledby={id}>
+    <section className="rounded-xl border border-(--border) bg-background/80 shadow-sm p-4" aria-labelledby={id}>
       <h2 id={id} className="text-xs font-semibold text-foreground mb-2">{title}</h2>
       <ul className="space-y-1.5">
         {items.map((item) => (
-          <li key={item.id} className="text-[11px] text-(--foreground-muted)">
+          <li key={item.id} className="text-[11px] text-(--foreground-muted) leading-relaxed">
             <span className="font-semibold text-foreground mr-1">{item.id}.</span>
             {item.label}
           </li>
@@ -194,15 +197,15 @@ function UploadSection({ id, title, description, label, submissionId, onUploadCo
   submissionId: string | null; onUploadComplete: () => void; onEnsureSubmission: (itemId: string) => Promise<string | null>; itemId: string;
 }) {
   return (
-    <section aria-labelledby={id}>
-      <h2 id={id} className="text-xs font-semibold text-foreground mb-1.5">{title}</h2>
-      {description && <p className="text-[11px] text-(--foreground-muted) mb-2">{description}</p>}
+    <section className="rounded-xl border border-(--border) bg-background/80 shadow-sm p-5 sm:p-6" aria-labelledby={id}>
+      <h2 id={id} className="text-sm font-semibold text-foreground mb-1">{title}</h2>
+      {description && <p className="text-xs text-(--foreground-muted) leading-relaxed mb-4">{description}</p>}
       <CompactDropzone
         submissionId={submissionId}
         label={label}
         onUploadComplete={onUploadComplete}
         onEnsureSubmission={() => onEnsureSubmission(itemId)}
-        className="max-h-[220px]"
+        className="max-h-[240px] min-h-[140px]"
       />
     </section>
   );
@@ -210,9 +213,9 @@ function UploadSection({ id, title, description, label, submissionId, onUploadCo
 
 function FormSection({ id, title, description, children }: { id: string; title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-(--border) bg-background p-4" aria-labelledby={id}>
-      <h2 id={id} className="text-xs font-semibold text-foreground mb-1">{title}</h2>
-      {description && <p className="text-[11px] text-(--foreground-muted) mb-4">{description}</p>}
+    <section className="rounded-xl border border-(--border) bg-background/80 shadow-sm p-5 sm:p-6" aria-labelledby={id}>
+      <h2 id={id} className="text-sm font-semibold text-foreground mb-1">{title}</h2>
+      {description && <p className="text-xs text-(--foreground-muted) leading-relaxed mb-5">{description}</p>}
       {children}
     </section>
   );
@@ -248,13 +251,24 @@ function A5ArchitecturePreview({ formData }: { formData: Record<string, string> 
   );
 }
 
-/* ---------- Two-column layout helper: text left, uploads right ---------- */
+/* ---------- Two-column layout helper (legacy; prefer UploadFirstLayout for A-style) ---------- */
 
 function TwoColumnEvidence({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="space-y-4">{left}</div>
-      <div className="space-y-4">{right}</div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="space-y-5 min-w-0">{left}</div>
+      <div className="space-y-5 min-w-0">{right}</div>
+    </div>
+  );
+}
+
+/* ---------- Upload-first layout (same as A1): upload on top, then form — used for all evidence items A–H ---------- */
+
+function UploadFirstLayout({ upload, form }: { upload: React.ReactNode; form: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-6">
+      {upload}
+      {form}
     </div>
   );
 }
@@ -263,21 +277,27 @@ function TwoColumnEvidence({ left, right }: { left: React.ReactNode; right: Reac
 
 function A1CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
-        <FormSection id="a1-form" title="Required text evidence (for items not reliably inferred from diagram)"
-          description="Provide explicit confirmations and justifications below. These answers are sent to AI together with the uploaded diagram during evaluation.">
-          <A1IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
-        </FormSection>
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="a1-upload"
+          title="Diagram upload"
+          description="Upload the latest architecture diagram (PDF/image) showing zone boundaries, firewall placement, system locations, and flow direction."
+          label="Drop A1 diagram files or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
       }
-      right={
-        <>
-          <UploadSection id="a1-upload" title="Upload network architecture diagram"
-            description="Upload the latest architecture diagram (PDF/image) showing zone boundaries, firewall placement, system locations, and flow direction."
-            label="Drop A1 diagram files or click to upload" submissionId={p.submissionId}
-            onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="a1-diagram-checks" title="AI will verify these directly from the uploaded diagram" items={A1_DIAGRAM_DERIVED_CHECKS} />
-        </>
+      form={
+        <FormSection
+          id="a1-form"
+          title="Required text evidence"
+          description="Provide diagram date and confirmations below. These answers are sent to AI together with the uploaded diagram during evaluation."
+        >
+          <A1IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} fieldFeedback={p.fieldFeedback} />
+        </FormSection>
       }
     />
   );
@@ -285,23 +305,29 @@ function A1CommonEvidenceContent(p: CommonFormProps) {
 
 function A5CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="a5-upload"
+          title="Evidence upload"
+          description="Upload evidence files that apply to all controls for this evidence item (e.g. architecture documentation, decision rationale)."
+          label="Drop files or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="a5-form" title="Architecture Declaration Form"
           description="Complete the details below. Architecture type and diagram are pre-filled from your cycle selection.">
+          {p.formData[A5_FORM_KEYS.architecture_type] && (
+            <div className="mb-4">
+              <A5ArchitecturePreview formData={p.formData} />
+            </div>
+          )}
           <A5IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} architectureFromCycle={!!p.formData[A5_FORM_KEYS.architecture_type]} />
         </FormSection>
-      }
-      right={
-        <>
-          {p.formData[A5_FORM_KEYS.architecture_type] && (
-            <section aria-labelledby="a5-arch-preview"><h2 id="a5-arch-preview" className="sr-only">Architecture selection</h2><A5ArchitecturePreview formData={p.formData} /></section>
-          )}
-          <UploadSection id="a5-upload" title="Evidence upload"
-            description="Upload evidence files that apply to all controls for this evidence item (e.g. architecture documentation, decision rationale)."
-            label="Drop files or click to upload" submissionId={p.submissionId}
-            onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-        </>
       }
     />
   );
@@ -312,20 +338,24 @@ function A2CommonEvidenceContent(p: CommonFormProps & {
   onA2AddRow?: () => void; onA2RemoveRow?: (i: number) => void;
 }) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="a2-upload"
+          title="Upload supporting documents"
+          label="Drop spreadsheet/CSV or supporting files"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="a2-form" title="SWIFT Component Inventory">
           <A2IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur}
             rows={p.a2Rows ?? [{}]} onRowChange={p.onA2RowChange ?? (() => {})}
             onAddRow={p.onA2AddRow ?? (() => {})} onRemoveRow={p.onA2RemoveRow ?? (() => {})} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="a2-upload" title="Upload supporting documents" label="Drop spreadsheet/CSV or supporting files"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="a2-diagram-checks" title="AI cross-checks against A1 diagram" items={A2_DIAGRAM_CROSS_CHECKS} />
-        </>
       }
     />
   );
@@ -333,18 +363,22 @@ function A2CommonEvidenceContent(p: CommonFormProps & {
 
 function A3CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="a3-upload"
+          title="Upload data flow diagrams"
+          label="Drop A3 data flow diagrams or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="a3-form" title="Required text evidence">
           <A3IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="a3-upload" title="Upload data flow diagrams" label="Drop A3 data flow diagrams or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="a3-diagram-checks" title="AI will verify from uploaded diagrams" items={A3_DIAGRAM_CHECKS} />
-        </>
       }
     />
   );
@@ -352,18 +386,22 @@ function A3CommonEvidenceContent(p: CommonFormProps) {
 
 function A4CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="a4-upload"
+          title="Upload firewall config exports"
+          label="Drop firewall rule set exports or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="a4-form" title="Firewall rule confirmations">
           <A4IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="a4-upload" title="Upload firewall config exports" label="Drop firewall rule set exports or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="a4-upload-guidance" title="Uploaded exports should include" items={A4_UPLOAD_GUIDANCE} />
-        </>
       }
     />
   );
@@ -371,18 +409,22 @@ function A4CommonEvidenceContent(p: CommonFormProps) {
 
 function A6CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="a6-upload"
+          title="Upload design rationale document"
+          label="Drop zone design rationale document or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="a6-form" title="Design rationale details">
           <A6IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="a6-upload" title="Upload design rationale document" label="Drop zone design rationale document or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="a6-document-guidance" title="Document should cover" items={A6_DOCUMENT_GUIDANCE} />
-        </>
       }
     />
   );
@@ -392,21 +434,24 @@ function A6CommonEvidenceContent(p: CommonFormProps) {
 
 function B1CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="b1-upload"
+          title="Upload OS hardening config / screenshots"
+          description="Upload per-system config exports (sudo config, UAC, Group Policy) and screenshots for each SWIFT system type."
+          label="Drop OS config exports or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="b1-form" title="OS hardening confirmations"
           description="Confirm settings that may not be fully visible in config exports.">
           <B1IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="b1-upload" title="Upload OS hardening config / screenshots"
-            description="Upload per-system config exports (sudo config, UAC, Group Policy) and screenshots for each SWIFT system type."
-            label="Drop OS config exports or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="b1-config-checks" title="AI will verify from uploaded configs" items={B1_CONFIG_CHECKS} />
-        </>
       }
     />
   );
@@ -414,21 +459,24 @@ function B1CommonEvidenceContent(p: CommonFormProps) {
 
 function B2CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="b2-upload"
+          title="Upload SWIFT application security config / screenshots"
+          description="Upload application security configuration exports, TLS settings, and session configuration screenshots."
+          label="Drop SWIFT app config exports or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="b2-form" title="Application security confirmations"
           description="Provide details about session encryption, hardening, and component status.">
           <B2IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="b2-upload" title="Upload SWIFT application security config / screenshots"
-            description="Upload application security configuration exports, TLS settings, and session configuration screenshots."
-            label="Drop SWIFT app config exports or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="b2-config-checks" title="AI will verify from uploaded configs" items={B2_CONFIG_CHECKS} />
-        </>
       }
     />
   );
@@ -436,21 +484,24 @@ function B2CommonEvidenceContent(p: CommonFormProps) {
 
 function B3CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="b3-upload"
+          title="Upload encryption configuration exports"
+          description="Upload TLS/encryption config exports for internal flows, back-office flows, external transmissions, and operator sessions."
+          label="Drop encryption config exports or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="b3-form" title="Encryption configuration details"
           description="Provide per-flow encryption details, key management approach, and any unprotected flow justifications.">
           <B3IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="b3-upload" title="Upload encryption configuration exports"
-            description="Upload TLS/encryption config exports for internal flows, back-office flows, external transmissions, and operator sessions."
-            label="Drop encryption config exports or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="b3-config-checks" title="AI will verify from uploaded configs" items={B3_CONFIG_CHECKS} />
-        </>
       }
     />
   );
@@ -458,21 +509,24 @@ function B3CommonEvidenceContent(p: CommonFormProps) {
 
 function B4CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="b4-upload"
+          title="Upload virtualisation platform config / screenshots"
+          description="Upload hypervisor/cloud platform security configuration, VM isolation settings, and access restriction evidence."
+          label="Drop platform config exports or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="b4-form" title="Virtualisation platform confirmations"
           description="Confirm platform security settings and controls.">
           <B4IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="b4-upload" title="Upload virtualisation platform config / screenshots"
-            description="Upload hypervisor/cloud platform security configuration, VM isolation settings, and access restriction evidence."
-            label="Drop platform config exports or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="b4-config-checks" title="AI will verify from uploaded configs" items={B4_CONFIG_CHECKS} />
-        </>
       }
     />
   );
@@ -480,21 +534,24 @@ function B4CommonEvidenceContent(p: CommonFormProps) {
 
 function B5CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="b5-upload"
+          title="Upload password policy config / screenshots"
+          description="Upload AD Group Policy exports, application password settings, and account lockout configuration evidence."
+          label="Drop password policy config or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="b5-form" title="Password policy confirmations"
           description="Confirm password policy settings per account type.">
           <B5IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="b5-upload" title="Upload password policy config / screenshots"
-            description="Upload AD Group Policy exports, application password settings, and account lockout configuration evidence."
-            label="Drop password policy config or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="b5-config-checks" title="AI will verify from uploaded configs" items={B5_CONFIG_CHECKS} />
-        </>
       }
     />
   );
@@ -502,21 +559,24 @@ function B5CommonEvidenceContent(p: CommonFormProps) {
 
 function B6CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="b6-upload"
+          title="Upload hardening baseline scan reports"
+          description="Upload baseline comparison scan results, compliance scores, and authorized software baseline."
+          label="Drop scan reports or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="b6-form" title="Baseline comparison details"
           description="Confirm scan details, system coverage, and deviation status.">
           <B6IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="b6-upload" title="Upload hardening baseline scan reports"
-            description="Upload baseline comparison scan results, compliance scores, and authorized software baseline."
-            label="Drop scan reports or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="b6-upload-guidance" title="Uploaded reports should include" items={B6_UPLOAD_GUIDANCE} />
-        </>
       }
     />
   );
@@ -524,21 +584,24 @@ function B6CommonEvidenceContent(p: CommonFormProps) {
 
 function B7CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="b7-upload"
+          title="Upload MFA configuration / screenshots"
+          description="Upload MFA configuration screenshots for each access point: OS admin, end user, VPN, virtualisation console, HSM."
+          label="Drop MFA config screenshots or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="b7-form" title="MFA configuration per access point"
           description="Confirm MFA status for each required access point.">
           <B7IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
-      }
-      right={
-        <>
-          <UploadSection id="b7-upload" title="Upload MFA configuration / screenshots"
-            description="Upload MFA configuration screenshots for each access point: OS admin, end user, VPN, virtualisation console, HSM."
-            label="Drop MFA config screenshots or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="b7-config-checks" title="AI will verify from uploaded evidence" items={B7_CONFIG_CHECKS} />
-        </>
       }
     />
   );
@@ -546,43 +609,50 @@ function B7CommonEvidenceContent(p: CommonFormProps) {
 
 function B8CommonEvidenceContent(p: CommonFormProps) {
   return (
-    <TwoColumnEvidence
-      left={
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id="b8-upload"
+          title="Upload session configuration / screenshots"
+          description="Upload session timeout settings, screen lock config, and re-authentication requirements for all session types."
+          label="Drop session config screenshots or click to upload"
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
+      }
+      form={
         <FormSection id="b8-form" title="Session timeout confirmations"
           description="Confirm timeout and re-authentication settings per session type.">
           <B8IntakeForm formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
         </FormSection>
       }
-      right={
-        <>
-          <UploadSection id="b8-upload" title="Upload session configuration / screenshots"
-            description="Upload session timeout settings, screen lock config, and re-authentication requirements for all session types."
-            label="Drop session config screenshots or click to upload"
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id="b8-config-checks" title="AI will verify from uploaded configs" items={B8_CONFIG_CHECKS} />
-        </>
-      }
     />
   );
 }
 
-/* ---------- Generic C–H content ---------- */
+/* ---------- Generic C–H content (same layout as A1: upload first, then form) ---------- */
 
 function GenericCommonEvidenceContent({ def, ...p }: CommonFormProps & { def: GenericEvidenceDef }) {
   return (
-    <TwoColumnEvidence
-      left={
-        <FormSection id={`${p.itemId.toLowerCase()}-form`} title={def.formTitle} description={def.formDesc}>
-          <GenericIntakeForm fields={def.fields} formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} />
-        </FormSection>
+    <UploadFirstLayout
+      upload={
+        <UploadSection
+          id={`${p.itemId.toLowerCase()}-upload`}
+          title={def.uploadTitle}
+          description={def.uploadDesc}
+          label={def.uploadLabel}
+          submissionId={p.submissionId}
+          onUploadComplete={p.onUploadComplete}
+          onEnsureSubmission={p.onEnsureSubmission}
+          itemId={p.itemId}
+        />
       }
-      right={
-        <>
-          <UploadSection id={`${p.itemId.toLowerCase()}-upload`} title={def.uploadTitle}
-            description={def.uploadDesc} label={def.uploadLabel}
-            submissionId={p.submissionId} onUploadComplete={p.onUploadComplete} onEnsureSubmission={p.onEnsureSubmission} itemId={p.itemId} />
-          <GuidanceList id={`${p.itemId.toLowerCase()}-guidance`} title={def.guidanceTitle} items={def.guidance} />
-        </>
+      form={
+        <FormSection id={`${p.itemId.toLowerCase()}-form`} title={def.formTitle} description={def.formDesc}>
+          <GenericIntakeForm fields={def.fields} formData={p.formData} onChange={p.onFormChange} onBlur={p.onFormBlur} fieldFeedback={p.fieldFeedback} />
+        </FormSection>
       }
     />
   );
@@ -674,6 +744,7 @@ export function EvidenceWorkspace({
     onUploadComplete,
     onEnsureSubmission,
     itemId: currentItem.id,
+    fieldFeedback: aiEvaluationResult?.field_feedback ?? {},
   };
 
   const renderCommonEvidence = () => {
@@ -713,13 +784,10 @@ export function EvidenceWorkspace({
     }
   };
 
-  const formKeys = Object.keys(itemFormData).filter((k) => itemFormData[k]);
-  const orderedFormKeys = getOrderedEvidenceKeys(currentItem.id, formKeys);
-
   return (
-    <div className="h-full flex flex-col min-h-0 bg-(--surface) border border-(--border) rounded-xl overflow-hidden">
-      <div className="shrink-0 flex items-center justify-between gap-2 p-3 border-b border-(--border)">
-        <div className="flex items-center gap-2 min-w-0">
+    <div className="h-full flex flex-col min-h-0 bg-(--surface) border border-(--border) rounded-xl overflow-hidden shadow-sm">
+      <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3.5 border-b border-(--border) bg-background/40">
+        <div className="flex items-center gap-2.5 min-w-0">
           <span className="font-mono text-sm font-bold shrink-0" style={{ color: config.color }}>
             {currentItem.id}
           </span>
@@ -728,187 +796,211 @@ export function EvidenceWorkspace({
         </div>
       </div>
 
-      {/* Left: Evidence list | Right: Control pills + Per-control sufficiency/criteria + AI */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4 p-3 overflow-hidden">
-        <section className="min-h-0 flex flex-col rounded-xl border border-(--border) bg-background/50 overflow-hidden">
-          <div className="shrink-0 px-4 py-2 border-b border-(--border)">
-            <h3 className="text-sm font-bold text-foreground">Evidence</h3>
-            <p className="text-[10px] text-(--foreground-subtle) mt-0.5">Form data for this item. Add or edit in the form below.</p>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3 min-h-0">
-            {orderedFormKeys.length > 0 ? (
-              <ul className="space-y-2">
-                {orderedFormKeys.map((key) => (
-                  <li key={key} className="flex flex-col gap-0.5 rounded-lg border border-(--border) bg-(--surface) px-3 py-2">
-                    <span className="text-[11px] font-semibold text-foreground">
-                      {getEvidenceFieldLabel(currentItem.id, key)}
-                    </span>
-                    <span className="text-xs text-(--foreground-muted) wrap-break-word">
-                      {itemFormData[key] || "—"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-(--foreground-muted) py-2">No form data yet. Fill the form below.</p>
-            )}
-          </div>
-        </section>
+      <Tabs defaultValue="common" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="shrink-0 px-4 pt-3 pb-2">
+          <TabsList className="bg-background/60">
+            <TabsTrigger value="common">Evidence &amp; Evaluation</TabsTrigger>
+            <TabsTrigger value="control">Per-Control</TabsTrigger>
+            <TabsTrigger value="notes">Notes</TabsTrigger>
+          </TabsList>
+        </div>
 
-        <section className="min-h-0 flex flex-col rounded-xl border border-(--border) bg-background/50 overflow-hidden">
-          <div className="shrink-0 px-4 py-2 border-b border-(--border)">
-            <h3 className="text-sm font-bold text-foreground">Control & evaluation</h3>
-            <p className="text-[10px] text-(--foreground-subtle) mt-0.5">Sufficiency, criteria, and AI results per control.</p>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3 min-h-0 space-y-3">
-            {currentItem.id === A5_EVIDENCE_ITEM_ID ? (
-              <>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedControlId(selectedControlId === ALL_32_CONTROL_ID ? null : ALL_32_CONTROL_ID)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-xs font-bold transition-colors",
-                      selectedControlId === ALL_32_CONTROL_ID
-                        ? "border-(--primary) bg-(--primary-muted) text-(--primary)"
-                        : "border-(--border) bg-background text-foreground hover:border-(--primary)/50"
-                    )}
-                  >
-                    <span className="font-mono">All 32</span>
-                    <span className="opacity-80">controls (scoping)</span>
-                  </button>
-                </div>
-                {itemFormData?.architecture_type && <A5ArchitecturePreview formData={itemFormData} />}
-              </>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {currentItem.controls.map((c) => (
-                  <ControlBadge
-                    key={c.id}
-                    id={c.id}
-                    ma={c.ma}
-                    onClick={() => setSelectedControlId(selectedControlId === c.id ? null : c.id)}
-                    selected={selectedControlId === c.id}
-                    statusColor={getControlStatusColor(c.id, aiEvaluationResult?.sufficiency_results, aiEvaluationResult?.criteria)}
-                  />
-                ))}
-              </div>
-            )}
-            {currentItem.reductionNote && (
-              <div className="text-[11px] font-medium rounded-lg px-2.5 py-1.5 bg-(--success-bg) text-(--success)">
-                {currentItem.reductionNote}
-              </div>
-            )}
-            <PerControlEvidence
-              evidenceItemId={currentItem.id}
-              matrix={currentItem.matrix ?? []}
-              submissionId={currentSubmissionId}
-              evaluationState={evaluationState}
-              sufficiencyResults={aiEvaluationResult?.sufficiency_results ?? null}
-              criteriaResults={aiEvaluationResult?.criteria ?? null}
-              onUploadComplete={onUploadComplete}
-              onEnsureSubmission={() => onEnsureSubmission(currentItem.id)}
-              selectedControlId={selectedControlId}
-              onSelectControl={setSelectedControlId}
-              showCommonEvidence={false}
-            />
-            {currentItem.sufficiency.length > 0 && (
-              <SufficiencyPanel dimensions={currentItem.sufficiency} color={config.color} />
-            )}
-          </div>
-        </section>
-      </div>
+        <TabsContent value="common" className="flex-1 min-h-0 flex flex-col overflow-hidden px-0 pb-0">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 pb-4 flex flex-col gap-5">
+          {/* Form and uploads: item-specific (A1 diagram + form, C1 policy, etc.) */}
+          <section className="rounded-xl border border-(--border) bg-background/60 overflow-hidden shrink-0 shadow-sm">
+            <div className="px-5 py-4 border-b border-(--border) bg-background/50">
+              <h3 className="text-sm font-bold text-foreground">Evidence</h3>
+              <p className="text-xs text-(--foreground-muted) mt-1 leading-relaxed">
+                Form data for this item. Add or edit below; upload files where indicated.
+              </p>
+            </div>
+            <div className="p-5 sm:p-6">{renderCommonEvidence()}</div>
+          </section>
 
-      {/* Bottom: Form, upload, Evaluate, Submit, Notes */}
-      <div className="shrink-0 border-t border-(--border) p-3 overflow-y-auto max-h-[min(55vh,420px)]">
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-sm font-bold text-foreground mb-2">Common evidence & uploads</h3>
-            {renderCommonEvidence()}
-          </div>
-          <div className="flex flex-col gap-3 pt-2 border-t border-(--border)">
+          {/* Run AI Evaluation bar — bound to POST /assessments/:cycleId/evidence/evaluate */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border border-(--border) bg-background/50 shadow-sm shrink-0">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                {evaluationState === "done" && aiEvaluationResult
+                  ? "Evaluation complete — re-run after changes"
+                  : "Run AI Evaluation"}
+              </p>
+              <p className="text-xs text-(--foreground-muted) mt-0.5">
+                {aiEvaluationLoading
+                  ? "Evaluating against framework controls…"
+                  : !currentSubmissionId
+                    ? "Add or save evidence first (upload a file or fill the form and save)."
+                    : currentItem.id === A1_EVIDENCE_ITEM_ID && !itemFormData[A1_FORM_KEYS.diagram_date]
+                      ? "Enter diagram date and upload your diagram for best results."
+                      : "Your diagram and answers will be evaluated against the framework controls."}
+              </p>
+            </div>
             <button
               type="button"
               onClick={onEvaluateEvidence}
               disabled={aiEvaluationLoading}
-              className="w-full py-2.5 text-sm font-semibold rounded-lg text-white transition-all duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60 disabled:pointer-events-none"
+              className="shrink-0 inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold rounded-lg text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ background: config.color }}
             >
-              {aiEvaluationLoading ? "Evaluating…" : `Evaluate Evidence for ${currentItem.id}`}
+              {aiEvaluationLoading ? (
+                <>
+                  <span className="inline-block size-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Evaluating…
+                </>
+              ) : evaluationState === "done" && aiEvaluationResult ? (
+                "↺ Re-evaluate"
+              ) : (
+                "+ Run AI Evaluation"
+              )}
             </button>
-            {aiEvaluationError && (
-              <p className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-                {aiEvaluationError}
-              </p>
-            )}
-            {aiEvaluationResult && submissionStatus !== "submitted" && submissionStatus !== "approved" && onSubmitForReview && (
+          </div>
+
+          {aiEvaluationError && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm font-semibold text-amber-800">Evaluation failed</p>
+              <p className="text-xs text-amber-700 mt-1 font-mono">{aiEvaluationError}</p>
               <button
                 type="button"
-                onClick={onSubmitForReview}
-                disabled={submitForReviewLoading}
-                className="w-full py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500 disabled:opacity-60 disabled:pointer-events-none"
+                onClick={onEvaluateEvidence}
+                className="mt-2 py-1.5 px-3 text-xs font-semibold rounded-lg bg-amber-200 text-amber-900 hover:bg-amber-300"
               >
-                {submitForReviewLoading ? "Submitting…" : `Submit ${currentItem.id} for Review`}
+                Try again
               </button>
-            )}
-            {(submissionStatus === "submitted" || submissionStatus === "in_review_L2" || submissionStatus === "in_review_L3") && (
-              <div className="px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm text-center font-medium">
-                Submitted for review
-              </div>
-            )}
-            {submissionStatus === "approved" && (
-              <div className="px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm text-center font-medium">
-                Evidence approved
-              </div>
-            )}
-          </div>
-          <div className="pt-2 border-t border-(--border)">
-            <h3 className="text-sm font-bold text-foreground mb-2">Notes</h3>
-            {!currentSubmissionId ? (
-              <p className="text-xs text-(--foreground-muted) py-2">
-                Add or save evidence first to enable notes (e.g. upload a file or fill the form and save).
-              </p>
-            ) : (
-              <div className="space-y-3">
-                <NoteList
-                  resourceType="evidence_submission"
-                  resourceId={currentSubmissionId}
-                  refreshTrigger={effectiveNotesRefresh}
-                  emptyMessage="No notes yet."
-                />
-                <NoteInput
-                  resourceType="evidence_submission"
-                  resourceId={currentSubmissionId}
-                  placeholder={
-                    submissionStatus === "returned" || String(submissionStatus ?? "").includes("returned")
-                      ? "Add a reply to the reviewer…"
-                      : "Add a note…"
-                  }
-                  onAdded={() => {
-                    setNotesRefresh((r) => r + 1);
-                    onNoteAdded?.();
-                  }}
-                />
-              </div>
-            )}
-          </div>
-          {evaluated && aiEvaluationResult && (
-            <div className="pt-2 border-t border-(--border)">
-              <AiEvaluationResult
-                result={aiEvaluationResult}
-                loading={aiEvaluationLoading}
-                placeholder={false}
-                editable={!!aiEvaluationResult && submissionStatus !== "approved"}
-                onEdit={onEvaluationEdit}
-                evaluationEdits={evaluationEdits}
-              />
+            </div>
+          )}
+
+          {aiEvaluationResult && submissionStatus !== "submitted" && submissionStatus !== "approved" && onSubmitForReview && (
+            <button
+              type="button"
+              onClick={onSubmitForReview}
+              disabled={submitForReviewLoading}
+              className="w-full py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500 disabled:opacity-60"
+            >
+              {submitForReviewLoading ? "Submitting…" : `Submit ${currentItem.id} for Review`}
+            </button>
+          )}
+          {(submissionStatus === "submitted" || submissionStatus === "in_review_L2" || submissionStatus === "in_review_L3") && (
+            <div className="py-2.5 px-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm text-center font-medium">
+              Submitted for review
+            </div>
+          )}
+          {submissionStatus === "approved" && (
+            <div className="py-2.5 px-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm text-center font-medium">
+              Evidence approved
+            </div>
+          )}
+
+          {/* AI Evaluation Result — below submit button (no separate Evaluation tab) */}
+          <div className="shrink-0 space-y-3">
+            <AiEvaluationResult
+              result={aiEvaluationResult}
+              loading={aiEvaluationLoading}
+              placeholder={!aiEvaluationLoading && !aiEvaluationResult}
+              editable={!!aiEvaluationResult && submissionStatus !== "submitted" && submissionStatus !== "approved"}
+              onEdit={onEvaluationEdit}
+              evaluationEdits={evaluationEdits}
+            />
+            {evaluated && !aiEvaluationLoading && (
               <EvaluationResults
                 score={completionPctByItem[currentItem.id] ?? getItemCompletion(currentItem.id)}
               />
+            )}
+          </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="control" className="flex-1 min-h-0 flex flex-col overflow-hidden px-0 pb-0">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-3">
+          {currentItem.id === A5_EVIDENCE_ITEM_ID ? (
+            <>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedControlId(selectedControlId === ALL_32_CONTROL_ID ? null : ALL_32_CONTROL_ID)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-xs font-bold transition-colors",
+                    selectedControlId === ALL_32_CONTROL_ID
+                      ? "border-(--primary) bg-(--primary-muted) text-(--primary)"
+                      : "border-(--border) bg-background text-foreground hover:border-(--primary)/50"
+                  )}
+                >
+                  <span className="font-mono">All 32</span>
+                  <span className="opacity-80">controls (scoping)</span>
+                </button>
+              </div>
+              {itemFormData?.architecture_type && <A5ArchitecturePreview formData={itemFormData} />}
+            </>
+          ) : (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {currentItem.controls.map((c) => (
+                <ControlBadge
+                  key={c.id}
+                  id={c.id}
+                  ma={c.ma}
+                  onClick={() => setSelectedControlId(selectedControlId === c.id ? null : c.id)}
+                  selected={selectedControlId === c.id}
+                  statusColor={getControlStatusColor(c.id, aiEvaluationResult?.sufficiency_results, aiEvaluationResult?.criteria)}
+                />
+              ))}
             </div>
           )}
-        </div>
-      </div>
+          {currentItem.reductionNote && (
+            <div className="text-[11px] font-medium rounded-lg px-2.5 py-1.5 mb-3 bg-(--success-bg) text-(--success)">
+              {currentItem.reductionNote}
+            </div>
+          )}
+          <PerControlEvidence
+            evidenceItemId={currentItem.id}
+            matrix={currentItem.matrix ?? []}
+            submissionId={currentSubmissionId}
+            evaluationState={evaluationState}
+            sufficiencyResults={aiEvaluationResult?.sufficiency_results ?? null}
+            criteriaResults={aiEvaluationResult?.criteria ?? null}
+            onUploadComplete={onUploadComplete}
+            onEnsureSubmission={() => onEnsureSubmission(currentItem.id)}
+            selectedControlId={selectedControlId}
+            onSelectControl={setSelectedControlId}
+            showCommonEvidence={false}
+          />
+          {currentItem.sufficiency.length > 0 && (
+            <SufficiencyPanel dimensions={currentItem.sufficiency} color={config.color} />
+          )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="notes" className="flex-1 min-h-0 flex flex-col overflow-hidden px-0 pb-0">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-3">
+          {!currentSubmissionId ? (
+            <p className="text-sm text-(--foreground-muted) py-4">
+              Add or save evidence for this item first to enable notes (e.g. upload a file or fill the form and save).
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <NoteList
+                resourceType="evidence_submission"
+                resourceId={currentSubmissionId}
+                refreshTrigger={effectiveNotesRefresh}
+                emptyMessage="No notes yet."
+              />
+              <NoteInput
+                resourceType="evidence_submission"
+                resourceId={currentSubmissionId}
+                placeholder={
+                  submissionStatus === "returned" || String(submissionStatus ?? "").includes("returned")
+                    ? "Add a reply to the reviewer…"
+                    : "Add a note…"
+                }
+                onAdded={() => {
+                  setNotesRefresh((r) => r + 1);
+                  onNoteAdded?.();
+                }}
+              />
+            </div>
+          )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

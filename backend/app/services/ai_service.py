@@ -211,6 +211,9 @@ def _build_prompt(
         sufficiency_definition = getattr(item, "sufficiency_definition", None) or "N/A"
         evaluation_criteria = getattr(item, "evaluation_criteria", None) or "N/A"
     template = _load_prompt_template()
+    form_fields_section = (
+        submission_context.strip() if (submission_context and submission_context.strip()) else "None provided."
+    )
     out = template.format(
         evidence_item_id=item.id,
         evidence_item_name=item.name,
@@ -219,6 +222,7 @@ def _build_prompt(
         evaluation_criteria=evaluation_criteria,
         mapped_controls=controls_text or "None",
     )
+    out = out.replace("<<<FORM_FIELDS_SECTION>>>", form_fields_section)
     out += (
         "\n\n## CRITICAL RESPONSE RULES:\n"
         "- IDs starting with 'suf_' (e.g. 1.1_suf_1) are SUFFICIENCY criteria. Return them ONLY in the 'sufficiency_results' array.\n"
@@ -226,9 +230,6 @@ def _build_prompt(
         "- NEVER duplicate: each criterion ID must appear in exactly ONE array.\n"
         "- Use the EXACT IDs provided (including the suf_/eval_ prefix).\n"
     )
-
-    if submission_context and submission_context.strip():
-        out += "\n\n## Declared / form context (use when evaluating):\n" + submission_context.strip()
 
     if previous_evaluation:
         prev_lines = []

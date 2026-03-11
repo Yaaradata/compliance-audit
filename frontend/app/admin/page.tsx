@@ -41,9 +41,9 @@ export default function AdminPage() {
     { value: "compliance_officer", label: "Compliance Officer" },
     { value: "tenant_admin", label: "Tenant Admin" },
     { value: "it_sme", label: "IT SME" },
-    { value: "internal_reviewer", label: "Internal Reviewer" },
-    { value: "external_assessor", label: "External Assessor" },
-    { value: "approver", label: "Approver" },
+    { value: "internal_reviewer_l1", label: "Internal Reviewer (L1)" },
+    { value: "internal_reviewer_l2", label: "Internal Reviewer (L2)" },
+    { value: "external_assessor", label: "External Assessor (L3) / Approver" },
   ] as const;
 
   useEffect(() => {

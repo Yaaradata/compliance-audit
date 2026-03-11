@@ -54,6 +54,7 @@ interface ApiSubmission {
     criteria: { id: string; label: string; met: boolean; description?: string | null }[];
     summary?: string | null;
     remediation?: string | null;
+    field_feedback?: Record<string, string | null>;
   } | null;
   evaluation_edits?: EvaluationEditsMap;
 }
@@ -213,13 +214,15 @@ export default function CycleDomainPage() {
           const edits = s.evaluation_edits ?? {};
           editsByItem[s.evidence_item_id] = edits;
           if (s.last_evaluation) {
+            const le = s.last_evaluation;
             const base = {
-              evidence_item_id: s.last_evaluation.evidence_item_id,
-              overall_met: s.last_evaluation.overall_met,
-              sufficiency_results: s.last_evaluation.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
-              criteria: s.last_evaluation.criteria?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
-              summary: s.last_evaluation.summary ?? null,
-              remediation: s.last_evaluation.remediation ?? null,
+              evidence_item_id: le.evidence_item_id,
+              overall_met: le.overall_met,
+              sufficiency_results: le.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
+              criteria: le.criteria?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
+              summary: le.summary ?? null,
+              remediation: le.remediation ?? null,
+              field_feedback: (le as { field_feedback?: Record<string, string | null> }).field_feedback ?? {},
             };
             evalByItem[s.evidence_item_id] = applyEditsToResult(base, edits);
           }
@@ -400,6 +403,8 @@ export default function CycleDomainPage() {
     setSubmitForReviewLoading(false);
   }, [currentItem, cycleId, submissionMap, refetchSubmissions]);
 
+  // API: POST /assessments/:cycleId/evidence/evaluate { evidence_item_id, submission_id }
+  // Backend uses submission form_data + attachments for AI; result → aiEvaluationResult; edits via PUT submission.
   const handleEvaluateEvidence = useCallback(async () => {
     if (!currentItem || !cycleId) return;
     setAiEvaluationLoading(true);
@@ -429,26 +434,17 @@ export default function CycleDomainPage() {
         { evidence_item_id: currentItem.id, submission_id: subId }
       );
 
-      setAiEvaluationResult({
+      const evalPayload = {
         evidence_item_id: res.evidence_item_id,
         overall_met: res.overall_met,
         sufficiency_results: res.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
         criteria: res.criteria.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })),
         summary: res.summary ?? null,
         remediation: res.remediation ?? null,
-      });
-
-      setLastEvaluationByItem((prev) => ({
-        ...prev,
-        [currentItem.id]: {
-          evidence_item_id: res.evidence_item_id,
-          overall_met: res.overall_met,
-          sufficiency_results: res.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
-          criteria: res.criteria.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })),
-          summary: res.summary ?? null,
-          remediation: res.remediation ?? null,
-        },
-      }));
+        field_feedback: (res as { field_feedback?: Record<string, string | null> }).field_feedback ?? {},
+      };
+      setAiEvaluationResult(evalPayload);
+      setLastEvaluationByItem((prev) => ({ ...prev, [currentItem.id]: evalPayload }));
       setEvaluationEditsByItem((prev) => ({ ...prev, [currentItem.id]: {} }));
 
       fetchControlScores();

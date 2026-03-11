@@ -4,9 +4,9 @@ export type UserRole =
   | "compliance_officer"
   | "it_sme"
   | "tenant_admin"
-  | "internal_reviewer"
-  | "external_assessor"
-  | "approver";
+  | "internal_reviewer_l1"
+  | "internal_reviewer_l2"
+  | "external_assessor";
 
 export interface User {
   id: string;
@@ -163,7 +163,7 @@ export interface AiCriterionResult {
   description?: string | null;
 }
 
-/** AI evaluation result for an evidence item (placeholder until AI integration). */
+/** AI evaluation result for an evidence item. */
 export interface AiEvaluationResult {
   evidence_item_id: string;
   overall_met: boolean;
@@ -174,6 +174,8 @@ export interface AiEvaluationResult {
   summary?: string | null;
   /** When evidence fails: what is required to make it correct (from AI). Stored separately, shown in UI. */
   remediation?: string | null;
+  /** Per-form-field feedback for "AI — needs more info". Key = form field key, value = message or null. */
+  field_feedback?: Record<string, string | null>;
 }
 
 export interface SubGroup {

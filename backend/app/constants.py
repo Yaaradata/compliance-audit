@@ -8,10 +8,13 @@ TENANT_ROLES = frozenset({
     "compliance_officer",
     "tenant_admin",
     "it_sme",
-    "internal_reviewer",
-    "external_assessor",
-    "approver",
+    "internal_reviewer_l1",
+    "internal_reviewer_l2",
+    "external_assessor",  # L3; acts as approver (final attestation)
 })
+
+# Roles that require cycle_user_assignments for cycle access (cycle-scoped).
+CYCLE_SCOPED_ROLES = frozenset({"it_sme", "internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"})
 
 
 def is_platform_admin(role: str | None, tenant_id: str | None) -> bool:

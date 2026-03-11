@@ -63,7 +63,7 @@ function LoginForm() {
     [email, password, name, role, mode, login, signup, router]
   );
 
-  const roles: UserRole[] = ["admin", "compliance_officer", "it_sme", "internal_reviewer", "external_assessor", "approver"];
+  const roles: UserRole[] = ["admin", "compliance_officer", "it_sme", "internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"];
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--background)" }}>

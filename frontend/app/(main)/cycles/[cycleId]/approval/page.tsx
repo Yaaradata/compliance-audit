@@ -285,7 +285,7 @@ export default function CycleApprovalPage() {
     fetchSummary();
   }, [fetchSummary]);
 
-  const canApprove = userRole === "approver" || userRole === "admin";
+  const canApprove = userRole === "external_assessor" || userRole === "admin";
 
   const handleApproveGate = async (gateType: string) => {
     setApproving(gateType);
@@ -647,7 +647,7 @@ export default function CycleApprovalPage() {
           const domainEntries = Array.from(gapsByDomain.entries()).sort(([a], [b]) => a.localeCompare(b));
           const documented = gapItems.filter((g) => g.is_documented).length;
           const total = gapItems.length;
-          const canEdit = userRole === "approver" || userRole === "admin" || userRole === "compliance_officer";
+          const canEdit = userRole === "external_assessor" || userRole === "admin" || userRole === "compliance_officer";
 
           return (
             <section className="mt-6 rounded-xl border border-(--border) overflow-hidden shadow-(--shadow) bg-(--surface)">

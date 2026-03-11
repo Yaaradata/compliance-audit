@@ -305,20 +305,18 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
     parts: list[str] = []
 
     if evidence_item_id == "A5":
-        if fd.get("architecture_type"):
-            parts.append(f"Declared architecture type: {fd['architecture_type']}")
-        if fd.get("selected_diagram"):
-            parts.append(f"Selected diagram: {fd['selected_diagram']}")
-        if fd.get("decision_rationale"):
-            parts.append(f"Decision rationale: {fd['decision_rationale']}")
-        if fd.get("infrastructure_characteristics"):
-            parts.append(f"Key infrastructure characteristics: {fd['infrastructure_characteristics']}")
-        if fd.get("bics"):
-            parts.append(f"SWIFT BIC(s) in scope: {fd['bics']}")
-        if fd.get("changes_from_previous"):
-            parts.append(f"Changes from previous architecture: {fd['changes_from_previous']}")
-        if fd.get("multiple_architectures"):
-            parts.append(f"Multiple architectures: {fd['multiple_architectures']}")
+        labels = {
+            "architecture_type": "Declared architecture type",
+            "selected_diagram": "Selected diagram",
+            "decision_rationale": "Decision rationale",
+            "infrastructure_characteristics": "Key infrastructure characteristics",
+            "bics": "SWIFT BIC(s) in scope",
+            "changes_from_previous": "Changes from previous architecture",
+            "multiple_architectures": "Multiple architectures",
+        }
+        for key, label in labels.items():
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "A1":
@@ -332,9 +330,8 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "known_gaps_and_plan": "Known documentation gaps and remediation plan",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "A2":
@@ -344,12 +341,11 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "customer_zone_notes": "Customer connectivity zone details",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         inv = fd.get("inventory_rows")
         if inv:
-            parts.append(f"Component inventory (JSON rows): {inv}")
+            parts.append(f"inventory_rows (Component inventory JSON rows): {inv}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "A3":
@@ -362,9 +358,8 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "known_gaps": "Known documentation gaps and remediation plan",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "A4":
@@ -381,9 +376,8 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "known_exceptions": "Known exceptions and remediation",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "A6":
@@ -398,9 +392,8 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "customer_zone_equivalence": "Customer zone equivalent protection",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "B1":
@@ -419,9 +412,8 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "known_gaps": "Known gaps and remediation plan",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "B2":
@@ -439,9 +431,8 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "known_gaps": "Known gaps and remediation plan",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "B3":
@@ -460,9 +451,8 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "known_gaps": "Known gaps and remediation plan",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "B4":
@@ -482,9 +472,8 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "known_gaps": "Known gaps and remediation plan",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "B5":
@@ -523,9 +512,8 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "known_gaps": "Known gaps and remediation plan",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "B7":
@@ -545,9 +533,8 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "known_gaps": "Known gaps and remediation plan",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
     if evidence_item_id == "B8":
@@ -564,15 +551,15 @@ def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> 
             "known_gaps": "Known gaps and remediation plan",
         }
         for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
+            val = fd.get(key) or "Not provided"
+            parts.append(f"{key} ({label}): {val}")
         return "\n".join(parts) if parts else None
 
-    # Fallback for other items if future forms are added.
+    # Fallback for C–H and future items: include key so LLM can return field_feedback.
     for key, val in fd.items():
         if val:
-            parts.append(f"{key.replace('_', ' ').title()}: {val}")
+            label = key.replace("_", " ").title()
+            parts.append(f"{key} ({label}): {val}")
     return "\n".join(parts) if parts else None
 
 
@@ -625,7 +612,7 @@ def _persist_ai_results(
     submission.completion_pct = round(met_criteria / total_criteria * 100, 1) if total_criteria > 0 else 0
     remediation = _normalize_remediation(result.get("remediation"))
     submission.evaluation_remediation = remediation
-    # Persist full evaluation so tick/cross status shows when user revisits
+    # Persist full evaluation including field_feedback for "AI — needs more info" in UI
     submission.evaluation_result = {
         "evidence_item_id": submission.evidence_item_id,
         "overall_met": result.get("overall_met", False),
@@ -633,6 +620,7 @@ def _persist_ai_results(
         "criteria": result.get("criteria", []),
         "summary": result.get("summary"),
         "remediation": remediation,
+        "field_feedback": result.get("field_feedback") or {},
     }
 
 
@@ -1005,6 +993,10 @@ def evaluate_evidence(
             _recalculate_control_sufficiency(db, cycle_id, req.evidence_item_id)
             db.commit()
 
+        field_feedback = result.get("field_feedback")
+        if not isinstance(field_feedback, dict):
+            field_feedback = {}
+
         return EvaluateEvidenceResponse(
             evidence_item_id=req.evidence_item_id,
             overall_met=result.get("overall_met", False),
@@ -1012,6 +1004,7 @@ def evaluate_evidence(
             criteria=criteria_results,
             summary=result.get("summary"),
             remediation=_normalize_remediation(result.get("remediation")),
+            field_feedback=field_feedback,
         )
 
     # --- Fallback: placeholder when no files uploaded yet ---

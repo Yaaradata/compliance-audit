@@ -14,7 +14,17 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ========== ENUM TYPES (same as swift_2025) ==========
 DO $$ BEGIN CREATE TYPE swift_2026.architecture_type AS ENUM ('A1','A2','A3','A4','B'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE swift_2026.user_role AS ENUM ('admin','compliance_officer','it_sme','internal_reviewer','external_assessor','approver'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- user_role: internal_reviewer_l1/L2 for L1/L2 review; external_assessor (L3) acts as approver
+DO $$ BEGIN
+  CREATE TYPE swift_2026.user_role AS ENUM (
+    'admin',
+    'compliance_officer',
+    'it_sme',
+    'internal_reviewer_l1',
+    'internal_reviewer_l2',
+    'external_assessor'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE swift_2026.assessment_phase AS ENUM ('setup','collection','review','approval','reporting','submitted','archived'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE swift_2026.control_type AS ENUM ('mandatory','advisory'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE swift_2026.collection_priority AS ENUM ('critical','high','medium'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;

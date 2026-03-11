@@ -8,6 +8,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
 
+class CycleUserAssignment(Base):
+    """Cycle-scoped user assignments. Users with it_sme, internal_reviewer_l1, internal_reviewer_l2, external_assessor only see cycles they are assigned to."""
+    __tablename__ = "cycle_user_assignments"
+    __table_args__ = {"schema": "core"}
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assessment_cycles.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role: Mapped[str] = mapped_column(String(30), nullable=False)
+
+
 class AssessmentCycle(Base):
     __tablename__ = "assessment_cycles"
 

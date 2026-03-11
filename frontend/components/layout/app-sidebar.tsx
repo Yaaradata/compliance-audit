@@ -179,8 +179,8 @@ export function AppSidebar() {
           })}
         </nav>
 
-        {/* Control applicability — when in a cycle */}
-        {cycleId && (
+        {/* Control applicability — when in a cycle; only compliance_officer and it_sme */}
+        {cycleId && (role === "compliance_officer" || role === "it_sme") && (
           <nav className="px-3 pt-1 pb-2 flex flex-col gap-0.5" aria-label="Setup">
             <Link
               href={`/cycles/${cycleId}/control-scoping`}
@@ -200,8 +200,8 @@ export function AppSidebar() {
           </nav>
         )}
 
-        {/* Domains: smart rows */}
-        {staticDomains.length > 0 && cycleId && (() => {
+        {/* Domains: smart rows — hidden for L1/L2/L3 reviewers (evidence is read-only for them) */}
+        {staticDomains.length > 0 && cycleId && !["internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"].includes(role) && (() => {
           const domainsFiltered = q
             ? staticDomains.filter((d) => d.name.toLowerCase().includes(q) || d.id.toLowerCase().includes(q))
             : staticDomains;

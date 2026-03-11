@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_db_scoped, get_current_user
+from ..constants import CYCLE_SCOPED_ROLES
 from ..models.tenant import User
-from ..models.assessment import EvidenceSubmission, AssessmentCycle
+from ..models.assessment import EvidenceSubmission, AssessmentCycle, CycleUserAssignment
 from ..models.review import ReviewAssignment
 from ..models.approval import ApprovalGate
 from pydantic import BaseModel as _BaseModel
@@ -164,9 +165,16 @@ def get_approval_summary(
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     if not cycle:
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
-    if user.role not in ("admin", "tenant_admin", "approver", "compliance_officer", "internal_reviewer", "external_assessor"):
+    if user.role not in ("admin", "tenant_admin", "compliance_officer", "internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"):
         raise HTTPException(status_code=403, detail="Not authorized to view approval")
-    if user.role != "admin" and user.tenant_id != cycle.tenant_id:
+    if user.role in CYCLE_SCOPED_ROLES:
+        assigned = db.query(CycleUserAssignment).filter(
+            CycleUserAssignment.cycle_id == cycle_id,
+            CycleUserAssignment.user_id == user.id,
+        ).first()
+        if not assigned:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user.role != "admin" and user.tenant_id != cycle.tenant_id:
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
 
     _ensure_gates_exist(db, cycle_id)
@@ -360,12 +368,25 @@ def approve_gate(
     db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
-    if user.role not in ("approver", "admin", "compliance_officer"):
-        raise HTTPException(status_code=403, detail="Only approvers can approve gates")
+    if user.role not in ("external_assessor", "admin", "compliance_officer"):
+        raise HTTPException(status_code=403, detail="Only L3 (external assessor) or compliance officer can approve gates")
 
-    if user.role == "approver" or (gate_type == "final_attestation"):
-        if user.role != "approver" and user.role != "admin":
-            raise HTTPException(status_code=403, detail="Final attestation requires approver role")
+    if gate_type == "final_attestation":
+        if user.role not in ("external_assessor", "admin"):
+            raise HTTPException(status_code=403, detail="Final attestation requires L3 (external assessor) role")
+
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    if not cycle:
+        raise HTTPException(status_code=404, detail="Assessment cycle not found")
+    if user.role in CYCLE_SCOPED_ROLES:
+        assigned = db.query(CycleUserAssignment).filter(
+            CycleUserAssignment.cycle_id == cycle_id,
+            CycleUserAssignment.user_id == user.id,
+        ).first()
+        if not assigned:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user.tenant_id != cycle.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     gate_db = DISPLAY_TO_DB.get(gate_type, gate_type)
     _ensure_gates_exist(db, cycle_id)
@@ -422,8 +443,21 @@ def update_remediation(
     user: User = Depends(get_current_user),
 ):
     """Allow a user to add/update the remediation notes for a submission's gap."""
-    if user.role not in ("admin", "tenant_admin", "approver", "compliance_officer"):
+    if user.role not in ("admin", "tenant_admin", "external_assessor", "compliance_officer", "internal_reviewer_l1", "internal_reviewer_l2"):
         raise HTTPException(status_code=403, detail="Not authorized to update remediation")
+
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    if not cycle:
+        raise HTTPException(status_code=404, detail="Assessment cycle not found")
+    if user.role in CYCLE_SCOPED_ROLES:
+        assigned = db.query(CycleUserAssignment).filter(
+            CycleUserAssignment.cycle_id == cycle_id,
+            CycleUserAssignment.user_id == user.id,
+        ).first()
+        if not assigned:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user.tenant_id != cycle.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     sub = (
         db.query(EvidenceSubmission)

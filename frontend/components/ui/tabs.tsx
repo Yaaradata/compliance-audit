@@ -60,7 +60,7 @@ export function TabsList({
   return (
     <div
       className={cn(
-        "flex shrink-0 gap-0.5 rounded-lg border p-0.5 bg-[var(--surface)] border-[var(--border)]",
+        "flex shrink-0 gap-1 rounded-xl border p-1 bg-[var(--surface)] border-[var(--border)]",
         className
       )}
       role="tablist"
@@ -92,7 +92,7 @@ export function TabsTrigger({
       tabIndex={active ? 0 : -1}
       onClick={() => onChange(value)}
       className={cn(
-        "px-3 py-2 text-xs font-semibold rounded-md transition-all duration-200",
+        "px-4 py-2.5 text-xs font-semibold rounded-lg transition-all duration-200",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
         "hover:opacity-90 active:scale-[0.98]",
         hasAccent

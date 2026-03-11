@@ -5,15 +5,19 @@ import {
   A1_FORM_LABELS,
   A1_FORM_PLACEHOLDERS,
 } from "@/lib/frameworks/swift-cscf/evidence/a1-evidence";
+import { FieldAINote } from "@/components/domain/field-ai-note";
 
 export interface A1IntakeFormProps {
   formData: Record<string, string>;
   onChange: (key: string, value: string) => void;
   onBlur?: () => void;
   disabled?: boolean;
+  /** AI per-field feedback for "AI — needs more info". */
+  fieldFeedback?: Record<string, string | null>;
 }
 
-export function A1IntakeForm({ formData, onChange, onBlur, disabled }: A1IntakeFormProps) {
+export function A1IntakeForm({ formData, onChange, onBlur, disabled, fieldFeedback }: A1IntakeFormProps) {
+  const fb = fieldFeedback ?? {};
   return (
     <div className="space-y-4">
       <div>
@@ -28,6 +32,7 @@ export function A1IntakeForm({ formData, onChange, onBlur, disabled }: A1IntakeF
           disabled={disabled}
           className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
         />
+        <FieldAINote text={fb[A1_FORM_KEYS.diagram_date]} fieldLabel={A1_FORM_LABELS.diagram_date} />
       </div>
 
       <div>
@@ -46,6 +51,7 @@ export function A1IntakeForm({ formData, onChange, onBlur, disabled }: A1IntakeF
           <option value="Yes">Yes</option>
           <option value="Unknown">Unknown</option>
         </select>
+        <FieldAINote text={fb[A1_FORM_KEYS.internet_exposure_confirmation]} fieldLabel={A1_FORM_LABELS.internet_exposure_confirmation} />
       </div>
 
       {formData[A1_FORM_KEYS.internet_exposure_confirmation] === "Yes" && (
@@ -62,6 +68,7 @@ export function A1IntakeForm({ formData, onChange, onBlur, disabled }: A1IntakeF
             rows={3}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-y"
           />
+          <FieldAINote text={fb[A1_FORM_KEYS.internet_exposure_justification]} />
         </div>
       )}
 
@@ -78,6 +85,7 @@ export function A1IntakeForm({ formData, onChange, onBlur, disabled }: A1IntakeF
           rows={3}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-y"
         />
+        <FieldAINote text={fb[A1_FORM_KEYS.connector_zone_statement]} fieldLabel={A1_FORM_LABELS.connector_zone_statement} />
       </div>
 
       <div>
@@ -93,6 +101,7 @@ export function A1IntakeForm({ formData, onChange, onBlur, disabled }: A1IntakeF
           rows={3}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-y"
         />
+        <FieldAINote text={fb[A1_FORM_KEYS.backoffice_path_summary]} fieldLabel={A1_FORM_LABELS.backoffice_path_summary} />
       </div>
 
       <div>
@@ -108,6 +117,7 @@ export function A1IntakeForm({ formData, onChange, onBlur, disabled }: A1IntakeF
           rows={3}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-y"
         />
+        <FieldAINote text={fb[A1_FORM_KEYS.protocol_encryption_notes]} />
       </div>
 
       <div>
@@ -123,6 +133,7 @@ export function A1IntakeForm({ formData, onChange, onBlur, disabled }: A1IntakeF
           rows={2}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-y"
         />
+        <FieldAINote text={fb[A1_FORM_KEYS.known_gaps_and_plan]} fieldLabel={A1_FORM_LABELS.known_gaps_and_plan} />
       </div>
     </div>
   );

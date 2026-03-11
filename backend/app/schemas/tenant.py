@@ -9,9 +9,9 @@ TENANT_ROLE_OPTIONS = [
     "compliance_officer",
     "tenant_admin",
     "it_sme",
-    "internal_reviewer",
+    "internal_reviewer_l1",
+    "internal_reviewer_l2",
     "external_assessor",
-    "approver",
 ]
 
 

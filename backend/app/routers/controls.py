@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_db_scoped, get_current_user
-from ..constants import PLATFORM_ADMIN_ROLES
+from ..constants import PLATFORM_ADMIN_ROLES, CYCLE_SCOPED_ROLES
 from ..models.tenant import User
-from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceSubmission
+from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceSubmission, CycleUserAssignment
 from ..models.framework import Control, ItemControlMapping, EvidenceSufficiencyMatrix, CanonicalEvidenceItem
 from ..models.sufficiency import SufficiencyScore
 from ..schemas.assessment import ControlScore
@@ -24,10 +24,17 @@ router = APIRouter()
 CONTROL_ID_ALL = "ALL"
 
 
-def _require_cycle_access(cycle: AssessmentCycle | None, user: User) -> None:
+def _require_cycle_access(cycle: AssessmentCycle | None, user: User, db: Session) -> None:
     if not cycle:
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
-    if user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
+    if user.role in CYCLE_SCOPED_ROLES:
+        assigned = db.query(CycleUserAssignment).filter(
+            CycleUserAssignment.cycle_id == cycle.id,
+            CycleUserAssignment.user_id == user.id,
+        ).first()
+        if not assigned:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
         if cycle.tenant_id != user.tenant_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
@@ -35,7 +42,7 @@ def _require_cycle_access(cycle: AssessmentCycle | None, user: User) -> None:
 @router.get("/assessments/{cycle_id}/controls", response_model=list[ControlScore])
 def list_controls(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
 
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()
     control_ids = [ca.control_id for ca in cas]
@@ -68,7 +75,7 @@ def list_controls(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: Us
 @router.get("/assessments/{cycle_id}/control-matrix")
 def control_matrix(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
 
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()
     control_ids = [ca.control_id for ca in cas]
@@ -154,7 +161,7 @@ def get_sufficiency_detail(cycle_id: UUID, db: Session, user: User):
     Overall control score = sum(item_score * weight / 100).
     """
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
-    _require_cycle_access(cycle, user)
+    _require_cycle_access(cycle, user, db)
 
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()
     cas_applicable = [ca for ca in cas if (getattr(ca, "scoping_decision", None) or "applicable") == "applicable"]

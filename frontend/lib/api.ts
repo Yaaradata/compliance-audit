@@ -1,5 +1,16 @@
 import { getBackendUrl } from "./env";
 
+/** Format FastAPI validation error detail (string or array of {loc, msg}) for display. */
+function formatApiErrorDetail(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((e: { loc?: unknown[]; msg?: string }) => `${(e.loc || []).join(".")}: ${e.msg || ""}`)
+      .join("; ");
+  }
+  return "Request failed";
+}
+
 /** Relative API path; requests go through Next.js rewrite to backend. */
 const BASE_URL = "/api/v1";
 
@@ -43,11 +54,12 @@ class ApiClient {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      const msg = err.detail || "Request failed";
+      const msg = formatApiErrorDetail(err.detail);
       const status = res.status;
-      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string };
+      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string; detail?: unknown };
       error.status = status;
       error.path = path;
+      error.detail = err.detail;
       throw error;
     }
 
@@ -78,11 +90,12 @@ class ApiClient {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      const msg = err.detail || "Request failed";
+      const msg = formatApiErrorDetail(err.detail);
       const status = res.status;
-      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string };
+      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string; detail?: unknown };
       error.status = status;
       error.path = path;
+      error.detail = err.detail;
       throw error;
     }
 
@@ -115,11 +128,12 @@ class ApiClient {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      const msg = err.detail || "Request failed";
+      const msg = formatApiErrorDetail(err.detail);
       const status = res.status;
-      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string; response?: { data?: unknown; status?: number } };
+      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string; detail?: unknown; response?: { data?: unknown; status?: number } };
       error.status = status;
       error.path = path;
+      error.detail = err.detail;
       error.response = { data: err, status };
       throw error;
     }
@@ -149,11 +163,12 @@ class ApiClient {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      const msg = err.detail || "Upload failed";
+      const msg = formatApiErrorDetail(err.detail);
       const status = res.status;
-      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string };
+      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string; detail?: unknown };
       error.status = status;
       error.path = path;
+      error.detail = err.detail;
       throw error;
     }
 
