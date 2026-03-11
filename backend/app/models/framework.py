@@ -134,3 +134,6 @@ class EvidenceBasedQuestion(Base):
     upload_label: Mapped[str | None] = mapped_column(String(255))
     cscf_version: Mapped[str] = mapped_column(String(10), nullable=False, server_default="2025v")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    guide: Mapped[str | None] = mapped_column(Text)
+    show_when_question: Mapped[str | None] = mapped_column(String(100))
+    show_when_values: Mapped[list | None] = mapped_column(JSONB, server_default="[]")

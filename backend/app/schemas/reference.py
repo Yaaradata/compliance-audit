@@ -134,6 +134,9 @@ class EvidenceQuestionOut(BaseModel):
     rows: int | None = None
     accept: str | None = None
     upload_label: str | None = None
+    guide: str | None = None
+    show_when_question: str | None = None
+    show_when_values: list[str] = []
 
     model_config = {"from_attributes": True}
 
@@ -147,6 +150,21 @@ class EvidenceQuestionOut(BaseModel):
         if isinstance(v, str):
             try:
                 return json.loads(v) if v else []
+            except json.JSONDecodeError:
+                return []
+        return []
+
+    @field_validator("show_when_values", mode="before")
+    @classmethod
+    def normalize_show_when_values(cls, v) -> list:
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(x) for x in v]
+        if isinstance(v, str):
+            try:
+                out = json.loads(v) if v else []
+                return [str(x) for x in out] if isinstance(out, list) else []
             except json.JSONDecodeError:
                 return []
         return []

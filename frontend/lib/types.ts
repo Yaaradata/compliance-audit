@@ -121,6 +121,12 @@ export interface EvidenceQuestion {
   rows: number | null;
   accept: string | null;
   upload_label: string | null;
+  /** User-facing guidance to help complete the question. */
+  guide?: string | null;
+  /** Parent question key; this question is shown only when parent value is in show_when_values. */
+  show_when_question?: string | null;
+  /** Values that trigger visibility when parent select matches. */
+  show_when_values?: string[];
 }
 
 /** Per-control criteria from evidence_sufficiency_matrix. */

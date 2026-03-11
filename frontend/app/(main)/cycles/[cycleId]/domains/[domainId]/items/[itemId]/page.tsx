@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { ControlBadge } from "@/components/ui/control-badge";
 import { PriorityBadge } from "@/components/ui/badge";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
 import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
 import { PerControlPanel } from "@/components/domain/per-control-panel";
-import { EvaluationResults } from "@/components/domain/evaluation-results";
 import { EvidenceCriteriaSections } from "@/components/domain/evidence-criteria-sections";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { PerControlEvidence } from "@/components/domain/per-control-evidence";
@@ -89,10 +89,20 @@ const DOMAIN_COLORS: Record<string, { color: string; gradient: string }> = {
 
 export default function CycleItemIntakePage() {
   const params = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
+  const role = user?.role ?? "compliance_officer";
   const cycleId = params.cycleId as string;
   const domainId = (params.domainId as string)?.toUpperCase();
   const itemId = (params.itemId as string)?.toUpperCase();
   const domainStyle = DOMAIN_COLORS[domainId] || DOMAIN_COLORS.A;
+
+  /** IT SME uses domain page with ?item= and only the evidence form; redirect immediately. */
+  useEffect(() => {
+    if (role === "it_sme" && cycleId && domainId && itemId) {
+      router.replace(`/cycles/${cycleId}/domains/${domainId}?item=${encodeURIComponent(itemId)}`);
+    }
+  }, [role, cycleId, domainId, itemId, router]);
 
   const [item, setItem] = useState<EvidenceItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -436,7 +446,6 @@ export default function CycleItemIntakePage() {
                 loading={aiEvaluationLoading}
                 placeholder={!aiEvaluationLoading && !aiEvaluationResult}
               />
-              <EvaluationResults score={completionPct} />
             </>
           )}
         </div>

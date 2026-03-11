@@ -102,17 +102,19 @@ export function AppSidebar() {
     return item.href;
   };
 
+  const sidebarWidth = open ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED;
+
   return (
     <aside
       className={`
         flex flex-col shrink-0 overflow-hidden border-r rounded-r-xl
         max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:w-64! max-md:transition-transform max-md:duration-200 max-md:ease-out
-        md:rounded-r-xl
+        md:fixed md:inset-y-0 md:left-0 md:z-20 md:rounded-r-xl
         ${!open ? "max-md:-translate-x-full" : "max-md:translate-x-0"}
       `}
       style={{
-        width: open ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED,
-        minWidth: open ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED,
+        width: sidebarWidth,
+        minWidth: sidebarWidth,
         background: "var(--sidebar-bg)",
         borderColor: "var(--sidebar-border)",
         transition: `width ${TRANSITION_MS}ms ease-out`,
@@ -149,7 +151,7 @@ export function AppSidebar() {
       )}
 
       {/* Scrollable: nav + domains */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0">
+      <div className="sidebar-scroll flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0">
         {/* Primary nav — icon + label (expanded), icon only (collapsed) */}
         <nav className="p-3 flex flex-col gap-0.5" aria-label="Primary">
           {navItemsFiltered.map((item) => {
@@ -179,26 +181,8 @@ export function AppSidebar() {
           })}
         </nav>
 
-        {/* Control applicability — when in a cycle; only compliance_officer and it_sme */}
-        {cycleId && (role === "compliance_officer" || role === "it_sme") && (
-          <nav className="px-3 pt-1 pb-2 flex flex-col gap-0.5" aria-label="Setup">
-            <Link
-              href={`/cycles/${cycleId}/control-scoping`}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-200 hover:bg-(--sidebar-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--sidebar-active-text) min-w-0 ${!open ? "justify-center" : ""}`}
-              style={{
-                color: pathname?.includes("/control-scoping") ? "var(--sidebar-active-text)" : "var(--sidebar-text-muted)",
-                backgroundColor: pathname?.includes("/control-scoping") ? "var(--sidebar-active-bg)" : "transparent",
-              }}
-              title={!open ? "Control applicability" : undefined}
-              aria-current={pathname?.includes("/control-scoping") ? "page" : undefined}
-            >
-              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              {open && <span className="truncate">Control applicability</span>}
-            </Link>
-          </nav>
-        )}
+        {/* Control applicability is NOT in the sidebar — it is only part of the cycle creation flow.
+            Compliance officer reaches it via: Create cycle → Team setup → Select architecture → Control scoping. */}
 
         {/* Domains: smart rows — hidden for L1/L2/L3 reviewers (evidence is read-only for them) */}
         {staticDomains.length > 0 && cycleId && !["internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"].includes(role) && (() => {
@@ -223,6 +207,7 @@ export function AppSidebar() {
                 const isActive = pathname?.includes(`/domains/${d.id}`);
                 const domainKey = (d.id ?? "").toString().trim().toUpperCase();
                 const completionPct = domainKey ? scoreByDomainId.get(domainKey) : undefined;
+
                 return (
                   <SidebarDomainRow
                     key={d.id}

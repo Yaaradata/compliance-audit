@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ScoreRing } from "@/components/ui/score-ring";
-import { ControlBadge } from "@/components/ui/control-badge";
+import { EvidenceItemBadge } from "@/components/ui/evidence-item-badge";
 import { getStatusColor, getStatusLabel } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type { DomainConfig } from "@/lib/types";
+import type { DomainConfig, EvidenceItem } from "@/lib/types";
 
 function RiskBadge({ pct }: { pct: number }) {
   const color = getStatusColor(pct);
@@ -25,27 +25,29 @@ function RiskBadge({ pct }: { pct: number }) {
 export function CompactDomainHeader({
   config,
   completionPct,
+  activeItem,
+  onSelectItem,
+  completionByItem = {},
   className,
 }: {
   config: DomainConfig;
   completionPct: number;
+  activeItem?: string;
+  onSelectItem?: (id: string) => void;
+  completionByItem?: Record<string, number>;
   className?: string;
 }) {
-  const controlRefs = useMemo(() => {
-    const seen = new Set<string>();
-    const refs: { id: string; ma: string }[] = [];
-    for (const item of config.evidenceItems) {
-      for (const c of item.controls) {
-        if (!seen.has(c.id)) {
-          seen.add(c.id);
-          refs.push({ id: c.id, ma: c.ma });
-        }
-      }
+  const itemsToShow: EvidenceItem[] = useMemo(() => {
+    const hasSubGroups = config.subGroups && config.subGroups.length > 0;
+    if (hasSubGroups) {
+      return config.subGroups.flatMap((sg) =>
+        sg.items
+          .map((itemId) => config.evidenceItems.find((e) => e.id === itemId))
+          .filter((e): e is EvidenceItem => e != null)
+      );
     }
-    return refs;
-  }, [config.evidenceItems]);
-
-  const [showControls, setShowControls] = useState(false);
+    return config.evidenceItems;
+  }, [config.evidenceItems, config.subGroups]);
 
   return (
     <header
@@ -68,23 +70,20 @@ export function CompactDomainHeader({
               <RiskBadge pct={completionPct} />
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowControls((s) => !s)}
-            className="shrink-0 text-[11px] font-semibold px-3 py-2 rounded-lg transition-all duration-200 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 text-white"
-            style={{ backgroundColor: config.color }}
-            aria-expanded={showControls}
-          >
-            {showControls ? "Hide controls" : "Show controls"}
-          </button>
         </div>
-        {showControls && (
-          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--border)]">
-            {controlRefs.map((c) => (
-              <ControlBadge key={c.id} id={c.id} ma={c.ma} />
-            ))}
-          </div>
-        )}
+        <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--border)]">
+          {itemsToShow.map((item) => (
+            <EvidenceItemBadge
+              key={item.id}
+              id={item.id}
+              name={item.name}
+              completionPct={completionByItem[item.id] ?? 0}
+              accent={config.color}
+              selected={activeItem === item.id}
+              onClick={onSelectItem ? () => onSelectItem(item.id) : undefined}
+            />
+          ))}
+        </div>
       </div>
     </header>
   );

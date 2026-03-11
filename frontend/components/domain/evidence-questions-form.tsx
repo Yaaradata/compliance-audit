@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import { CompactDropzone } from "@/components/domain/compact-dropzone";
 import { EvidenceInputRenderer } from "@/components/domain/evidence-input-renderer";
+import { FieldAINote } from "@/components/domain/field-ai-note";
 import type { EvidenceQuestion, EvidenceInput } from "@/lib/types";
 
 interface SpreadsheetColumn {
@@ -25,6 +26,8 @@ export interface EvidenceQuestionsFormProps {
   onEnsureSubmission?: (itemId: string) => Promise<string | null>;
   fieldFeedback?: Record<string, string | null>;
   disabled?: boolean;
+  /** Called when user focuses/clicks a question. Used to show its guide in the evaluation panel. */
+  onQuestionFocus?: (questionKey: string, guide: string | null, label: string) => void;
 }
 
 function questionToInput(q: EvidenceQuestion): EvidenceInput {
@@ -43,18 +46,27 @@ function questionToInput(q: EvidenceQuestion): EvidenceInput {
   };
 }
 
+/** Only the DB `guide` column — do not use label or upload_label in the guide section. */
+function getQuestionGuide(q: EvidenceQuestion): string | null {
+  return q.guide ?? null;
+}
+
 function SpreadsheetQuestionRenderer({
   question,
   value,
   onChange,
   onBlur,
   disabled,
+  fieldFeedbackHint,
+  onFocus,
 }: {
   question: EvidenceQuestion;
   value: string;
   onChange: (val: string) => void;
   onBlur?: () => void;
   disabled?: boolean;
+  fieldFeedbackHint?: string | null;
+  onFocus?: () => void;
 }) {
   const columns = (
     (question.options?.filter((o) => typeof o === "object" && o !== null && "key" in o) ?? []) as unknown as SpreadsheetColumn[]
@@ -78,33 +90,42 @@ function SpreadsheetQuestionRenderer({
     onChange(JSON.stringify(next.length ? next : [{}]));
   };
 
-  const inputClass = "border border-gray-300 rounded px-1.5 py-1 text-xs w-full min-w-0";
-  const selectClass = "border border-gray-300 rounded px-1.5 py-1 text-xs w-full min-w-0 bg-white";
+  const inputClass = "border border-gray-300 rounded px-2 py-1.5 text-sm w-full min-w-0";
+  const selectClass = "border border-gray-300 rounded px-2 py-1.5 text-sm w-full min-w-0 bg-white";
 
   return (
-    <div className="space-y-2">
-      <label className="block text-xs font-medium text-gray-700">
-        {question.label} {question.required && <span className="text-red-500">*</span>}
-      </label>
+    <div
+      className="space-y-2.5 rounded-lg -m-1 p-1 hover:bg-gray-50/50 transition-colors border border-transparent hover:border-gray-200 focus-within:border-(--primary)/30 focus-within:ring-1 focus-within:ring-(--primary)/20"
+      onClick={onFocus}
+      onFocus={onFocus}
+      role="group"
+      aria-label={question.label}
+    >
+      <div className="flex flex-wrap items-baseline gap-2">
+        <label className="block text-sm font-medium text-gray-700">
+          {question.label} {question.required && <span className="text-red-500">*</span>}
+        </label>
+        <FieldAINote text={fieldFeedbackHint} fieldLabel={question.label} variant="inline" />
+      </div>
       <div className="rounded border border-gray-200 bg-white max-h-[400px] overflow-auto">
         <div className="overflow-x-auto">
           <table className="w-full min-w-max border-collapse">
             <thead>
               <tr className="sticky top-0 z-10 bg-gray-100">
-                <th className="border-b border-r border-gray-200 px-2 py-1.5 text-left text-[10px] font-semibold uppercase text-gray-700 w-8">#</th>
+                <th className="border-b border-r border-gray-200 px-2.5 py-2 text-left text-xs font-semibold uppercase text-gray-700 w-8">#</th>
                 {columns.map((col) => (
-                  <th key={col.key} className="border-b border-r border-gray-200 px-2 py-1.5 text-left text-[10px] font-semibold uppercase text-gray-700 whitespace-nowrap">
+                  <th key={col.key} className="border-b border-r border-gray-200 px-2.5 py-2 text-left text-xs font-semibold uppercase text-gray-700 whitespace-nowrap">
                     {col.label}
                     {col.required && <span className="text-red-500 ml-0.5">*</span>}
                   </th>
                 ))}
-                <th className="border-b border-gray-200 px-2 py-1.5 w-8" />
+                <th className="border-b border-gray-200 px-2.5 py-2 w-8" />
               </tr>
             </thead>
             <tbody>
               {rows.map((row, index) => (
                 <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="border-b border-r border-gray-200 px-2 py-1 text-xs text-gray-500">{index + 1}</td>
+                  <td className="border-b border-r border-gray-200 px-2.5 py-1.5 text-sm text-gray-500">{index + 1}</td>
                   {columns.map((col) => (
                     <td key={col.key} className="border-b border-r border-gray-200 p-0.5">
                       {col.type === "select" ? (
@@ -174,6 +195,7 @@ export function EvidenceQuestionsForm({
   onEnsureSubmission,
   fieldFeedback,
   disabled,
+  onQuestionFocus,
 }: EvidenceQuestionsFormProps) {
   const [questions, setQuestions] = useState<EvidenceQuestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,6 +213,38 @@ export function EvidenceQuestionsForm({
       .catch(() => setQuestions([]))
       .finally(() => setLoading(false));
   }, [evidenceItemId, cycleId]);
+
+  const isQuestionVisible = useCallback(
+    (q: EvidenceQuestion): boolean => {
+      const parentKey = q.show_when_question;
+      const showValues = q.show_when_values;
+      if (!parentKey || !showValues?.length) return true;
+      const parentVal = (formData[parentKey] ?? "").trim();
+      return showValues.some((v) => v.trim() === parentVal);
+    },
+    [formData]
+  );
+
+  /** Hide the "Describe how the secure zone boundary..." textarea — guide-only, no extra box. */
+  const isQuestionShownInForm = useCallback((q: EvidenceQuestion): boolean => {
+    if (q.question_type !== "textarea") return true;
+    const p = (q.placeholder ?? "").trim();
+    if (p.includes("logical/physical separation method") || p.includes("firewall devices at every ingress/egress")) return false;
+    return true;
+  }, []);
+
+  const visibleQuestions = questions.filter(isQuestionVisible).filter(isQuestionShownInForm);
+
+  // Set first question's guide when evidence item changes or questions first load
+  const initializedForItemRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!onQuestionFocus || visibleQuestions.length === 0) return;
+    if (initializedForItemRef.current !== evidenceItemId) {
+      initializedForItemRef.current = evidenceItemId;
+      const first = visibleQuestions[0];
+      onQuestionFocus(first.question_key, getQuestionGuide(first), first.label);
+    }
+  }, [evidenceItemId, visibleQuestions, onQuestionFocus]);
 
   const markFileUploaded = useCallback((key: string) => {
     onUploadComplete?.();
@@ -212,14 +266,25 @@ export function EvidenceQuestionsForm({
 
   return (
     <div className="space-y-6">
-      {questions.map((q) => {
+      {visibleQuestions.map((q) => {
         if (q.question_type === "file") {
+          const handleFocus = () => onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label);
           return (
-            <div key={q.id} className="space-y-2">
-              <label className="block text-xs font-medium text-gray-700">{q.label}</label>
+            <div
+              key={q.id}
+              className="space-y-2.5 rounded-lg -m-1 p-1 hover:bg-gray-50/50 transition-colors border border-transparent hover:border-gray-200 focus-within:border-(--primary)/30 focus-within:ring-1 focus-within:ring-(--primary)/20"
+              onClick={handleFocus}
+              onFocus={handleFocus}
+              role="group"
+              aria-label={q.label}
+            >
+              <div className="flex flex-wrap items-baseline gap-2">
+                <label className="block text-sm font-medium text-gray-700">{q.label}</label>
+                <FieldAINote text={fieldFeedback?.[q.question_key]} fieldLabel={q.label} variant="inline" />
+              </div>
               <CompactDropzone
                 submissionId={submissionId}
-                label={q.upload_label ?? "Drop files or click to upload"}
+                label="Drop files or click to upload"
                 onUploadComplete={() => onUploadComplete?.()}
                 onEnsureSubmission={() => onEnsureSubmission?.(evidenceItemId) ?? Promise.resolve(null)}
                 className="min-h-[140px]"
@@ -236,6 +301,8 @@ export function EvidenceQuestionsForm({
               onChange={(val) => onChange(q.question_key, val)}
               onBlur={onBlur}
               disabled={disabled}
+              fieldFeedbackHint={fieldFeedback?.[q.question_key]}
+              onFocus={() => onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label)}
             />
           );
         }
@@ -243,14 +310,23 @@ export function EvidenceQuestionsForm({
         if (input.type === "textarea" && q.rows) {
           input.type = "textarea";
         }
+        const handleFocus = () => onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label);
         return (
-          <div key={q.id}>
+          <div
+            key={q.id}
+            className="rounded-lg -m-1 p-1 hover:bg-gray-50/50 transition-colors border border-transparent hover:border-gray-200 focus-within:border-(--primary)/30 focus-within:ring-1 focus-within:ring-(--primary)/20"
+            onClick={handleFocus}
+            onFocus={handleFocus}
+            role="group"
+            aria-label={q.label}
+          >
             <EvidenceInputRenderer
               input={input}
               value={formData[q.question_key] ?? ""}
               onChangeValue={(val) => onChange(q.question_key, val)}
               onBlur={onBlur}
               onFileUpload={markFileUploaded}
+              fieldFeedbackHint={fieldFeedback?.[q.question_key]}
             />
           </div>
         );

@@ -6,18 +6,38 @@ import { useSidebar } from "@/lib/sidebar-context";
 
 const SIDEBAR_HEADER_HEIGHT = 56;
 
-function ChevronIcon({ open, className = "w-5 h-5" }: { open: boolean; className?: string }) {
+/** Chevron right (>) — shown when sidebar is closed; click to expand. */
+function ChevronRightIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg
       className={`shrink-0 ${className}`}
-      style={{ transform: open ? "rotate(0deg)" : "rotate(180deg)", transition: "transform 200ms ease" }}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
       strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden
     >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7 7-7-7" />
+      <path d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+/** Chevron left (<) — shown when sidebar is open; click to collapse. */
+function ChevronLeftIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg
+      className={`shrink-0 ${className}`}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M15 19l-7-7 7-7" />
     </svg>
   );
 }
@@ -32,7 +52,8 @@ function SearchIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 /**
  * Sticky sidebar header: circular logo + product name when expanded;
- * collapse chevron (expanded) or search icon (collapsed) on the right.
+ * when open shows < (chevron left) to collapse; when collapsed shows > (chevron right) to expand.
+ * Collapsed state also shows a search icon button.
  */
 export function SidebarHeader({
   open,
@@ -69,7 +90,7 @@ export function SidebarHeader({
           aria-label="Expand sidebar"
           aria-expanded={open}
         >
-          <ChevronIcon open={false} className="w-5 h-5" />
+          <ChevronRightIcon className="w-5 h-5" />
         </button>
         <button
           type="button"
@@ -128,7 +149,7 @@ export function SidebarHeader({
         aria-label="Collapse sidebar"
         aria-expanded={open}
       >
-        <ChevronIcon open={open} className="w-5 h-5 shrink-0" />
+        <ChevronLeftIcon className="w-5 h-5 shrink-0" />
       </button>
     </div>
   );

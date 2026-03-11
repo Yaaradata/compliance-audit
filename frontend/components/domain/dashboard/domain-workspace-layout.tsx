@@ -1,7 +1,6 @@
 "use client";
 
 import { CompactDomainHeader } from "./compact-domain-header";
-import { EvidenceListPanel } from "./evidence-list-panel";
 import { EvidenceWorkspace } from "./evidence-workspace";
 import { cn } from "@/lib/utils";
 import type { DomainConfig, EvidenceItem } from "@/lib/types";
@@ -80,7 +79,14 @@ export function DomainWorkspaceLayout({
 
   return (
     <div className="h-full min-h-0 flex flex-col">
-      <CompactDomainHeader config={config} completionPct={overallCompletion} className="shrink-0" />
+      <CompactDomainHeader
+        config={config}
+        completionPct={overallCompletion}
+        activeItem={activeItem}
+        onSelectItem={onSelectItem}
+        completionByItem={completionByItem}
+        className="shrink-0"
+      />
 
       <div className="md:hidden shrink-0 p-2 border-b border-(--border)">
         <label htmlFor="evidence-select-mobile" className="sr-only">
@@ -104,20 +110,10 @@ export function DomainWorkspaceLayout({
       <div
         className={cn(
           "flex-1 min-h-0 grid gap-4 overflow-hidden",
-          "grid-cols-1 md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]",
+          "grid-cols-1",
           "grid-rows-[minmax(0,1fr)]"
         )}
       >
-        <div className="hidden md:flex flex-col min-h-0 md:min-w-[220px] lg:min-w-[280px] overflow-hidden">
-          <EvidenceListPanel
-            config={config}
-            activeItem={activeItem}
-            onSelectItem={onSelectItem}
-            completionByItem={completionByItem}
-            className="h-full"
-          />
-        </div>
-
         <div className="min-h-0 min-w-0 flex flex-col overflow-hidden">
           <EvidenceWorkspace
             schemaName={schemaName}

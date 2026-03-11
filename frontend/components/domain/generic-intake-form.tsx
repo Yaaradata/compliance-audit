@@ -25,15 +25,15 @@ export interface GenericIntakeFormProps {
 }
 
 const inputBase =
-  "w-full rounded-xl border border-(--border) bg-background px-4 py-2.5 text-sm text-foreground outline-none transition placeholder:text-(--foreground-muted)/70 focus:border-(--primary) focus:ring-2 focus:ring-(--primary)/20 disabled:opacity-60 disabled:cursor-not-allowed";
+  "w-full rounded-xl border border-(--border) bg-background px-4 py-3 text-base text-foreground outline-none transition placeholder:text-(--foreground-muted)/80 placeholder:text-base focus:border-(--primary) focus:ring-2 focus:ring-(--primary)/20 disabled:opacity-60 disabled:cursor-not-allowed";
 
 export function GenericIntakeForm({ fields, formData, onChange, onBlur, disabled, fieldFeedback }: GenericIntakeFormProps) {
   const fb = fieldFeedback ?? {};
   return (
     <div className="space-y-6">
       {fields.map((f) => (
-        <div key={f.key} className="space-y-2">
-          <label className="block text-sm font-medium text-foreground">
+        <div key={f.key} className="space-y-2.5">
+          <label className="block text-base font-medium text-foreground">
             {f.label}
             {f.required !== false && <span className="text-red-500 ml-0.5">*</span>}
           </label>
@@ -80,7 +80,7 @@ export function GenericIntakeForm({ fields, formData, onChange, onBlur, disabled
               className={`${inputBase} resize-y min-h-[100px]`}
             />
           )}
-          <FieldAINote text={fb[f.key]} fieldLabel={f.label} />
+          <FieldAINote text={fb[f.key]} fieldLabel={f.label} variant="inline" />
         </div>
       ))}
     </div>

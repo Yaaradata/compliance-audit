@@ -47,35 +47,67 @@ def _get_model() -> GenerativeModel:
 
 
 def prepare_file_part(file_path_or_bytes: str | bytes, mime_type: str) -> Part:
-    """Return a Vertex AI Part. Accepts a local file path or raw bytes.
-    PDF/images are sent as binary; Excel is converted to CSV text; rest as text."""
+    """Return a Vertex AI Part for LLM to read. Supports PDF, images, Excel, Word, CSV, text.
+    PDF/images: sent as binary (model reads natively). Excel/Word/CSV/text: extracted as text."""
     if isinstance(file_path_or_bytes, bytes):
         raw = file_path_or_bytes
     else:
         with open(file_path_or_bytes, "rb") as f:
             raw = f.read()
 
-    if mime_type in (
+    mime_lower = (mime_type or "").lower()
+
+    # PDF and images: send as binary so the model can read them directly
+    if mime_lower in (
         "application/pdf",
         "image/png",
         "image/jpeg",
+        "image/jpg",
         "image/webp",
+        "image/gif",
     ):
-        return Part.from_data(raw, mime_type=mime_type)
+        return Part.from_data(raw, mime_type=mime_lower or "application/octet-stream")
 
-    if "spreadsheet" in mime_type:
+    # Excel (.xlsx, .xls): convert to CSV text
+    if "spreadsheet" in mime_lower or "excel" in mime_lower or "sheet" in mime_lower:
         import io
-        import openpyxl
 
-        wb = openpyxl.load_workbook(io.BytesIO(raw), data_only=True)
-        text_parts: list[str] = []
-        for sheet in wb.sheetnames:
-            ws = wb[sheet]
-            rows = [[str(c.value or "") for c in row] for row in ws.iter_rows()]
-            csv_text = "\n".join(",".join(r) for r in rows)
-            text_parts.append(f"[Sheet: {sheet}]\n{csv_text}")
-        return Part.from_text("\n\n".join(text_parts))
+        try:
+            import openpyxl
 
+            wb = openpyxl.load_workbook(io.BytesIO(raw), data_only=True)
+            text_parts: list[str] = []
+            for sheet in wb.sheetnames:
+                ws = wb[sheet]
+                rows = [[str(c.value or "") for c in row] for row in ws.iter_rows()]
+                csv_text = "\n".join(",".join(r) for r in rows)
+                text_parts.append(f"[Sheet: {sheet}]\n{csv_text}")
+            return Part.from_text("\n\n".join(text_parts))
+        except Exception:
+            return Part.from_text(raw.decode("utf-8", errors="replace"))
+
+    # Word (.docx): extract text with python-docx
+    if "wordprocessingml" in mime_lower or "msword" in mime_lower:
+        import io
+
+        try:
+            from docx import Document
+
+            doc = Document(io.BytesIO(raw))
+            paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+            tables_text = []
+            for table in doc.tables:
+                for row in table.rows:
+                    cells = [str(c.text or "").strip() for c in row.cells]
+                    if any(cells):
+                        tables_text.append(" | ".join(cells))
+            return Part.from_text(
+                "\n\n".join(paragraphs) + ("\n\n[Tables]\n" + "\n".join(tables_text) if tables_text else "")
+            )
+        except Exception:
+            return Part.from_text(raw.decode("utf-8", errors="replace"))
+
+    # CSV, plain text, markdown, etc.: decode as text
     return Part.from_text(raw.decode("utf-8", errors="replace"))
 
 
@@ -233,9 +265,13 @@ def _build_prompt(
 
     if previous_evaluation:
         prev_lines = []
+        met_ids = []
         for section_key in ("sufficiency_results", "criteria"):
             for c in previous_evaluation.get(section_key, []):
                 status = "MET" if c.get("met") else "NOT MET"
+                cid = c.get("id") or ""
+                if c.get("met"):
+                    met_ids.append(cid)
                 desc = c.get("description") or ""
                 label = c.get("label", c.get("id", ""))
                 line = f"  - [{status}] {label}"
@@ -247,6 +283,14 @@ def _build_prompt(
                 "\n\n## Previous evaluation results (user may have edited these; consider changes as user corrections):\n"
                 + "\n".join(prev_lines)
             )
+            if met_ids:
+                out += (
+                    "\n\n## CRITICAL — Regenerate rule:\n"
+                    "Criteria marked as [MET] above (user has confirmed these are satisfied) MUST remain met=true in your response. "
+                    "Do NOT return them as met=false. IDs that must stay MET: "
+                    + ", ".join(met_ids)
+                    + "\n"
+                )
 
     return out
 

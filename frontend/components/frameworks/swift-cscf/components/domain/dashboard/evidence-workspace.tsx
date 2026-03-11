@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ControlBadge } from "@/components/ui/control-badge";
 import { PriorityBadge } from "@/components/ui/badge";
 import { PerControlEvidence } from "@/components/domain/per-control-evidence";
 import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
-import { EvaluationResults } from "@/components/domain/evaluation-results";
 import { NoteList } from "@/components/notes/note-list";
 import { NoteInput } from "@/components/notes/note-input";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
@@ -126,6 +125,28 @@ export function EvidenceWorkspace({
   const [notesRefresh, setNotesRefresh] = useState(0);
   const effectiveNotesRefresh = (notesRefreshTrigger ?? 0) + notesRefresh;
 
+  // Dynamic guide for focused question — shown in evaluation panel until AI runs
+  const [focusedQuestionGuide, setFocusedQuestionGuide] = useState<string | null>(null);
+  const [focusedQuestionLabel, setFocusedQuestionLabel] = useState<string | null>(null);
+  const handleQuestionFocus = useCallback((_key: string, guide: string | null, label: string) => {
+    setFocusedQuestionGuide(guide);
+    setFocusedQuestionLabel(label);
+  }, []);
+
+  // Reset guide when switching evidence items (form will set first question's guide)
+  const prevItemIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (currentItem) {
+      if (prevItemIdRef.current !== currentItem.id) {
+        prevItemIdRef.current = currentItem.id;
+        setFocusedQuestionGuide(null);
+        setFocusedQuestionLabel(null);
+      }
+    } else {
+      prevItemIdRef.current = null;
+    }
+  }, [currentItem?.id]);
+
   if (!currentItem) {
     return (
       <div className="h-full flex items-center justify-center rounded-xl border border-(--border) bg-(--surface) text-(--foreground-muted) text-sm">
@@ -153,6 +174,7 @@ export function EvidenceWorkspace({
             onUploadComplete={onUploadComplete}
             onEnsureSubmission={onEnsureSubmission}
             fieldFeedback={aiEvaluationResult?.field_feedback ?? {}}
+            onQuestionFocus={handleQuestionFocus}
           />
         </>
       );
@@ -184,104 +206,147 @@ export function EvidenceWorkspace({
         </div>
 
         <TabsContent value="common" className="flex-1 min-h-0 flex flex-col overflow-hidden px-0 pb-0">
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 pb-4 flex flex-col gap-5">
-          <section className="rounded-xl border border-(--border) bg-background/60 overflow-hidden shrink-0 shadow-sm">
-            <div className="px-5 py-4 border-b border-(--border) bg-background/50">
-              <h3 className="text-sm font-bold text-foreground">Evidence</h3>
-              <p className="text-xs text-(--foreground-muted) mt-1 leading-relaxed">
-                Form data for this item. Add or edit below; upload files where indicated.
-              </p>
+          {/* Double column: Evidence 45% | Evaluation result 55% */}
+          <div className="flex-1 min-h-0 flex flex-col md:flex-row min-w-0 max-w-full overflow-x-hidden">
+            {/* Left: Evidence — 45% width */}
+            <div className="flex flex-col min-w-0 min-h-0 md:flex-[0_0_45%] md:border-r border-(--border) overflow-hidden md:min-h-[50vh]">
+              <div className="shrink-0 px-5 py-4 border-b border-(--border) bg-background/50 min-h-[72px] flex flex-col justify-center">
+                <h2 className="text-base font-bold text-foreground">Evidence</h2>
+                <p className="text-sm text-(--foreground-muted) mt-1">
+                  Form data for this item. Add or edit below; upload files where indicated.
+                </p>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-5 space-y-6">
+                {renderCommonEvidence()}
+              </div>
             </div>
-            <div className="p-5 sm:p-6">{renderCommonEvidence()}</div>
-          </section>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border border-(--border) bg-background/50 shadow-sm shrink-0">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">
-                {evaluationState === "done" && aiEvaluationResult
-                  ? "Evaluation complete — re-run after changes"
-                  : "Run AI Evaluation"}
-              </p>
-              <p className="text-xs text-(--foreground-muted) mt-0.5">
-                {aiEvaluationLoading
-                  ? "Evaluating against framework controls…"
-                  : !currentSubmissionId
-                    ? "Add or save evidence first (upload a file or fill the form and save)."
-                    : currentItem.id === "A1" && !itemFormData.diagram_date
-                      ? "Enter diagram date and upload your diagram for best results."
-                      : "Your diagram and answers will be evaluated against the framework controls."}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onEvaluateEvidence}
-              disabled={aiEvaluationLoading}
-              className="shrink-0 inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold rounded-lg text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ background: config.color }}
-            >
-              {aiEvaluationLoading ? (
-                <>
-                  <span className="inline-block size-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Evaluating…
-                </>
-              ) : evaluationState === "done" && aiEvaluationResult ? (
-                "↺ Re-evaluate"
-              ) : (
-                "+ Run AI Evaluation"
-              )}
-            </button>
-          </div>
+            {/* Right: Evaluation result — 55% width */}
+            <div className="w-full min-w-0 flex flex-col min-h-0 md:flex-[0_0_55%] md:min-h-[60vh] bg-(--surface) overflow-hidden border-t md:border-t-0 border-(--border) shadow-sm">
+              <div className="shrink-0 px-5 py-4 border-b border-(--border) bg-background/50 min-h-[72px] flex flex-col justify-center">
+                <h2 className="text-base font-bold text-foreground">Evaluation result</h2>
+                <p className="text-sm text-(--foreground-muted) mt-1">
+                  Run AI evaluation and view results below.
+                </p>
+              </div>
+              <div className="flex-1 min-h-[280px] overflow-y-auto overflow-x-hidden p-5 space-y-5">
+                {/* 1. Run AI Evaluation card — only show button when not yet evaluated (first run) */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border border-(--border) bg-background/60 shadow-sm">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {evaluationState === "done" && aiEvaluationResult
+                        ? "Evaluation complete — re-run after changes"
+                        : "Run AI Evaluation"}
+                    </p>
+                    <p className="text-sm text-(--foreground-muted) mt-1">
+                      {aiEvaluationLoading
+                        ? "Evaluating against framework controls…"
+                        : !currentSubmissionId
+                          ? "Add or save evidence first (upload a file or fill the form and save)."
+                          : currentItem.id === "A1" && !itemFormData.diagram_date
+                            ? "Enter diagram date and upload your diagram for best results."
+                            : "Your diagram and answers will be evaluated against the framework controls."}
+                    </p>
+                  </div>
+                  {!(evaluationState === "done" && aiEvaluationResult) && (
+                    <button
+                      type="button"
+                      onClick={onEvaluateEvidence}
+                      disabled={aiEvaluationLoading}
+                      className="shrink-0 inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold rounded-lg text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ background: config.color }}
+                    >
+                      {aiEvaluationLoading ? (
+                        <>
+                          <span className="inline-block size-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                          Evaluating…
+                        </>
+                      ) : (
+                        "+ Run AI Evaluation"
+                      )}
+                    </button>
+                  )}
+                </div>
 
-          {aiEvaluationError && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <p className="text-sm font-semibold text-amber-800">Evaluation failed</p>
-              <p className="text-xs text-amber-700 mt-1 font-mono">{aiEvaluationError}</p>
-              <button
-                type="button"
-                onClick={onEvaluateEvidence}
-                className="mt-2 py-1.5 px-3 text-xs font-semibold rounded-lg bg-amber-200 text-amber-900 hover:bg-amber-300"
-              >
-                Try again
-              </button>
-            </div>
-          )}
+                {aiEvaluationError && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-sm font-semibold text-amber-800">Evaluation failed</p>
+                    <p className="text-xs text-amber-700 mt-1 font-mono">{aiEvaluationError}</p>
+                    <button
+                      type="button"
+                      onClick={onEvaluateEvidence}
+                      className="mt-2 py-1.5 px-3 text-xs font-semibold rounded-lg bg-amber-200 text-amber-900 hover:bg-amber-300"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
 
-          {aiEvaluationResult && submissionStatus !== "submitted" && submissionStatus !== "approved" && onSubmitForReview && (
-            <button
-              type="button"
-              onClick={onSubmitForReview}
-              disabled={submitForReviewLoading}
-              className="w-full py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500 disabled:opacity-60"
-            >
-              {submitForReviewLoading ? "Submitting…" : `Submit ${currentItem.id} for Review`}
-            </button>
-          )}
-          {(submissionStatus === "submitted" || submissionStatus === "in_review_L2" || submissionStatus === "in_review_L3") && (
-            <div className="py-2.5 px-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm text-center font-medium">
-              Submitted for review
-            </div>
-          )}
-          {submissionStatus === "approved" && (
-            <div className="py-2.5 px-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm text-center font-medium">
-              Evidence approved
-            </div>
-          )}
+                {/* 2. AI Evaluation Result or dynamic guide — guide vanishes when AI runs */}
+                {aiEvaluationLoading ? (
+                  <AiEvaluationResult result={null} loading />
+                ) : aiEvaluationResult ? (
+                  <AiEvaluationResult
+                    result={aiEvaluationResult}
+                    loading={false}
+                    placeholder={false}
+                    editable={submissionStatus !== "submitted" && submissionStatus !== "approved"}
+                    onEdit={onEvaluationEdit}
+                    evaluationEdits={evaluationEdits}
+                  />
+                ) : (
+                  <div className="rounded-xl border border-(--border) bg-background/60 p-4">
+                    {focusedQuestionGuide && focusedQuestionGuide.trim() ? (
+                      <>
+                        <p className="text-[11px] font-semibold text-(--foreground-muted) uppercase tracking-wider mb-2">Guide</p>
+                        <p className="text-sm text-foreground leading-relaxed">{focusedQuestionGuide.trim()}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-foreground leading-relaxed">
+                        Fill in evidence and upload files, then click + Run AI Evaluation above. Results will appear here.
+                      </p>
+                    )}
+                  </div>
+                )}
 
-          <div className="shrink-0 space-y-3">
-            <AiEvaluationResult
-              result={aiEvaluationResult}
-              loading={aiEvaluationLoading}
-              placeholder={!aiEvaluationLoading && !aiEvaluationResult}
-              editable={!!aiEvaluationResult && submissionStatus !== "submitted" && submissionStatus !== "approved"}
-              onEdit={onEvaluationEdit}
-              evaluationEdits={evaluationEdits}
-            />
-            {evaluated && !aiEvaluationLoading && (
-              <EvaluationResults
-                score={completionPctByItem[currentItem.id] ?? getItemCompletion(currentItem.id)}
-              />
-            )}
-          </div>
+                {/* 3. Actions and status — below AI result */}
+                {evaluationState === "done" && aiEvaluationResult && (
+                  <button
+                    type="button"
+                    onClick={onEvaluateEvidence}
+                    className="w-full shrink-0 inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold rounded-lg text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary)"
+                    style={{ background: config.color }}
+                  >
+                    ↺ Re-evaluate
+                  </button>
+                )}
+                {aiEvaluationResult && submissionStatus !== "submitted" && submissionStatus !== "approved" && onSubmitForReview && (
+                  <button
+                    type="button"
+                    onClick={onSubmitForReview}
+                    disabled={submitForReviewLoading}
+                    className="w-full py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500 disabled:opacity-60"
+                  >
+                    {submitForReviewLoading ? "Submitting…" : `Submit ${currentItem.id} for Review`}
+                  </button>
+                )}
+                {(submissionStatus === "submitted" || submissionStatus === "in_review_L2" || submissionStatus === "in_review_L3") && (
+                  <div className="py-2.5 px-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm text-center font-medium">
+                    Submitted for review
+                  </div>
+                )}
+                {submissionStatus === "approved" && (
+                  <div className="py-2.5 px-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm text-center font-medium">
+                    Evidence approved
+                  </div>
+                )}
+                {aiEvaluationResult && evaluationState === "idle" && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    Evidence edited. Run AI Evaluation again to refresh results.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </TabsContent>
 

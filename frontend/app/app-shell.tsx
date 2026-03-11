@@ -15,7 +15,7 @@ const CONTENT_PX = "px-2 sm:px-4";
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { open, toggle } = useSidebar();
   return (
-    <div className="min-h-screen flex" style={{ background: "var(--background)" }}>
+    <div className="h-screen flex overflow-hidden" style={{ background: "var(--background)" }}>
       {/* Mobile backdrop when sidebar open */}
       <div
         role="button"
@@ -26,11 +26,15 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         className={`fixed inset-0 z-30 bg-black/40 transition-opacity md:hidden ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`}
       />
       <AppSidebar />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className={`shrink-0 border-b border-[var(--border)] bg-[var(--surface)] ${CONTENT_PX}`}>
+      <div
+        className={`flex-1 flex flex-col min-w-0 overflow-hidden min-h-0 transition-[margin] duration-200 ease-out ${
+          open ? "md:ml-[260px]" : "md:ml-[56px]"
+        }`}
+      >
+        <header className={`shrink-0 border-b border-(--border) bg-(--surface) ${CONTENT_PX}`}>
           <AppHeader />
         </header>
-        <main className={`flex-1 overflow-y-auto min-h-0 ${CONTENT_PX} py-2 sm:py-3`}>
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${CONTENT_PX} py-4 sm:py-6`}>
           {children}
         </main>
       </div>

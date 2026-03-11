@@ -2,6 +2,7 @@
 backend/.env
 backend/venv/
 backend/uploads/
+backend/sql/_load_evidence_2026_dry_run.sql
 backend/__pycache__/
 backend/**/__pycache__/
 backend/**/*.pyc

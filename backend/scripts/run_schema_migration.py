@@ -53,6 +53,7 @@ SQL_MIGRATIONS = [
     "24_seed_evidence_questions_swift_2025.sql",
     "25_seed_evidence_questions_swift_2026.sql",
     "26_add_a5_all_esm.sql",
+    "27_add_guide_and_show_when_swift_2026.sql",
 ]
 
 # Data load scripts (run from repo root)

@@ -215,7 +215,7 @@ export function CompactDropzone({
             />
           </div>
         )}
-        <p className="text-sm font-semibold text-[var(--foreground)] text-center">
+        <p className="text-base font-semibold text-[var(--foreground)] text-center">
           {state === "uploading" && "Uploading…"}
           {state === "dragOver" && "Drop here"}
           {state === "empty" && (canUpload ? "Upload Evidence — " + label : "Create submission to upload")}
@@ -223,13 +223,13 @@ export function CompactDropzone({
           {state === "error" && error}
         </p>
         {state === "empty" && canUpload && (
-          <p className="text-[10px] text-[var(--foreground-muted)] mt-1">PDF, images, Excel, CSV · max {MAX_SIZE_MB} MB</p>
+          <p className="text-xs text-[var(--foreground-muted)] mt-1.5">PDF, images, Excel, CSV · max {MAX_SIZE_MB} MB</p>
         )}
       </div>
       {files.length > 0 && (
         <ul className="overflow-y-auto min-h-0 rounded-lg border border-[var(--border)] divide-y divide-[var(--border)] max-h-32">
           {files.map((f) => (
-            <li key={f.id} className="flex items-center gap-2 px-2 py-1.5 text-[11px]">
+            <li key={f.id} className="flex items-center gap-2 px-3 py-2 text-sm">
               <button
                 type="button"
                 onClick={() => handleViewFile(f)}

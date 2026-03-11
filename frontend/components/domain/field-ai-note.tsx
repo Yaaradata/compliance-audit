@@ -1,6 +1,7 @@
 "use client";
 
-import { Sparkles, X } from "lucide-react";
+import { X } from "lucide-react";
+import { AISparkleIcon } from "@/components/ui/ai-sparkle-icon";
 import { useState } from "react";
 
 export interface FieldAINoteProps {
@@ -8,12 +9,28 @@ export interface FieldAINoteProps {
   text: string | null | undefined;
   /** Optional field label so the note is clearly tied to the question (e.g. "Customer connector zone statement"). */
   fieldLabel?: string;
+  /** "inline" = one-line hint next to question; "card" = full card below (default). */
+  variant?: "card" | "inline";
 }
 
-export function FieldAINote({ text, fieldLabel }: FieldAINoteProps) {
+export function FieldAINote({ text, fieldLabel, variant = "card" }: FieldAINoteProps) {
   const [dismissed, setDismissed] = useState(false);
   const msg = text != null && String(text).trim() && String(text).toLowerCase() !== "null" ? String(text).trim() : "";
   if (!msg || dismissed) return null;
+
+  if (variant === "inline") {
+    return (
+      <span
+        className="inline-flex items-center gap-2 mt-1 text-xs text-sky-700 bg-sky-50/80 border border-sky-200/70 rounded px-2.5 py-1.5"
+        role="status"
+        aria-live="polite"
+        aria-label="AI hint"
+      >
+        <AISparkleIcon size={20} className="shrink-0 drop-shadow-sm" />
+        <span className="min-w-0">{msg}</span>
+      </span>
+    );
+  }
 
   return (
     <div
@@ -25,10 +42,10 @@ export function FieldAINote({ text, fieldLabel }: FieldAINoteProps) {
       <div className="flex gap-3">
         <div className="flex flex-1 min-w-0 items-start gap-2.5">
           <span
-            className="shrink-0 rounded-lg bg-sky-100/90 p-1.5 text-sky-600"
+            className="shrink-0 rounded-lg bg-sky-100/90 p-1.5 flex items-center justify-center"
             aria-hidden
           >
-            <Sparkles className="h-4 w-4" strokeWidth={2} />
+            <AISparkleIcon size={22} className="drop-shadow-sm" />
           </span>
           <div className="min-w-0 flex-1 pt-0.5">
             <p className="text-xs font-semibold tracking-wide text-sky-800">

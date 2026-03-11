@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..dependencies import get_db, get_db_scoped, get_current_user, _resolve_schema_for_cycle
 from ..models.tenant import User
 from ..models.assessment import EvidenceSubmission, EvidenceAttachment, EvidenceSubmissionHistory, ControlApplicability
-from ..models.framework import CanonicalEvidenceItem, ItemControlMapping, EvidenceSufficiencyMatrix
+from ..models.framework import CanonicalEvidenceItem, ItemControlMapping, EvidenceSufficiencyMatrix, EvidenceBasedQuestion
 from ..models.sufficiency import SufficiencyEvaluation, SufficiencyScore
 from ..schemas.evidence import (
     CreateSubmissionRequest,
@@ -296,271 +296,60 @@ def _parse_numbered_json(value: str | dict | None) -> list[tuple[str, str]]:
     return [(k, str(obj[k]).strip()) for k in keys if str(obj[k]).strip()]
 
 
-def _build_submission_context(evidence_item_id: str, form_data: dict | None) -> str | None:
-    """Build structured text context from submission form_data for AI evaluation."""
-    if not form_data:
+def _format_form_field(key: str, label: str, value: str) -> str:
+    """Format a single form field with explicit key and label for LLM clarity."""
+    val = (value or "Not provided").strip()
+    if len(val) > 500:
+        val = val[:497] + "..."
+    return f"key: {key}\nlabel: {label}\nanswer: {val}"
+
+
+def _format_file_size(bytes_val: int) -> str:
+    """Format file size for display (e.g. 9123 -> 8.9 KB)."""
+    if bytes_val < 1024:
+        return f"{bytes_val} B"
+    if bytes_val < 1024 * 1024:
+        return f"{bytes_val / 1024:.1f} KB"
+    return f"{bytes_val / (1024 * 1024):.1f} MB"
+
+
+def _build_submission_context(
+    db: Session,
+    evidence_item_id: str,
+    form_data: dict | None,
+    attachments: list | None = None,
+) -> str | None:
+    """Build submission context from evidence_based_questions in DB.
+    Fully database-driven: uses question_key and label from the form.
+    For file-type questions, uses attachment metadata so LLM can provide field_feedback for evidence_document."""
+    questions = (
+        db.query(EvidenceBasedQuestion)
+        .filter(EvidenceBasedQuestion.evidence_item_id == evidence_item_id.upper())
+        .order_by(EvidenceBasedQuestion.sort_order, EvidenceBasedQuestion.question_key)
+        .all()
+    )
+    if not questions:
         return None
-
-    fd = form_data or {}
     parts: list[str] = []
+    fd = form_data or {}
+    atts = attachments or []
 
-    if evidence_item_id == "A5":
-        labels = {
-            "architecture_type": "Declared architecture type",
-            "selected_diagram": "Selected diagram",
-            "decision_rationale": "Decision rationale",
-            "infrastructure_characteristics": "Key infrastructure characteristics",
-            "bics": "SWIFT BIC(s) in scope",
-            "changes_from_previous": "Changes from previous architecture",
-            "multiple_architectures": "Multiple architectures",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
+    for q in questions:
+        if q.question_type == "file":
+            if atts:
+                file_desc = ", ".join(
+                    f"{a.file_name} ({_format_file_size(a.file_size_bytes or 0)})"
+                    for a in atts
+                )
+                val = f"Uploaded: {file_desc}"
+            else:
+                val = "Not uploaded"
+            parts.append(_format_form_field(q.question_key, q.label, val))
+        else:
+            val = fd.get(q.question_key) or ""
+            parts.append(_format_form_field(q.question_key, q.label, val))
 
-    if evidence_item_id == "A1":
-        labels = {
-            "diagram_date": "Diagram version/date",
-            "internet_exposure_confirmation": "Any direct internet path from secure zone",
-            "internet_exposure_justification": "Internet exposure justification and compensating controls",
-            "connector_zone_statement": "Customer connector zone statement",
-            "backoffice_path_summary": "Back-office connectivity summary",
-            "protocol_encryption_notes": "Protocol/encryption clarifications",
-            "known_gaps_and_plan": "Known documentation gaps and remediation plan",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "A2":
-        labels = {
-            "exclusion_justification": "Systems excluded from zone with justification",
-            "co_hosting_notes": "Co-hosting decisions (non-SWIFT in zone)",
-            "customer_zone_notes": "Customer connectivity zone details",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        inv = fd.get("inventory_rows")
-        if inv:
-            parts.append(f"inventory_rows (Component inventory JSON rows): {inv}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "A3":
-        labels = {
-            "flow_inventory_notes": "Data flow inventory clarifications",
-            "unprotected_legacy_flows": "Unprotected/legacy flows and risk status",
-            "hsm_flow_details": "HSM connection flow details",
-            "encryption_method_summary": "Encryption method summary per flow type",
-            "cross_environment_details": "Cross-environment flow details",
-            "known_gaps": "Known documentation gaps and remediation plan",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "A4":
-        labels = {
-            "firewall_inventory": "Firewalls at secure zone boundaries",
-            "deny_default_confirmation": "Deny-by-default posture",
-            "allow_any_exceptions": "Permissive rule exceptions",
-            "internet_deny_confirmation": "Outbound internet deny status",
-            "jump_server_internet_status": "Jump server internet access",
-            "annual_review_date": "Last annual review date",
-            "annual_review_reviewer": "Reviewer",
-            "shared_firewall_notes": "Shared firewall status",
-            "customer_zone_rule_summary": "Customer zone firewall rules",
-            "known_exceptions": "Known exceptions and remediation",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "A6":
-        labels = {
-            "zone_boundary_rationale": "Zone boundary rationale",
-            "swift_guidance_reference": "SWIFT guidance references",
-            "segmentation_approach": "Segmentation approach",
-            "auth_separation_rationale": "Auth separation rationale",
-            "shared_component_risk": "Shared component risk assessment",
-            "co_hosting_justification": "Co-hosting justification",
-            "customer_zone_rationale": "Customer zone design rationale",
-            "customer_zone_equivalence": "Customer zone equivalent protection",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "B1":
-        labels = {
-            "hardening_baseline_name": "Hardening baseline applied",
-            "builtin_admin_status": "Built-in administrator account status",
-            "individual_admin_confirmed": "Individual admin accounts with escalation",
-            "privilege_elevation_logging": "Privilege elevation logging enabled",
-            "password_storage_zone_local": "Admin passwords in zone-local directory",
-            "network_device_admin_access": "Network device admin access method",
-            "default_passwords_changed": "Default passwords changed on all systems",
-            "autolock_configured": "Auto-lock configured",
-            "usb_ports_restricted": "USB/physical ports restricted",
-            "hardening_check_dates": "Last two hardening check dates",
-            "deviations_documented": "Deviations from baseline with justification",
-            "known_gaps": "Known gaps and remediation plan",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "B2":
-        labels = {
-            "tls_version_enforced": "TLS version enforced for operator sessions",
-            "cipher_suites_configured": "Cipher suites in use",
-            "session_timeout_value": "Application-level session timeout (minutes)",
-            "weak_protocols_disabled": "Weak/deprecated protocols disabled",
-            "weak_protocols_remaining": "Remaining weak protocols",
-            "jump_server_encryption": "Jump server to application encryption",
-            "swift_hardening_applied": "SWIFT app hardened per Alliance Security Guidance",
-            "default_app_passwords_changed": "Default application passwords changed",
-            "unnecessary_components_disabled": "Unnecessary components/adaptors disabled",
-            "app_deviations_documented": "Application deviations from hardening guidance",
-            "known_gaps": "Known gaps and remediation plan",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "B3":
-        labels = {
-            "internal_flow_summary": "Internal SWIFT component flow encryption summary",
-            "tls_version_per_flow": "TLS version and cipher suite per flow type",
-            "lau_configuration": "LAU configuration details",
-            "cross_environment_encryption": "Cross-environment flow encryption",
-            "backoffice_flow_protection": "Back-office to secure zone flow protection",
-            "external_transmission_encryption": "External transmission encryption config",
-            "backup_encryption": "Backup encryption method and key management",
-            "at_rest_encryption": "At-rest encryption for SWIFT data outside secure zone",
-            "key_management_approach": "Key management approach per flow",
-            "operator_session_transport": "Operator session transport-level encryption",
-            "unprotected_flows": "Unprotected/legacy flows with risk assessment",
-            "known_gaps": "Known gaps and remediation plan",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "B4":
-        labels = {
-            "platform_type": "Virtualisation/cloud platform type",
-            "platform_location": "Platform in secure zone",
-            "vm_isolation_configured": "VM isolation configured",
-            "network_flow_filtering": "Network flow filtering for SWIFT VMs",
-            "privileged_access_restrictions": "Privileged access restrictions on platform",
-            "platform_password_policy": "Platform admin password policy applied",
-            "security_update_status": "Hypervisor/platform security update status",
-            "mfa_for_vm_access": "MFA for interactive VM access",
-            "physical_protection": "Physical protection of underlying hardware",
-            "container_isolation": "Container isolation configuration",
-            "third_party_hosted": "Third-party hosted",
-            "third_party_comfort": "Third-party comfort evidence",
-            "known_gaps": "Known gaps and remediation plan",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "B5":
-        labels = {
-            "password_length_min": "Minimum password length configured",
-            "complexity_enabled": "Password complexity requirements enabled",
-            "expiration_period": "Password expiration period",
-            "history_enforced": "Password history/reuse prevention",
-            "lockout_threshold": "Account lockout threshold and duration",
-            "pin_settings": "PIN settings for tokens/mobile second factors",
-            "admin_policy_stricter": "Stricter policy for privileged accounts",
-            "app_to_app_accounts": "Application-to-application account password policy",
-            "zone_local_auth": "Passwords in zone-local auth only",
-            "nolmhash_enabled": "NoLMHash registry configured on Windows",
-            "policy_review_date": "Last password policy review date",
-            "known_gaps": "Known gaps and remediation plan",
-        }
-        for key, label in labels.items():
-            val = fd.get(key)
-            if val:
-                parts.append(f"{label}: {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "B6":
-        labels = {
-            "baseline_name_version": "Hardening baseline name and version",
-            "scan_date": "Last scan date",
-            "scan_frequency": "Scan frequency",
-            "system_types_covered": "System types covered in scan",
-            "deviation_summary": "Deviation summary with justifications",
-            "remediation_plan": "Remediation plan for high-risk deviations",
-            "swift_app_comparison": "SWIFT app settings compared to Alliance Security Guidance",
-            "app_deviations": "Application-specific deviations documented",
-            "authorized_software_baseline": "Authorized software baseline established",
-            "software_baseline_version_controlled": "Software baseline version-controlled",
-            "known_gaps": "Known gaps and remediation plan",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "B7":
-        labels = {
-            "os_admin_mfa": "MFA for OS administrators at zone boundary",
-            "os_admin_mfa_method": "OS admin MFA method",
-            "end_user_mfa": "MFA for end users accessing SWIFT application",
-            "end_user_mfa_method": "End user MFA method",
-            "remote_vpn_mfa": "MFA for remote VPN access",
-            "virtualisation_console_mfa": "MFA for virtualisation/cloud management console",
-            "hsm_mfa": "MFA for HSM access",
-            "service_provider_mfa": "MFA for service provider access",
-            "separate_device_confirmed": "Second factor on separate device from first factor",
-            "credentials_in_zone": "MFA credentials stored within secure zone",
-            "individual_assignment": "Authentication factors individually assigned",
-            "sso_mfa_status": "SSO with MFA second factor status",
-            "known_gaps": "Known gaps and remediation plan",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    if evidence_item_id == "B8":
-        labels = {
-            "app_timeout_configured": "Application-level timeout on SWIFT applications",
-            "app_timeout_value": "Application timeout value (minutes)",
-            "os_screen_lock": "OS-level screen lock on operator PCs and jump servers",
-            "os_lock_timeout": "OS screen lock timeout (minutes)",
-            "remote_session_timeout": "Remote session timeout configured",
-            "remote_timeout_value": "Remote session timeout value (minutes)",
-            "reauth_after_timeout": "Re-authentication required after timeout",
-            "session_recording": "Session recording for privileged accounts",
-            "concurrent_session_restrictions": "Concurrent session restrictions configured",
-            "known_gaps": "Known gaps and remediation plan",
-        }
-        for key, label in labels.items():
-            val = fd.get(key) or "Not provided"
-            parts.append(f"{key} ({label}): {val}")
-        return "\n".join(parts) if parts else None
-
-    # Fallback for C–H and future items: include key so LLM can return field_feedback.
-    for key, val in fd.items():
-        if val:
-            label = key.replace("_", " ").title()
-            parts.append(f"{key} ({label}): {val}")
-    return "\n".join(parts) if parts else None
+    return "\n---\n".join(parts) if parts else None
 
 
 def _split_ai_results(result: dict) -> dict:
@@ -908,8 +697,10 @@ def evaluate_evidence(
             )
 
     submission_context: str | None = None
-    if submission and getattr(submission, "form_data", None):
-        submission_context = _build_submission_context(req.evidence_item_id, submission.form_data)
+    if submission:
+        submission_context = _build_submission_context(
+            db, req.evidence_item_id, submission.form_data or {}, attachments=attachments
+        )
 
     from ..services import storage_service
 
@@ -963,6 +754,19 @@ def evaluate_evidence(
 
         result = _split_ai_results(result)
 
+        # Filter field_feedback to only keys that exist in the form (evidence_based_questions)
+        field_feedback = result.get("field_feedback")
+        if isinstance(field_feedback, dict):
+            valid_keys = {
+                q.question_key
+                for q in db.query(EvidenceBasedQuestion)
+                .filter(EvidenceBasedQuestion.evidence_item_id == req.evidence_item_id.upper())
+                .all()
+            }
+            if valid_keys:
+                field_feedback = {k: v for k, v in field_feedback.items() if k in valid_keys}
+                result["field_feedback"] = field_feedback
+
         def _coerce_criterion(raw: dict, index: int, prefix: str) -> dict:
             """Ensure met is bool (AI may return null); id/label are strings."""
             met_val = raw.get("met", False)
@@ -993,9 +797,7 @@ def evaluate_evidence(
             _recalculate_control_sufficiency(db, cycle_id, req.evidence_item_id)
             db.commit()
 
-        field_feedback = result.get("field_feedback")
-        if not isinstance(field_feedback, dict):
-            field_feedback = {}
+        field_feedback = result.get("field_feedback") or {}
 
         return EvaluateEvidenceResponse(
             evidence_item_id=req.evidence_item_id,

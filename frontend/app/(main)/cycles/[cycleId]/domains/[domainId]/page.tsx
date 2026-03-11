@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams, usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
@@ -116,14 +116,25 @@ function toEvidenceItem(a: ApiEvidenceItem): EvidenceItem {
   };
 }
 
+/** Normalize domain id to single letter (matches backend ref/domains/{domain_id}). */
+function normalizeDomainId(raw: string | undefined): string {
+  const s = (raw ?? "").trim().split(":")[0]?.trim() || raw?.trim() || "A";
+  return (s[0] ?? "A").toUpperCase();
+}
+
 export default function CycleDomainPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
   const cycleId = params.cycleId as string;
-  const domainId = (params.domainId as string)?.toUpperCase();
-  const { activeCycleId } = useAuth();
+  const domainId = normalizeDomainId(params.domainId as string);
+  const { activeCycleId, user } = useAuth();
+  const role = user?.role ?? "compliance_officer";
 
   const [config, setConfig] = useState<DomainConfig | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState("");
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [evaluated, setEvaluated] = useState(false);
@@ -172,6 +183,7 @@ export default function CycleDomainPage() {
   useEffect(() => {
     if (!cycleId || !domainId) return;
     setLoading(true);
+    setLoadError(null);
 
     const refPromise = api.get<{ domain: ApiDomain | null; evidence_items: ApiEvidenceItem[] }>(`/ref/domains/${domainId}?cycle_id=${cycleId}`);
     const subsPromise = api.get<ApiSubmission[]>(`/assessments/${cycleId}/evidence?domain=${domainId}`);
@@ -179,23 +191,14 @@ export default function CycleDomainPage() {
 
     Promise.all([refPromise, subsPromise, controlsPromise])
       .then(([refRes, subs, controlsData]) => {
-        if (!refRes.domain) { setConfig(null); return; }
+        if (!refRes.domain) {
+          setConfig(null);
+          setLoadError("Domain not found or not in your selected architecture scope.");
+          return;
+        }
         const d = refRes.domain;
         const evidenceItems = refRes.evidence_items.map(toEvidenceItem);
         const allControls = [...new Set(evidenceItems.flatMap((i) => i.controls.map((c) => c.id)))];
-        setConfig({
-          id: d.id,
-          name: d.name,
-          color: d.color ?? "#666",
-          gradient: GRADIENTS[d.id] ?? "linear-gradient(135deg, #666 0%, #999 100%)",
-          accentColor: d.accent_color ?? "#eee",
-          evidenceItems,
-          allControls,
-          subGroups: [],
-          weights: {},
-        });
-        if (evidenceItems.length > 0) setActiveItem(evidenceItems[0].id);
-
         const data: Record<string, string> = {};
         const sMap: Record<string, string> = {};
         const statusMap: Record<string, string> = {};
@@ -245,6 +248,32 @@ export default function CycleDomainPage() {
             completionByItem[s.evidence_item_id] = Math.round(s.completion_pct);
           }
         });
+
+        setConfig({
+          id: d.id,
+          name: d.name,
+          color: d.color ?? "#666",
+          gradient: GRADIENTS[d.id] ?? "linear-gradient(135deg, #666 0%, #999 100%)",
+          accentColor: d.accent_color ?? "#eee",
+          evidenceItems,
+          allControls,
+          subGroups: [],
+          weights: {},
+        });
+
+        if (evidenceItems.length > 0) {
+          const itemFromUrl = searchParams.get("item");
+          const validFromUrl = itemFromUrl && evidenceItems.some((e) => e.id === itemFromUrl);
+          const firstMissing = evidenceItems.find((e) => (completionByItem[e.id] ?? 0) < 10);
+          const initial = validFromUrl ? itemFromUrl! : (firstMissing?.id ?? evidenceItems[0].id);
+          setActiveItem(initial);
+          if (!validFromUrl && typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            url.searchParams.set("item", initial);
+            window.history.replaceState({}, "", url.pathname + "?" + url.searchParams.toString());
+          }
+        }
+
         setEvaluationEditsByItem(editsByItem);
         setFormData(data);
         setSubmissionMap(sMap);
@@ -255,17 +284,29 @@ export default function CycleDomainPage() {
         const scores: Record<string, number> = {};
         controlsData.forEach((c) => { scores[c.id] = Math.round(c.score); });
         setControlScores(scores);
+        setLoadError(null);
       })
-      .catch(() => setConfig(null))
+      .catch((err) => {
+        setConfig(null);
+        setLoadError(err instanceof Error ? err.message : "Failed to load domain. Check your connection and try again.");
+      })
       .finally(() => setLoading(false));
-  }, [cycleId, domainId]);
+  }, [cycleId, domainId, searchParams]);
 
+  /** Sync active item from URL when user navigates via sidebar (e.g. domain?item=A2). */
+  useEffect(() => {
+    const item = searchParams.get("item");
+    if (config && item && config.evidenceItems.some((e) => e.id === item)) setActiveItem(item);
+  }, [searchParams, config]);
+
+  /** Restore AI evaluation result from persisted last_evaluation when switching items or when data loads. */
   useEffect(() => {
     if (!activeItem) return;
     const stored = lastEvaluationByItem[activeItem];
     if (stored) {
       setAiEvaluationResult(stored);
       setEvaluated(true);
+      setAiEvaluationError(null);
     } else {
       setAiEvaluationResult(null);
       setEvaluated(false);
@@ -289,10 +330,10 @@ export default function CycleDomainPage() {
     return sub.id;
   }, [cycleId, submissionMap]);
 
+  /** Update form field. Does not clear AI result so the last evaluation stays visible until user re-runs. */
   const updateField = useCallback((key: string, value: string) => {
     setFormData((p) => ({ ...p, [key]: value }));
     setEvaluated(false);
-    setAiEvaluationResult(null);
   }, []);
 
   const currentItem = useMemo(() => config?.evidenceItems.find((e) => e.id === activeItem), [config, activeItem]);
@@ -469,6 +510,16 @@ export default function CycleDomainPage() {
     }
   }, [currentItem, cycleId, currentSubmissionId, ensureSubmission, fetchControlScores, domainId, formData, activeItem]);
 
+  /** When user selects an evidence item, update URL so sidebar can highlight it. */
+  const handleSelectItem = useCallback(
+    (id: string) => {
+      setActiveItem(id);
+      const base = pathname ?? "";
+      router.replace(`${base}?item=${encodeURIComponent(id)}`, { scroll: false });
+    },
+    [pathname, router]
+  );
+
   const handleEvaluationEdit = useCallback(async (updated: AiEvalResultType, edits: EvaluationEditsMap) => {
     if (!currentItem || !cycleId) return;
     setAiEvaluationResult(updated);
@@ -491,14 +542,29 @@ export default function CycleDomainPage() {
   if (!config) {
     const backCycleId = cycleId || activeCycleId;
     return (
-      <div className="card rounded-xl p-8 text-center">
-        <p className="mb-2 text-sm font-medium" style={{ color: "var(--foreground)" }}>Domain not found or not in your selected architecture scope.</p>
-        <p className="text-xs mb-4" style={{ color: "var(--foreground-muted)" }}>Ensure the backend reference data is seeded (evidence_domains, canonical_evidence_items).</p>
-        {backCycleId ? (
-          <Link href={`/cycles/${backCycleId}/dashboard`} className="text-sm font-medium hover:underline inline-block" style={{ color: "var(--primary)" }}>← Back to Dashboard</Link>
-        ) : (
-          <Link href="/assessments/new" className="text-sm font-medium hover:underline inline-block" style={{ color: "var(--primary)" }}>← Your Assessment Cycles</Link>
-        )}
+      <div className="max-w-xl mx-auto p-6 sm:p-8">
+        <section
+          className="rounded-xl border border-(--border) bg-(--surface) p-6 sm:p-8 text-center"
+          aria-labelledby="domain-error-title"
+        >
+          <h2 id="domain-error-title" className="text-base font-semibold text-(--foreground) mb-2">
+            Domain unavailable
+          </h2>
+          <p className="text-sm text-(--foreground-muted) mb-4">
+            {loadError ?? "Domain not found or not in your selected architecture scope."}
+          </p>
+          <p className="text-xs text-(--foreground-muted) mb-6">
+            Ensure the backend reference data is seeded for this cycle (evidence_domains, canonical_evidence_items).
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href={backCycleId ? `/cycles/${backCycleId}/dashboard` : "/assessments/new"}
+              className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium bg-(--primary) text-(--primary-foreground) hover:opacity-90 transition-opacity"
+            >
+              ← {backCycleId ? "Back to Dashboard" : "Your Assessment Cycles"}
+            </Link>
+          </div>
+        </section>
       </div>
     );
   }
@@ -511,7 +577,7 @@ export default function CycleDomainPage() {
         domainId={domainId}
         config={config}
         activeItem={activeItem}
-        onSelectItem={setActiveItem}
+        onSelectItem={handleSelectItem}
         selectedControlId={selectedControlId}
         onSelectControl={setSelectedControlId}
         completionByItem={completionByItem}

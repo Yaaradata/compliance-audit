@@ -13,7 +13,6 @@ import { CompactDropzone } from "@/components/domain/compact-dropzone";
 import { PerControlEvidence } from "@/components/domain/per-control-evidence";
 import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
-import { EvaluationResults } from "@/components/domain/evaluation-results";
 import { NoteList } from "@/components/notes/note-list";
 import { NoteInput } from "@/components/notes/note-input";
 import type { EvidenceWorkspaceProps } from "@/lib/frameworks/types";
@@ -199,11 +198,6 @@ export function EvidenceWorkspace({
             onEdit={onEvaluationEdit}
             evaluationEdits={evaluationEdits}
           />
-          {evaluated && (
-            <EvaluationResults
-              score={completionPctByItem[currentItem.id] ?? getItemCompletion(currentItem.id)}
-            />
-          )}
         </TabsContent>
 
         <TabsContent value="notes" className="px-3 pb-3 overflow-y-auto">

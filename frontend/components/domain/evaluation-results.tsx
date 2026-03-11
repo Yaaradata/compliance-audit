@@ -13,11 +13,6 @@ export function EvaluationResults({ score }: { score: number }) {
       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: color }} />
       </div>
-      {score < 90 && (
-        <div className="mt-2 text-[11px] text-gray-500 bg-yellow-50 rounded p-2 border border-yellow-200">
-          🤖 AI Guidance: Complete the remaining required fields and upload all mandatory documents to improve your score.
-        </div>
-      )}
     </div>
   );
 }

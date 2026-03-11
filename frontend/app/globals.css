@@ -51,6 +51,11 @@
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.06);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
+
+  /* Scrollbar — thin, subtle, no arrow buttons */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
 }
 
 /* Dark theme */
@@ -92,6 +97,10 @@
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.35);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
 }
 
 @theme inline {
@@ -165,4 +174,43 @@ body {
 .sidebar-nav-item:not(.sidebar-nav-item-active):hover {
   background: var(--sidebar-hover);
   color: var(--sidebar-text);
+}
+
+/* ——— Custom scrollbar (thin, clean, no arrow buttons) ——— */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* Sidebar (dark): scrollbar thumb visible on dark background */
+.sidebar-scroll {
+  scrollbar-color: var(--sidebar-text-muted) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--sidebar-text-muted);
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--sidebar-text);
 }

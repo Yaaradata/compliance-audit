@@ -17,21 +17,27 @@ You MUST evaluate EVERY criterion for EVERY control listed — do not skip any.
 ### Mapped Controls:
 {mapped_controls}
 
-## Form Fields Submitted by User (question / answer):
-Use the exact field key (the part before the parenthesis) in your field_feedback object.
+## Form Fields Submitted by User
+
+Each form field is a block with:
+- key: the exact identifier to use in field_feedback (e.g. hardening_baseline_name, known_gaps)
+- label: the question text shown to the user (what the field is asking about)
+- answer: the user's response
+
+Use the exact "key" value in your field_feedback object. The "label" helps you understand what each question asks so you can provide precise hints.
+
 <<<FORM_FIELDS_SECTION>>>
 
 ## Instructions:
-1. Analyze ALL uploaded file(s) directly. For images/diagrams, describe what you see in detail.
-2. Consider the "Form Fields Submitted by User" section above — compare answers to what the evidence and criteria require.
-3. For EACH sufficiency criterion under EACH control, determine if the evidence satisfies it.
-4. For EACH evaluation criterion under EACH control, determine pass (met=true) or fail (met=false).
-5. Use the EXACT criterion IDs from the lists above:
+1. Analyze ALL uploaded file(s) directly. You MUST read and use the content of every file. For images/diagrams, describe what you see in detail. For PDFs, extract and use the text. For Excel/Word/CSV, use the extracted text. Base sufficiency and evaluation decisions on what the documents actually contain.
+2. For file-upload fields (e.g. evidence_document): If no file was uploaded, set field_feedback[evidence_document] to a hint like "Upload the evidence document (PDF, Excel, Word, or image) that contains the required configuration details." If files were uploaded but lack required content (e.g. missing flows, missing cipher details), set field_feedback[evidence_document] to a specific hint about what the document should add (e.g. "Include per-flow TLS version and cipher suite for all internal SWIFT component flows"). If the format is unsuitable (e.g. image of handwritten notes when structured data is needed), say so. Only set null when the uploaded document(s) fully satisfy the criteria.
+3. Consider the "Form Fields Submitted by User" section above — compare answers to what the evidence and criteria require.
+4. For EACH sufficiency criterion under EACH control, determine if the evidence satisfies it.
+5. For EACH evaluation criterion under EACH control, determine pass (met=true) or fail (met=false).
+6. Use the EXACT criterion IDs from the lists above:
    - Sufficiency IDs contain "_suf_" (e.g. "1.1_suf_1", "1.4_suf_1"). Put them ONLY in "sufficiency_results".
    - Evaluation IDs contain "_eval_" (e.g. "1.1_eval_1", "1.4_eval_1"). Put them ONLY in "criteria".
-6. For each form field key listed in the Form Fields section, decide if the user's answer is sufficient.
-   If a field is too vague, missing, or contradicts the evidence, set field_feedback[<key>] to a concise actionable sentence (max 2 sentences).
-   If the field is sufficient, set it to null.
+7. field_feedback (CRITICAL): For EACH form field "key" in the Form Fields section, provide a ONE-LINE hint. Use the exact "key" (e.g. hardening_baseline_name, known_gaps) — the "label" tells you what the question asks. When a sufficiency or evaluation criterion is met=false, provide a non-null hint for the form field(s) that could address the gap, tailoring the hint to that field's label. Set field_feedback[key] to null only when the answer fully satisfies all related criteria; otherwise provide a concise one-liner (max one sentence) stating what to add or clarify for that specific question.
 
 Return ONLY valid JSON (no markdown fences, no commentary). Use this exact schema:
 {{
@@ -39,9 +45,9 @@ Return ONLY valid JSON (no markdown fences, no commentary). Use this exact schem
   "overall_met": <true if all mandatory criteria are met>,
   "summary": "<2-3 sentence summary: what evidence shows, what is present, what is missing>",
   "confidence": <0.0-1.0>,
-  "remediation": "<When overall_met is false: clear, actionable list (bullet or numbered) of what is required. When overall_met is true: null>",
+  "remediation": null,
   "field_feedback": {{
-    "<each form field key from the Form Fields section>": null or "<what is wrong or missing; concise, actionable>"
+    "<each form field key from the Form Fields section>": null or "<one-line hint: what to add or clarify to make evaluation correct>"
   }},
   "sufficiency_results": [
     {{"id": "<control_id>_suf_<N>", "label": "<short label>", "met": true/false, "description": null or "<what is missing or why it fails>"}}
@@ -63,5 +69,5 @@ CRITICAL RULES:
 - NEVER duplicate: each criterion ID in exactly ONE array.
 - Include a result for EVERY criterion listed above.
 - met=true means evidence clearly satisfies; met=false means it does not. When met=false, description MUST explain what is missing.
-- field_feedback: use the exact form field keys from the Form Fields section. Value null when adequate; otherwise one concise sentence (max 2) stating what to add or clarify.
-- When overall_met is false, set "remediation" to a concise, actionable list. When overall_met is true, set "remediation" to null.
+- field_feedback: MUST include every "key" from the Form Fields section. Use the EXACT key values. The "label" describes each question — use it to craft precise hints. When ANY criterion is met=false, provide non-null hints for the relevant form fields. Value null only when the answer fully satisfies all related criteria; otherwise ONE concise one-liner tailored to that question.
+- Always set "remediation" to null. Per-question hints in field_feedback replace the remediation block.

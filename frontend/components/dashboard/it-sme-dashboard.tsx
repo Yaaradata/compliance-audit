@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { getArchitectureTypeFromApi } from "@/lib/api-architecture";
@@ -84,18 +83,18 @@ export function ITSmeDashboard({ cycleId }: { cycleId: string }) {
   if (loading) return <LoadingState message="Loading dashboard…" />;
   if (!dashboard) return null;
 
-  const incompleteDomains = domainsForCards.filter((d) => (d.completed ?? 0) < (d.items ?? 0));
-
   return (
-    <div>
-      <OverallProgress
+    <div className="max-w-7xl mx-auto space-y-6">
+      <section aria-label="Overall progress">
+        <OverallProgress
         overallPct={Math.round(dashboard.overall_score)}
         mandatoryApproved={mandatoryApproved}
         mandatoryTotal={dashboard.mandatory_controls}
         completedItems={dashboard.evidence_items}
         totalItems={dashboard.total_evidence_items}
         gaps={dashboard.gaps_identified}
-      />
+        />
+      </section>
       {(archMeta || fallbackArch) && (
         <div className="mb-4 flex items-center gap-2 text-xs text-slate-600">
           <span className="font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">{archMeta?.id ?? fallbackArch?.id}</span>
@@ -104,34 +103,14 @@ export function ITSmeDashboard({ cycleId }: { cycleId: string }) {
           <span>{domainsForCards.length} domains</span>
         </div>
       )}
-      <div>
+      <section aria-label="Evidence domains">
         <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>Evidence Domains</div>
         <div className="grid grid-cols-2 gap-3">
           {domainsForCards.map((d) => (
             <DomainCard key={d.id} domain={d} cycleId={cycleId} />
           ))}
         </div>
-      </div>
-      {incompleteDomains.length > 0 && (
-        <div className="mt-6 card rounded-xl p-4">
-          <div className="text-sm font-semibold mb-2" style={{ color: "var(--foreground)" }}>Domains needing evidence</div>
-          <ul className="space-y-1.5 text-sm text-slate-600">
-            {incompleteDomains.map((d) => (
-              <li key={d.id}>
-                <Link
-                  href={`/cycles/${cycleId}/domains/${d.id}`}
-                  className="text-blue-600 hover:underline"
-                >
-                  {d.name}
-                </Link>
-                <span className="ml-2 text-slate-500">
-                  ({d.completed ?? 0} / {d.items ?? 0} items)
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      </section>
     </div>
   );
 }

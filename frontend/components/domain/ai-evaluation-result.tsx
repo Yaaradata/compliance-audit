@@ -88,18 +88,9 @@ export function AiEvaluationResult({ result, loading, placeholder, onEdit, edita
 
   if (placeholder) {
     return (
-      <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
-        <div className="text-xs font-semibold text-amber-800 mb-2">Evaluation results</div>
-        <p className="text-xs text-amber-700">
-          Fill in evidence and upload files above, then click <strong>Run AI Evaluation</strong>. The AI will compare your submission to the Evidence Description, Sufficiency Definition, and Evaluation Criteria and return:
-        </p>
-        <ul className="text-[11px] text-amber-800 mt-2 list-disc list-inside space-y-1">
-          <li>✓ Tick for each criterion met</li>
-          <li>✗ Cross and a short description for any criterion not met</li>
-          <li>Per-field feedback when more info is needed</li>
-        </ul>
-        <p className="text-[11px] text-amber-600 mt-2">Results will appear below after you run evaluation.</p>
-      </div>
+      <p className="text-sm text-(--foreground-muted) py-4 text-center">
+        Fill in evidence and upload files, then click <strong>+ Run AI Evaluation</strong> above. Results will appear here.
+      </p>
     );
   }
 
@@ -156,18 +147,6 @@ export function AiEvaluationResult({ result, loading, placeholder, onEdit, edita
           </span>
         </div>
       </div>
-      {result.summary && (
-        <p className="text-xs text-gray-600 mb-3">{result.summary}</p>
-      )}
-
-      {!result.overall_met && result.remediation && result.remediation.trim() && (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
-          <h4 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-2">
-            What’s required to make it correct
-          </h4>
-          <div className="text-xs text-amber-900 whitespace-pre-wrap">{result.remediation.trim()}</div>
-        </div>
-      )}
 
       {visibleSufficiency.length > 0 && (
         <div className="mb-4">

@@ -56,7 +56,7 @@ export function EvidenceListPanel({
       className={cn("flex flex-col h-full min-h-0 bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden", className)}
       style={{ ["--evidence-panel-accent" as string]: accent }}
     >
-      <div className="shrink-0 p-3 border-b border-[var(--border)] pl-4 border-l-4 rounded-l-xl" style={{ borderLeftColor: accent }}>
+      <div className="shrink-0 p-3 border-b border-[var(--border)] pl-4 border-l-4 rounded-tl-xl" style={{ borderLeftColor: accent }}>
         <h2 className="text-xs font-semibold uppercase tracking-wider mb-2 transition-colors duration-200" style={{ color: accent }}>
           Evidence items
         </h2>
@@ -123,7 +123,7 @@ export function EvidenceListPanel({
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
                             <PriorityBadge priority={item.priority} />
-                            <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded", chip.className)} style={chip.style}>
+                            <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-md", chip.className)} style={chip.style}>
                               {chip.label}
                             </span>
                             <span className="text-[10px] text-[var(--foreground-muted)]">{item.controlCount} ctrl</span>
@@ -176,7 +176,7 @@ export function EvidenceListPanel({
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <PriorityBadge priority={item.priority} />
-                      <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded", chip.className)} style={chip.style}>
+                      <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-md", chip.className)} style={chip.style}>
                         {chip.label}
                       </span>
                       <span className="text-[10px] text-[var(--foreground-muted)]">{item.controlCount} ctrl</span>
