@@ -505,6 +505,56 @@ function AiEvaluationResultTabs({
     [onEdit, result, evaluationEdits]
   );
 
+  /** IT SME only: Re-evaluate and Submit buttons — rendered inside each tab so they stay within the Sufficiency & criteria box */
+  const renderActionButtons = () =>
+    editable && (onReEvaluate || onSubmitForReview) ? (
+      <div className="shrink-0 mt-4 pt-4 border-t border-(--border) space-y-3">
+        {evaluationState === "done" && onReEvaluate && (
+          <button
+            type="button"
+            onClick={onReEvaluate}
+            disabled={(aiEvaluationLoading ?? false) || submitForReviewLoading}
+            className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold rounded-lg text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60"
+            style={{ background: configColor ?? "var(--primary)" }}
+          >
+            {aiEvaluationLoading ? (
+              <>
+                <span className="inline-block size-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                Evaluating…
+              </>
+            ) : (
+              "↺ Re-evaluate"
+            )}
+          </button>
+        )}
+        {submissionStatus !== "submitted" && submissionStatus !== "approved" && onSubmitForReview && (
+          <button
+            type="button"
+            onClick={onSubmitForReview}
+            disabled={submitForReviewLoading}
+            className="w-full py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500 disabled:opacity-60"
+          >
+            {submitForReviewLoading ? "Submitting…" : `Submit ${currentItemId ?? "item"} for Review`}
+          </button>
+        )}
+        {(submissionStatus === "submitted" || submissionStatus === "in_review_L2" || submissionStatus === "in_review_L3") && (
+          <div className="py-2.5 px-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm text-center font-medium">
+            Submitted for review
+          </div>
+        )}
+        {submissionStatus === "approved" && (
+          <div className="py-2.5 px-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm text-center font-medium">
+            Evidence approved
+          </div>
+        )}
+        {evaluationState === "idle" && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Evidence edited. Run Re-evaluate to refresh results.
+          </div>
+        )}
+      </div>
+    ) : null;
+
   const renderList = (
     items: CriterionWithSection[],
     options?: { defaultExpandNote?: boolean; onClearCriterionEdit?: (criterionId: string) => void; hideAiHint?: boolean }
@@ -574,7 +624,7 @@ function AiEvaluationResultTabs({
         </TabsList>
 
         <div className="px-4 py-3 flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto">
-          <TabsContent value="x" className="mt-0">
+          <TabsContent value="x" className="mt-0 block">
             <div className="flex items-center gap-2 mb-2">
               <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
                 Sufficiency & criteria — not met
@@ -588,8 +638,9 @@ function AiEvaluationResultTabs({
               </span>
             </div>
             {renderList(failed, { onClearCriterionEdit: handleClearCriterionEdit, hideAiHint })}
+            {renderActionButtons()}
           </TabsContent>
-          <TabsContent value="tick" className="mt-0">
+          <TabsContent value="tick" className="mt-0 block">
             <div className="flex items-center gap-2 mb-2">
               <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
                 Sufficiency & criteria — met
@@ -603,8 +654,9 @@ function AiEvaluationResultTabs({
               </span>
             </div>
             {renderList(passed, { onClearCriterionEdit: handleClearCriterionEdit, hideAiHint })}
+            {renderActionButtons()}
           </TabsContent>
-          <TabsContent value="edited" className="mt-0">
+          <TabsContent value="edited" className="mt-0 block">
             <div className="flex items-center gap-2 mb-2">
               <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
                 Edited by you (note or x→✓)
@@ -618,57 +670,9 @@ function AiEvaluationResultTabs({
               </span>
             </div>
             {renderList(edited, { defaultExpandNote: true, onClearCriterionEdit: handleClearCriterionEdit, hideAiHint })}
+            {renderActionButtons()}
           </TabsContent>
         </div>
-
-        {/* IT SME only: Re-evaluate and Submit buttons inside the Sufficiency & criteria box */}
-        {editable && (onReEvaluate || onSubmitForReview) && (
-          <div className="shrink-0 px-4 pb-4 pt-2 border-t border-(--border) bg-background/30 space-y-3">
-            {evaluationState === "done" && onReEvaluate && (
-              <button
-                type="button"
-                onClick={onReEvaluate}
-                disabled={(aiEvaluationLoading ?? false) || submitForReviewLoading}
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold rounded-lg text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60"
-                style={{ background: configColor ?? "var(--primary)" }}
-              >
-                {aiEvaluationLoading ? (
-                  <>
-                    <span className="inline-block size-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    Evaluating…
-                  </>
-                ) : (
-                  "↺ Re-evaluate"
-                )}
-              </button>
-            )}
-            {submissionStatus !== "submitted" && submissionStatus !== "approved" && onSubmitForReview && (
-              <button
-                type="button"
-                onClick={onSubmitForReview}
-                disabled={submitForReviewLoading}
-                className="w-full py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500 disabled:opacity-60"
-              >
-                {submitForReviewLoading ? "Submitting…" : `Submit ${currentItemId ?? "item"} for Review`}
-              </button>
-            )}
-            {(submissionStatus === "submitted" || submissionStatus === "in_review_L2" || submissionStatus === "in_review_L3") && (
-              <div className="py-2.5 px-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm text-center font-medium">
-                Submitted for review
-              </div>
-            )}
-            {submissionStatus === "approved" && (
-              <div className="py-2.5 px-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm text-center font-medium">
-                Evidence approved
-              </div>
-            )}
-            {evaluationState === "idle" && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Evidence edited. Run Re-evaluate to refresh results.
-              </div>
-            )}
-          </div>
-        )}
       </Tabs>
     </div>
   );

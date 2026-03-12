@@ -957,8 +957,10 @@ export function EvidenceDetailModal({
     setActionType(decision);
     setActioning(true);
     try {
-      onAction?.(decision, undefined, checklistState);
+      await Promise.resolve(onAction?.(decision, undefined, checklistState));
       onClose();
+    } catch {
+      // API failed — leave user on page
     } finally {
       setActioning(false);
       setActionType(null);
@@ -1562,22 +1564,24 @@ export function EvidenceDetailModal({
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => { onAction?.("return", undefined, checklistState); onClose(); }}
-                    className="px-5 py-2.5 text-sm font-semibold rounded-lg border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 bg-(--surface)"
+                    onClick={() => handleAction("return")}
+                    disabled={actioning}
+                    className="px-5 py-2.5 text-sm font-semibold rounded-lg border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 bg-(--surface) disabled:opacity-60"
                   >
                     Return
                   </button>
                   <button
                     type="button"
-                    onClick={() => { onAction?.("hold", undefined, checklistState); onClose(); }}
-                    className="px-5 py-2.5 text-sm font-semibold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 bg-(--surface)"
+                    onClick={() => handleAction("hold")}
+                    disabled={actioning}
+                    className="px-5 py-2.5 text-sm font-semibold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 bg-(--surface) disabled:opacity-60"
                   >
                     Hold
                   </button>
                   <button
                     type="button"
-                    onClick={() => { onAction?.("approve", undefined, checklistState); onClose(); }}
-                    disabled={checklistTotal > 0 && checklistChecked < checklistTotal}
+                    onClick={() => handleAction("approve")}
+                    disabled={actioning || (checklistTotal > 0 && checklistChecked < checklistTotal)}
                     className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Approve

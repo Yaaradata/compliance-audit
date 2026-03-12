@@ -19,15 +19,11 @@ export default function ReviewDetailPage() {
     _comment?: string,
     checklistResults?: Record<string, { checked: boolean; note?: string | null }>
   ) => {
-    try {
-      await api.put(`/reviews/${id}`, {
-        decision,
-        checklist_results: checklistResults ?? null,
-      });
-      router.push(`/cycles/${cycleId}/review`);
-    } catch {
-      // leave user on page on error
-    }
+    await api.put(`/reviews/${id}`, {
+      decision,
+      checklist_results: checklistResults ?? null,
+    });
+    router.push(`/cycles/${cycleId}/review`);
   };
 
   return (
