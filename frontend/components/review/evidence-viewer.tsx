@@ -1352,7 +1352,7 @@ export function EvidenceDetailModal({
                       <div className="flex-1 min-h-0 overflow-hidden p-5 flex flex-col">
                         <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
                           <AiEvaluationResult
-                            result={evalResult ? { ...evalResult, evidence_item_id: submission.evidence_item_id, criteria: evalResult.criteria ?? [] } : null}
+                            result={evalResult ? { ...evalResult, evidence_item_id: submission.evidence_item_id, criteria: evalResult.criteria ?? [], overall_met: evalResult.overall_met ?? false } : null}
                             loading={false}
                             placeholder={false}
                             editable={false}
@@ -1456,7 +1456,7 @@ export function EvidenceDetailModal({
                     <div className="pt-4 flex flex-col min-h-0 max-h-[min(60vh,500px)]">
                       <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
                         <AiEvaluationResult
-                          result={evalResult ? { ...evalResult, evidence_item_id: submission.evidence_item_id, criteria: evalResult.criteria ?? [] } : null}
+                          result={evalResult ? { ...evalResult, evidence_item_id: submission.evidence_item_id, criteria: evalResult.criteria ?? [], overall_met: evalResult.overall_met ?? false } : null}
                           loading={false}
                           placeholder={false}
                           editable={false}
