@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -9,10 +9,13 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import type { UserRole } from "@/lib/types";
 
+const DEMO_STORAGE_KEY = "demo_login_credentials";
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isSignup = searchParams.get("signup") === "1";
+  const isDemo = searchParams.get("demo") === "1";
   const { login, signup } = useAuth();
 
   const [mode, setMode] = useState<"login" | "signup">(isSignup ? "signup" : "login");
@@ -21,6 +24,24 @@ function LoginForm() {
   const [name, setName] = useState("");
   const [role, setRole] = useState<UserRole>("compliance_officer");
   const [error, setError] = useState("");
+
+  // Pre-fill from demo page when ?demo=1 (demo opens login in new tab; credentials stored in localStorage)
+  useEffect(() => {
+    if (!isDemo || typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      if (raw) {
+        const { email: e, password: p, role: r } = JSON.parse(raw) as { email: string; password: string; role: UserRole };
+        setEmail(e ?? "");
+        setPassword(p ?? "");
+        setRole(r ?? "compliance_officer");
+        setMode("login");
+        localStorage.removeItem(DEMO_STORAGE_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [isDemo]);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -75,8 +96,13 @@ function LoginForm() {
               SWIFT Compliance Platform
             </span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <ThemeToggle variant="default" />
+            {isDemo && (
+              <Link href="/demo" className="text-sm font-medium hover:opacity-80 transition-opacity" style={{ color: "var(--primary)" }}>
+                Back to demo
+              </Link>
+            )}
             <Link href="/" className="text-sm hover:opacity-80 transition-opacity" style={{ color: "var(--foreground-muted)" }}>Back to home</Link>
           </div>
         </div>
@@ -104,7 +130,7 @@ function LoginForm() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
+            {(mode === "signup" || isDemo) && (
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>Role</label>
                 <select

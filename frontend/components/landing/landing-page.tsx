@@ -26,9 +26,10 @@ export function LandingPage() {
           <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
             Assess and evidence your SWIFT Customer Security Control Framework (CSCF) posture. Choose your architecture, collect evidence by domain, and drive approvals—all in one platform.
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             <Link href="/login?signup=1" className="inline-flex items-center gap-2 font-semibold text-white bg-[#0c2340] hover:bg-[#0f2d52] px-6 py-3 rounded-lg transition-colors">Get started</Link>
             <Link href="/login" className="inline-flex items-center gap-2 font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 px-6 py-3 rounded-lg transition-colors">Log in</Link>
+            <Link href="/demo" className="inline-flex items-center gap-2 font-semibold text-slate-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 px-6 py-3 rounded-lg transition-colors">View demo</Link>
           </div>
         </section>
 
