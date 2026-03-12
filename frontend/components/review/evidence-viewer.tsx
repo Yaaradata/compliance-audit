@@ -4,12 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { api } from "@/lib/api";
 import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
-import {
-  useEvidenceFormMetadata,
-  getFieldLabelFromMetadata,
-  getOrderedKeysFromMetadata,
-  getTableColumnLabelsFromMetadata,
-} from "@/lib/hooks/use-evidence-form-metadata";
+import { EvidenceDisplayReadOnly } from "@/components/domain/evidence-display-readonly";
 import { NoteList, type NoteItem } from "@/components/notes/note-list";
 import { NoteInput } from "@/components/notes/note-input";
 import { AiEvaluationResult, EvaluationScoreRing } from "@/components/domain/ai-evaluation-result";
@@ -224,78 +219,6 @@ function formatBytes(b: number) {
   if (b < 1024) return `${b} B`;
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
   return `${(b / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-type ParsedFormValue =
-  | { kind: "table"; rows: Record<string, unknown>[]; columns: string[] }
-  | { kind: "text"; text: string };
-
-function parseFormValue(raw: string | null | undefined): ParsedFormValue {
-  const s = typeof raw === "string" ? raw.trim() : "";
-  if (!s) return { kind: "text", text: "" };
-  if (s.startsWith("[") || s.startsWith("{")) {
-    try {
-      const data = JSON.parse(s) as unknown;
-      if (Array.isArray(data) && data.length > 0 && typeof data[0] === "object" && data[0] !== null) {
-        const rows = data as Record<string, unknown>[];
-        const columns = Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
-        return { kind: "table", rows, columns };
-      }
-      if (typeof data === "object" && data !== null && !Array.isArray(data)) {
-        const rows = [data as Record<string, unknown>];
-        const columns = Object.keys(rows[0]);
-        return { kind: "table", rows, columns };
-      }
-    } catch {
-      /* fall through to text */
-    }
-  }
-  return { kind: "text", text: raw ?? "" };
-}
-
-function EvidenceFieldValue({
-  value,
-  columnLabels,
-}: {
-  value: string | null | undefined;
-  columnLabels?: Record<string, string> | null;
-}) {
-  const parsed = parseFormValue(value);
-  if (parsed.kind === "table") {
-    const { rows, columns } = parsed;
-    const getLabel = (col: string) => (columnLabels && columnLabels[col]) || col.replace(/_/g, " ");
-    return (
-      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-        <table className="w-full min-w-[400px] text-left border-collapse text-xs">
-          <thead>
-            <tr className="bg-slate-100 dark:bg-slate-800">
-              {columns.map((col) => (
-                <th key={col} className="py-2 px-3 font-semibold text-foreground border-b border-slate-200 dark:border-slate-700">
-                  {getLabel(col)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr key={i} className="border-b border-slate-200 dark:border-slate-700 last:border-b-0 bg-(--surface)">
-                {columns.map((col) => (
-                  <td key={col} className="py-2 px-3 text-foreground align-top">
-                    {row[col] != null ? String(row[col]) : ""}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-  return (
-    <span className="whitespace-pre-wrap text-foreground leading-relaxed">
-      {parsed.text}
-    </span>
-  );
 }
 
 /** Preview type for evidence files: show in popup or offer open in new tab */
@@ -551,8 +474,6 @@ export function InlineEvidenceDetail({
     setSubmittingComment(false);
   };
 
-  const formMetadata = useEvidenceFormMetadata(data?.submission?.evidence_item_id, data?.submission?.cycle_id);
-
   if (loading) return <div className="py-6 text-center text-sm text-(--foreground-muted)">Loading details…</div>;
   if (!data) return <div className="py-6 text-center text-sm text-(--foreground-muted)">Could not load details.</div>;
 
@@ -630,101 +551,13 @@ export function InlineEvidenceDetail({
                 Form data and attachments for this submission.
               </p>
             </div>
-            <div className="flex-1 p-4 flex flex-col gap-6 overflow-y-auto">
-              {formKeys.length > 0 && (() => {
-                const orderedFormKeys = getOrderedKeysFromMetadata(formMetadata, formKeys);
-                return (
-                  <section className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1 h-4 rounded-full bg-(--primary)/60" />
-                      <h4 className="text-[11px] font-bold text-foreground uppercase tracking-wider">
-                        Form data
-                      </h4>
-                      <span className="text-[10px] font-medium text-(--foreground-muted) tabular-nums">({orderedFormKeys.length} fields)</span>
-                    </div>
-                    <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-md">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr>
-                            <th className="w-[min(200px,38%)] py-3 px-4 text-[11px] font-bold text-slate-100 uppercase tracking-wider bg-slate-600 dark:bg-slate-700 border-b border-slate-500 dark:border-slate-600">
-                              Field
-                            </th>
-                            <th className="py-3 px-4 text-[11px] font-bold text-slate-100 uppercase tracking-wider bg-slate-600 dark:bg-slate-700 border-b border-slate-500 dark:border-slate-600">
-                              Response
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {orderedFormKeys.map((key) => (
-                            <tr key={key} className="border-b border-slate-200 dark:border-slate-700 last:border-b-0 bg-(--surface)">
-                              <td className="w-[min(200px,38%)] py-3.5 px-4 align-top border-r border-slate-200 dark:border-slate-700">
-                                <span className="text-[11px] font-semibold text-foreground">
-                                  {getFieldLabelFromMetadata(formMetadata, key)}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4 text-xs align-top">
-                                <EvidenceFieldValue
-                                  value={formData[key]}
-                                  columnLabels={getTableColumnLabelsFromMetadata(formMetadata, key)}
-                                />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                );
-              })()}
-              {attachments.length > 0 && (
-                <section className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 rounded-full bg-(--primary)/60" />
-                    <h4 className="text-[11px] font-bold text-foreground uppercase tracking-wider">
-                      Attachments
-                    </h4>
-                    <span className="text-[10px] font-medium text-(--foreground-muted) tabular-nums">({attachments.length} files)</span>
-                  </div>
-                  <div className="rounded-xl border border-(--border) bg-(--surface) overflow-hidden shadow-(--shadow)">
-                    <ul className="divide-y divide-(--border)">
-                      {attachments.map((att) => (
-                        <li key={att.id} className="flex items-center gap-4 px-4 py-3.5 hover:bg-background/50 transition-colors">
-                          <div className="w-10 h-10 rounded-lg bg-background border border-(--border) flex items-center justify-center shrink-0">
-                            <svg className="w-5 h-5 text-(--foreground-muted)" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            {att.url ? (
-                              <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-foreground hover:text-(--primary) hover:underline truncate block">
-                                {att.file_name}
-                              </a>
-                            ) : (
-                              <span className="text-xs font-semibold text-foreground truncate block">{att.file_name}</span>
-                            )}
-                            <span className="text-[10px] text-(--foreground-muted) mt-0.5 block">{formatBytes(att.file_size_bytes)}</span>
-                          </div>
-                          {att.url && (
-                            <a
-                              href={att.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-(--border) bg-background text-foreground hover:bg-(--primary-muted) hover:border-(--primary)/40 hover:text-(--primary) transition-colors"
-                            >
-                              Open
-                            </a>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </section>
-              )}
-              {formKeys.length === 0 && attachments.length === 0 && (
-                <div className="flex-1 flex items-center justify-center p-8">
-                  <p className="text-sm text-(--foreground-muted)">No form data or attachments.</p>
-                </div>
-              )}
+            <div className="flex-1 p-4 overflow-y-auto">
+              <EvidenceDisplayReadOnly
+                evidenceItemId={submission.evidence_item_id}
+                cycleId={submission.cycle_id ?? ""}
+                formData={formData}
+                attachments={attachments}
+              />
             </div>
           </div>
         )}
@@ -995,7 +828,6 @@ export function EvidenceDetailModal({
   const evidenceItemIdForMatrix = data?.submission?.evidence_item_id;
   // Use submission.cycle_id when available so matrix is always filtered by the same cycle as the submission
   const cycleIdForMatrix = data?.submission?.cycle_id ?? cycleId ?? "";
-  const formMetadata = useEvidenceFormMetadata(data?.submission?.evidence_item_id, data?.submission?.cycle_id ?? cycleId);
   // Fixed-length deps so array size never changes between renders (React requirement)
   const matrixItemId = evidenceItemIdForMatrix ?? "";
   const matrixCycleId = cycleIdForMatrix;
@@ -1262,65 +1094,15 @@ export function EvidenceDetailModal({
                         <h2 className="text-sm font-bold text-foreground">Evidence</h2>
                         <p className="text-[11px] text-(--foreground-muted) mt-0.5">Form data and attachments.</p>
                       </div>
-                      {/* Left column: scrollable; overscroll-y-auto allows scroll chaining when reaching end */}
-                      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto p-6 space-y-4">
-                        {formKeys.length > 0 && (() => {
-                          const orderedFormKeys = getOrderedKeysFromMetadata(formMetadata, formKeys);
-                          return (
-                            <div className="rounded-2xl overflow-hidden border border-(--border) shadow-sm">
-                              <table className="w-full text-left border-collapse text-sm">
-                                <thead>
-                                  <tr className="bg-(--surface) text-(--foreground-muted)">
-                                    <th className="w-44 py-3 px-5 text-[10px] font-bold uppercase tracking-widest">Field</th>
-                                    <th className="py-3 px-5 text-[10px] font-bold uppercase tracking-widest">Response</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {orderedFormKeys.map((key, i) => (
-                                    <tr key={key} className={`border-t border-(--border) ${i % 2 === 0 ? "bg-(--surface)" : "bg-background/70"} hover:bg-(--primary-muted)/20 transition-colors`}>
-                                      <td className="w-44 py-3.5 px-5 text-[11px] font-medium align-top text-(--foreground-muted)">{getFieldLabelFromMetadata(formMetadata, key)}</td>
-                                      <td className="py-3.5 px-5 text-sm align-top text-foreground">
-                                        <EvidenceFieldValue value={formData[key]} columnLabels={getTableColumnLabelsFromMetadata(formMetadata, key)} />
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          );
-                        })()}
-                        {attachments.length > 0 && (
-                          <div className="rounded-2xl border border-(--border) overflow-hidden shadow-sm bg-(--surface)">
-                            <div className="px-5 py-3 border-b border-(--border) bg-background/60 flex items-center justify-between">
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-(--foreground-muted)">Attached Files</span>
-                              <span className="text-[10px] text-(--foreground-muted) tabular-nums">{attachments.length} file{attachments.length !== 1 ? "s" : ""}</span>
-                            </div>
-                            <div className="divide-y divide-(--border)/60">
-                              {attachments.map((att) => (
-                                <div
-                                  key={att.id}
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() => setPreviewAttachment(att)}
-                                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setPreviewAttachment(att))}
-                                  className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-(--primary-muted)/20 transition-colors"
-                                >
-                                  <div className="w-10 h-10 rounded-xl bg-(--primary-muted)/30 border border-(--primary)/20 flex items-center justify-center shrink-0">
-                                    <svg className="w-5 h-5 text-(--primary)" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-foreground truncate">{att.file_name}</p>
-                                    <p className="text-[11px] text-(--foreground-muted) mt-0.5">{formatBytes(att.file_size_bytes)}</p>
-                                  </div>
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewAttachment(att); }} className="shrink-0 px-4 py-1.5 rounded-xl text-xs font-semibold border border-(--primary)/30 bg-(--primary-muted)/30 text-(--primary) hover:bg-(--primary-muted)/50 transition-colors">View</button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {formKeys.length === 0 && attachments.length === 0 && <p className="text-sm text-(--foreground-muted) py-3">No form data or attachments.</p>}
+                      {/* Left column: scrollable; same form layout as evidence uploader (no table, no AI hints) */}
+                      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto p-6">
+                        <EvidenceDisplayReadOnly
+                          evidenceItemId={submission.evidence_item_id}
+                          cycleId={submission.cycle_id ?? cycleId}
+                          formData={formData}
+                          attachments={attachments}
+                          onAttachmentClick={(att) => setPreviewAttachment(att)}
+                        />
                       </div>
                     </div>
                     {/* Right panel: Evaluation result — same structure as evidence submission; scrollable so L1/L2/approval can see all criteria and notes thread */}
@@ -1373,60 +1155,14 @@ export function EvidenceDetailModal({
                       <h2 className="text-sm font-semibold text-foreground">Evidence</h2>
                       <p className="text-[11px] text-(--foreground-muted) mt-0.5">Form data and attachments.</p>
                     </div>
-                    <div className="pt-4 space-y-4">
-                      {formKeys.length > 0 && (() => {
-                        const orderedFormKeys = getOrderedKeysFromMetadata(formMetadata, formKeys);
-                        return (
-                          <div className="overflow-hidden rounded-lg border border-(--border)/70">
-                            <table className="w-full text-left border-collapse text-sm">
-                              <thead>
-                                <tr>
-                                  <th className="w-[min(180px,38%)] py-2.5 px-3 text-[11px] font-semibold text-(--foreground-muted) uppercase tracking-wider border-b border-(--border)/80">Field</th>
-                                  <th className="py-2.5 px-3 text-[11px] font-semibold text-(--foreground-muted) uppercase tracking-wider border-b border-(--border)/80">Response</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {orderedFormKeys.map((key) => (
-                                  <tr key={key} className="border-b border-(--border)/50 last:border-b-0">
-                                    <td className="w-[min(180px,38%)] py-2.5 px-3 align-top border-r border-(--border)/50 text-xs font-medium text-foreground">
-                                      {getFieldLabelFromMetadata(formMetadata, key)}
-                                    </td>
-                                    <td className="py-2.5 px-3 text-xs align-top text-foreground">
-                                      <EvidenceFieldValue value={formData[key]} columnLabels={getTableColumnLabelsFromMetadata(formMetadata, key)} />
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        );
-                      })()}
-                      {attachments.length > 0 && (
-                        <ul className="divide-y divide-(--border)/60">
-                          {attachments.map((att) => (
-                            <li
-                              key={att.id}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => setPreviewAttachment(att)}
-                              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setPreviewAttachment(att))}
-                              className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-(--primary-muted)/30 active:bg-(--primary-muted)/50 transition-colors"
-                            >
-                              <div className="w-10 h-10 rounded-lg bg-background border border-(--border) flex items-center justify-center shrink-0">
-                                <svg className="w-5 h-5 text-(--foreground-muted)" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <span className="text-xs font-semibold text-foreground truncate block">{att.file_name}</span>
-                                <span className="text-[10px] text-(--foreground-muted) mt-0.5 block">{formatBytes(att.file_size_bytes)}</span>
-                              </div>
-                              <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewAttachment(att); }} className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg border border-(--primary)/50 bg-(--primary-muted)/50 text-(--primary) hover:bg-(--primary-muted) hover:border-(--primary) transition-colors">View</button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {formKeys.length === 0 && attachments.length === 0 && <p className="text-sm text-(--foreground-muted) py-3">No form data or attachments.</p>}
+                    <div className="pt-4">
+                      <EvidenceDisplayReadOnly
+                        evidenceItemId={submission.evidence_item_id}
+                        cycleId={submission.cycle_id ?? cycleId}
+                        formData={formData}
+                        attachments={attachments}
+                        onAttachmentClick={(att) => setPreviewAttachment(att)}
+                      />
                     </div>
                   </section>
                   <section className="flex flex-col">

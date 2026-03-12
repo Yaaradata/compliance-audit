@@ -27,7 +27,7 @@ export interface EvidenceQuestionsFormProps {
   fieldFeedback?: Record<string, string | null>;
   disabled?: boolean;
   /** Called when user focuses/clicks a question. Used to show its guide in the evaluation panel. */
-  onQuestionFocus?: (questionKey: string, guide: string | null, label: string) => void;
+  onQuestionFocus?: (questionKey: string, guide: string | null, label: string, element?: HTMLElement) => void;
 }
 
 function questionToInput(q: EvidenceQuestion): EvidenceInput {
@@ -66,7 +66,7 @@ function SpreadsheetQuestionRenderer({
   onBlur?: () => void;
   disabled?: boolean;
   fieldFeedbackHint?: string | null;
-  onFocus?: () => void;
+  onFocus?: (e: React.FocusEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => void;
 }) {
   const columns = (
     (question.options?.filter((o) => typeof o === "object" && o !== null && "key" in o) ?? []) as unknown as SpreadsheetColumn[]
@@ -96,8 +96,8 @@ function SpreadsheetQuestionRenderer({
   return (
     <div
       className="space-y-2.5 rounded-lg -m-1 p-1 hover:bg-gray-50/50 transition-colors border border-transparent hover:border-gray-200 focus-within:border-(--primary)/30 focus-within:ring-1 focus-within:ring-(--primary)/20"
-      onClick={onFocus}
-      onFocus={onFocus}
+      onClick={(e) => onFocus?.(e)}
+      onFocus={(e) => onFocus?.(e)}
       role="group"
       aria-label={question.label}
     >
@@ -268,7 +268,8 @@ export function EvidenceQuestionsForm({
     <div className="space-y-6">
       {visibleQuestions.map((q) => {
         if (q.question_type === "file") {
-          const handleFocus = () => onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label);
+          const handleFocus = (e: React.FocusEvent | React.MouseEvent) =>
+            onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget as HTMLElement);
           return (
             <div
               key={q.id}
@@ -302,7 +303,7 @@ export function EvidenceQuestionsForm({
               onBlur={onBlur}
               disabled={disabled}
               fieldFeedbackHint={fieldFeedback?.[q.question_key]}
-              onFocus={() => onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label)}
+              onFocus={(e) => onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget)}
             />
           );
         }
@@ -310,13 +311,14 @@ export function EvidenceQuestionsForm({
         if (input.type === "textarea" && q.rows) {
           input.type = "textarea";
         }
-        const handleFocus = () => onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label);
+        const handleFocus = (e: React.FocusEvent | React.MouseEvent) =>
+          onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget as HTMLElement);
         return (
           <div
             key={q.id}
             className="rounded-lg -m-1 p-1 hover:bg-gray-50/50 transition-colors border border-transparent hover:border-gray-200 focus-within:border-(--primary)/30 focus-within:ring-1 focus-within:ring-(--primary)/20"
             onClick={handleFocus}
-            onFocus={handleFocus}
+            onFocusCapture={handleFocus}
             role="group"
             aria-label={q.label}
           >

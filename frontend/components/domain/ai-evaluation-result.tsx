@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Pencil } from "lucide-react";
 import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -83,6 +82,7 @@ function CriterionNoteThread({
   refreshTrigger,
   onNoteAdded,
   onNoteDeleted,
+  onNotesCountChange,
   showRemoveFromEdited,
 }: {
   submissionId: string;
@@ -90,6 +90,8 @@ function CriterionNoteThread({
   refreshTrigger: number;
   onNoteAdded?: () => void;
   onNoteDeleted?: () => void;
+  /** Called when notes load so parent can enable X→✓ only when notes exist. */
+  onNotesCountChange?: (count: number) => void;
   /** When true (Edited tab), show "Remove from edited" to delete all notes and move criterion back to Not met. */
   showRemoveFromEdited?: boolean;
 }) {
@@ -133,6 +135,7 @@ function CriterionNoteThread({
         refreshTrigger={refreshTrigger}
         emptyMessage="No notes yet. Add a note for reviewers or follow up."
         onNoteDeleted={onNoteDeleted}
+        onNotesLoaded={(notes) => onNotesCountChange?.(notes.length)}
       />
       <NoteInput
         resourceType="evidence_submission"
@@ -175,6 +178,7 @@ function EditableCriterion({
   const [editingNote, setEditingNote] = useState(false);
   const [noteDraft, setNoteDraft] = useState(userNote ?? "");
   const [showNoteBox, setShowNoteBox] = useState(!!defaultExpandNote);
+  const [threadNotesCount, setThreadNotesCount] = useState(0);
 
   useEffect(() => {
     setNoteDraft(userNote ?? "");
@@ -188,25 +192,76 @@ function EditableCriterion({
   const hasThread = Boolean(submissionId);
   const isNotMet = !criterion.met;
   const isEditedRow = !!defaultExpandNote;
-  const showPen = (isNotMet && hasThread) || (isEditedRow && hasThread);
+  const hasNotes = hasThread ? threadNotesCount > 0 : Boolean(userNote?.trim());
+  const canToggleToMet = criterion.met || hasNotes;
+  const canToggleToNotMet = !criterion.met || !isEditedRow;
+  const showAddComment = (isNotMet && hasThread) || (isEditedRow && hasThread);
   const showThreadInline = hasThread && showNoteBox && (isNotMet || isEditedRow);
 
+  const handleToggleClick = () => {
+    if (criterion.met) {
+      if (!canToggleToNotMet) return;
+    } else {
+      if (!canToggleToMet) return;
+    }
+    onToggle();
+  };
+
   return (
-    <div className="grid grid-cols-[1.5rem_1fr_2rem] gap-3 items-start py-3 px-0 border-b border-(--border)/50 last:border-b-0 hover:bg-(--primary-muted)/5 transition-colors group">
+    <div className="grid grid-cols-[1.5rem_1fr] gap-3 items-start py-3 px-0 border-b border-(--border)/50 last:border-b-0 hover:bg-(--primary-muted)/5 transition-colors group">
       <button
         type="button"
-        onClick={onToggle}
-        className={`w-6 h-6 flex shrink-0 items-center justify-center rounded text-base font-bold cursor-pointer transition-colors mt-0.5 ${
-          criterion.met ? "text-emerald-600 hover:text-emerald-700" : "text-rose-600 hover:text-rose-700"
+        onClick={handleToggleClick}
+        disabled={(!criterion.met && !canToggleToMet) || (criterion.met && !canToggleToNotMet)}
+        className={`w-6 h-6 flex shrink-0 items-center justify-center rounded text-base font-bold transition-colors mt-0.5 ${
+          !criterion.met && !canToggleToMet
+            ? "text-rose-400 cursor-not-allowed"
+            : criterion.met
+              ? canToggleToNotMet
+                ? "text-emerald-600 hover:text-emerald-700 cursor-pointer"
+                : "text-emerald-600 cursor-not-allowed"
+              : "text-rose-600 hover:text-rose-700 cursor-pointer"
         }`}
-        title={criterion.met ? "Met — click to mark as not met" : "Not met — click to mark as met"}
+        title={
+          !criterion.met && !canToggleToMet
+            ? "Add a note first to mark as met"
+            : criterion.met
+              ? canToggleToNotMet
+                ? "Met — click to mark as not met"
+                : "Edited — cannot change back to not met"
+              : "Not met — add a note then click to mark as met"
+        }
       >
         {criterion.met ? "✓" : "✗"}
       </button>
       <div className="flex-1 min-w-0 space-y-1 py-0.5">
         <span className="text-sm text-foreground font-medium leading-snug">{stripCriteriaPrefix(criterion.label)}</span>
         {!hideAiHint && aiDescription && aiDescription.trim() && (
-          <p className={`text-xs ${criterion.met ? "text-(--foreground-muted)" : "text-rose-600/90"}`}>{aiDescription.trim()}</p>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <p className={`text-xs ${criterion.met ? "text-(--foreground-muted)" : "text-rose-600/90"}`}>{aiDescription.trim()}</p>
+            {showAddComment && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowNoteBox((v) => !v)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowNoteBox((v) => !v); } }}
+                className="text-xs text-(--primary) hover:underline cursor-pointer font-medium"
+              >
+                +Add comment
+              </span>
+            )}
+          </div>
+        )}
+        {showAddComment && !aiDescription?.trim() && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowNoteBox((v) => !v)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowNoteBox((v) => !v); } }}
+            className="text-xs text-(--primary) hover:underline cursor-pointer font-medium block"
+          >
+            +Add comment
+          </span>
         )}
         {showThreadInline ? (
           <CriterionNoteThread
@@ -215,10 +270,22 @@ function EditableCriterion({
             refreshTrigger={notesRefreshTrigger ?? 0}
             onNoteAdded={onNoteAdded}
             onNoteDeleted={onClearCriterionEdit}
+            onNotesCountChange={setThreadNotesCount}
             showRemoveFromEdited={defaultExpandNote}
           />
         ) : hasThread && !isNotMet && !isEditedRow ? null : !hasThread ? (
           <>
+            {!editingNote && isNotMet && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setEditingNote(true)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditingNote(true); } }}
+                className="text-xs text-(--primary) hover:underline cursor-pointer font-medium block mt-0.5"
+              >
+                +Add comment
+              </span>
+            )}
             {editingNote ? (
               <div className="flex flex-col gap-2 mt-1.5">
                 <textarea
@@ -259,30 +326,6 @@ function EditableCriterion({
             )}
           </>
         ) : null}
-      </div>
-      <div className="w-8 h-8 flex shrink-0 items-center justify-center mt-0.5">
-        {showPen && (
-          <button
-            type="button"
-            onClick={() => setShowNoteBox((v) => !v)}
-            className="p-1.5 rounded text-(--foreground-muted) hover:text-(--primary) hover:bg-(--primary-muted)/30 transition-colors"
-            title={showNoteBox ? "Hide note" : "Add or view note"}
-            aria-label={showNoteBox ? "Hide note" : "Add or view note"}
-          >
-            <Pencil className="w-4 h-4" strokeWidth={2} />
-          </button>
-        )}
-        {!hasThread && (
-          <button
-            type="button"
-            onClick={() => setEditingNote(true)}
-            className="p-1.5 rounded text-(--foreground-muted) hover:text-(--primary) hover:bg-(--primary-muted)/30 transition-colors"
-            title="Add or edit note"
-            aria-label="Add or edit note"
-          >
-            <Pencil className="w-4 h-4" strokeWidth={2} />
-          </button>
-        )}
       </div>
     </div>
   );
@@ -341,10 +384,10 @@ function CriterionRow({
   const hasThread = Boolean(submissionId);
   const isNotMet = !criterion.met;
   const isEditedRow = !!defaultExpandNote;
-  const showPen = (isNotMet && hasThread) || (isEditedRow && hasThread);
+  const showAddComment = (isNotMet && hasThread) || (isEditedRow && hasThread);
   const showThreadInline = hasThread && showNoteBox && (isNotMet || isEditedRow);
   return (
-    <div className="grid grid-cols-[1.5rem_1fr_2rem] gap-3 items-start py-3 px-0 border-b border-(--border)/50 last:border-b-0 hover:bg-(--primary-muted)/5 transition-colors">
+    <div className="grid grid-cols-[1.5rem_1fr] gap-3 items-start py-3 px-0 border-b border-(--border)/50 last:border-b-0 hover:bg-(--primary-muted)/5 transition-colors">
       <span
         className={`w-6 h-6 flex shrink-0 items-center justify-center rounded text-base font-bold mt-0.5 ${
           criterion.met ? "text-emerald-600" : "text-rose-600"
@@ -356,7 +399,31 @@ function CriterionRow({
       <div className="flex-1 min-w-0 space-y-1 py-0.5">
         <span className="text-sm text-foreground font-medium leading-snug">{stripCriteriaPrefix(criterion.label)}</span>
         {!hideAiHint && aiDescription && aiDescription.trim() && (
-          <p className={`text-xs ${criterion.met ? "text-(--foreground-muted)" : "text-rose-600/90"}`}>{aiDescription.trim()}</p>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <p className={`text-xs ${criterion.met ? "text-(--foreground-muted)" : "text-rose-600/90"}`}>{aiDescription.trim()}</p>
+            {showAddComment && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowNoteBox((v) => !v)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowNoteBox((v) => !v); } }}
+                className="text-xs text-(--primary) hover:underline cursor-pointer font-medium"
+              >
+                +Add comment
+              </span>
+            )}
+          </div>
+        )}
+        {showAddComment && !aiDescription?.trim() && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowNoteBox((v) => !v)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowNoteBox((v) => !v); } }}
+            className="text-xs text-(--primary) hover:underline cursor-pointer font-medium block"
+          >
+            +Add comment
+          </span>
         )}
         {showThreadInline ? (
           <CriterionNoteThread
@@ -375,19 +442,6 @@ function CriterionRow({
               {userNote.trim()}
             </p>
           )
-        )}
-      </div>
-      <div className="w-8 h-8 flex shrink-0 items-center justify-center mt-0.5">
-        {showPen && (
-          <button
-            type="button"
-            onClick={() => setShowNoteBox((v) => !v)}
-            className="p-1.5 rounded text-(--foreground-muted) hover:text-(--primary) hover:bg-(--primary-muted)/30 transition-colors"
-            title={showNoteBox ? "Hide note" : "View or add note"}
-            aria-label={showNoteBox ? "Hide note" : "View or add note"}
-          >
-            <Pencil className="w-4 h-4" strokeWidth={2} />
-          </button>
         )}
       </div>
     </div>
@@ -505,11 +559,17 @@ function AiEvaluationResultTabs({
     [onEdit, result, evaluationEdits]
   );
 
-  /** IT SME only: Re-evaluate and Submit buttons — rendered inside each tab so they stay within the Sufficiency & criteria box */
-  const renderActionButtons = () =>
-    editable && (onReEvaluate || onSubmitForReview) ? (
+  /** IT SME only: Re-evaluate, Submit, and status badges — rendered inside each tab. Always show when callbacks exist, including after submission. */
+  const renderActionButtons = () => {
+    if (!onReEvaluate && !onSubmitForReview) return null;
+    const isSubmitted = submissionStatus === "submitted" || submissionStatus === "in_review_L2" || submissionStatus === "in_review_L3";
+    const isApproved = submissionStatus === "approved";
+    const canEdit = !isSubmitted && !isApproved;
+
+    return (
       <div className="shrink-0 mt-4 pt-4 border-t border-(--border) space-y-3">
-        {evaluationState === "done" && onReEvaluate && (
+        {/* Re-evaluate: only when editable and evaluation is done */}
+        {canEdit && evaluationState === "done" && onReEvaluate && (
           <button
             type="button"
             onClick={onReEvaluate}
@@ -527,7 +587,8 @@ function AiEvaluationResultTabs({
             )}
           </button>
         )}
-        {submissionStatus !== "submitted" && submissionStatus !== "approved" && onSubmitForReview && (
+        {/* Submit for Review: only when not yet submitted/approved */}
+        {canEdit && onSubmitForReview && (
           <button
             type="button"
             onClick={onSubmitForReview}
@@ -537,23 +598,27 @@ function AiEvaluationResultTabs({
             {submitForReviewLoading ? "Submitting…" : `Submit ${currentItemId ?? "item"} for Review`}
           </button>
         )}
-        {(submissionStatus === "submitted" || submissionStatus === "in_review_L2" || submissionStatus === "in_review_L3") && (
-          <div className="py-2.5 px-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm text-center font-medium">
+        {/* Submitted for review: show after user submits */}
+        {isSubmitted && (
+          <div className="py-2.5 px-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-sm text-center font-medium">
             Submitted for review
           </div>
         )}
-        {submissionStatus === "approved" && (
-          <div className="py-2.5 px-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm text-center font-medium">
+        {/* Evidence approved: show when reviewer approves */}
+        {isApproved && (
+          <div className="py-2.5 px-3 rounded-lg bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 text-sm text-center font-medium">
             Evidence approved
           </div>
         )}
-        {evaluationState === "idle" && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        {/* Evidence edited: prompt to re-evaluate when edits made after last run */}
+        {canEdit && evaluationState === "idle" && (
+          <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
             Evidence edited. Run Re-evaluate to refresh results.
           </div>
         )}
       </div>
-    ) : null;
+    );
+  };
 
   const renderList = (
     items: CriterionWithSection[],
@@ -585,10 +650,10 @@ function AiEvaluationResultTabs({
   );
 
   return (
-    <div className="bg-white rounded-xl border border-(--border) overflow-hidden shadow-sm flex flex-col min-h-0 h-full">
+    <div className="bg-white dark:bg-(--surface) rounded-2xl border border-slate-200 dark:border-(--border) overflow-hidden shadow-sm flex flex-col min-h-0 h-full">
       {/* Summary bar: pass / fail / AI count (no duplicate title/donut — those are in Evaluation result header) */}
       {totalCount > 0 && (
-        <div className="shrink-0 flex items-center justify-between px-4 pt-3 pb-2 border-b border-(--border) bg-background/40">
+        <div className="shrink-0 flex items-center justify-between px-4 pt-3 pb-2 border-b border-slate-200 dark:border-(--border) bg-slate-50/60 dark:bg-background/40">
           <span className="text-[10px] font-bold uppercase tracking-widest text-(--foreground-muted)">
             Sufficiency & criteria
           </span>
@@ -596,33 +661,29 @@ function AiEvaluationResultTabs({
       )}
 
       <Tabs value={activeTab} onChange={(v) => setActiveTab(v as "x" | "tick" | "edited")} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <TabsList className="shrink-0 mx-4 mt-3 mb-0 rounded-lg p-1 bg-(--surface) border border-(--border)">
-          <TabsTrigger value="x" className="text-xs">
+        <TabsList className="shrink-0 mx-4 mt-3 mb-0 rounded-xl p-1 bg-slate-100/80 dark:bg-(--surface) border border-slate-200 dark:border-(--border) gap-0.5">
+          <TabsTrigger value="x" className="text-xs data-[state=active]:bg-rose-100 data-[state=active]:text-rose-800 dark:data-[state=active]:bg-rose-900/30 dark:data-[state=active]:text-rose-200 rounded-lg">
             ✗ Not met ({failed.length})
           </TabsTrigger>
-          <TabsTrigger value="tick" className="text-xs">
+          <TabsTrigger value="tick" className="text-xs data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-800 dark:data-[state=active]:bg-emerald-900/30 dark:data-[state=active]:text-emerald-200 rounded-lg">
             ✓ Met ({passed.length})
           </TabsTrigger>
-          <TabsTrigger value="edited" className="text-xs">
+          <TabsTrigger value="edited" className="text-xs data-[state=active]:bg-amber-100 data-[state=active]:text-amber-800 dark:data-[state=active]:bg-amber-900/30 dark:data-[state=active]:text-amber-200 rounded-lg">
             Edited ({edited.length})
           </TabsTrigger>
         </TabsList>
 
-        <div className="px-4 py-3 flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto">
+        <div className="px-4 py-3 flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto scroll-smooth pr-4 bg-white dark:bg-transparent">
           <TabsContent value="x" className="mt-0 block">
             <div className="flex items-center gap-2 mb-2">
               <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
                 Sufficiency & criteria — not met
               </h4>
-              <span
-                className={`text-[11px] font-bold px-2 py-0.5 rounded shrink-0 ${
-                  result.overall_met ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                }`}
-              >
-                {result.overall_met ? "Requirements met" : "Gaps identified"}
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded shrink-0 bg-amber-100 text-amber-800">
+                Gaps identified
               </span>
             </div>
-            {renderList(failed, { onClearCriterionEdit: handleClearCriterionEdit, hideAiHint })}
+            {renderList(failed, { onClearCriterionEdit: handleClearCriterionEdit, hideAiHint: false })}
             {renderActionButtons()}
           </TabsContent>
           <TabsContent value="tick" className="mt-0 block">
@@ -630,13 +691,6 @@ function AiEvaluationResultTabs({
               <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
                 Sufficiency & criteria — met
               </h4>
-              <span
-                className={`text-[11px] font-bold px-2 py-0.5 rounded shrink-0 ${
-                  result.overall_met ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                }`}
-              >
-                {result.overall_met ? "Requirements met" : "Gaps identified"}
-              </span>
             </div>
             {renderList(passed, { onClearCriterionEdit: handleClearCriterionEdit, hideAiHint })}
             {renderActionButtons()}
@@ -646,15 +700,8 @@ function AiEvaluationResultTabs({
               <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
                 Edited by you (note or x→✓)
               </h4>
-              <span
-                className={`text-[11px] font-bold px-2 py-0.5 rounded shrink-0 ${
-                  result.overall_met ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                }`}
-              >
-                {result.overall_met ? "Requirements met" : "Gaps identified"}
-              </span>
             </div>
-            {renderList(edited, { defaultExpandNote: true, onClearCriterionEdit: handleClearCriterionEdit, hideAiHint })}
+            {renderList(edited, { defaultExpandNote: true, onClearCriterionEdit: handleClearCriterionEdit, hideAiHint: false })}
             {renderActionButtons()}
           </TabsContent>
         </div>
@@ -685,12 +732,17 @@ export function AiEvaluationResult({
 }: AiEvaluationResultProps) {
   if (loading) {
     return (
-      <div className="bg-sky-50 rounded-xl border border-sky-200 p-4">
-        <div className="text-xs font-semibold text-sky-800 mb-2">AI Evaluation</div>
-        <p className="text-xs text-sky-600">
+      <div className="rounded-2xl border-2 border-sky-200 dark:border-sky-700 bg-white dark:bg-slate-900/60 shadow-md p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <span className="inline-block size-8 border-2 border-sky-200 border-t-sky-600 dark:border-sky-600 dark:border-t-sky-400 rounded-full animate-spin" />
+          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">AI Evaluation</span>
+        </div>
+        <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
           Reading Evidence Description, Sufficiency Definition, Evaluation Criteria and submitted evidence…
         </p>
-        <p className="text-[11px] text-sky-500 mt-2">Evaluating criteria and generating descriptions for any gaps.</p>
+        <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">
+          Evaluating criteria and generating descriptions for any gaps.
+        </p>
       </div>
     );
   }

@@ -28,9 +28,11 @@ interface NoteListProps {
   preFetchedNotes?: NoteItem[] | null;
   /** Called after a note is deleted (so parent can e.g. clear criterion edit and move row to Not met). */
   onNoteDeleted?: () => void;
+  /** Called when notes are loaded (so parent can e.g. enable X→✓ toggle only when notes exist). */
+  onNotesLoaded?: (notes: NoteItem[]) => void;
 }
 
-export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger = 0, emptyMessage = "No notes yet.", preFetchedNotes, onNoteDeleted }: NoteListProps) {
+export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger = 0, emptyMessage = "No notes yet.", preFetchedNotes, onNoteDeleted, onNotesLoaded }: NoteListProps) {
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -43,16 +45,22 @@ export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger
     if (criterionId) params.set("criterion_id", criterionId);
     api
       .get<NoteItem[]>(`/notes?${params.toString()}`)
-      .then((data) => setNotes(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const notes = Array.isArray(data) ? data : [];
+        setNotes(notes);
+        onNotesLoaded?.(notes);
+      })
       .catch((e: Error) => setError(e.message || "Notes unavailable."))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     if (preFetchedNotes !== undefined && preFetchedNotes !== null) {
-      setNotes(Array.isArray(preFetchedNotes) ? preFetchedNotes : []);
+      const notes = Array.isArray(preFetchedNotes) ? preFetchedNotes : [];
+      setNotes(notes);
       setLoading(false);
       setError("");
+      onNotesLoaded?.(notes);
       return;
     }
     fetchNotes();
