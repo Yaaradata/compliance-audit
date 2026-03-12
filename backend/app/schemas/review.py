@@ -34,6 +34,7 @@ class ReviewOut(BaseModel):
     completed_at: datetime | None = None
     evidence_item_id: str | None = None
     submission_status: str | None = None
+    submitter_name: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -61,6 +62,11 @@ class CommentOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class SubmitForReviewRequest(BaseModel):
+    """Optional: persist latest evaluation_edits when submitting so L1 reviewer sees submitter's overrides."""
+    evaluation_edits: dict | None = None
 
 
 class SubmitForReviewResponse(BaseModel):

@@ -17,6 +17,7 @@ interface ApiReview {
   completed_at: string | null;
   evidence_item_id: string | null;
   submission_status: string | null;
+  submitter_name: string | null;
 }
 
 interface RefDomain {
@@ -639,7 +640,9 @@ export default function CycleReviewPage() {
                               {displayLevel} — {LEVEL_LABELS[displayLevel] ?? displayLevel}
                             </span>
                           </td>
-                          <td className="py-4 px-4 align-top text-xs text-(--foreground-muted)">—</td>
+                          <td className="py-4 px-4 align-top text-xs text-(--foreground-muted)">
+                            {review.submitter_name ?? "—"}
+                          </td>
                           <td className="py-4 px-4 align-top text-xs text-(--foreground-muted)">{dateStr}</td>
                           <td className="py-4 px-4 align-top">
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${style.bg} ${style.text}`}>

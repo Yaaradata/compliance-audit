@@ -8,6 +8,7 @@ class CreateNoteRequest(BaseModel):
     resource_id: UUID
     body: str
     parent_id: UUID | None = None
+    criterion_id: str | None = None
 
 
 class NoteOut(BaseModel):
@@ -15,11 +16,13 @@ class NoteOut(BaseModel):
     tenant_id: UUID
     resource_type: str
     resource_id: UUID
+    criterion_id: str | None = None
     parent_id: UUID | None = None
     author_id: UUID
     body: str
     created_at: datetime
     author_name: str | None = None
+    author_role: str | None = None
 
     model_config = {"from_attributes": True}
 

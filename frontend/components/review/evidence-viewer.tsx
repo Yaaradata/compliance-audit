@@ -12,6 +12,7 @@ import {
 } from "@/lib/hooks/use-evidence-form-metadata";
 import { NoteList, type NoteItem } from "@/components/notes/note-list";
 import { NoteInput } from "@/components/notes/note-input";
+import { AiEvaluationResult, EvaluationScoreRing } from "@/components/domain/ai-evaluation-result";
 
 interface Attachment {
   id: string;
@@ -97,6 +98,8 @@ export interface ReviewDetailData {
       criteria?: { id: string; label: string; met: boolean; description?: string | null }[];
       summary?: string | null;
     } | null;
+    /** Submitter's edits (met overrides + notes) so L1/L2/approval see Edited tab and overrides. */
+    evaluation_edits?: Record<string, { met: boolean; description: string | null; userNote?: string | null }>;
     submitted_at: string | null;
   };
   attachments: Attachment[];
@@ -1159,7 +1162,9 @@ export function EvidenceDetailModal({
     ...(evalResult?.sufficiency_results ?? []),
     ...(evalResult?.criteria ?? []),
   ].filter((c) => shouldShowCriterion(c.label));
-  const overallMet = allCriteria.filter((c) => c.met).length;
+  const evaluationEdits = submission.evaluation_edits ?? {};
+  const getEffectiveMet = (c: { id: string; met: boolean }) => evaluationEdits[c.id]?.met ?? c.met;
+  const overallMet = allCriteria.filter((c) => getEffectiveMet(c)).length;
   const overallTotal = allCriteria.length;
   const controlId = evidenceItemId ?? submission.evidence_item_id ?? "—";
 
@@ -1255,8 +1260,8 @@ export function EvidenceDetailModal({
                         <h2 className="text-sm font-bold text-foreground">Evidence</h2>
                         <p className="text-[11px] text-(--foreground-muted) mt-0.5">Form data and attachments.</p>
                       </div>
-                      {/* Left column: scrollable so both panels have independent scroll */}
-                      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 space-y-4">
+                      {/* Left column: scrollable; overscroll-y-auto allows scroll chaining when reaching end */}
+                      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto p-6 space-y-4">
                         {formKeys.length > 0 && (() => {
                           const orderedFormKeys = getOrderedKeysFromMetadata(formMetadata, formKeys);
                           return (
@@ -1316,110 +1321,47 @@ export function EvidenceDetailModal({
                         {formKeys.length === 0 && attachments.length === 0 && <p className="text-sm text-(--foreground-muted) py-3">No form data or attachments.</p>}
                       </div>
                     </div>
-                    {/* Right panel: Control & AI — fixed width, tabs with dots, criterion list */}
-                    <div className="w-[500px] shrink-0 flex flex-col min-h-0 bg-(--surface) border-(--border) overflow-hidden">
-                      <div className="shrink-0 px-6 pt-5 pb-0 border-b border-(--border)">
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h2 className="text-sm font-bold text-foreground">Control & AI Evaluation</h2>
-                            <p className="text-[11px] text-(--foreground-muted) mt-0.5">Per-criterion results with notes.</p>
+                    {/* Right panel: Evaluation result — same structure as evidence submission; scrollable so L1/L2/approval can see all criteria and notes thread */}
+                    <div className="w-full min-w-0 flex flex-col min-h-0 md:flex-[0_0_55%] md:min-h-[60vh] bg-(--surface) border-t md:border-t-0 border-(--border) shadow-sm overflow-hidden">
+                      <div className="shrink-0 px-5 py-4 border-b border-(--border) bg-background/50 min-h-[72px] flex flex-col justify-center">
+                        <div className="flex items-center justify-between gap-3 min-h-[52px]">
+                          <div className="min-w-0">
+                            <h2 className="text-base font-bold text-foreground">Evaluation result</h2>
+                            <p className="text-sm text-(--foreground-muted) mt-1">Per-criterion results with notes. Add notes in thread; name and role shown.</p>
                           </div>
-                          {activeControlTotal > 0 && (
-                            <div className="flex items-center gap-3 px-3.5 py-2 rounded-xl border border-(--border) bg-background/60">
-                              <ScoreRing score={passCount} total={itemsForControl.length} size={40} />
-                              <div>
-                                <p className="text-[10px] font-bold text-foreground tabular-nums">{passCount}/{itemsForControl.length}</p>
-                                <p className="text-[9px] uppercase tracking-widest text-(--foreground-muted)">{selectedControlId ?? ""} pass</p>
+                          {evalResult && (() => {
+                            const suff = (evalResult.sufficiency_results ?? []).filter((c) => shouldShowCriterion(c.label));
+                            const crit = (evalResult.criteria ?? []).filter((c) => shouldShowCriterion(c.label));
+                            const total = suff.length + crit.length;
+                            const edits = submission.evaluation_edits ?? {};
+                            const getMet = (c: { id: string; met: boolean }) => edits[c.id]?.met ?? c.met;
+                            const met = [...suff, ...crit].filter((c) => getMet(c)).length;
+                            if (total === 0) return null;
+                            return (
+                              <div className="flex items-center gap-3 px-3.5 py-2 rounded-xl border border-(--border) bg-background/60 shrink-0">
+                                <EvaluationScoreRing score={met} total={total} size={40} />
+                                <div>
+                                  <p className="text-[10px] font-bold text-foreground tabular-nums">{met}/{total}</p>
+                                  <p className="text-[9px] uppercase tracking-widest text-(--foreground-muted)">pass</p>
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </div>
-                        {controlIds.length > 0 && (
-                          <div className="flex gap-0.5">
-                            {controlIds.map((cid) => {
-                              const st = perControlStats[cid];
-                              const pct = st?.total ? st.met / st.total : 0;
-                              const dot = pct >= 0.75 ? "bg-emerald-400" : pct >= 0.5 ? "bg-amber-400" : "bg-rose-400";
-                              const isActive = selectedControlId === cid;
-                              return (
-                                <button
-                                  key={cid}
-                                  type="button"
-                                  onClick={() => setSelectedControlId(cid)}
-                                  className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-t-xl text-[11px] font-semibold border-b-2 transition-all ${isActive ? "bg-(--primary-muted)/40 border-(--primary) text-(--primary)" : "border-transparent text-(--foreground-muted) hover:text-foreground"}`}
-                                >
-                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
-                                  <span className="tabular-nums">{cid}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      <div className="shrink-0 flex items-center justify-between px-6 py-2 border-b border-(--border) bg-background/40">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-(--foreground-muted)">Sufficiency Definition</span>
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            {passCount} pass
-                          </span>
-                          <span className="flex items-center gap-1.5 text-[10px] text-rose-600 dark:text-rose-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                            {failCount} fail
-                          </span>
-                          {activeControlTotal > 0 && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full border border-(--border) bg-(--surface) text-(--foreground-muted) tabular-nums">
-                              AI: {activeControlMet}/{activeControlTotal}
-                            </span>
-                          )}
+                            );
+                          })()}
                         </div>
                       </div>
-                      {/* Scrollable criterion list — when scroll ends, chain to page (overscroll-y-auto) */}
-                      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto">
-                        {matrixLoading && <p className="px-6 py-3 text-xs text-(--foreground-muted)">Loading matrix…</p>}
-                        {(sufficiencyForControl.length > 0 || criteriaForControl.length > 0) ? (
-                          <ul className="list-none pb-4">
-                            {sufficiencyForControl.map((s) => (
-                              <li key={s.id} className="border-b border-(--border) px-6 py-4 hover:bg-(--primary-muted)/10 transition-colors">
-                                <CriterionNoteBlock
-                                  submissionId={submission.id}
-                                  criterionId={s.id}
-                                  label={s.label}
-                                  met={s.met}
-                                  description={s.description ?? null}
-                                  refreshTrigger={notesRefresh}
-                                  onNoteAdded={() => setNotesRefresh((r) => r + 1)}
-                                  preFetchedNotes={submissionNotes}
-                                />
-                              </li>
-                            ))}
-                            {criteriaForControl.map((c) => (
-                              <li key={c.id} className="border-b border-(--border) px-6 py-4 hover:bg-(--primary-muted)/10 transition-colors">
-                                <CriterionNoteBlock
-                                  submissionId={submission.id}
-                                  criterionId={c.id}
-                                  label={c.label}
-                                  met={c.met}
-                                  description={c.description ?? null}
-                                  refreshTrigger={notesRefresh}
-                                  onNoteAdded={() => setNotesRefresh((r) => r + 1)}
-                                  preFetchedNotes={submissionNotes}
-                                />
-                              </li>
-                            ))}
-                          </ul>
-                        ) : evalResult ? (
-                          <p className="px-6 py-4 text-xs text-(--foreground-muted)">No sufficiency or criteria for this control.</p>
-                        ) : (
-                          <p className="px-6 py-4 text-sm text-(--foreground-muted)">No evaluation yet.</p>
-                        )}
-                      </div>
-                      <div className="shrink-0 px-6 py-2.5 border-t border-(--border) bg-background/40">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-3.5 h-3.5 shrink-0 text-(--primary)" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <p className="text-[10px] text-(--foreground-muted)">AI-generated evaluation · Use edit to update notes</p>
+                      <div className="flex-1 min-h-0 overflow-hidden p-5 flex flex-col">
+                        <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
+                          <AiEvaluationResult
+                            result={evalResult ? { ...evalResult, evidence_item_id: submission.evidence_item_id, criteria: evalResult.criteria ?? [] } : null}
+                            loading={false}
+                            placeholder={false}
+                            editable={false}
+                            evaluationEdits={submission.evaluation_edits ?? {}}
+                            submissionId={submission.id}
+                            notesRefreshTrigger={notesRefresh}
+                            onNoteAdded={() => setNotesRefresh((r) => r + 1)}
+                            hideAiHint={true}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1490,89 +1432,49 @@ export function EvidenceDetailModal({
                     </div>
                   </section>
                   <section className="flex flex-col">
-                    <div className="pb-3 border-b border-(--border)/80">
-                      <h2 className="text-sm font-semibold text-foreground">Control & AI evaluation</h2>
-                      <p className="text-[11px] text-(--foreground-muted) mt-0.5">Per-criterion results with notes.</p>
+                    <div className="pb-3 border-b border-(--border)/80 flex items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-sm font-semibold text-foreground">Evaluation result</h2>
+                        <p className="text-[11px] text-(--foreground-muted) mt-0.5">Per-criterion results with notes.</p>
+                      </div>
+                      {evalResult && (() => {
+                        const suff = (evalResult.sufficiency_results ?? []).filter((c) => shouldShowCriterion(c.label));
+                        const crit = (evalResult.criteria ?? []).filter((c) => shouldShowCriterion(c.label));
+                        const total = suff.length + crit.length;
+                        const edits = submission.evaluation_edits ?? {};
+                        const getMet = (c: { id: string; met: boolean }) => edits[c.id]?.met ?? c.met;
+                        const met = [...suff, ...crit].filter((c) => getMet(c)).length;
+                        if (total === 0) return null;
+                        return (
+                          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-(--border) bg-background/60 shrink-0">
+                            <EvaluationScoreRing score={met} total={total} size={36} />
+                            <span className="text-[10px] font-bold text-foreground tabular-nums">{met}/{total}</span>
+                          </div>
+                        );
+                      })()}
                     </div>
-                    <div className="pt-4 space-y-4">
-                      {controlIds.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {controlIds.map((cid) => (
-                            <button
-                              key={cid}
-                              type="button"
-                              onClick={() => setSelectedControlId(cid)}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${selectedControlId === cid ? "bg-(--primary) text-white border-(--primary)" : "bg-background border-(--border) text-foreground hover:border-(--primary)/50"}`}
-                            >
-                              {cid}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {matrixLoading && <p className="text-xs text-(--foreground-muted)">Loading matrix…</p>}
-                      {(sufficiencyForControl.length > 0 || criteriaForControl.length > 0) ? (
-                        <div>
-                          <h3 className="text-[11px] font-semibold text-(--foreground-muted) uppercase tracking-wider pb-2">Sufficiency Definition</h3>
-                          <ul className="list-none [&>li:last-child>div]:border-b-0">
-                            {sufficiencyForControl.map((s) => (
-                              <li key={s.id}>
-                                <CriterionNoteBlock
-                                  submissionId={submission.id}
-                                  criterionId={s.id}
-                                  label={s.label}
-                                  met={s.met}
-                                  description={s.description ?? null}
-                                  refreshTrigger={notesRefresh}
-                                  onNoteAdded={() => setNotesRefresh((r) => r + 1)}
-                                  preFetchedNotes={submissionNotes}
-                                />
-                              </li>
-                            ))}
-                            {criteriaForControl.map((c) => (
-                              <li key={c.id}>
-                                <CriterionNoteBlock
-                                  submissionId={submission.id}
-                                  criterionId={c.id}
-                                  label={c.label}
-                                  met={c.met}
-                                  description={c.description ?? null}
-                                  refreshTrigger={notesRefresh}
-                                  onNoteAdded={() => setNotesRefresh((r) => r + 1)}
-                                  preFetchedNotes={submissionNotes}
-                                />
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : evalResult ? (
-                        <p className="text-xs text-(--foreground-muted)">No sufficiency or criteria for this control.</p>
-                      ) : (
-                        <p className="text-sm text-(--foreground-muted) py-2">No evaluation yet.</p>
-                      )}
+                    <div className="pt-4 flex flex-col min-h-0 max-h-[min(60vh,500px)]">
+                      <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
+                        <AiEvaluationResult
+                          result={evalResult ? { ...evalResult, evidence_item_id: submission.evidence_item_id, criteria: evalResult.criteria ?? [] } : null}
+                          loading={false}
+                          placeholder={false}
+                          editable={false}
+                          evaluationEdits={submission.evaluation_edits ?? {}}
+                          submissionId={submission.id}
+                          notesRefreshTrigger={notesRefresh}
+                          onNoteAdded={() => setNotesRefresh((r) => r + 1)}
+                          hideAiHint={true}
+                        />
+                      </div>
                     </div>
                   </section>
                 </div>
               );
             })()}
 
-            {/* ——— Notes ——— */}
-            <section className={inline ? "pt-6 px-6" : "pt-2"}>
-              <div className="pb-3 border-b border-(--border)/80">
-                <h2 className="text-sm font-semibold text-foreground">Notes</h2>
-              </div>
-              <div className="pt-4 space-y-3">
-                <NoteList resourceType="evidence_submission" resourceId={submission.id} refreshTrigger={notesRefresh} emptyMessage="No notes yet." preFetchedNotes={submissionNotes} />
-                <NoteInput
-                  resourceType="evidence_submission"
-                  resourceId={submission.id}
-                  placeholder={submission.status === "returned" || String(submission.status || "").includes("returned") ? "Add a reply to the reviewer…" : "Add a note…"}
-                  onAdded={() => { setNotesRefresh((r) => r + 1); fetchDetail(); }}
-                />
-              </div>
-            </section>
-
             {/* ——— Comments & History (no nested scroll: content flows, page scrolls) ——— */}
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 items-start ${inline ? "px-6 pb-8" : ""}`}>
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 items-start pt-8 ${inline ? "px-6 pb-8" : ""}`}>
               <section>
                 <div className="pb-3 border-b border-(--border)/80">
                   <h2 className="text-sm font-semibold text-foreground">Comments</h2>

@@ -136,6 +136,9 @@ def ensure_notes_notifications_tables():
                 )
             )
             conn.execute(
+                text(f'ALTER TABLE "{SCHEMA}"."notes" ADD COLUMN IF NOT EXISTS criterion_id VARCHAR(100)')
+            )
+            conn.execute(
                 text(
                     f"""
                     CREATE TABLE IF NOT EXISTS "{SCHEMA}"."notifications" (

@@ -19,6 +19,7 @@ from ..schemas.review import (
     ReviewDetailOut,
     CreateCommentRequest,
     CommentOut,
+    SubmitForReviewRequest,
     SubmitForReviewResponse,
 )
 from ..services import storage_service
@@ -191,10 +192,12 @@ def _advance_submission_after_approve(
 def submit_for_review(
     cycle_id: UUID,
     sub_id: UUID,
+    req: SubmitForReviewRequest = SubmitForReviewRequest(),
     db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
-    """Submit evidence for review. Creates L1 review assignment automatically."""
+    """Submit evidence for review. Creates L1 review assignment automatically.
+    Accepts optional evaluation_edits to persist submitter's met/note overrides so L1 reviewer sees correct counts."""
     if user.role not in ("compliance_officer", "it_sme", "admin"):
         raise HTTPException(status_code=403, detail="Only evidence submitters can submit for review")
 
@@ -206,8 +209,12 @@ def submit_for_review(
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
 
+    if req.evaluation_edits is not None:
+        submission.evaluation_edits = req.evaluation_edits
+
     submission.status = evidence_status_svc.evidence_status_to_db("submitted")
     submission.submitted_at = datetime.now(timezone.utc)
+    submission.submitted_by = user.id
 
     review = _ensure_review_assignment(db, submission, "L1")
     review_id = review.id if review else None
@@ -346,6 +353,8 @@ def _list_reviews_impl(
 
     review_sub_ids = list({r.submission_id for r in reviews})
     subs_map = load_submissions_by_ids(db, review_sub_ids)
+    submitter_ids = list({s.submitted_by for s in subs_map.values() if s.submitted_by})
+    users_map = load_users_by_ids(db, submitter_ids) if submitter_ids else {}
 
     result = []
     for r in reviews:
@@ -356,6 +365,9 @@ def _list_reviews_impl(
         if sub:
             out.evidence_item_id = sub.evidence_item_id
             out.submission_status = evidence_status_svc.evidence_display_status(sub.status, db, sub.id)
+            if sub.submitted_by:
+                submitter = users_map.get(sub.submitted_by)
+                out.submitter_name = submitter.name if submitter else None
         result.append(out)
     return result
 
@@ -499,6 +511,7 @@ def get_review_detail(
             "status": evidence_status_svc.evidence_display_status(submission.status, db, submission.id),
             "form_data": submission.form_data or {},
             "evaluation_result": submission.evaluation_result,
+            "evaluation_edits": getattr(submission, "evaluation_edits", None) or {},
             "submitted_at": str(submission.submitted_at) if submission.submitted_at else None,
         },
         "attachments": file_list,
@@ -742,6 +755,7 @@ def get_evidence_detail(
             "status": submission_status_display,
             "form_data": submission.form_data or {},
             "evaluation_result": submission.evaluation_result,
+            "evaluation_edits": getattr(submission, "evaluation_edits", None) or {},
             "submitted_by": str(submission.submitted_by) if submission.submitted_by else None,
             "submitter_name": submitter.name if submitter else None,
             "submitted_at": str(submission.submitted_at) if submission.submitted_at else None,

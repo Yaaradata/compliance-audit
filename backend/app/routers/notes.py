@@ -68,12 +68,16 @@ def create_note(
         tenant_id=tenant_id,
         resource_type=req.resource_type,
         resource_id=req.resource_id,
+        criterion_id=(req.criterion_id.strip() or None) if (req.criterion_id and req.criterion_id.strip()) else None,
         parent_id=req.parent_id,
         author_id=user.id,
         body=req.body.strip(),
     )
     db.add(note)
     db.flush()
+    note_id = note.id  # Capture before commit
+    # Expunge so the session does not touch this instance on commit (avoids ObjectDeletedError when session expires it)
+    db.expunge(note)
 
     # Create notification: for reply, notify parent author; for root note, we could notify resource owner (e.g. submitter)
     if req.parent_id:
@@ -104,8 +108,7 @@ def create_note(
                 )
 
     db.commit()
-    note_id = note.id
-    # Re-set schema after commit (connection may have reset search_path) so we can load the note
+    # Re-set schema after commit (connection may have reset search_path) and re-query for response
     if req.resource_type in ("evidence_submission", "review"):
         resolve_schema_for_notes_resource(db, req.resource_type, req.resource_id, user)
     note = db.query(Note).filter(Note.id == note_id).first()
@@ -113,13 +116,70 @@ def create_note(
         raise HTTPException(status_code=500, detail="Could not load created note")
     out = NoteOut.model_validate(note)
     out.author_name = user.name
+    out.author_role = user.role
     return out
+
+
+@router.delete("/by-criterion", status_code=204)
+def delete_notes_by_criterion(
+    resource_type: str = Query(...),
+    resource_id: UUID = Query(...),
+    criterion_id: str = Query(...),
+    db: Session = Depends(get_db_for_notes),
+    user: User = Depends(get_current_user),
+):
+    """
+    Delete all notes for a given criterion. Used when removing a criterion from "Edited"
+    so it moves back to "Not met". Requires resource_type, resource_id, and criterion_id.
+    """
+    if not criterion_id or not criterion_id.strip():
+        raise HTTPException(status_code=400, detail="criterion_id is required")
+    q = (
+        db.query(Note)
+        .filter(
+            Note.resource_type == resource_type,
+            Note.resource_id == resource_id,
+            Note.criterion_id == criterion_id.strip(),
+        )
+    )
+    notes = q.all()
+    for note in notes:
+        db.delete(note)
+    db.commit()
+    return None
+
+
+@router.delete("/{note_id}", status_code=204)
+def delete_note(
+    note_id: UUID,
+    resource_type: str = Query(...),
+    resource_id: UUID = Query(...),
+    db: Session = Depends(get_db_for_notes),
+    user: User = Depends(get_current_user),
+):
+    """
+    Permanently delete a note from the database.
+    - Requires resource_type and resource_id (query params) for tenant schema resolution.
+    - Only the note author or an admin can delete.
+    - The row is removed from the notes table; any replies (child notes) are cascade-deleted by the DB.
+    """
+    note = db.query(Note).filter(Note.id == note_id).first()
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    if user.role != "admin" and note.author_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the note author or an admin can delete it")
+
+    # Permanently remove the note from the database (and cascade-delete replies via FK)
+    db.delete(note)
+    db.commit()
+    return None
 
 
 @router.get("", response_model=list[NoteOut])
 def list_notes(
     resource_type: str = Query(...),
     resource_id: UUID = Query(...),
+    criterion_id: str | None = Query(None),
     db: Session = Depends(get_db_for_notes),
     user: User = Depends(get_current_user),
 ):
@@ -128,22 +188,28 @@ def list_notes(
     if resource_type not in ("evidence_submission", "review"):
         _check_resource_access(db, user, resource_type, resource_id)
 
-    notes = (
+    q = (
         db.query(Note)
         .filter(Note.resource_type == resource_type, Note.resource_id == resource_id)
-        .order_by(Note.created_at.asc())
-        .all()
     )
+    if criterion_id is not None and criterion_id.strip():
+        q = q.filter(Note.criterion_id == criterion_id.strip())
+    else:
+        q = q.filter(Note.criterion_id.is_(None))
+    notes = q.order_by(Note.created_at.asc()).all()
+
     user_ids = {n.author_id for n in notes}
     users_map = {}
     if user_ids:
         from ..models.tenant import User as U
         for u in db.query(U).filter(U.id.in_(user_ids)).all():
-            users_map[u.id] = u.name
+            users_map[u.id] = (u.name, u.role)
 
     result = []
     for n in notes:
         o = NoteOut.model_validate(n)
-        o.author_name = users_map.get(n.author_id)
+        name_role = users_map.get(n.author_id)
+        o.author_name = name_role[0] if name_role else None
+        o.author_role = name_role[1] if name_role else None
         result.append(o)
     return result

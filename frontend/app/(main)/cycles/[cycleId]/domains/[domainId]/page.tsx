@@ -423,13 +423,14 @@ export default function CycleDomainPage() {
     if (!subId) return;
     setSubmitForReviewLoading(true);
     try {
-      await api.post(`/assessments/${cycleId}/evidence/${subId}/submit`, {});
+      const edits = evaluationEditsByItem[currentItem.id] ?? {};
+      await api.post(`/assessments/${cycleId}/evidence/${subId}/submit`, { evaluation_edits: edits });
       setSubmissionStatusMap((prev) => ({ ...prev, [currentItem.id]: "submitted" }));
       await refetchSubmissions();
       if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch { /* ignore */ }
     setSubmitForReviewLoading(false);
-  }, [currentItem, cycleId, submissionMap, refetchSubmissions]);
+  }, [currentItem, cycleId, submissionMap, evaluationEditsByItem, refetchSubmissions]);
 
   // API: POST /assessments/:cycleId/evidence/evaluate { evidence_item_id, submission_id }
   // Backend uses submission form_data + attachments for AI. Save form data first so evaluation uses latest.

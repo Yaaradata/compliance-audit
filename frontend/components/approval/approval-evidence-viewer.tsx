@@ -18,6 +18,7 @@ interface EvidenceDetailData {
     status: string;
     form_data: Record<string, string>;
     evaluation_result: { overall_met?: boolean; summary?: string | null } | null;
+    evaluation_edits?: Record<string, { met: boolean; description: string | null; userNote?: string | null }>;
     submitter_name: string | null;
     submitted_at: string | null;
     completion_pct: number;

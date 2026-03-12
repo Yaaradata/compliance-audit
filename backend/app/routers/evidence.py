@@ -1,7 +1,7 @@
 from uuid import UUID
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
@@ -225,6 +225,10 @@ def update_evidence(cycle_id: UUID, sub_id: UUID, req: UpdateSubmissionRequest, 
     if req.status:
         sub.status = evidence_status_svc.evidence_status_to_db(req.status)
         change_types.append("status_change")
+        if req.status.lower() in ("submitted", "in_review") and not sub.submitted_by:
+            sub.submitted_by = user.id
+            if not sub.submitted_at:
+                sub.submitted_at = datetime.now(timezone.utc)
     if req.form_data is not None:
         sub.form_data = req.form_data
         change_types.append("form_edit")
