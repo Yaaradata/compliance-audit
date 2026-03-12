@@ -13,8 +13,15 @@ class CreateReviewRequest(BaseModel):
 
 
 class UpdateReviewRequest(BaseModel):
-    decision: str  # approve, return, escalate
+    decision: str  # approve, return, hold
     checklist_results: dict | None = None
+
+    @field_validator("decision")
+    @classmethod
+    def validate_decision(cls, v: str) -> str:
+        if v not in ("approve", "return", "hold"):
+            raise ValueError("decision must be approve, return, or hold")
+        return v
 
 
 class UpdateReviewResponse(BaseModel):

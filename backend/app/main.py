@@ -18,6 +18,7 @@ from .database import (
     ensure_control_scoping_columns,
     ensure_notes_notifications_tables,
     ensure_evidence_submission_history_table,
+    ensure_review_hold_enum,
 )
 from .routers import (
     auth,
@@ -44,6 +45,7 @@ async def lifespan(app: FastAPI):
     ensure_control_scoping_columns()
     ensure_notes_notifications_tables()
     ensure_evidence_submission_history_table()
+    ensure_review_hold_enum()
     yield
 
 

@@ -59,11 +59,11 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  CREATE TYPE review_status          AS ENUM ('assigned','in_progress','approved','returned','escalated');
+  CREATE TYPE review_status          AS ENUM ('assigned','in_progress','approved','returned','escalated','hold');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  CREATE TYPE review_decision        AS ENUM ('approve','return','escalate');
+  CREATE TYPE review_decision        AS ENUM ('approve','return','escalate','hold');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN

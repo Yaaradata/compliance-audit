@@ -592,21 +592,6 @@ function AiEvaluationResultTabs({
           <span className="text-[10px] font-bold uppercase tracking-widest text-(--foreground-muted)">
             Sufficiency & criteria
           </span>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              {metCount} pass
-            </span>
-            <span className="flex items-center gap-1.5 text-[10px] text-rose-600 dark:text-rose-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-              {totalCount - metCount} fail
-            </span>
-            {!hideAiHint && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full border border-(--border) bg-(--surface) text-(--foreground-muted) tabular-nums">
-                AI: {metCount}/{totalCount}
-              </span>
-            )}
-          </div>
         </div>
       )}
 

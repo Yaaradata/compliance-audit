@@ -7,8 +7,11 @@ import { getArchitectureTypeFromApi } from "@/lib/api-architecture";
 import { getArchitecture, getDomainsForArchitecture } from "@/lib/frameworks/swift-cscf";
 import { OverallProgress } from "@/components/dashboard/overall-progress";
 import { DomainCard } from "@/components/dashboard/domain-card";
+import { ControlHeatmap } from "@/components/dashboard/control-heatmap";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { LoadingState } from "@/components/ui/loading-state";
-import type { Domain } from "@/lib/types";
+import { scoreColor } from "@/lib/utils";
+import type { Control, Domain } from "@/lib/types";
 
 interface DomainScore {
   id: string;
@@ -16,6 +19,15 @@ interface DomainScore {
   completed: number;
   total: number;
   score: number;
+}
+
+interface ControlScore {
+  id: string;
+  name: string;
+  type: string;
+  score: number;
+  status: string;
+  evidence_count: number;
 }
 
 interface DashboardData {
@@ -26,7 +38,7 @@ interface DashboardData {
   total_evidence_items: number;
   gaps_identified: number;
   domain_scores: DomainScore[];
-  control_scores: { id: string; type: string; score: number }[];
+  control_scores: ControlScore[];
 }
 
 export function ITSmeDashboard({ cycleId }: { cycleId: string }) {
@@ -37,6 +49,7 @@ export function ITSmeDashboard({ cycleId }: { cycleId: string }) {
   const [archMeta, setArchMeta] = useState<{ id: string; name: string; subtitle: string } | null>(null);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedControl, setSelectedControl] = useState<Control | null>(null);
 
   useEffect(() => {
     if (!selectedArchitectureId) {
@@ -75,6 +88,19 @@ export function ITSmeDashboard({ cycleId }: { cycleId: string }) {
     });
   }, [dashboard?.domain_scores, staticDomains]);
 
+  const controlsForHeatmap: Control[] = useMemo(() => {
+    if (!dashboard?.control_scores?.length) return [];
+    return dashboard.control_scores.map((c) => ({
+      id: c.id,
+      name: c.name,
+      type: (c.type === "M" ? "M" : "A") as "M" | "A",
+      objective: 0,
+      score: Math.round(c.score),
+      evidenceCount: c.evidence_count ?? 0,
+      status: (c.status as Control["status"]) ?? "gap",
+    }));
+  }, [dashboard?.control_scores]);
+
   const mandatoryApproved = useMemo(() => {
     if (!dashboard?.control_scores) return 0;
     return dashboard.control_scores.filter((c) => c.type === "M" && c.score >= 99).length;
@@ -103,12 +129,38 @@ export function ITSmeDashboard({ cycleId }: { cycleId: string }) {
           <span>{domainsForCards.length} domains</span>
         </div>
       )}
-      <section aria-label="Evidence domains">
-        <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>Evidence Domains</div>
-        <div className="grid grid-cols-2 gap-3">
-          {domainsForCards.map((d) => (
-            <DomainCard key={d.id} domain={d} cycleId={cycleId} />
-          ))}
+      <section aria-label="Evidence domains and controls" className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6">
+        <div>
+          <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>Evidence Domains</div>
+          <div className="grid grid-cols-2 gap-3">
+            {domainsForCards.map((d) => (
+              <DomainCard key={d.id} domain={d} cycleId={cycleId} />
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>Control Sufficiency ({controlsForHeatmap.length})</div>
+          <div className="card rounded-xl p-3">
+            {controlsForHeatmap.length > 0 ? (
+              <>
+                <ControlHeatmap controls={controlsForHeatmap} onSelect={setSelectedControl} selected={selectedControl} />
+                {selectedControl && (
+                  <div className="mt-3 p-2.5 bg-gray-50 rounded-lg text-xs">
+                    <div className="font-bold text-gray-800">{selectedControl.id} {selectedControl.name}</div>
+                    <div className="flex gap-2 mt-1.5 items-center">
+                      <ProgressBar pct={selectedControl.score} h={6} className="flex-1" />
+                      <span className="font-bold min-w-[36px]" style={{ color: scoreColor(selectedControl.score) }}>{selectedControl.score}%</span>
+                    </div>
+                    <div className="mt-1 text-gray-500">
+                      {selectedControl.evidenceCount} evidence items · {selectedControl.type === "M" ? "Mandatory" : "Advisory"}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-slate-500 py-4 text-center">No controls in scope yet. Complete architecture selection to see control sufficiency.</p>
+            )}
+          </div>
         </div>
       </section>
     </div>

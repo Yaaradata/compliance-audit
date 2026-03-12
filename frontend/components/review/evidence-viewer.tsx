@@ -1340,12 +1340,8 @@ export function EvidenceDetailModal({
                             const met = [...suff, ...crit].filter((c) => getMet(c)).length;
                             if (total === 0) return null;
                             return (
-                              <div className="flex items-center gap-3 px-3.5 py-2 rounded-xl border border-(--border) bg-background/60 shrink-0">
+                              <div className="shrink-0">
                                 <EvaluationScoreRing score={met} total={total} size={40} />
-                                <div>
-                                  <p className="text-[10px] font-bold text-foreground tabular-nums">{met}/{total}</p>
-                                  <p className="text-[9px] uppercase tracking-widest text-(--foreground-muted)">pass</p>
-                                </div>
                               </div>
                             );
                           })()}
@@ -1448,9 +1444,8 @@ export function EvidenceDetailModal({
                         const met = [...suff, ...crit].filter((c) => getMet(c)).length;
                         if (total === 0) return null;
                         return (
-                          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-(--border) bg-background/60 shrink-0">
+                          <div className="shrink-0">
                             <EvaluationScoreRing score={met} total={total} size={36} />
-                            <span className="text-[10px] font-bold text-foreground tabular-nums">{met}/{total}</span>
                           </div>
                         );
                       })()}

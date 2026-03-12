@@ -345,6 +345,8 @@ def _list_reviews_impl(
 
     if status:
         q = q.filter(ReviewAssignment.status == status)
+        if status == "hold":
+            q = q.filter(ReviewAssignment.reviewer_id == user.id)
     if level:
         level_db = LEVEL_TO_DB.get(level, level)
         q = q.filter(ReviewAssignment.level == level_db)
@@ -606,7 +608,7 @@ def update_review(
         review.status = "hold"
         # Submission stays in current state (temp hold); no notification
     else:
-        review.status = "escalated"
+        raise HTTPException(status_code=400, detail="decision must be approve, return, or hold")
 
     next_review_id = next_review.id if next_review else None
     try:

@@ -32,8 +32,8 @@ DO $$ BEGIN CREATE TYPE swift_2026.reuse_tier AS ENUM ('foundational','ultra_hig
 DO $$ BEGIN CREATE TYPE swift_2026.collection_model AS ENUM ('standard','per_system','per_vendor','per_quarter'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE swift_2026.evidence_status AS ENUM ('draft','submitted','in_review','returned','approved','escalated'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE swift_2026.review_level AS ENUM ('l1_completeness','l2_quality','l3_assessment'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE swift_2026.review_status AS ENUM ('assigned','in_progress','approved','returned','escalated'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE swift_2026.review_decision AS ENUM ('approve','return','escalate'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE swift_2026.review_status AS ENUM ('assigned','in_progress','approved','returned','escalated','hold'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE swift_2026.review_decision AS ENUM ('approve','return','escalate','hold'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE swift_2026.gate_type AS ENUM ('evidence_complete','internal_review','assessment_complete','final_attestation'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE swift_2026.gate_status AS ENUM ('pending','approved','blocked'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE swift_2026.sufficiency_status AS ENUM ('not_started','insufficient','partial','sufficient'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;

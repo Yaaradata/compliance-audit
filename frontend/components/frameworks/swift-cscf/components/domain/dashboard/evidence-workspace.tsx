@@ -2,40 +2,17 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ControlBadge } from "@/components/ui/control-badge";
 import { PriorityBadge } from "@/components/ui/badge";
-import { PerControlEvidence } from "@/components/domain/per-control-evidence";
-import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
 import { AiEvaluationResult, EvaluationScoreRing } from "@/components/domain/ai-evaluation-result";
 import { NoteList } from "@/components/notes/note-list";
 import { NoteInput } from "@/components/notes/note-input";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
-import { cn, shouldShowCriterion } from "@/lib/utils";
+import { shouldShowCriterion } from "@/lib/utils";
 import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
 import { A5_EVIDENCE_ITEM_ID, A5_ARCHITECTURE_KEYS } from "@/lib/frameworks/swift-cscf/constants";
-import type { EvidenceItem, DomainConfig, AiCriterionResult } from "@/lib/types";
+import type { EvidenceItem, DomainConfig } from "@/lib/types";
 import type { AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 import type { EvaluationEditsMap } from "../../../../../domain/ai-evaluation-result";
-
-const ALL_32_CONTROL_ID = "All";
-
-function getControlStatusColor(
-  controlId: string,
-  sufficiencyResults: AiCriterionResult[] | null | undefined,
-  criteriaResults: AiCriterionResult[] | null | undefined,
-): "white" | "green" | "orange" | "red" {
-  const prefix = `${controlId}_`;
-  const relevant = [
-    ...(sufficiencyResults ?? []).filter((r) => r.id.startsWith(prefix) || r.id === controlId),
-    ...(criteriaResults ?? []).filter((r) => r.id.startsWith(prefix) || r.id === controlId),
-  ];
-  if (relevant.length === 0) return "white";
-  const met = relevant.filter((r) => r.met).length;
-  const ratio = met / relevant.length;
-  if (ratio >= 1) return "green";
-  if (ratio >= 0.5) return "orange";
-  return "red";
-}
 
 function A5ArchitecturePreview({ formData }: { formData: Record<string, string> }) {
   const archType = formData[A5_ARCHITECTURE_KEYS.architecture_type];
@@ -71,8 +48,6 @@ export function EvidenceWorkspace({
   config,
   currentItem,
   currentSubmissionId,
-  selectedControlId,
-  setSelectedControlId,
   evaluated,
   aiEvaluationLoading,
   aiEvaluationResult,
@@ -99,8 +74,6 @@ export function EvidenceWorkspace({
   config: DomainConfig;
   currentItem: EvidenceItem | null;
   currentSubmissionId: string | null;
-  selectedControlId: string | null;
-  setSelectedControlId: (id: string | null) => void;
   evaluated: boolean;
   aiEvaluationLoading: boolean;
   aiEvaluationResult: AiEvalResultType | null;
@@ -200,7 +173,6 @@ export function EvidenceWorkspace({
         <div className="shrink-0 px-4 pt-3 pb-2">
           <TabsList className="bg-background/60">
             <TabsTrigger value="common">Evidence &amp; Evaluation</TabsTrigger>
-            <TabsTrigger value="control">Per-Control</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
         </div>
@@ -248,12 +220,8 @@ export function EvidenceWorkspace({
                     const met = suff.filter((c) => c.met).length + crit.filter((c) => c.met).length;
                     if (total === 0) return null;
                     return (
-                      <div className="flex items-center gap-3 px-3.5 py-2 rounded-xl border border-(--border) bg-background/60 shrink-0">
+                      <div className="shrink-0">
                         <EvaluationScoreRing score={met} total={total} size={40} />
-                        <div>
-                          <p className="text-[10px] font-bold text-foreground tabular-nums">{met}/{total}</p>
-                          <p className="text-[9px] uppercase tracking-widest text-(--foreground-muted)">pass</p>
-                        </div>
                       </div>
                     );
                   })()}
@@ -290,37 +258,19 @@ export function EvidenceWorkspace({
                     </div>
                   </>
                 ) : (
-                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-                    {/* No result yet: Run AI Evaluation card + guide/placeholder */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border border-(--border) bg-background/60 shadow-sm shrink-0">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground">Run AI Evaluation</p>
-                        <p className="text-sm text-(--foreground-muted) mt-1">
-                          {aiEvaluationLoading
-                            ? "Evaluating against framework controls…"
-                            : !currentSubmissionId
-                              ? "Add or save evidence first (upload a file or fill the form and save)."
-                              : currentItem.id === "A1" && !itemFormData.diagram_date
-                                ? "Enter diagram date and upload your diagram for best results."
-                                : "Your diagram and answers will be evaluated against the framework controls."}
+                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-4">
+                    {/* No result yet: Guide first, then Run AI Evaluation card */}
+                    <div className="rounded-xl border border-(--border) bg-background/60 p-4 shrink-0">
+                      {focusedQuestionGuide && focusedQuestionGuide.trim() ? (
+                        <>
+                          <p className="text-[11px] font-semibold text-(--foreground-muted) uppercase tracking-wider mb-2">Guide</p>
+                          <p className="text-sm text-foreground leading-relaxed">{focusedQuestionGuide.trim()}</p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-foreground leading-relaxed">
+                          Fill in evidence and upload files, then click + Run AI Evaluation below. Results will appear here.
                         </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={onEvaluateEvidence}
-                        disabled={aiEvaluationLoading}
-                        className="shrink-0 inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold rounded-lg text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60 disabled:cursor-not-allowed"
-                        style={{ background: config.color }}
-                      >
-                        {aiEvaluationLoading ? (
-                          <>
-                            <span className="inline-block size-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                            Evaluating…
-                          </>
-                        ) : (
-                          "+ Run AI Evaluation"
-                        )}
-                      </button>
+                      )}
                     </div>
 
                     {aiEvaluationError && (
@@ -342,82 +292,32 @@ export function EvidenceWorkspace({
                         <AiEvaluationResult result={null} loading />
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-(--border) bg-background/60 p-4 shrink-0">
-                        {focusedQuestionGuide && focusedQuestionGuide.trim() ? (
-                          <>
-                            <p className="text-[11px] font-semibold text-(--foreground-muted) uppercase tracking-wider mb-2">Guide</p>
-                            <p className="text-sm text-foreground leading-relaxed">{focusedQuestionGuide.trim()}</p>
-                          </>
-                        ) : (
-                          <p className="text-sm text-foreground leading-relaxed">
-                            Fill in evidence and upload files, then click + Run AI Evaluation above. Results will appear here.
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border border-(--border) bg-background/60 shadow-sm shrink-0">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground">Run AI Evaluation</p>
+                          <p className="text-sm text-(--foreground-muted) mt-1">
+                            {!currentSubmissionId
+                              ? "Add or save evidence first (upload a file or fill the form and save)."
+                              : currentItem.id === "A1" && !itemFormData.diagram_date
+                                ? "Enter diagram date and upload your diagram for best results."
+                                : "Your diagram and answers will be evaluated against the framework controls."}
                           </p>
-                        )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={onEvaluateEvidence}
+                          disabled={aiEvaluationLoading}
+                          className="shrink-0 inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold rounded-lg text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--primary) disabled:opacity-60 disabled:cursor-not-allowed"
+                          style={{ background: config.color }}
+                        >
+                          + Run AI Evaluation
+                        </button>
                       </div>
                     )}
                   </div>
                 )}
               </div>
             </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="control" className="flex-1 min-h-0 flex flex-col overflow-hidden px-0 pb-0">
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-3">
-          {currentItem.id === A5_EVIDENCE_ITEM_ID ? (
-            <>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedControlId(selectedControlId === ALL_32_CONTROL_ID ? null : ALL_32_CONTROL_ID)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-xs font-bold transition-colors",
-                    selectedControlId === ALL_32_CONTROL_ID
-                      ? "border-(--primary) bg-(--primary-muted) text-(--primary)"
-                      : "border-(--border) bg-background text-foreground hover:border-(--primary)/50"
-                  )}
-                >
-                  <span className="font-mono">All 32</span>
-                  <span className="opacity-80">controls (scoping)</span>
-                </button>
-              </div>
-              {itemFormData?.[A5_ARCHITECTURE_KEYS.architecture_type] && <A5ArchitecturePreview formData={itemFormData} />}
-            </>
-          ) : (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {currentItem.controls.map((c) => (
-                <ControlBadge
-                  key={c.id}
-                  id={c.id}
-                  ma={c.ma}
-                  onClick={() => setSelectedControlId(selectedControlId === c.id ? null : c.id)}
-                  selected={selectedControlId === c.id}
-                  statusColor={getControlStatusColor(c.id, aiEvaluationResult?.sufficiency_results, aiEvaluationResult?.criteria)}
-                />
-              ))}
-            </div>
-          )}
-          {currentItem.reductionNote && (
-            <div className="text-[11px] font-medium rounded-lg px-2.5 py-1.5 mb-3 bg-(--success-bg) text-(--success)">
-              {currentItem.reductionNote}
-            </div>
-          )}
-          <PerControlEvidence
-            evidenceItemId={currentItem.id}
-            matrix={currentItem.matrix ?? []}
-            submissionId={currentSubmissionId}
-            evaluationState={evaluationState}
-            sufficiencyResults={aiEvaluationResult?.sufficiency_results ?? null}
-            criteriaResults={aiEvaluationResult?.criteria ?? null}
-            onUploadComplete={onUploadComplete}
-            onEnsureSubmission={() => onEnsureSubmission(currentItem.id)}
-            selectedControlId={selectedControlId}
-            onSelectControl={setSelectedControlId}
-            showCommonEvidence={false}
-          />
-          {currentItem.sufficiency.length > 0 && (
-            <SufficiencyPanel dimensions={currentItem.sufficiency} color={config.color} />
-          )}
           </div>
         </TabsContent>
 

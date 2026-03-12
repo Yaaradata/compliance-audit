@@ -171,6 +171,26 @@ def ensure_notes_notifications_tables():
         logger.warning("Could not ensure notes/notifications tables (tenant/user tables may not exist yet): %s", e)
 
 
+def ensure_review_hold_enum():
+    """
+    Add 'hold' to review_status and review_decision enums for SWIFT schemas (v2025, v2026).
+    Hold allows reviewers to place items on hold for later (per-reviewer).
+    Idempotent: safe to call on every startup. Uses IF NOT EXISTS (PostgreSQL 9.1+).
+    """
+    for schema in ("swift_2025", "swift_2026"):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(f'ALTER TYPE "{schema}"."review_status" ADD VALUE IF NOT EXISTS \'hold\''))
+                conn.execute(text(f'ALTER TYPE "{schema}"."review_decision" ADD VALUE IF NOT EXISTS \'hold\''))
+                conn.commit()
+        except Exception as e:
+            logger.warning(
+                "Could not add hold to review enums in %s (table may not exist yet): %s",
+                schema,
+                e,
+            )
+
+
 def ensure_evidence_submission_history_table():
     """
     Create evidence_submission_history table if it does not exist.

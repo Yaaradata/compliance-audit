@@ -47,17 +47,14 @@ export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?:
   ],
   internal_reviewer_l1: [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/review", label: "L1 Review" },
     { href: "/report", label: "Report" },
   ],
   internal_reviewer_l2: [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/review", label: "L2 Review" },
     { href: "/report", label: "Report" },
   ],
   external_assessor: [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/review", label: "L3 Review" },
     { href: "/approval", label: "Approval" },
     { href: "/report", label: "Report" },
   ],
