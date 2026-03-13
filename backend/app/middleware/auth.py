@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 from jose import jwt, JWTError
 
-from ..config import settings
+from ..config import settings, get_jwt_secret
 
 
 def hash_password(password: str) -> str:
@@ -18,12 +18,12 @@ def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRATION_MINUTES)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(to_encode, get_jwt_secret(), algorithm=settings.JWT_ALGORITHM)
 
 
 def decode_access_token(token: str) -> dict | None:
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(token, get_jwt_secret(), algorithms=[settings.JWT_ALGORITHM])
         return payload
     except JWTError:
         return None

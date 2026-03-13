@@ -44,14 +44,12 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-def _validate_jwt_secret() -> None:
-    """Ensure JWT_SECRET_KEY is set and strong enough for production."""
+def get_jwt_secret() -> str:
+    """Return JWT_SECRET_KEY; raise if not set or too short (used when auth is actually needed)."""
     key = settings.JWT_SECRET_KEY
     if not key or len(key) < 32:
         raise ValueError(
-            "JWT_SECRET_KEY must be set in .env and at least 32 characters. "
+            "JWT_SECRET_KEY must be set (e.g. in Cloud Run env) and at least 32 characters. "
             "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
         )
-
-
-_validate_jwt_secret()
+    return key
