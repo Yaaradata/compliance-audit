@@ -19,7 +19,8 @@ export default function ReviewDetailPage() {
     _comment?: string,
     checklistResults?: Record<string, { checked: boolean; note?: string | null }>
   ) => {
-    await api.put(`/reviews/${id}`, {
+    const path = cycleId ? `/reviews/${id}?cycle_id=${cycleId}` : `/reviews/${id}`;
+    await api.put(path, {
       decision,
       checklist_results: checklistResults ?? null,
     });

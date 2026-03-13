@@ -248,10 +248,10 @@ export function EvidenceWorkspace({
           {(() => {
             const hasResult = !!aiEvaluationResult || aiEvaluationLoading;
             return (
-          <div className="flex-1 min-h-0 flex flex-col lg:flex-row min-w-0 max-w-full overflow-x-hidden transition-all duration-300">
-            {/* Left: Evidence — 75% when Guidance, 45% when Evaluation result */}
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row min-w-0 max-w-full overflow-x-hidden transition-all duration-300 gap-0">
+            {/* Left: Evidence — card-style container (75% when Guidance, 45% when Evaluation result) */}
             <div
-              className={`flex flex-col min-w-0 min-h-0 md:border-r border-(--border) overflow-hidden md:min-h-[50vh] transition-[flex] duration-300 ease-out ${
+              className={`flex flex-col min-w-0 min-h-0 overflow-hidden md:min-h-[50vh] transition-[flex] duration-300 ease-out rounded-l-xl border border-(--border) lg:border-r-0 bg-white dark:bg-(--surface) shadow-sm ${
                 hasResult ? "md:flex-[0_0_45%]" : "md:flex-[0_0_75%]"
               }`}
             >
@@ -263,14 +263,14 @@ export function EvidenceWorkspace({
                   {hasResult && <div className="w-[88px] shrink-0 lg:block hidden" aria-hidden />}
                 </div>
               </div>
-              <div ref={evidenceScrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-4">
+              <div ref={evidenceScrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 md:p-5 space-y-4 bg-slate-50/30 dark:bg-transparent">
                 {renderCommonEvidence()}
               </div>
             </div>
 
-            {/* Right: Guidance (25%) when no result, Evaluation result (55%) when has result or loading */}
+            {/* Right: Guidance (25%) when no result, Evaluation result (55%) when has result or loading — card-style */}
             <div
-              className={`w-full min-w-0 flex flex-col bg-white dark:bg-(--surface) overflow-hidden border-t lg:border-t-0 border-(--border) shadow-sm transition-[flex] duration-300 ease-out min-h-[35vh] ${
+              className={`w-full min-w-0 flex flex-col bg-white dark:bg-(--surface) overflow-hidden border border-(--border) lg:border-l shadow-sm transition-[flex] duration-300 ease-out min-h-[35vh] rounded-r-xl ${
                 hasResult ? "lg:flex-[0_0_55%] lg:min-h-[60vh]" : "lg:flex-[0_0_25%]"
               }`}
             >

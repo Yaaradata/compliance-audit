@@ -40,11 +40,6 @@ export const LEVEL_COLORS: Record<string, { bg: string; text: string; ring: stri
   L3: { bg: "bg-amber-600", text: "text-amber-700", ring: "ring-amber-400", border: "border-l-amber-500", light: "bg-amber-50", gradient: "from-amber-500 to-orange-500" },
 };
 
-const DOMAIN_ACCENT_COLORS = [
-  "bg-blue-500", "bg-violet-500", "bg-emerald-500", "bg-amber-500",
-  "bg-rose-500", "bg-cyan-500", "bg-fuchsia-500", "bg-indigo-500",
-];
-
 export const LEVEL_LABELS: Record<string, string> = {
   L1: "Completeness",
   L2: "Quality",
@@ -142,7 +137,6 @@ export function ReviewQueueContent({
   const [filter, setFilter] = useState<string>("all");
   const [internalLevelFilter, setInternalLevelFilter] = useState<string>(level === "all" ? "all" : level);
   const levelFilter = controlledLevelFilter ?? internalLevelFilter;
-  const [searchQuery, setSearchQuery] = useState("");
   const [domains, setDomains] = useState<RefDomain[]>([]);
   const [itemNames, setItemNames] = useState<Record<string, string>>({});
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
@@ -207,16 +201,8 @@ export function ReviewQueueContent({
     if (levelFilter !== "all") {
       list = list.filter((r) => normalizeLevel(r.level) === levelFilter);
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      list = list.filter(
-        (r) =>
-          (r.evidence_item_id?.toLowerCase().includes(q)) ||
-          (r.submission_id?.toLowerCase().includes(q))
-      );
-    }
     return list;
-  }, [filter, levelFilter, reviews, user?.id, searchQuery]);
+  }, [filter, levelFilter, reviews, user?.id]);
 
   const groupedByItemThenDomain = useMemo(() => {
     const byItem = new Map<string, ApiReview[]>();
@@ -270,7 +256,7 @@ export function ReviewQueueContent({
     });
   }, [domains, groupedByItemThenDomain]);
 
-  const hasActiveFilters = filter !== "all" || (showLevelFilter && levelFilter !== "all") || searchQuery.trim() !== "";
+  const hasActiveFilters = filter !== "all" || (showLevelFilter && levelFilter !== "all") || selectedDomain != null;
   const statusCounts = useMemo(() => ({
     all: reviews.length,
     assigned: reviews.filter((r) => r.status === "assigned" && r.reviewer_id === user?.id).length,
@@ -292,10 +278,10 @@ export function ReviewQueueContent({
 
   const clearFilters = () => {
     setFilter("all");
+    setSelectedDomain(null);
     const nextLv = level === "all" ? "all" : level;
     if (controlledLevelFilter === undefined) setInternalLevelFilter(nextLv);
     onLevelFilterChange?.(nextLv);
-    setSearchQuery("");
   };
 
   const queueTitle = level === "all" ? "Review Queue" : level === "L3" ? "Approver Queue" : `L${level === "L1" ? "1" : "2"} Review Queue`;
@@ -337,16 +323,25 @@ export function ReviewQueueContent({
         <section className="mb-6 rounded-xl border border-(--border) bg-(--surface) p-4 shadow-sm">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <label className="sr-only">Search</label>
-              <div className="relative flex-1 min-w-[180px] max-w-xs">
-                <Icon path="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--foreground-muted)" />
-                <input
-                  type="search"
-                  placeholder="Search by ID…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-(--border) rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-(--primary)/30"
-                />
+              <span className="text-(--foreground-subtle) text-sm shrink-0">Domain</span>
+              <div className="relative">
+                <select
+                  id="domain-filter"
+                  value={selectedDomain ?? ""}
+                  onChange={(e) => setSelectedDomain(e.target.value === "" ? null : e.target.value)}
+                  aria-label="Filter by domain"
+                  className="appearance-none min-w-[220px] pl-3 pr-9 py-2 text-sm font-medium border rounded-lg bg-background text-foreground border-(--border) hover:border-(--foreground-muted) focus:outline-none focus:ring-2 focus:ring-(--primary)/30 focus:border-(--primary) cursor-pointer transition-colors"
+                >
+                  <option value="">All domains</option>
+                  {domainListWithCounts.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.total})
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-(--foreground-muted)">
+                  <Icon path="M19 9l-7 7-7-7" className="w-4 h-4" />
+                </span>
               </div>
               <span className="text-(--foreground-subtle) text-sm hidden sm:inline">Status</span>
               <div className="flex flex-wrap gap-1.5">
@@ -435,48 +430,7 @@ export function ReviewQueueContent({
             description={hasActiveFilters ? "Try clearing filters or different criteria." : "Reviews appear here once evidence is submitted for review."}
           />
         ) : (
-          <div className="flex flex-1 overflow-hidden rounded-xl border border-(--border) bg-(--surface) shadow-sm">
-            <div className="w-56 flex-shrink-0 border-r border-(--border) flex flex-col bg-(--background) overflow-hidden">
-              <div className="flex-shrink-0 px-4 py-3 border-b border-(--border)">
-                <p className="text-[10px] font-bold text-(--foreground-muted) uppercase tracking-widest">Domains</p>
-              </div>
-              <div className="flex-1 overflow-y-auto py-1.5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedDomain(null)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-l-2 ${selectedDomain === null ? "bg-(--surface) border-(--primary) shadow-sm" : "border-transparent hover:bg-(--surface) hover:border-(--border)"}`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 ${selectedDomain === null ? "bg-(--primary) text-(--surface)" : "bg-(--border) text-(--foreground-muted)"}`}>
-                    •
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-semibold truncate ${selectedDomain === null ? "text-foreground" : "text-(--foreground-muted)"}`}>All domains</p>
-                    <p className="text-[10px] text-(--foreground-subtle) mt-0.5">{filtered.length} items</p>
-                  </div>
-                </button>
-                {domainListWithCounts.map((d) => {
-                  const isActive = selectedDomain === d.id;
-                  const accentColor = DOMAIN_ACCENT_COLORS[domainListWithCounts.indexOf(d) % DOMAIN_ACCENT_COLORS.length];
-                  return (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() => setSelectedDomain(d.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-l-2 ${isActive ? "bg-(--surface) border-(--primary) shadow-sm" : "border-transparent hover:bg-(--surface) hover:border-(--border)"}`}
-                    >
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 ${isActive ? accentColor + " text-white" : "bg-(--border) text-(--foreground-muted)"}`}>
-                        {d.id}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-semibold truncate ${isActive ? "text-foreground" : "text-(--foreground-muted)"}`}>{d.name}</p>
-                        <p className="text-[10px] text-(--foreground-subtle) mt-0.5">{d.total} items · {d.approved} approved</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
+          <div className="flex flex-col overflow-hidden rounded-xl border border-(--border) bg-(--surface) shadow-sm">
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
               <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-(--border) bg-(--surface)">
                 <div>

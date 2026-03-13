@@ -7,7 +7,7 @@ import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
 import { EvidenceDisplayReadOnly } from "@/components/domain/evidence-display-readonly";
 import { NoteList, type NoteItem } from "@/components/notes/note-list";
 import { NoteInput } from "@/components/notes/note-input";
-import { AiEvaluationResult, EvaluationScoreRing } from "@/components/domain/ai-evaluation-result";
+import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 
 interface Attachment {
   id: string;
@@ -20,6 +20,7 @@ interface Attachment {
 interface Comment {
   id: string;
   review_id?: string;
+  level?: string;
   author_id: string;
   author_name?: string;
   body: string;
@@ -113,43 +114,6 @@ interface MatrixRow {
   evidence_type: string;
   sufficiency_criteria: string | null;
   evaluation_criteria: string | null;
-}
-
-/** Circular score ring (pass/total) with color by ratio. */
-function ScoreRing({ score, total, size = 44 }: { score: number; total: number; size?: number }) {
-  const pct = total ? score / total : 0;
-  const r = size / 2 - 4;
-  const circ = 2 * Math.PI * r;
-  const dash = circ * pct;
-  const color = pct >= 0.75 ? "var(--success, #10b981)" : pct >= 0.5 ? "var(--warning, #f59e0b)" : "var(--danger, #ef4444)";
-  const cx = size / 2;
-  const cy = size / 2;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--border)" strokeWidth="3.5" />
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r}
-        fill="none"
-        stroke={color}
-        strokeWidth="3.5"
-        strokeDasharray={`${dash} ${circ}`}
-        strokeLinecap="round"
-        style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%", transition: "stroke-dasharray .3s ease" }}
-      />
-      <text
-        x={cx}
-        y={cy}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        className="text-[10px] font-bold tabular-nums"
-        style={{ fill: "var(--foreground)", fontFamily: "ui-monospace, monospace" }}
-      >
-        {score}/{total}
-      </text>
-    </svg>
-  );
 }
 
 /** Renders one AI result line; pen icon toggles note list + add-note input. Uses shared preFetchedNotes when provided. */
@@ -502,7 +466,6 @@ export function InlineEvidenceDetail({
   const TABS = [
     { id: "evidence" as const, label: "Evidence", badge: `${formKeys.length} fields, ${attachments.length} files` },
     { id: "evaluation" as const, label: "AI Evaluation", badge: evalResult ? (evalResult.overall_met ? "Met" : "Not met") : "—" },
-    { id: "comments" as const, label: "Comments", badge: `${comments.length}` },
     { id: "notes" as const, label: "Notes", badge: "" },
     { id: "history" as const, label: "History", badge: `${review_history.length} levels` },
   ];
@@ -548,9 +511,6 @@ export function InlineEvidenceDetail({
             {/* Evidence: section header */}
             <div className="shrink-0 px-4 py-3 border-b border-(--border) bg-background/50">
               <h3 className="text-sm font-bold text-foreground">Evidence</h3>
-              <p className="text-[10px] text-(--foreground-subtle) mt-0.5">
-                Form data and attachments for this submission.
-              </p>
             </div>
             <div className="flex-1 p-4 overflow-y-auto">
               <EvidenceDisplayReadOnly
@@ -594,28 +554,6 @@ export function InlineEvidenceDetail({
           </div>
         )}
 
-        {activeTab === "comments" && (
-          <div className={`flex-1 flex flex-col ${tabContentClass} ${contentMaxHeight} p-3`}>
-            <div className="space-y-2 flex-1">
-              {comments.map((c) => (
-                <div key={c.id} className="bg-background rounded-lg p-3 border border-(--border)">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-semibold text-foreground">{c.author_name || c.author_id.slice(0, 8)}</span>
-                    <span className="text-[10px] text-(--foreground-muted)">{new Date(c.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <p className="text-xs text-foreground leading-relaxed" style={{ lineHeight: 1.5 }}>{c.body}</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2 pt-2 shrink-0 border-t border-(--border) mt-2">
-              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment…"
-                className="flex-1 text-xs border border-(--border) rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-(--primary)/30 bg-(--surface)" />
-              <button onClick={handleAddComment} disabled={!newComment.trim() || submittingComment}
-                className="px-3 py-2 bg-(--primary) text-white text-xs font-medium rounded-lg hover:opacity-90 disabled:opacity-50">Post</button>
-            </div>
-          </div>
-        )}
-
         {activeTab === "notes" && (
           <div className={`flex-1 flex flex-col ${tabContentClass} ${contentMaxHeight} p-3`}>
             <div className="flex-1 overflow-y-auto space-y-3">
@@ -653,8 +591,8 @@ export function InlineEvidenceDetail({
         )}
       </div>
 
-      {/* Action bar — Return, Hold, Approve */}
-      {canAction && review.status === "assigned" && (
+      {/* Action bar — Return, Hold, Approve (also when status is hold: reviewer can approve or return) */}
+      {canAction && (review.status === "assigned" || review.status === "hold") && (
         <div className="border-t border-(--border) pt-3 flex flex-col gap-2">
           {checklistTotal > 0 && checklistChecked < checklistTotal && (
             <div className="px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[10px] text-amber-700 dark:text-amber-300">
@@ -674,7 +612,12 @@ export function InlineEvidenceDetail({
               type="button"
               onClick={() => onAction?.("hold", undefined, checklistState)}
               aria-label="Put on hold"
-              className="px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 bg-(--surface)"
+              aria-pressed={review.status === "hold"}
+              className={`px-4 py-2 text-xs font-semibold rounded-lg border transition-colors ${
+                review.status === "hold"
+                  ? "bg-slate-500 border-slate-500 text-white shadow-md"
+                  : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 bg-(--surface)"
+              }`}
             >
               Hold
             </button>
@@ -786,12 +729,15 @@ export function EvidenceDetailModal({
   const [selectedControlId, setSelectedControlId] = useState<string | null>(null);
   const [actioning, setActioning] = useState(false);
   const [actionType, setActionType] = useState<"approve" | "return" | "hold" | null>(null);
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [approveCommentStep, setApproveCommentStep] = useState<"choose" | "collect">("choose");
+  const [approveComment, setApproveComment] = useState("");
 
-  const handleAction = useCallback(async (decision: "approve" | "return" | "hold") => {
+  const handleAction = useCallback(async (decision: "approve" | "return" | "hold", comment?: string) => {
     setActionType(decision);
     setActioning(true);
     try {
-      await Promise.resolve(onAction?.(decision, undefined, checklistState));
+      await Promise.resolve(onAction?.(decision, comment, checklistState));
       onClose();
     } catch {
       // API failed — leave user on page
@@ -800,6 +746,30 @@ export function EvidenceDetailModal({
       setActionType(null);
     }
   }, [checklistState, onAction, onClose]);
+
+  const handleApproveDirectly = useCallback(() => {
+    setShowApproveDialog(false);
+    setApproveCommentStep("choose");
+    setApproveComment("");
+    handleAction("approve");
+  }, [handleAction]);
+
+  const handleApproveWithComment = useCallback(async () => {
+    const commentTrimmed = approveComment.trim();
+    if (commentTrimmed) {
+      setActioning(true);
+      try {
+        await api.post(`/reviews/${reviewId}/comments`, { body: commentTrimmed });
+      } catch {
+        setActioning(false);
+        return;
+      }
+    }
+    setShowApproveDialog(false);
+    setApproveCommentStep("choose");
+    setApproveComment("");
+    handleAction("approve", commentTrimmed || undefined);
+  }, [approveComment, reviewId, handleAction]);
 
   const fetchDetail = useCallback(async () => {
     try {
@@ -993,14 +963,6 @@ export function EvidenceDetailModal({
   const levelLabel = LEVEL_LABELS[normalizeLevel(review.level)] ?? review.level;
   const levelDisplay = `${normalizeLevel(review.level)} — ${levelLabel}`;
 
-  const allCriteria = [
-    ...(evalResult?.sufficiency_results ?? []),
-    ...(evalResult?.criteria ?? []),
-  ].filter((c) => shouldShowCriterion(c.label));
-  const evaluationEdits = submission.evaluation_edits ?? {};
-  const getEffectiveMet = (c: { id: string; met: boolean }) => evaluationEdits[c.id]?.met ?? c.met;
-  const overallMet = allCriteria.filter((c) => getEffectiveMet(c)).length;
-  const overallTotal = allCriteria.length;
   const controlId = evidenceItemId ?? submission.evidence_item_id ?? "—";
 
   const header = (
@@ -1027,22 +989,17 @@ export function EvidenceDetailModal({
         </div>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        {overallTotal > 0 && (
-          <div className="flex items-center gap-3 px-4 py-2 rounded-xl border border-(--border) bg-(--surface)">
-            <ScoreRing score={overallMet} total={overallTotal} size={44} />
-            <div>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-(--foreground-muted)">Overall AI Score</p>
-              <p className="text-xs font-bold mt-0.5 text-foreground tabular-nums">{overallMet}/{overallTotal} criteria</p>
-            </div>
-          </div>
-        )}
         <button
           type="button"
           onClick={onClose}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl border border-(--border) bg-(--surface) text-foreground hover:bg-(--primary-muted)/30 hover:border-(--primary)/40 hover:text-(--primary) transition-all"
+          className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-all ${
+            inline
+              ? "bg-(--primary) text-white hover:opacity-90 shadow-md hover:shadow-lg"
+              : "border border-(--border) bg-(--surface) text-foreground hover:bg-(--primary-muted)/30 hover:border-(--primary)/40 hover:text-(--primary)"
+          }`}
           aria-label={inline ? "Back to Review Queue" : "Close"}
         >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
           {inline ? "Back to Review Queue" : "Close"}
@@ -1088,15 +1045,13 @@ export function EvidenceDetailModal({
 
               if (inline) {
                 return (
-                  <div className="flex min-h-[70vh] h-[calc(100vh-7rem)] max-h-[85vh] min-w-0 w-full">
-                    {/* Left panel: Evidence only */}
-                    <div className="flex-1 flex flex-col min-w-0 min-h-0 border-r border-(--border) overflow-hidden">
-                      <div className="shrink-0 px-6 sm:px-8 py-4 border-b border-(--border) bg-background/50">
+                  <div className="flex min-h-0 max-h-[85vh] w-full min-w-0 gap-0">
+                    {/* Left panel: Evidence — card-style container to match Evaluation result */}
+                    <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-l-xl border border-(--border) border-r-0 bg-white dark:bg-(--surface) shadow-sm overflow-hidden">
+                      <div className="shrink-0 px-6 sm:px-8 py-4 border-b border-(--border) bg-slate-50/80 dark:bg-background/50">
                         <h2 className="text-sm font-bold text-foreground">Evidence</h2>
-                        <p className="text-[11px] text-(--foreground-muted) mt-0.5">Form data and attachments.</p>
                       </div>
-                      {/* Left column: scrollable; same form layout as evidence uploader (no table, no AI hints) */}
-                      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto p-6">
+                      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto p-6 bg-slate-50/30 dark:bg-transparent">
                         <EvidenceDisplayReadOnly
                           evidenceItemId={submission.evidence_item_id}
                           cycleId={submission.cycle_id ?? cycleId}
@@ -1106,29 +1061,10 @@ export function EvidenceDetailModal({
                         />
                       </div>
                     </div>
-                    {/* Right panel: Evaluation result — same structure as evidence submission; scrollable so L1/L2/approval can see all criteria and notes thread */}
-                    <div className="w-full min-w-0 flex flex-col min-h-0 md:flex-[0_0_55%] md:min-h-[60vh] bg-(--surface) border-t md:border-t-0 border-(--border) shadow-sm overflow-hidden">
-                      <div className="shrink-0 px-5 py-4 border-b border-(--border) bg-background/50 min-h-[72px] flex flex-col justify-center">
-                        <div className="flex items-center justify-between gap-3 min-h-[52px]">
-                          <div className="min-w-0">
-                            <h2 className="text-base font-bold text-foreground">Evaluation result</h2>
-                            <p className="text-sm text-(--foreground-muted) mt-1">Per-criterion results with notes. Add notes in thread; name and role shown.</p>
-                          </div>
-                          {evalResult && (() => {
-                            const suff = (evalResult.sufficiency_results ?? []).filter((c) => shouldShowCriterion(c.label));
-                            const crit = (evalResult.criteria ?? []).filter((c) => shouldShowCriterion(c.label));
-                            const total = suff.length + crit.length;
-                            const edits = submission.evaluation_edits ?? {};
-                            const getMet = (c: { id: string; met: boolean }) => edits[c.id]?.met ?? c.met;
-                            const met = [...suff, ...crit].filter((c) => getMet(c)).length;
-                            if (total === 0) return null;
-                            return (
-                              <div className="shrink-0">
-                                <EvaluationScoreRing score={met} total={total} size={40} />
-                              </div>
-                            );
-                          })()}
-                        </div>
+                    {/* Right panel: Evaluation result — card-style container */}
+                    <div className="w-full min-w-0 flex flex-col min-h-0 md:flex-[0_0_55%] rounded-r-xl border border-(--border) border-l-0 md:border-l bg-white dark:bg-(--surface) shadow-sm overflow-hidden">
+                      <div className="shrink-0 px-6 sm:px-8 py-4 border-b border-(--border) bg-slate-50/80 dark:bg-background/50">
+                        <h2 className="text-sm font-bold text-foreground">AI evaluation results</h2>
                       </div>
                       <div className="flex-1 min-h-0 overflow-hidden p-5 flex flex-col">
                         <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
@@ -1151,12 +1087,11 @@ export function EvidenceDetailModal({
               }
               return (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                  <section className="flex flex-col">
-                    <div className="pb-3 border-b border-(--border)/80">
-                      <h2 className="text-sm font-semibold text-foreground">Evidence</h2>
-                      <p className="text-[11px] text-(--foreground-muted) mt-0.5">Form data and attachments.</p>
+                  <section className="flex flex-col rounded-xl border border-(--border) bg-white dark:bg-(--surface) shadow-sm overflow-hidden">
+                    <div className="shrink-0 px-5 py-4 border-b border-(--border) bg-slate-50/80 dark:bg-background/50">
+                      <h2 className="text-sm font-bold text-foreground">Evidence</h2>
                     </div>
-                    <div className="pt-4">
+                    <div className="p-5 bg-slate-50/30 dark:bg-transparent">
                       <EvidenceDisplayReadOnly
                         evidenceItemId={submission.evidence_item_id}
                         cycleId={submission.cycle_id ?? cycleId}
@@ -1166,28 +1101,11 @@ export function EvidenceDetailModal({
                       />
                     </div>
                   </section>
-                  <section className="flex flex-col">
-                    <div className="pb-3 border-b border-(--border)/80 flex items-center justify-between gap-3">
-                      <div>
-                        <h2 className="text-sm font-semibold text-foreground">Evaluation result</h2>
-                        <p className="text-[11px] text-(--foreground-muted) mt-0.5">Per-criterion results with notes.</p>
-                      </div>
-                      {evalResult && (() => {
-                        const suff = (evalResult.sufficiency_results ?? []).filter((c) => shouldShowCriterion(c.label));
-                        const crit = (evalResult.criteria ?? []).filter((c) => shouldShowCriterion(c.label));
-                        const total = suff.length + crit.length;
-                        const edits = submission.evaluation_edits ?? {};
-                        const getMet = (c: { id: string; met: boolean }) => edits[c.id]?.met ?? c.met;
-                        const met = [...suff, ...crit].filter((c) => getMet(c)).length;
-                        if (total === 0) return null;
-                        return (
-                          <div className="shrink-0">
-                            <EvaluationScoreRing score={met} total={total} size={36} />
-                          </div>
-                        );
-                      })()}
+                  <section className="flex flex-col rounded-xl border border-(--border) bg-white dark:bg-(--surface) shadow-sm overflow-hidden">
+                    <div className="shrink-0 px-5 py-4 border-b border-(--border) bg-slate-50/80 dark:bg-background/50">
+                      <h2 className="text-sm font-bold text-foreground">AI evaluation results</h2>
                     </div>
-                    <div className="pt-4 flex flex-col min-h-0 max-h-[min(60vh,500px)]">
+                    <div className="p-5 bg-slate-50/30 dark:bg-transparent flex flex-col min-h-0 max-h-[min(60vh,500px)]">
                       <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
                         <AiEvaluationResult
                           result={evalResult ? { ...evalResult, evidence_item_id: submission.evidence_item_id, criteria: evalResult.criteria ?? [], overall_met: evalResult.overall_met ?? false } : null}
@@ -1207,32 +1125,29 @@ export function EvidenceDetailModal({
               );
             })()}
 
-            {/* ——— Comments & History (no nested scroll: content flows, page scrolls) ——— */}
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 items-start pt-8 ${inline ? "px-6 pb-8" : ""}`}>
-              <section>
-                <div className="pb-3 border-b border-(--border)/80">
-                  <h2 className="text-sm font-semibold text-foreground">Comments</h2>
-                  <p className="text-[11px] text-(--foreground-muted) mt-0.5">{comments.length} comment{comments.length !== 1 ? "s" : ""}</p>
-                </div>
-                <div className="pt-4 space-y-3">
-                  <div className="space-y-2">
+            {/* ——— Comments from reviewers (e.g. L1 comment for L2) + Review history ——— */}
+            <div className={`pt-8 ${inline ? "px-6 pb-8" : ""}`}>
+              {comments.length > 0 && (
+                <section className="mb-8">
+                  <div className="pb-3 border-b border-(--border)/80">
+                    <h2 className="text-sm font-semibold text-foreground">Comments from reviewers</h2>
+                    <p className="text-[11px] text-(--foreground-muted) mt-0.5">Comments from previous review levels for the next reviewer</p>
+                  </div>
+                  <div className="pt-4 space-y-3">
                     {comments.map((c) => (
                       <div key={c.id} className="py-3 px-0 border-b border-(--border)/50 last:border-b-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-foreground">{c.author_name || c.author_id.slice(0, 8)}</span>
+                          <span className="text-xs font-semibold text-foreground">
+                            {c.level ? `${c.level} reviewer` : c.author_name || c.author_id.slice(0, 8)}
+                          </span>
                           <span className="text-[10px] text-(--foreground-muted)">{new Date(c.created_at).toLocaleDateString()}</span>
                         </div>
                         <p className="text-xs text-foreground leading-relaxed" style={{ lineHeight: 1.5 }}>{c.body}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="flex gap-2 pt-2">
-                    <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment…"
-                      className="flex-1 text-sm border border-(--border) rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-(--primary)/30 bg-background" />
-                    <button onClick={handleAddComment} disabled={!newComment.trim() || submittingComment} className="px-3 py-2 bg-(--primary) text-white text-xs font-medium rounded-lg hover:opacity-90 disabled:opacity-50">Post</button>
-                  </div>
-                </div>
-              </section>
+                </section>
+              )}
               <section>
                 <div className="pb-3 border-b border-(--border)/80">
                   <h2 className="text-sm font-semibold text-foreground">Review history</h2>
@@ -1250,8 +1165,8 @@ export function EvidenceDetailModal({
               </section>
             </div>
 
-            {/* Decision buttons: below Comments (inline) or in action bar (modal) */}
-            {canAction && review.status === "assigned" && inline && (
+            {/* Decision buttons: below Comments (inline) or in action bar (modal). Show when assigned or hold so reviewer can approve or return. */}
+            {canAction && (review.status === "assigned" || review.status === "hold") && inline && (
               <div className="px-6 pb-8 pt-2">
                 <div className="grid grid-cols-3 gap-3 max-w-2xl">
                   <button
@@ -1267,14 +1182,19 @@ export function EvidenceDetailModal({
                     type="button"
                     onClick={() => handleAction("hold")}
                     disabled={actioning}
-                    className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border transition-all ${actionType === "hold" ? "bg-slate-500 border-slate-500 text-white shadow-lg shadow-slate-100 dark:shadow-slate-900/30" : "bg-(--surface) border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 hover:shadow-sm"}`}
+                    aria-pressed={review.status === "hold"}
+                    className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border transition-all ${
+                      actionType === "hold" || review.status === "hold"
+                        ? "bg-slate-500 border-slate-500 text-white shadow-lg shadow-slate-100 dark:shadow-slate-900/30"
+                        : "bg-(--surface) border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 hover:shadow-sm"
+                    }`}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     Hold
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleAction("approve")}
+                    onClick={() => setShowApproveDialog(true)}
                     disabled={actioning}
                     className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border transition-all ${actionType === "approve" ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-emerald-900/30" : "bg-(--surface) border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:shadow-sm"}`}
                   >
@@ -1285,8 +1205,8 @@ export function EvidenceDetailModal({
               </div>
             )}
 
-            {/* Action bar — at bottom of scroll (modal only) */}
-            {canAction && review.status === "assigned" && !inline && (
+            {/* Action bar — at bottom of scroll (modal only). Show when assigned or hold so reviewer can approve or return. */}
+            {canAction && (review.status === "assigned" || review.status === "hold") && !inline && (
               <div className="border-t border-(--border)/80 pt-8 flex flex-col gap-3">
                 {checklistTotal > 0 && checklistChecked < checklistTotal && (
                   <div className="px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
@@ -1306,18 +1226,81 @@ export function EvidenceDetailModal({
                     type="button"
                     onClick={() => handleAction("hold")}
                     disabled={actioning}
-                    className="px-5 py-2.5 text-sm font-semibold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 bg-(--surface) disabled:opacity-60"
+                    aria-pressed={review.status === "hold"}
+                    className={`px-5 py-2.5 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-60 ${
+                      review.status === "hold"
+                        ? "bg-slate-500 border-slate-500 text-white shadow-md"
+                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 bg-(--surface)"
+                    }`}
                   >
                     Hold
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleAction("approve")}
+                    onClick={() => setShowApproveDialog(true)}
                     disabled={actioning || (checklistTotal > 0 && checklistChecked < checklistTotal)}
                     className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Approve
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Approve dialog: optional comment for next reviewer */}
+            {showApproveDialog && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="approve-dialog-title">
+                <div className="bg-(--surface) rounded-2xl shadow-xl border border-(--border) max-w-md w-full p-6">
+                  <h2 id="approve-dialog-title" className="text-lg font-semibold text-foreground mb-1">Approve and move to next review</h2>
+                  <p className="text-sm text-(--foreground-muted) mb-6">Do you have any comments for the next reviewer?</p>
+                  {approveCommentStep === "choose" ? (
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        type="button"
+                        onClick={handleApproveDirectly}
+                        disabled={actioning}
+                        className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold border border-(--border) bg-(--surface) text-foreground hover:bg-(--border)/50 disabled:opacity-50"
+                      >
+                        No, approve directly
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setApproveCommentStep("collect")}
+                        disabled={actioning}
+                        className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold bg-(--primary) text-white hover:opacity-90 disabled:opacity-50"
+                      >
+                        Yes, add a comment
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <textarea
+                        value={approveComment}
+                        onChange={(e) => setApproveComment(e.target.value)}
+                        placeholder="Add a comment for the next reviewer…"
+                        rows={4}
+                        className="w-full text-sm border border-(--border) rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-(--primary)/30 bg-background resize-y"
+                      />
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => { setApproveCommentStep("choose"); setApproveComment(""); }}
+                          disabled={actioning}
+                          className="px-4 py-2.5 rounded-lg text-sm font-medium border border-(--border) text-foreground hover:bg-(--border)/50 disabled:opacity-50"
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleApproveWithComment}
+                          disabled={actioning}
+                          className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          {approveComment.trim() ? "Add comment & Approve" : "Approve"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

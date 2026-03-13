@@ -441,19 +441,22 @@ def get_review_detail(
         for att in attachments
     ]
 
-    comments = (
-        db.query(ReviewComment)
-        .filter(ReviewComment.review_id == review_id)
-        .order_by(ReviewComment.created_at)
-        .all()
-    )
-
     reviewer = db.query(User).filter(User.id == review.reviewer_id).first()
 
     all_reviews = (
         db.query(ReviewAssignment)
         .filter(ReviewAssignment.submission_id == submission.id)
         .order_by(ReviewAssignment.assigned_at)
+        .all()
+    )
+    review_ids_for_submission = [r.id for r in all_reviews]
+    level_by_review_id = {r.id: DB_TO_LEVEL.get(r.level, r.level) for r in all_reviews}
+
+    # Include comments from all review levels so L2 sees L1's comment, etc.
+    comments = (
+        db.query(ReviewComment)
+        .filter(ReviewComment.review_id.in_(review_ids_for_submission))
+        .order_by(ReviewComment.created_at)
         .all()
     )
 
@@ -521,6 +524,8 @@ def get_review_detail(
         "comments": [
             {
                 "id": str(c.id),
+                "review_id": str(c.review_id),
+                "level": level_by_review_id.get(c.review_id),
                 "author_id": str(c.author_id),
                 "body": c.body,
                 "is_resolved": c.is_resolved,
@@ -557,7 +562,14 @@ def update_review(
     level_display = DB_TO_LEVEL.get(review.level, review.level)
     is_assignee = user.id == review.reviewer_id
     can_by_role = user.role in ("compliance_officer", "admin") or user.role == LEVEL_ROLE_MAP.get(level_display)
-    if not is_assignee and not can_by_role:
+    # When review is on hold, allow any same-tenant user who can see the review to update (hold → approve → L2)
+    # (get_db_for_review already enforces same-tenant access, so if we're here they have access)
+    can_act_on_hold = False
+    if not is_assignee and not can_by_role and (getattr(review, "status", None) or "").lower() == "hold":
+        sub_for_hold = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == review.submission_id).first()
+        if sub_for_hold and (user.tenant_id is None or sub_for_hold.tenant_id == user.tenant_id):
+            can_act_on_hold = True
+    if not is_assignee and not can_by_role and not can_act_on_hold:
         raise HTTPException(status_code=403, detail=f"Not authorized to action this {level_display} review")
 
     review.decision = req.decision
@@ -611,14 +623,32 @@ def update_review(
         raise HTTPException(status_code=400, detail="decision must be approve, return, or hold")
 
     next_review_id = next_review.id if next_review else None
+    # Build response from in-memory state before commit; after commit the session
+    # expires the instance and any attribute access can trigger a failing refresh.
+    submission_status_display = (
+        evidence_status_svc.evidence_display_status(submission.status, db, submission.id)
+        if submission else None
+    )
+    out_data = {
+        "id": review.id,
+        "submission_id": review.submission_id,
+        "reviewer_id": review.reviewer_id,
+        "level": level_display,
+        "status": review.status,
+        "decision": review.decision,
+        "assigned_at": review.assigned_at,
+        "completed_at": review.completed_at,
+        "evidence_item_id": getattr(submission, "evidence_item_id", None) if submission else None,
+        "submission_status": submission_status_display,
+        "submitter_name": None,
+    }
     try:
         db.commit()
         logger.info("[REVIEW] Committed. next_review_id=%s", next_review_id)
     except Exception:
         logger.exception("[REVIEW] Commit failed for review=%s", review_id)
         raise
-    db.refresh(review)
-    out = ReviewOut.model_validate(review)
+    out = ReviewOut.model_validate(out_data)
     return UpdateReviewResponse(review=out, next_review_id=next_review_id)
 
 
@@ -671,9 +701,18 @@ def add_comment(
         body=req.body,
     )
     db.add(comment)
+    db.flush()
+    # Capture response shape before commit; db.refresh() fails with schema-scoped sessions
+    out_data = {
+        "id": comment.id,
+        "review_id": comment.review_id,
+        "author_id": comment.author_id,
+        "body": comment.body,
+        "is_resolved": getattr(comment, "is_resolved", False),
+        "created_at": comment.created_at,
+    }
     db.commit()
-    db.refresh(comment)
-    return CommentOut.model_validate(comment)
+    return CommentOut.model_validate(out_data)
 
 
 # ── Evidence detail (for any authenticated user) ────────────
