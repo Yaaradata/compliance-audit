@@ -7,6 +7,7 @@ const STORAGE_KEY = "sidebar-open";
 type SidebarContextValue = {
   open: boolean;
   toggle: () => void;
+  setOpen: (value: boolean, persist?: boolean) => void;
 };
 
 const SidebarContext = createContext<SidebarContextValue | null>(null);
@@ -23,12 +24,14 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const setOpen = useCallback((value: boolean) => {
+  const setOpen = useCallback((value: boolean, persist = true) => {
     setOpenState(value);
-    try {
-      localStorage.setItem(STORAGE_KEY, String(value));
-    } catch {
-      /* ignore */
+    if (persist) {
+      try {
+        localStorage.setItem(STORAGE_KEY, String(value));
+      } catch {
+        /* ignore */
+      }
     }
   }, []);
 
@@ -45,7 +48,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SidebarContext.Provider value={{ open, toggle }}>
+    <SidebarContext.Provider value={{ open, toggle, setOpen }}>
       {children}
     </SidebarContext.Provider>
   );
@@ -54,7 +57,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 export function useSidebar() {
   const ctx = useContext(SidebarContext);
   if (!ctx) {
-    return { open: true, toggle: () => {} };
+    return { open: true, toggle: () => {}, setOpen: () => {} };
   }
   return ctx;
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { NoteInput } from "./note-input";
 
 export interface NoteItem {
   id: string;
@@ -30,13 +30,16 @@ interface NoteListProps {
   onNoteDeleted?: () => void;
   /** Called when notes are loaded (so parent can e.g. enable X→✓ toggle only when notes exist). */
   onNotesLoaded?: (notes: NoteItem[]) => void;
+  /** When true, show chat-like thread with Reply button on each note for conversation flow. */
+  chatMode?: boolean;
 }
 
-export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger = 0, emptyMessage = "No notes yet.", preFetchedNotes, onNoteDeleted, onNotesLoaded }: NoteListProps) {
+export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger = 0, emptyMessage = "No notes yet.", preFetchedNotes, onNoteDeleted, onNotesLoaded, chatMode }: NoteListProps) {
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
 
   const fetchNotes = () => {
     setLoading(true);
@@ -87,6 +90,97 @@ export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger
     }
   };
 
+  const buildThread = (items: NoteItem[]): { note: NoteItem; replies: NoteItem[] }[] => {
+    const topLevel = items.filter((n) => !n.parent_id);
+    const byParent = new Map<string, NoteItem[]>();
+    items.filter((n) => n.parent_id).forEach((n) => {
+      const list = byParent.get(n.parent_id!) ?? [];
+      list.push(n);
+      byParent.set(n.parent_id!, list);
+    });
+    return topLevel
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .map((note) => ({
+        note,
+        replies: (byParent.get(note.id) ?? []).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+      }));
+  };
+
+  const threads = chatMode ? buildThread(notes) : null;
+
+  const NoteBubble = ({ n, isReply }: { n: NoteItem; isReply?: boolean }) => (
+    <div
+      className={`flex items-start gap-2 ${isReply ? "ml-10 mt-2 pl-3 border-l-2 border-(--primary)/20" : ""}`}
+    >
+      <div
+        className="shrink-0 w-8 h-8 rounded-full bg-[var(--primary-muted)] flex items-center justify-center text-xs font-semibold text-[var(--primary)]"
+        title={n.author_name ?? "Unknown"}
+      >
+        {(n.author_name ?? "?")
+          .split(/\s+/)
+          .map((w) => w[0])
+          .filter(Boolean)
+          .slice(0, 2)
+          .join("")
+          .toUpperCase()}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+          <span className="font-medium text-[var(--foreground)]">{n.author_name ?? "Unknown"}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--background)] border border-[var(--border)] text-[var(--foreground-muted)]">
+            {roleToLabel(n.author_role)}
+          </span>
+        </div>
+        <p className="text-[var(--foreground)] whitespace-pre-wrap break-words">{n.body}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <p className="text-[10px] text-[var(--foreground-muted)]">
+            {new Date(n.created_at).toLocaleString()}
+          </p>
+          {chatMode && !isReply && (
+            <button
+              type="button"
+              onClick={() => setReplyingToId((id) => (id === n.id ? null : n.id))}
+              className="text-[10px] text-(--primary) hover:underline font-medium"
+            >
+              Reply
+            </button>
+          )}
+        </div>
+        {chatMode && replyingToId === n.id && (
+          <div className="mt-2">
+            <NoteInput
+              resourceType={resourceType}
+              resourceId={resourceId}
+              parentId={n.id}
+              criterionId={criterionId}
+              placeholder="Add a reply…"
+              onAdded={() => {
+                setReplyingToId(null);
+                fetchNotes();
+              }}
+              buttonLabel="Reply"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (chatMode && threads && threads.length > 0) {
+    return (
+      <div className="space-y-4">
+        {threads.map(({ note, replies }) => (
+          <div key={note.id} className="rounded-lg border border-(--border) bg-(--surface)/50 p-3">
+            <NoteBubble n={note} />
+            {replies.map((r) => (
+              <NoteBubble key={r.id} n={r} isReply />
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <ul className="space-y-3">
       {notes.map((n) => (
@@ -94,42 +188,7 @@ export function NoteList({ resourceType, resourceId, criterionId, refreshTrigger
           key={n.id}
           className={`text-sm ${n.parent_id ? "pl-4 border-l-2 border-[var(--border)] ml-1" : ""}`}
         >
-          <div className="flex items-start gap-2">
-            <div
-              className="shrink-0 w-8 h-8 rounded-full bg-[var(--primary-muted)] flex items-center justify-center text-xs font-semibold text-[var(--primary)]"
-              title={n.author_name ?? "Unknown"}
-            >
-              {(n.author_name ?? "?")
-                .split(/\s+/)
-                .map((w) => w[0])
-                .filter(Boolean)
-                .slice(0, 2)
-                .join("")
-                .toUpperCase()}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                <span className="font-medium text-[var(--foreground)]">{n.author_name ?? "Unknown"}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--background)] border border-[var(--border)] text-[var(--foreground-muted)]">
-                  {roleToLabel(n.author_role)}
-                </span>
-              </div>
-              <p className="text-[var(--foreground)] whitespace-pre-wrap break-words">{n.body}</p>
-              <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">
-                {new Date(n.created_at).toLocaleString()}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleDelete(n)}
-              disabled={deletingId !== null}
-              className="shrink-0 p-1.5 rounded text-[var(--foreground-muted)] hover:text-rose-600 hover:bg-rose-50 disabled:opacity-50 transition-colors"
-              title="Delete note (criterion will move to Not met)"
-              aria-label="Delete note"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
+          <NoteBubble n={n} />
         </li>
       ))}
     </ul>
@@ -141,7 +200,7 @@ function roleToLabel(role: string | null | undefined): string {
   const r = role.toLowerCase();
   if (r === "internal_reviewer_l1") return "L1";
   if (r === "internal_reviewer_l2") return "L2";
-  if (r === "external_assessor") return "L3";
+  if (r === "external_assessor") return "Approver";
   if (r === "it_sme") return "Evidence uploader";
   if (r === "compliance_officer") return "Compliance";
   return role.replace(/_/g, " ");

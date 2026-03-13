@@ -19,7 +19,7 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   it_sme: "Subject matter expert; uploads evidence.",
   internal_reviewer_l1: "L1 completeness reviewer.",
   internal_reviewer_l2: "L2 quality reviewer.",
-  external_assessor: "L3 independent assessor and final approver.",
+  external_assessor: "Final approver for evidence.",
 };
 
 export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?: string }[]> = {
@@ -55,7 +55,6 @@ export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?:
   ],
   external_assessor: [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/approval", label: "Approval" },
     { href: "/report", label: "Report" },
   ],
 };

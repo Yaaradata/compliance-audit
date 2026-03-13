@@ -48,7 +48,7 @@ const DOMAIN_ACCENT_COLORS = [
 export const LEVEL_LABELS: Record<string, string> = {
   L1: "Completeness",
   L2: "Quality",
-  L3: "Assessment",
+  L3: "Approver",
 };
 
 const LEVEL_FILTERS: { key: "all" | "L1" | "L2" | "L3"; label: string }[] = [
@@ -298,7 +298,7 @@ export function ReviewQueueContent({
     setSearchQuery("");
   };
 
-  const queueTitle = level === "all" ? "Review Queue" : `L${level === "L1" ? "1" : level === "L2" ? "2" : "3"} Review Queue`;
+  const queueTitle = level === "all" ? "Review Queue" : level === "L3" ? "Approver Queue" : `L${level === "L1" ? "1" : "2"} Review Queue`;
 
   const kpiPending = statusCounts.all - statusCounts.approved - statusCounts.returned - statusCounts.hold;
 

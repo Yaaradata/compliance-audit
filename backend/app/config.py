@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Cloud Run: set to instance connection name (e.g. project:region:instance) to use Unix socket
     CLOUD_SQL_INSTANCE: str | None = None
 
-    JWT_SECRET_KEY: str = "change-me"
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 1440
 
@@ -42,3 +42,16 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def _validate_jwt_secret() -> None:
+    """Ensure JWT_SECRET_KEY is set and strong enough for production."""
+    key = settings.JWT_SECRET_KEY
+    if not key or len(key) < 32:
+        raise ValueError(
+            "JWT_SECRET_KEY must be set in .env and at least 32 characters. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+
+
+_validate_jwt_secret()

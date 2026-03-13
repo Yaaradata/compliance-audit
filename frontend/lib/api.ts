@@ -1,5 +1,3 @@
-import { getBackendUrl } from "./env";
-
 /** Format FastAPI validation error detail (string or array of {loc, msg}) for display. */
 function formatApiErrorDetail(detail: unknown): string {
   if (typeof detail === "string") return detail;
@@ -14,9 +12,16 @@ function formatApiErrorDetail(detail: unknown): string {
 /** Relative API path; requests go through Next.js rewrite to backend. */
 const BASE_URL = "/api/v1";
 
-/** Full backend API URL for direct calls (long timeouts, bypass proxy). */
-function getBackendDirectUrl(): string {
-  return getBackendUrl();
+/** Full backend API URL for direct calls (long timeouts). From .env NEXT_PUBLIC_BACKEND_URL. */
+function getBackendApiUrl(): string {
+  const origin = (typeof process !== "undefined" && process.env.NEXT_PUBLIC_BACKEND_URL) || "";
+  const trimmed = origin.replace(/\/+$/, "");
+  if (!trimmed) {
+    throw new Error(
+      "NEXT_PUBLIC_BACKEND_URL is required. Add it to frontend/.env (e.g. NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8000)"
+    );
+  }
+  return `${trimmed}/api/v1`;
 }
 
 const TOKEN_KEY = "swift_compliance_token";
@@ -76,7 +81,7 @@ class ApiClient {
     const token = this.getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const res = await fetch(`${getBackendDirectUrl()}${path}`, {
+    const res = await fetch(`${getBackendApiUrl()}${path}`, {
       method: "GET",
       headers,
       signal: AbortSignal.timeout(timeoutMs),
@@ -113,7 +118,7 @@ class ApiClient {
     const token = this.getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const res = await fetch(`${getBackendDirectUrl()}${path}`, {
+    const res = await fetch(`${getBackendApiUrl()}${path}`, {
       method: "POST",
       headers,
       body: body ? JSON.stringify(body) : undefined,

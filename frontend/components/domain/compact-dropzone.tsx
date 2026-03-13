@@ -168,88 +168,137 @@ export function CompactDropzone({
 
   type State = "empty" | "dragOver" | "uploading" | "success" | "error";
   const state: State = error ? "error" : uploading ? "uploading" : dragOver ? "dragOver" : files.length > 0 ? "success" : "empty";
+  const hasFiles = files.length > 0;
+
+  const AddMoreTrigger = (
+    <div
+      onClick={() => canUpload && !uploading && inputRef.current?.click()}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      className={cn(
+        "rounded-lg border border-dashed border-(--border) transition-all duration-200 flex items-center justify-center gap-2 px-3 py-1.5 min-h-[32px] shrink-0",
+        "focus-within:ring-2 focus-within:ring-offset-1 focus-within:ring-(--primary)",
+        !canUpload && "cursor-not-allowed opacity-60",
+        canUpload && !uploading && "cursor-pointer hover:border-(--primary) hover:bg-(--primary-muted)/10",
+        state === "dragOver" && "border-(--primary) bg-(--primary-muted)/20",
+        state === "uploading" && "border-(--primary)/50 bg-(--primary-muted)/10",
+        state === "error" && "border-(--danger) bg-(--danger-bg)/30"
+      )}
+      style={state === "dragOver" && accentColor ? { borderColor: accentColor, backgroundColor: `${accentColor}18` } : undefined}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        className="sr-only"
+        accept={ACCEPTED_TYPES}
+        multiple
+        onChange={handleFileSelect}
+        disabled={!canUpload}
+        aria-label="Upload files"
+      />
+      {state === "uploading" ? (
+        <div className="w-16 rounded-full overflow-hidden h-1.5 bg-(--border) shrink-0">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{ width: `${uploadProgress}%`, backgroundColor: accentColor ?? "var(--primary)" }}
+          />
+        </div>
+      ) : (
+        <span className="text-xs font-medium text-foreground">
+          {hasFiles ? "+ Add more" : canUpload ? "Drop or click to upload" : "Create submission to upload"}
+        </span>
+      )}
+    </div>
+  );
+
+  const EmptyDropzone = (
+    <div
+      onClick={() => canUpload && !uploading && inputRef.current?.click()}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      className={cn(
+        "rounded-lg border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center gap-1 px-4 py-2.5 min-h-[52px]",
+        "focus-within:ring-2 focus-within:ring-offset-1",
+        !canUpload && "cursor-not-allowed opacity-60",
+        canUpload && !uploading && "cursor-pointer hover:border-(--primary)/60",
+        state === "dragOver" && "border-(--primary) bg-(--primary-muted)/20",
+        state === "uploading" && "border-(--primary)/50 bg-(--primary-muted)/10",
+        state === "error" && "border-(--danger) bg-(--danger-bg)/30"
+      )}
+      style={{
+        borderColor: state === "empty" && !dragOver ? "var(--border)" : undefined,
+        ...(state === "dragOver" && accentColor ? { borderColor: accentColor, backgroundColor: `${accentColor}18` } : {}),
+      }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        className="sr-only"
+        accept={ACCEPTED_TYPES}
+        multiple
+        onChange={handleFileSelect}
+        disabled={!canUpload}
+        aria-label="Upload files"
+      />
+      {state === "uploading" ? (
+        <div className="w-full max-w-[160px] rounded-full overflow-hidden h-2 bg-(--border)">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{ width: `${uploadProgress}%`, backgroundColor: accentColor ?? "var(--primary)" }}
+          />
+        </div>
+      ) : (
+        <>
+          <span className="text-sm font-medium text-foreground">
+            {state === "dragOver" && "Drop here"}
+            {state === "empty" && (canUpload ? label : "Create submission to upload")}
+            {state === "error" && error}
+          </span>
+          {state === "empty" && canUpload && (
+            <span className="text-[10px] text-(--foreground-muted)">PDF, images, Excel, CSV · max {MAX_SIZE_MB} MB</span>
+          )}
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div className={cn("flex flex-col gap-2 min-h-0", className)}>
-      <div
-        onClick={() => canUpload && !uploading && inputRef.current?.click()}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        className={cn(
-          "rounded-xl border-2 border-dashed transition-all duration-200 min-h-[120px] max-h-[180px] flex flex-col items-center justify-center px-4 py-4",
-          "focus-within:ring-2 focus-within:ring-offset-2",
-          !canUpload && "cursor-not-allowed opacity-60",
-          canUpload && !uploading && "cursor-pointer hover:scale-[1.01] active:scale-[0.99]",
-          state === "dragOver" && "scale-[1.02]",
-          state === "uploading" && "border-[var(--primary)]/50 bg-[var(--primary-muted)]/10",
-          state === "success" && "border-[var(--success)]/60 bg-[var(--success)]/10",
-          state === "error" && "border-[var(--danger)] bg-[var(--danger-bg)]/30"
-        )}
-        style={{
-          borderColor:
-            state === "empty" && !dragOver
-              ? "var(--border)"
-              : state === "dragOver" || state === "uploading"
-                ? accentColor ?? "var(--primary)"
-                : undefined,
-          ...(state === "dragOver" && accentColor ? { backgroundColor: `${accentColor}18` } : {}),
-          ...(state === "empty" && canUpload && accentColor ? { ["--tw-ring-color" as string]: accentColor } : {}),
-        }}
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          className="sr-only"
-          accept={ACCEPTED_TYPES}
-          multiple
-          onChange={handleFileSelect}
-          disabled={!canUpload}
-          aria-label="Upload files"
-        />
-        {state === "uploading" && (
-          <div className="w-full max-w-xs rounded-full overflow-hidden h-2 bg-[var(--border)]">
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${uploadProgress}%`, backgroundColor: accentColor ?? "var(--primary)" }}
-            />
-          </div>
-        )}
-        <p className="text-base font-semibold text-[var(--foreground)] text-center">
-          {state === "uploading" && "Uploading…"}
-          {state === "dragOver" && "Drop here"}
-          {state === "empty" && (canUpload ? "Upload Evidence — " + label : "Create submission to upload")}
-          {state === "success" && `${files.length} file${files.length !== 1 ? "s" : ""} uploaded`}
-          {state === "error" && error}
-        </p>
-        {state === "empty" && canUpload && (
-          <p className="text-xs text-[var(--foreground-muted)] mt-1.5">PDF, images, Excel, CSV · max {MAX_SIZE_MB} MB</p>
-        )}
-      </div>
-      {files.length > 0 && (
-        <ul className="overflow-y-auto min-h-0 rounded-lg border border-[var(--border)] divide-y divide-[var(--border)] max-h-32">
-          {files.map((f) => (
-            <li key={f.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-              <button
-                type="button"
-                onClick={() => handleViewFile(f)}
-                className="flex-1 truncate font-medium text-[var(--foreground)] hover:underline text-left cursor-pointer"
-                title="View / download"
-              >
-                {f.file_name}
-              </button>
-              <span className="shrink-0 text-[var(--foreground-muted)]">{formatSize(f.file_size_bytes)}</span>
-              <button
-                type="button"
-                onClick={() => handleDelete(f.id)}
-                className="shrink-0 p-0.5 rounded hover:bg-[var(--danger-bg)] text-[var(--danger)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--danger)]"
-                aria-label={`Delete ${f.file_name}`}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
+      {hasFiles ? (
+        <>
+          <ul className="rounded-lg border border-(--border) divide-y divide-(--border) overflow-hidden">
+            {files.map((f) => (
+              <li key={f.id} className="flex items-center gap-2 px-3 py-1.5 text-xs bg-background hover:bg-(--surface)">
+                <button
+                  type="button"
+                  onClick={() => handleViewFile(f)}
+                  className="flex-1 min-w-0 truncate font-medium text-foreground hover:underline text-left cursor-pointer"
+                  title="View / download"
+                >
+                  {f.file_name}
+                </button>
+                <span className="shrink-0 text-(--foreground-muted) tabular-nums">{formatSize(f.file_size_bytes)}</span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleDelete(f.id); }}
+                  className="shrink-0 p-0.5 rounded hover:bg-(--danger-bg) text-(--danger) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--danger)"
+                  aria-label={`Delete ${f.file_name}`}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+          {AddMoreTrigger}
+          {error && <p className="text-xs text-(--danger)">{error}</p>}
+        </>
+      ) : (
+        <>
+          {EmptyDropzone}
+          {error && <p className="text-xs text-(--danger)">{error}</p>}
+        </>
       )}
       {viewingFile && submissionId && (
         <FileViewerModal

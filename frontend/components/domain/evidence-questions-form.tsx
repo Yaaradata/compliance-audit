@@ -26,8 +26,8 @@ export interface EvidenceQuestionsFormProps {
   onEnsureSubmission?: (itemId: string) => Promise<string | null>;
   fieldFeedback?: Record<string, string | null>;
   disabled?: boolean;
-  /** Called when user focuses/clicks a question. Used to show its guide in the evaluation panel. */
-  onQuestionFocus?: (questionKey: string, guide: string | null, label: string, element?: HTMLElement) => void;
+  /** Called when user focuses/clicks a question. Used to show its guide in the evaluation panel. isLastQuestion: when true, guide should appear at bottom. */
+  onQuestionFocus?: (questionKey: string, guide: string | null, label: string, element?: HTMLElement, isLastQuestion?: boolean) => void;
 }
 
 function questionToInput(q: EvidenceQuestion): EvidenceInput {
@@ -95,7 +95,7 @@ function SpreadsheetQuestionRenderer({
 
   return (
     <div
-      className="space-y-2.5 rounded-lg -m-1 p-1 hover:bg-gray-50/50 transition-colors border border-transparent hover:border-gray-200 focus-within:border-(--primary)/30 focus-within:ring-1 focus-within:ring-(--primary)/20"
+      className="space-y-2 rounded-lg"
       onClick={(e) => onFocus?.(e)}
       onFocus={(e) => onFocus?.(e)}
       role="group"
@@ -242,7 +242,7 @@ export function EvidenceQuestionsForm({
     if (initializedForItemRef.current !== evidenceItemId) {
       initializedForItemRef.current = evidenceItemId;
       const first = visibleQuestions[0];
-      onQuestionFocus(first.question_key, getQuestionGuide(first), first.label);
+      onQuestionFocus(first.question_key, getQuestionGuide(first), first.label, undefined, visibleQuestions.length === 1);
     }
   }, [evidenceItemId, visibleQuestions, onQuestionFocus]);
 
@@ -265,15 +265,16 @@ export function EvidenceQuestionsForm({
   }
 
   return (
-    <div className="space-y-6">
-      {visibleQuestions.map((q) => {
+    <div className="space-y-4">
+      {visibleQuestions.map((q, index) => {
+        const isLastQuestion = index === visibleQuestions.length - 1;
         if (q.question_type === "file") {
           const handleFocus = (e: React.FocusEvent | React.MouseEvent) =>
-            onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget as HTMLElement);
+            onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget as HTMLElement, isLastQuestion);
           return (
             <div
               key={q.id}
-              className="space-y-2.5 rounded-lg -m-1 p-1 hover:bg-gray-50/50 transition-colors border border-transparent hover:border-gray-200 focus-within:border-(--primary)/30 focus-within:ring-1 focus-within:ring-(--primary)/20"
+              className="space-y-1.5"
               onClick={handleFocus}
               onFocus={handleFocus}
               role="group"
@@ -288,12 +289,13 @@ export function EvidenceQuestionsForm({
                 label="Drop files or click to upload"
                 onUploadComplete={() => onUploadComplete?.()}
                 onEnsureSubmission={() => onEnsureSubmission?.(evidenceItemId) ?? Promise.resolve(null)}
-                className="min-h-[140px]"
               />
             </div>
           );
         }
         if (q.question_type === "spreadsheet") {
+          const handleSpreadsheetFocus = (e: React.FocusEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) =>
+            onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget, isLastQuestion);
           return (
             <SpreadsheetQuestionRenderer
               key={q.id}
@@ -303,7 +305,7 @@ export function EvidenceQuestionsForm({
               onBlur={onBlur}
               disabled={disabled}
               fieldFeedbackHint={fieldFeedback?.[q.question_key]}
-              onFocus={(e) => onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget)}
+              onFocus={handleSpreadsheetFocus}
             />
           );
         }
@@ -312,11 +314,11 @@ export function EvidenceQuestionsForm({
           input.type = "textarea";
         }
         const handleFocus = (e: React.FocusEvent | React.MouseEvent) =>
-          onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget as HTMLElement);
+          onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget as HTMLElement, isLastQuestion);
         return (
           <div
             key={q.id}
-            className="rounded-lg -m-1 p-1 hover:bg-gray-50/50 transition-colors border border-transparent hover:border-gray-200 focus-within:border-(--primary)/30 focus-within:ring-1 focus-within:ring-(--primary)/20"
+            className="rounded-lg"
             onClick={handleFocus}
             onFocusCapture={handleFocus}
             role="group"

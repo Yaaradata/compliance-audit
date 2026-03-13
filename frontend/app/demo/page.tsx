@@ -131,7 +131,7 @@ export default function DemoPage() {
           Role-based demo
         </h1>
         <p className="text-sm mb-6" style={{ color: "var(--foreground-muted)" }}>
-          Click &quot;Login as this role&quot; to open the login page in a new tab with credentials pre-filled. Flow: Compliance Officer → Evidence Uploader (IT SME) → L1 → L2 → L3
+          Click &quot;Login as this role&quot; to open the login page in a new tab with credentials pre-filled. Flow: Compliance Officer → Evidence Uploader (IT SME) → L1 → L2 → Approver
         </p>
         <div className="space-y-2">
           {DEMO_CREDENTIALS.map((c) => (

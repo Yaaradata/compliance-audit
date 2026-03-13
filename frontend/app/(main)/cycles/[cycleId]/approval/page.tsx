@@ -88,14 +88,14 @@ interface ApprovalSummary {
 
 const GATE_META: Record<string, { label: string; icon: string; description: string }> = {
   evidence_complete: { label: "Evidence Complete", icon: "1", description: "All mandatory evidence items submitted and approved" },
-  review_complete: { label: "Review Complete", icon: "2", description: "All L1, L2, and L3 reviews completed" },
-  internal_review: { label: "Review Complete", icon: "2", description: "All L1, L2, and L3 reviews completed" },
+  review_complete: { label: "Review Complete", icon: "2", description: "All L1, L2, and Approver reviews completed" },
+  internal_review: { label: "Review Complete", icon: "2", description: "All L1, L2, and Approver reviews completed" },
   gaps_documented: { label: "Gaps Documented", icon: "3", description: "All gaps have remediation plans" },
   assessment_complete: { label: "Gaps Documented", icon: "3", description: "All gaps have remediation plans" },
   final_attestation: { label: "Final Attestation", icon: "4", description: "Sign-off by Head of Compliance / CISO" },
 };
 
-const LEVEL_LABELS: Record<string, string> = { L1: "Completeness", L2: "Quality", L3: "Assessment" };
+const LEVEL_LABELS: Record<string, string> = { L1: "Completeness", L2: "Quality", L3: "Approver" };
 
 const LEVEL_ACCENT: Record<string, string> = {
   L1: "border-l-blue-500",
@@ -182,7 +182,7 @@ function EvidenceJourneyCard({
                         done ? "bg-(--surface) text-foreground" : "bg-background text-(--foreground-subtle)"
                       }`}
                     >
-                      {done ? "✓" : active ? "●" : "○"} {step.level}
+                      {done ? "✓" : active ? "●" : "○"} {step.level === "L3" ? "Approver" : step.level}
                     </span>
                   </span>
                 );
@@ -456,7 +456,7 @@ export default function CycleApprovalPage() {
             value={all_l_cleared ? "Cleared" : "In progress"}
             sub={
               review_level_stats
-                ? `L1 ${review_level_stats.L1?.approved ?? 0}/${review_level_stats.L1?.total ?? 0} · L2 ${review_level_stats.L2?.approved ?? 0}/${review_level_stats.L2?.total ?? 0} · L3 ${review_level_stats.L3?.approved ?? 0}/${review_level_stats.L3?.total ?? 0}`
+                ? `L1 ${review_level_stats.L1?.approved ?? 0}/${review_level_stats.L1?.total ?? 0} · L2 ${review_level_stats.L2?.approved ?? 0}/${review_level_stats.L2?.total ?? 0} · Approver ${review_level_stats.L3?.approved ?? 0}/${review_level_stats.L3?.total ?? 0}`
                 : undefined
             }
             iconPath="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
@@ -486,7 +486,7 @@ export default function CycleApprovalPage() {
                   return (
                     <div key={level} className={`rounded-lg border border-(--border) bg-background p-3 border-l-4 ${accent}`}>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-bold text-foreground">{level} — {LEVEL_LABELS[level]}</span>
+                        <span className="text-xs font-bold text-foreground">{level === "L3" ? "Approver" : `${level} — ${LEVEL_LABELS[level]}`}</span>
                         <span className="text-xs font-bold tabular-nums text-(--foreground-muted)">{s?.approved ?? 0} / {s?.total ?? 0}</span>
                       </div>
                       <div className="h-1.5 w-full rounded-full bg-(--border) overflow-hidden">
@@ -881,7 +881,7 @@ export default function CycleApprovalPage() {
                       <span
                         className={`text-xs ${all_l_cleared ? "text-foreground" : "text-(--foreground-muted)"}`}
                       >
-                        All review levels (L1/L2/L3) cleared
+                        All review levels (L1/L2/Approver) cleared
                       </span>
                     </div>
                   </div>

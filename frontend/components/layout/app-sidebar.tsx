@@ -37,7 +37,7 @@ interface DomainScore {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { open, toggle } = useSidebar();
+  const { open, toggle, setOpen } = useSidebar();
   const { user, selectedArchitectureId, activeCycleId } = useAuth();
   const cycleIdFromPath = useCycleIdFromPath();
   const cycleId = cycleIdFromPath ?? activeCycleId;
@@ -104,6 +104,23 @@ export function AppSidebar() {
 
   const sidebarWidth = open ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED;
 
+  const [hoverEnabled, setHoverEnabled] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    setHoverEnabled(mq.matches);
+    const handler = () => setHoverEnabled(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    if (hoverEnabled) setOpen(true, false);
+  }, [hoverEnabled, setOpen]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverEnabled) setOpen(false, true);
+  }, [hoverEnabled, setOpen]);
+
   return (
     <aside
       className={`
@@ -121,6 +138,8 @@ export function AppSidebar() {
       }}
       role="navigation"
       aria-label="Main navigation"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Sticky header: circular logo + collapse (expanded) or logo + search icon (collapsed) */}
       <header className="sticky top-0 z-10 shrink-0" style={{ background: "var(--sidebar-bg)" }}>

@@ -28,6 +28,7 @@ export function CompactDomainHeader({
   activeItem,
   onSelectItem,
   completionByItem = {},
+  currentItem,
   className,
 }: {
   config: DomainConfig;
@@ -35,6 +36,7 @@ export function CompactDomainHeader({
   activeItem?: string;
   onSelectItem?: (id: string) => void;
   completionByItem?: Record<string, number>;
+  currentItem?: EvidenceItem | null;
   className?: string;
 }) {
   const itemsToShow: EvidenceItem[] = useMemo(() => {
@@ -52,26 +54,24 @@ export function CompactDomainHeader({
   return (
     <header
       className={cn("border-b border-[var(--border)] bg-[var(--background)]", className)}
-      style={{ minHeight: "56px" }}
+      style={{ minHeight: "48px" }}
     >
-      <div className="flex flex-col gap-2 py-3 px-1">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="shrink-0" title={`${completionPct}% complete`}>
-            <ScoreRing pct={completionPct} size={44} stroke={4} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-base font-bold text-[var(--foreground)] leading-tight truncate">
-              Domain {config.id}: {config.name}
-            </h1>
-            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[var(--foreground-muted)] flex-wrap">
-              <span>{config.evidenceItems.length} evidence items</span>
-              <span aria-hidden>·</span>
-              <span>{config.allControls.length} controls</span>
-              <RiskBadge pct={completionPct} />
-            </div>
+      <div className="flex items-center gap-3 py-2 px-1 flex-wrap">
+        <div className="shrink-0" title={`${completionPct}% complete`}>
+          <ScoreRing pct={completionPct} size={36} stroke={3} />
+        </div>
+        <div className="min-w-0 shrink-0">
+          <h1 className="text-sm font-bold text-[var(--foreground)] leading-tight truncate">
+            Domain {config.id}: {config.name}
+          </h1>
+          <div className="flex items-center gap-2 text-[10px] text-[var(--foreground-muted)]">
+            <span>{config.evidenceItems.length} evidence items</span>
+            <span aria-hidden>·</span>
+            <span>{config.allControls.length} controls</span>
+            <RiskBadge pct={completionPct} />
           </div>
         </div>
-        <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--border)]">
+        <div className="flex items-center gap-1.5 shrink-0" role="tablist" aria-label="Evidence items">
           {itemsToShow.map((item) => (
             <EvidenceItemBadge
               key={item.id}
@@ -84,6 +84,26 @@ export function CompactDomainHeader({
             />
           ))}
         </div>
+        {currentItem && (
+          <div className="flex items-center gap-2 min-w-0 flex-1 lg:flex-initial">
+            <span className="font-mono text-xs font-bold shrink-0" style={{ color: config.color }}>
+              {currentItem.id}
+            </span>
+            <span className="text-xs font-semibold truncate text-[var(--foreground)]" title={currentItem.name}>
+              {currentItem.name}
+            </span>
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0 capitalize"
+              style={{
+                background:
+                  /critical/i.test(currentItem.priority) ? "#dc2626" : /high/i.test(currentItem.priority) ? "#ea580c" : "#64748b",
+                color: "#fff",
+              }}
+            >
+              {currentItem.priority.replace(/\*/g, "")}
+            </span>
+          </div>
+        )}
       </div>
     </header>
   );

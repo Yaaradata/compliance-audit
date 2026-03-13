@@ -46,6 +46,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       }
       return;
     }
+    // Approver (L3): redirect from Approval page to Dashboard; approval is done via Dashboard Review Queue
+    if (user.role === "external_assessor" && pathname?.includes("/approval")) {
+      router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/dashboard");
+      return;
+    }
     if (!activeCycleId && !selectedArchitectureId && !isCycleRoute) {
       router.replace("/assessments/new");
       return;
@@ -124,6 +129,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </AppShell>
       );
     }
+  }
+
+  // Approver (L3): no access to Approval page; redirect to Dashboard
+  if (role === "external_assessor" && pathname?.includes("/approval")) {
+    return null; // useEffect above will redirect
   }
 
   return <AppShell>{children}</AppShell>;

@@ -21,7 +21,7 @@ export function EvidenceInputRenderer({
   fieldFeedbackHint?: string | null;
 }) {
   const labelClass = "text-sm font-medium text-gray-700";
-  const labelRowClass = "flex flex-wrap items-baseline gap-2 mb-1.5";
+  const labelRowClass = "flex flex-wrap items-baseline gap-2 mb-1";
   const Hint = fieldFeedbackHint ? (
     <FieldAINote text={fieldFeedbackHint} fieldLabel={input.label} variant="inline" />
   ) : null;

@@ -1,13 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { PriorityBadge } from "@/components/ui/badge";
-import { AiEvaluationResult, EvaluationScoreRing } from "@/components/domain/ai-evaluation-result";
-import { NoteList } from "@/components/notes/note-list";
-import { NoteInput } from "@/components/notes/note-input";
+import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
-import { shouldShowCriterion } from "@/lib/utils";
 import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
 import { A5_EVIDENCE_ITEM_ID, A5_ARCHITECTURE_KEYS } from "@/lib/frameworks/swift-cscf/constants";
 import type { EvidenceItem, DomainConfig } from "@/lib/types";
@@ -100,12 +95,12 @@ export function EvidenceWorkspace({
 
   const [focusedQuestionGuide, setFocusedQuestionGuide] = useState<string | null>(null);
   const [focusedQuestionLabel, setFocusedQuestionLabel] = useState<string | null>(null);
+  const [guideAtBottom, setGuideAtBottom] = useState(false);
   const [guideSpacerHeight, setGuideSpacerHeight] = useState(0);
   const evidenceScrollRef = useRef<HTMLDivElement>(null);
-  const evaluationScrollRef = useRef<HTMLDivElement>(null);
+  const guidanceContentRef = useRef<HTMLDivElement>(null);
   const focusedQuestionElementRef = useRef<HTMLElement | null>(null);
 
-  /** Align GUIDE box with the question label, not the answer box (textarea/input). */
   const getAlignmentElement = useCallback((el: HTMLElement): HTMLElement => {
     const label = el.querySelector("label");
     return (label as HTMLElement) ?? el;
@@ -113,31 +108,38 @@ export function EvidenceWorkspace({
 
   const updateGuideAlignment = useCallback(() => {
     const el = focusedQuestionElementRef.current;
-    const scrollEl = evidenceScrollRef.current;
-    if (!el || !scrollEl) return;
+    const evidenceEl = evidenceScrollRef.current;
+    const guidanceEl = guidanceContentRef.current;
+    if (!el || !evidenceEl || !guidanceEl || guideAtBottom) return;
     const alignEl = getAlignmentElement(el);
-    const rect = alignEl.getBoundingClientRect();
-    const scrollRect = scrollEl.getBoundingClientRect();
-    const viewportOffset = rect.top - scrollRect.top;
-    const next = Math.max(0, Math.round(viewportOffset));
-    setGuideSpacerHeight((prev) => (prev !== next ? next : prev));
-  }, [getAlignmentElement]);
+    const questionRect = alignEl.getBoundingClientRect();
+    const evidenceRect = evidenceEl.getBoundingClientRect();
+    const rawOffset = questionRect.top - evidenceRect.top;
+    const guidanceHeight = guidanceEl.clientHeight;
+    const guideHeightEstimate = 140;
+    const maxSpacer = Math.max(0, guidanceHeight - guideHeightEstimate);
+    const capped = Math.max(0, Math.min(Math.round(rawOffset), maxSpacer));
+    setGuideSpacerHeight((prev) => (prev !== capped ? capped : prev));
+  }, [getAlignmentElement, guideAtBottom]);
 
   const handleQuestionFocus = useCallback(
-    (_key: string, guide: string | null, label: string, element?: HTMLElement) => {
+    (_key: string, guide: string | null, label: string, element?: HTMLElement, isLastQuestion?: boolean) => {
       setFocusedQuestionGuide(guide);
       setFocusedQuestionLabel(label);
+      setGuideAtBottom(isLastQuestion ?? false);
       focusedQuestionElementRef.current = element ?? null;
-      if (element && evidenceScrollRef.current) {
+      if (isLastQuestion) {
+        setGuideSpacerHeight(0);
+      } else if (element && evidenceScrollRef.current && guidanceContentRef.current) {
         const alignEl = getAlignmentElement(element);
-        const rect = alignEl.getBoundingClientRect();
-        const scrollRect = evidenceScrollRef.current.getBoundingClientRect();
-        const viewportOffset = rect.top - scrollRect.top;
-        const spacer = Math.max(0, Math.round(viewportOffset));
-        setGuideSpacerHeight(spacer);
-        requestAnimationFrame(() => {
-          evaluationScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-        });
+        const questionRect = alignEl.getBoundingClientRect();
+        const evidenceRect = evidenceScrollRef.current.getBoundingClientRect();
+        const rawOffset = questionRect.top - evidenceRect.top;
+        const guidanceHeight = guidanceContentRef.current.clientHeight;
+        const guideHeightEstimate = 140;
+        const maxSpacer = Math.max(0, guidanceHeight - guideHeightEstimate);
+        const capped = Math.max(0, Math.min(Math.round(rawOffset), maxSpacer));
+        setGuideSpacerHeight(capped);
       } else {
         setGuideSpacerHeight(0);
       }
@@ -146,14 +148,23 @@ export function EvidenceWorkspace({
   );
 
   useEffect(() => {
-    const scrollEl = evidenceScrollRef.current;
-    if (!scrollEl) return;
+    const evidenceEl = evidenceScrollRef.current;
+    if (!evidenceEl) return;
     const onScroll = () => {
-      if (focusedQuestionElementRef.current) updateGuideAlignment();
+      if (focusedQuestionElementRef.current && !guideAtBottom) updateGuideAlignment();
     };
-    scrollEl.addEventListener("scroll", onScroll, { passive: true });
-    return () => scrollEl.removeEventListener("scroll", onScroll);
-  }, [updateGuideAlignment]);
+    evidenceEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => evidenceEl.removeEventListener("scroll", onScroll);
+  }, [updateGuideAlignment, guideAtBottom]);
+
+  useEffect(() => {
+    if (!guidanceContentRef.current) return;
+    const ro = new ResizeObserver(() => {
+      if (focusedQuestionElementRef.current && !guideAtBottom) updateGuideAlignment();
+    });
+    ro.observe(guidanceContentRef.current);
+    return () => ro.disconnect();
+  }, [updateGuideAlignment, guideAtBottom]);
 
   const prevItemIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -162,6 +173,7 @@ export function EvidenceWorkspace({
         prevItemIdRef.current = currentItem.id;
         setFocusedQuestionGuide(null);
         setFocusedQuestionLabel(null);
+        setGuideAtBottom(false);
         setGuideSpacerHeight(0);
         focusedQuestionElementRef.current = null;
       }
@@ -232,25 +244,7 @@ export function EvidenceWorkspace({
 
   return (
     <div className="h-full flex flex-col min-h-0 bg-(--surface) border border-(--border) rounded-xl overflow-hidden shadow-sm">
-      <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3.5 border-b border-(--border) bg-background/40">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="font-mono text-sm font-bold shrink-0" style={{ color: config.color }}>
-            {currentItem.id}
-          </span>
-          <span className="text-sm font-semibold truncate text-foreground">{currentItem.name}</span>
-          <PriorityBadge priority={currentItem.priority} />
-        </div>
-      </div>
-
-      <Tabs defaultValue="common" className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="shrink-0 px-4 pt-3 pb-2">
-          <TabsList className="bg-background/60">
-            <TabsTrigger value="common">Evidence &amp; Evaluation</TabsTrigger>
-            <TabsTrigger value="notes">Notes</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="common" className="flex-1 min-h-0 flex flex-col overflow-hidden px-0 pb-0">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {(() => {
             const hasResult = !!aiEvaluationResult || aiEvaluationLoading;
             return (
@@ -269,7 +263,7 @@ export function EvidenceWorkspace({
                   {hasResult && <div className="w-[88px] shrink-0 lg:block hidden" aria-hidden />}
                 </div>
               </div>
-              <div ref={evidenceScrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-5 space-y-6">
+              <div ref={evidenceScrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-4">
                 {renderCommonEvidence()}
               </div>
             </div>
@@ -284,28 +278,9 @@ export function EvidenceWorkspace({
                 <div className="flex items-center justify-between gap-3 min-h-[36px]">
                   <div className="min-w-0">
                     <h2 className="text-sm font-bold text-slate-800 dark:text-foreground">
-                      {hasResult ? "Evaluation result" : "Guidance"}
+                      {hasResult ? "AI evaluation results" : "Guidance"}
                     </h2>
-                    {hasResult && (
-                      <p className="text-xs text-slate-600 dark:text-(--foreground-muted) mt-0.5">
-                        {submissionStatus !== "submitted" && submissionStatus !== "approved"
-                          ? "Click ✓/✗ to edit · +Add comment to add a note"
-                          : "AI evaluation results below."}
-                      </p>
-                    )}
                   </div>
-                  {hasResult && aiEvaluationResult && (() => {
-                    const suff = (aiEvaluationResult.sufficiency_results ?? []).filter((c) => shouldShowCriterion(c.label));
-                    const crit = (aiEvaluationResult.criteria ?? []).filter((c) => shouldShowCriterion(c.label));
-                    const total = suff.length + crit.length;
-                    const met = suff.filter((c) => c.met).length + crit.filter((c) => c.met).length;
-                    if (total === 0) return null;
-                    return (
-                      <div className="shrink-0">
-                        <EvaluationScoreRing score={met} total={total} size={40} />
-                      </div>
-                    );
-                  })()}
                   {hasResult && aiEvaluationLoading && !aiEvaluationResult && (
                     <div className="shrink-0 flex items-center gap-2">
                       <span className="inline-block size-5 border-2 border-slate-300 border-t-sky-600 dark:border-slate-600 dark:border-t-sky-400 rounded-full animate-spin" />
@@ -342,59 +317,59 @@ export function EvidenceWorkspace({
                     />
                   </div>
                 ) : (
-                  <div
-                    ref={evaluationScrollRef}
-                    className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-4 pr-1 min-w-0 scroll-smooth"
-                    style={{ scrollbarGutter: "stable" }}
-                  >
-                    {guideSpacerHeight > 0 && (
-                      <div className="shrink-0" style={{ minHeight: guideSpacerHeight }} aria-hidden />
+                  <div ref={guidanceContentRef} className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
+                    {guideAtBottom ? (
+                      <div className="flex-1 min-h-0" aria-hidden />
+                    ) : (
+                      guideSpacerHeight > 0 && <div className="shrink-0" style={{ minHeight: guideSpacerHeight }} aria-hidden />
                     )}
-                    <div
-                      className="relative overflow-hidden rounded-2xl p-5 shrink-0 min-w-0 shadow-lg border border-white/10"
-                      style={{
-                        background: "linear-gradient(145deg, #1e3a5f 0%, #152a45 40%, #0f1f35 100%)",
-                        boxShadow: "0 4px 24px -4px rgba(30, 58, 95, 0.4), 0 0 0 1px rgba(255,255,255,0.05)",
-                      }}
-                    >
+                    <div className={guideAtBottom ? "mt-auto flex flex-col gap-3 shrink-0" : "flex flex-col gap-3 shrink-0"}>
                       <div
-                        className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-15"
+                        className="relative overflow-hidden rounded-2xl p-5 min-w-0 shadow-lg border border-white/10"
                         style={{
-                          background: "radial-gradient(circle, #60a5fa 0%, transparent 70%)",
-                          transform: "translate(32%, -32%)",
+                          background: "linear-gradient(145deg, #1e3a5f 0%, #152a45 40%, #0f1f35 100%)",
+                          boxShadow: "0 4px 24px -4px rgba(30, 58, 95, 0.4), 0 0 0 1px rgba(255,255,255,0.05)",
                         }}
-                        aria-hidden
-                      />
-                      <div className="relative">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span
-                            className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider text-white"
-                            style={{ background: "rgba(96, 165, 250, 0.4)", backdropFilter: "blur(2px)" }}
-                          >
-                            Guide
-                          </span>
+                      >
+                        <div
+                          className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-15"
+                          style={{
+                            background: "radial-gradient(circle, #60a5fa 0%, transparent 70%)",
+                            transform: "translate(32%, -32%)",
+                          }}
+                          aria-hidden
+                        />
+                        <div className="relative">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span
+                              className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider text-white"
+                              style={{ background: "rgba(96, 165, 250, 0.4)", backdropFilter: "blur(2px)" }}
+                            >
+                              Guide
+                            </span>
+                          </div>
+                          <p className="text-sm text-white/95 leading-relaxed wrap-break-word min-w-0">
+                            {focusedQuestionGuide && focusedQuestionGuide.trim()
+                              ? focusedQuestionGuide.trim()
+                              : "Fill in evidence and upload files, then click + Run AI Evaluation in the Evidence section. Results will appear here."}
+                          </p>
                         </div>
-                        <p className="text-sm text-white/95 leading-relaxed wrap-break-word min-w-0">
-                          {focusedQuestionGuide && focusedQuestionGuide.trim()
-                            ? focusedQuestionGuide.trim()
-                            : "Fill in evidence and upload files, then click + Run AI Evaluation in the Evidence section. Results will appear here."}
-                        </p>
                       </div>
-                    </div>
 
-                    {aiEvaluationError && (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 shrink-0 shadow-sm">
-                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Evaluation failed</p>
-                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 font-mono">{aiEvaluationError}</p>
-                        <button
-                          type="button"
-                          onClick={onEvaluateEvidence}
-                          className="mt-2 py-1.5 px-3 text-xs font-semibold rounded-lg bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-800 dark:text-amber-100 dark:hover:bg-amber-700 transition-colors"
-                        >
-                          Try again
-                        </button>
-                      </div>
-                    )}
+                      {aiEvaluationError && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 shadow-sm">
+                          <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Evaluation failed</p>
+                          <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 font-mono">{aiEvaluationError}</p>
+                          <button
+                            type="button"
+                            onClick={onEvaluateEvidence}
+                            className="mt-2 py-1.5 px-3 text-xs font-semibold rounded-lg bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-800 dark:text-amber-100 dark:hover:bg-amber-700 transition-colors"
+                          >
+                            Try again
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -402,40 +377,7 @@ export function EvidenceWorkspace({
           </div>
             );
           })()}
-        </TabsContent>
-
-        <TabsContent value="notes" className="flex-1 min-h-0 flex flex-col overflow-hidden px-0 pb-0">
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-3">
-          {!currentSubmissionId ? (
-            <p className="text-sm text-(--foreground-muted) py-4">
-              Add or save evidence for this item first to enable notes (e.g. upload a file or fill the form and save).
-            </p>
-          ) : (
-            <div className="space-y-4">
-              <NoteList
-                resourceType="evidence_submission"
-                resourceId={currentSubmissionId}
-                refreshTrigger={effectiveNotesRefresh}
-                emptyMessage="No notes yet."
-              />
-              <NoteInput
-                resourceType="evidence_submission"
-                resourceId={currentSubmissionId}
-                placeholder={
-                  submissionStatus === "returned" || String(submissionStatus ?? "").includes("returned")
-                    ? "Add a reply to the reviewer…"
-                    : "Add a note…"
-                }
-                onAdded={() => {
-                  setNotesRefresh((r) => r + 1);
-                  onNoteAdded?.();
-                }}
-              />
-            </div>
-          )}
-          </div>
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }

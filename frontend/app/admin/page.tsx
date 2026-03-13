@@ -43,7 +43,7 @@ export default function AdminPage() {
     { value: "it_sme", label: "IT SME" },
     { value: "internal_reviewer_l1", label: "Internal Reviewer (L1)" },
     { value: "internal_reviewer_l2", label: "Internal Reviewer (L2)" },
-    { value: "external_assessor", label: "External Assessor (L3) / Approver" },
+    { value: "external_assessor", label: "Approver" },
   ] as const;
 
   useEffect(() => {

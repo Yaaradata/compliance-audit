@@ -206,8 +206,9 @@ function CriterionNoteBlock({
             resourceType="evidence_submission"
             resourceId={submissionId}
             criterionId={criterionId}
-            placeholder="Add a note for the reviewer or submitter…"
+            placeholder={met ? "Add a note for the reviewer or submitter…" : "Add a note explaining why this is met, then click Mark as Manually Met…"}
             onAdded={onNoteAdded}
+            buttonLabel={met ? undefined : "Mark as Manually Met"}
           />
         </div>
       )}
@@ -391,7 +392,7 @@ function EvidenceFileViewerModal({
   );
 }
 
-const LEVEL_LABELS: Record<string, string> = { L1: "Completeness", L2: "Quality", L3: "Assessment" };
+const LEVEL_LABELS: Record<string, string> = { L1: "Completeness", L2: "Quality", L3: "Approver" };
 const normalizeLevel = (l: string) =>
   (({ l1_completeness: "L1", l2_quality: "L2", l3_assessment: "L3" } as Record<string, string>)[l] ?? l);
 

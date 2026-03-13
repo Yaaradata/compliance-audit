@@ -204,7 +204,7 @@ export function ApprovalEvidenceViewer({
         {reviews.length > 0 && (
           <div>
             <h4 className="text-xs font-bold text-[var(--foreground-muted)] mb-2 uppercase tracking-wider">
-              Review history (L1 → L2 → L3)
+              Review history (L1 → L2 → Approver)
             </h4>
             <div className="space-y-1.5">
               {reviews.map((r) => (

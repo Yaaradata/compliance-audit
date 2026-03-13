@@ -11,9 +11,11 @@ interface NoteInputProps {
   placeholder?: string;
   onAdded?: () => void;
   disabled?: boolean;
+  /** Override button label (e.g. "Mark as Manually Met") */
+  buttonLabel?: string;
 }
 
-export function NoteInput({ resourceType, resourceId, parentId, criterionId, placeholder = "Add a note…", onAdded, disabled }: NoteInputProps) {
+export function NoteInput({ resourceType, resourceId, parentId, criterionId, placeholder = "Add a note…", onAdded, disabled, buttonLabel }: NoteInputProps) {
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -58,7 +60,7 @@ export function NoteInput({ resourceType, resourceId, parentId, criterionId, pla
           disabled={disabled || submitting || !body.trim()}
           className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? "Sending…" : parentId ? "Reply" : "Add note"}
+          {submitting ? "Sending…" : buttonLabel ?? (parentId ? "Reply" : "Add note")}
         </button>
         {error && <span className="text-xs text-red-600">{error}</span>}
       </div>

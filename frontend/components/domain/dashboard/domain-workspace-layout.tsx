@@ -85,6 +85,7 @@ export function DomainWorkspaceLayout({
         activeItem={activeItem}
         onSelectItem={onSelectItem}
         completionByItem={completionByItem}
+        currentItem={currentItem}
         className="shrink-0"
       />
 

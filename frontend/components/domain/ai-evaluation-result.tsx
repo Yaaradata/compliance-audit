@@ -84,6 +84,7 @@ function CriterionNoteThread({
   onNoteDeleted,
   onNotesCountChange,
   showRemoveFromEdited,
+  onMarkAsMet,
 }: {
   submissionId: string;
   criterionId: string;
@@ -92,13 +93,15 @@ function CriterionNoteThread({
   onNoteDeleted?: () => void;
   /** Called when notes load so parent can enable X→✓ only when notes exist. */
   onNotesCountChange?: (count: number) => void;
-  /** When true (Edited tab), show "Remove from edited" to delete all notes and move criterion back to Not met. */
+  /** When true (Manually met tab), show "Remove from manually met" button. */
   showRemoveFromEdited?: boolean;
+  /** When provided (Not met tab), note add + this callback = mark as met. Called after note is added. */
+  onMarkAsMet?: () => void;
 }) {
   const [removing, setRemoving] = useState(false);
   const handleRemoveFromEdited = async () => {
     if (removing || !onNoteDeleted) return;
-    if (!confirm("Remove from Edited? All notes for this criterion will be deleted and it will move back to “Not met” (✗).")) return;
+    if (!confirm("Remove from Manually met? All notes for this criterion will be deleted and it will move back to “Not met” (✗).")) return;
     setRemoving(true);
     try {
       const params = new URLSearchParams({
@@ -122,9 +125,9 @@ function CriterionNoteThread({
             onClick={handleRemoveFromEdited}
             disabled={removing}
             className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded px-2.5 py-1.5 transition-colors disabled:opacity-50"
-            title="Delete all notes and move this criterion back to Not met"
+            title="Delete all notes and move this criterion back to Not met (remove from manually met)"
           >
-            {removing ? "Removing…" : "Remove from edited"}
+            {removing ? "Removing…" : "Remove from manually met"}
           </button>
         </div>
       )}
@@ -136,13 +139,18 @@ function CriterionNoteThread({
         emptyMessage="No notes yet. Add a note for reviewers or follow up."
         onNoteDeleted={onNoteDeleted}
         onNotesLoaded={(notes) => onNotesCountChange?.(notes.length)}
+        chatMode={showRemoveFromEdited}
       />
       <NoteInput
         resourceType="evidence_submission"
         resourceId={submissionId}
         criterionId={criterionId}
-        placeholder="Add a note for the reviewer or submitter…"
-        onAdded={onNoteAdded}
+        placeholder={onMarkAsMet ? "Add a note explaining why this is met, then click Mark as Manually Met…" : "Add a note for the reviewer or submitter…"}
+        onAdded={() => {
+          onNoteAdded?.();
+          onMarkAsMet?.();
+        }}
+        buttonLabel={onMarkAsMet ? "Mark as Manually Met" : undefined}
       />
     </div>
   );
@@ -159,6 +167,8 @@ function EditableCriterion({
   notesRefreshTrigger,
   onNoteAdded,
   defaultExpandNote,
+  showMarkAsMetButton,
+  onMarkAsMetCallback,
   onClearCriterionEdit,
   hideAiHint,
 }: {
@@ -172,6 +182,9 @@ function EditableCriterion({
   notesRefreshTrigger?: number;
   onNoteAdded?: () => void;
   defaultExpandNote?: boolean;
+  showMarkAsMetButton?: boolean;
+  /** When provided, used for "Mark as Manually met" (e.g. toggle + switch tab). */
+  onMarkAsMetCallback?: () => void;
   onClearCriterionEdit?: () => void;
   hideAiHint?: boolean;
 }) {
@@ -272,6 +285,7 @@ function EditableCriterion({
             onNoteDeleted={onClearCriterionEdit}
             onNotesCountChange={setThreadNotesCount}
             showRemoveFromEdited={defaultExpandNote}
+            onMarkAsMet={onMarkAsMetCallback ?? (showMarkAsMetButton ? onToggle : undefined)}
           />
         ) : hasThread && !isNotMet && !isEditedRow ? null : !hasThread ? (
           <>
@@ -342,8 +356,11 @@ function CriterionRow({
   notesRefreshTrigger,
   onNoteAdded,
   defaultExpandNote,
+  showMarkAsMetButton,
   onClearCriterionEdit,
   hideAiHint,
+  /** When provided (e.g. Not met tab), used for "Mark as Manually met" so we can also switch tab to Manually met. */
+  onMarkAsMetOverride,
 }: {
   criterion: CriterionWithSection;
   editable: boolean;
@@ -355,13 +372,16 @@ function CriterionRow({
   notesRefreshTrigger?: number;
   onNoteAdded?: () => void;
   defaultExpandNote?: boolean;
+  showMarkAsMetButton?: boolean;
   onClearCriterionEdit?: () => void;
   hideAiHint?: boolean;
+  onMarkAsMetOverride?: () => void;
 }) {
   const edit = evaluationEdits[criterion.id];
   const userNote = edit?.userNote ?? null;
   const aiDescription = criterion.description ?? null;
   const [showNoteBox, setShowNoteBox] = useState(!!defaultExpandNote);
+  const markAsMetCallback = showMarkAsMetButton ? (onMarkAsMetOverride ?? onToggle) : undefined;
 
   if (editable) {
     return (
@@ -376,6 +396,8 @@ function CriterionRow({
         notesRefreshTrigger={notesRefreshTrigger}
         onNoteAdded={onNoteAdded}
         defaultExpandNote={defaultExpandNote}
+        showMarkAsMetButton={showMarkAsMetButton}
+        onMarkAsMetCallback={markAsMetCallback}
         onClearCriterionEdit={onClearCriterionEdit}
         hideAiHint={hideAiHint}
       />
@@ -433,6 +455,7 @@ function CriterionRow({
             onNoteAdded={onNoteAdded}
             onNoteDeleted={onClearCriterionEdit}
             showRemoveFromEdited={defaultExpandNote}
+            onMarkAsMet={markAsMetCallback}
           />
         ) : (
           !hasThread &&
@@ -483,7 +506,7 @@ function AiEvaluationResultTabs({
   configColor?: string;
   currentItemId?: string;
 }) {
-  const [activeTab, setActiveTab] = useState<"x" | "tick" | "edited">("x");
+  const [activeTab, setActiveTab] = useState<"x" | "tick" | "edited" | "notes">("x");
   const prevResultRef = useRef<AiEvaluationResultType | null>(null);
   useEffect(() => {
     if (result !== prevResultRef.current) {
@@ -622,7 +645,14 @@ function AiEvaluationResultTabs({
 
   const renderList = (
     items: CriterionWithSection[],
-    options?: { defaultExpandNote?: boolean; onClearCriterionEdit?: (criterionId: string) => void; hideAiHint?: boolean }
+    options?: {
+      defaultExpandNote?: boolean;
+      showMarkAsMetButton?: boolean;
+      onClearCriterionEdit?: (criterionId: string) => void;
+      hideAiHint?: boolean;
+      /** When provided (e.g. Not met tab), "Mark as Manually met" will call this after adding the note (toggle + switch tab). */
+      getMarkAsMetCallback?: (c: CriterionWithSection) => () => void;
+    }
   ) => (
     <div className="space-y-0">
       {items.length === 0 ? (
@@ -641,6 +671,8 @@ function AiEvaluationResultTabs({
             notesRefreshTrigger={notesRefreshTrigger}
             onNoteAdded={onNoteAdded}
             defaultExpandNote={options?.defaultExpandNote}
+            showMarkAsMetButton={options?.showMarkAsMetButton}
+            onMarkAsMetOverride={options?.getMarkAsMetCallback?.(c)}
             onClearCriterionEdit={options?.onClearCriterionEdit ? () => options!.onClearCriterionEdit!(c.id) : undefined}
             hideAiHint={options?.hideAiHint}
           />
@@ -651,16 +683,7 @@ function AiEvaluationResultTabs({
 
   return (
     <div className="bg-white dark:bg-(--surface) rounded-2xl border border-slate-200 dark:border-(--border) overflow-hidden shadow-sm flex flex-col min-h-0 h-full">
-      {/* Summary bar: pass / fail / AI count (no duplicate title/donut — those are in Evaluation result header) */}
-      {totalCount > 0 && (
-        <div className="shrink-0 flex items-center justify-between px-4 pt-3 pb-2 border-b border-slate-200 dark:border-(--border) bg-slate-50/60 dark:bg-background/40">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-(--foreground-muted)">
-            Sufficiency & criteria
-          </span>
-        </div>
-      )}
-
-      <Tabs value={activeTab} onChange={(v) => setActiveTab(v as "x" | "tick" | "edited")} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <Tabs value={activeTab} onChange={(v) => setActiveTab(v as "x" | "tick" | "edited" | "notes")} className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <TabsList className="shrink-0 mx-4 mt-3 mb-0 rounded-xl p-1 bg-slate-100/80 dark:bg-(--surface) border border-slate-200 dark:border-(--border) gap-0.5">
           <TabsTrigger value="x" className="text-xs data-[state=active]:bg-rose-100 data-[state=active]:text-rose-800 dark:data-[state=active]:bg-rose-900/30 dark:data-[state=active]:text-rose-200 rounded-lg">
             ✗ Not met ({failed.length})
@@ -669,7 +692,10 @@ function AiEvaluationResultTabs({
             ✓ Met ({passed.length})
           </TabsTrigger>
           <TabsTrigger value="edited" className="text-xs data-[state=active]:bg-amber-100 data-[state=active]:text-amber-800 dark:data-[state=active]:bg-amber-900/30 dark:data-[state=active]:text-amber-200 rounded-lg">
-            Edited ({edited.length})
+            Manually met ({edited.length})
+          </TabsTrigger>
+          <TabsTrigger value="notes" className="text-xs data-[state=active]:bg-sky-100 data-[state=active]:text-sky-800 dark:data-[state=active]:bg-sky-900/30 dark:data-[state=active]:text-sky-200 rounded-lg">
+            Notes
           </TabsTrigger>
         </TabsList>
 
@@ -677,19 +703,27 @@ function AiEvaluationResultTabs({
           <TabsContent value="x" className="mt-0 block">
             <div className="flex items-center gap-2 mb-2">
               <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
-                Sufficiency & criteria — not met
+                Not met
               </h4>
               <span className="text-[11px] font-bold px-2 py-0.5 rounded shrink-0 bg-amber-100 text-amber-800">
                 Gaps identified
               </span>
             </div>
-            {renderList(failed, { onClearCriterionEdit: handleClearCriterionEdit, hideAiHint: false })}
+            {renderList(failed, {
+              showMarkAsMetButton: true,
+              onClearCriterionEdit: handleClearCriterionEdit,
+              hideAiHint: false,
+              getMarkAsMetCallback: (c) => () => {
+                handleToggle(c.section, c.id);
+                setActiveTab("edited");
+              },
+            })}
             {renderActionButtons()}
           </TabsContent>
           <TabsContent value="tick" className="mt-0 block">
             <div className="flex items-center gap-2 mb-2">
               <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
-                Sufficiency & criteria — met
+                Met
               </h4>
             </div>
             {renderList(passed, { onClearCriterionEdit: handleClearCriterionEdit, hideAiHint })}
@@ -698,11 +732,36 @@ function AiEvaluationResultTabs({
           <TabsContent value="edited" className="mt-0 block">
             <div className="flex items-center gap-2 mb-2">
               <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
-                Edited by you (note or x→✓)
+                Manually met (note or x→✓)
               </h4>
             </div>
             {renderList(edited, { defaultExpandNote: true, onClearCriterionEdit: handleClearCriterionEdit, hideAiHint: false })}
             {renderActionButtons()}
+          </TabsContent>
+          <TabsContent value="notes" className="mt-0 block">
+            <div className="flex items-center gap-2 mb-2">
+              <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
+                Notes
+              </h4>
+            </div>
+            {submissionId ? (
+              <div className="space-y-4">
+                <NoteList
+                  resourceType="evidence_submission"
+                  resourceId={submissionId}
+                  refreshTrigger={notesRefreshTrigger ?? 0}
+                  emptyMessage="No notes yet."
+                />
+                <NoteInput
+                  resourceType="evidence_submission"
+                  resourceId={submissionId}
+                  placeholder="Add a note…"
+                  onAdded={onNoteAdded}
+                />
+              </div>
+            ) : (
+              <p className="text-[11px] text-gray-500 py-4">Save evidence first to add notes.</p>
+            )}
           </TabsContent>
         </div>
       </Tabs>
