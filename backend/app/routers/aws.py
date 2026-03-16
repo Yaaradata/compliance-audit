@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.aws_evidence.core.db import get_db as get_aws_db
@@ -9,9 +10,18 @@ from app.aws_evidence.services import (
     get_evidence_list,
     get_evidence_by_id,
     get_runs,
+    get_run_by_id,
     get_evidence_count_by_run_id,
+    get_controls,
+    get_control_matrix_for_control,
+    get_control_by_id,
+    get_evidence_for_control,
+    get_control_ids_with_evidence,
+    create_manual_evidence,
     run_all_collectors,
 )
+from app.aws_evidence.collectors.evidence_mapping import get_apis_for_control as get_apis_for_control_items
+from app.aws_evidence.collectors.aws_api_catalog import get_apis_for_run as get_run_aws_calls
 
 
 router = APIRouter(prefix="/aws")
@@ -40,6 +50,7 @@ def list_runs(
             "collector_name": r.collector_name,
             "cloud_provider": r.cloud_provider,
             "execution_time": r.execution_time.isoformat() if r.execution_time else None,
+            "in_time": r.execution_time.isoformat() if r.execution_time else None,
             "ended_at": r.ended_at.isoformat() if r.ended_at else None,
             "status": r.status,
             "trigger_type": r.trigger_type,
@@ -47,6 +58,31 @@ def list_runs(
         }
         for r in runs
     ]
+
+
+@router.get("/runs/{run_id}")
+def get_run_detail(
+    run_id: UUID,
+    db: Session = Depends(get_aws_db),
+) -> dict:
+    """Run detail with evidence count and AWS API calls by collector."""
+    run = get_run_by_id(db, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    count = get_evidence_count_by_run_id(db, run_id)
+    aws_calls = get_run_aws_calls(run.collector_name or "all")
+    return {
+        "run_id": str(run.run_id),
+        "collector_name": run.collector_name,
+        "cloud_provider": run.cloud_provider,
+        "execution_time": run.execution_time.isoformat() if run.execution_time else None,
+        "in_time": run.execution_time.isoformat() if run.execution_time else None,
+        "ended_at": run.ended_at.isoformat() if run.ended_at else None,
+        "status": run.status,
+        "trigger_type": run.trigger_type,
+        "evidence_count": count,
+        "aws_calls": aws_calls,
+    }
 
 
 @router.post("/runs/collect")
@@ -116,4 +152,85 @@ def get_evidence_content(
         return json.loads(raw.decode("utf-8"))
     except Exception as err:
         raise HTTPException(status_code=400, detail=f"Failed to parse evidence JSON: {err}") from err
+
+
+# ─── Controls (for Control View UI) ─────────────────────────────────────────
+
+@router.get("/controls")
+def list_controls(db: Session = Depends(get_aws_db)) -> list[dict]:
+    """List controls from evidence_sufficiency_matrix (or swift_2026.controls when USE_SWIFT_2026)."""
+    try:
+        rows = get_controls(db)
+        return [{"control_id": r.get("control_id"), "control_name": r.get("control_name"), "item_code": r.get("item_code"), "mandatory_flag": r.get("mandatory_flag")} for r in rows]
+    except Exception:
+        return []
+
+
+@router.get("/controls/coverage")
+def controls_coverage(db: Session = Depends(get_aws_db)) -> dict:
+    """Control IDs that have at least one evidence row."""
+    try:
+        ids = get_control_ids_with_evidence(db)
+        return {"control_ids_with_evidence": ids}
+    except Exception:
+        return {"control_ids_with_evidence": []}
+
+
+@router.get("/control/{control_id}")
+def get_control_detail(control_id: str, db: Session = Depends(get_aws_db)) -> dict:
+    """Control detail with required evidence items, collected evidence, and AWS calls."""
+    try:
+        control = get_control_by_id(db, control_id)
+        matrix = get_control_matrix_for_control(db, control_id)
+        collected = get_evidence_for_control(db, control_id)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    item_codes = [m.get("item_code") for m in matrix if m.get("item_code")]
+    aws_calls = get_apis_for_control_items(item_codes) if item_codes else {"aws_apis": [], "by_evidence_item": []}
+    required = [{"item_code": m.get("item_code"), "evidence_item_name": m.get("evidence_item_name")} for m in matrix]
+    return {
+        "control_id": control.get("control_id") or control_id,
+        "control_name": control.get("control_name"),
+        "required_evidence_items": required,
+        "collected_evidence": [
+            {
+                "evidence_id": str(e.evidence_id),
+                "item_code": e.item_code,
+                "control_id": e.control_id,
+                "evidence_type": e.evidence_type,
+                "source_system": e.source_system,
+                "collected_at": e.collected_at.isoformat() if e.collected_at else None,
+            }
+            for e in collected
+        ],
+        "aws_calls": aws_calls,
+    }
+
+
+class ManualEvidenceCreate(BaseModel):
+    control_id: str
+    item_code: str
+    content: dict
+    evidence_type: str = "manual"
+    source_system: str = "manual"
+
+
+@router.post("/evidence", status_code=201)
+def create_manual_evidence_endpoint(
+    body: ManualEvidenceCreate,
+    db: Session = Depends(get_aws_db),
+) -> dict:
+    """Submit manual evidence for a control."""
+    try:
+        evidence_id = create_manual_evidence(
+            db,
+            control_id=body.control_id,
+            item_code=body.item_code,
+            content=body.content,
+            evidence_type=body.evidence_type or "manual",
+            source_system=body.source_system or "manual",
+        )
+        return {"evidence_id": str(evidence_id), "control_id": body.control_id, "item_code": body.item_code}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 

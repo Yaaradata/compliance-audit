@@ -20,6 +20,8 @@
   --background: #f8fafc;
   --surface: #ffffff;
   --surface-elevated: #ffffff;
+  --card: #ffffff;
+  --muted: #f1f5f9;
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
 
@@ -75,6 +77,8 @@
   --background: #0f172a;
   --surface: #1e293b;
   --surface-elevated: #334155;
+  --card: #1e293b;
+  --muted: #1e293b;
   --border: #334155;
   --border-strong: #475569;
 

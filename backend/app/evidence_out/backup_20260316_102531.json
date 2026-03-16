@@ -1,0 +1,13 @@
+{
+  "collector": "backup",
+  "account_id": "543927035090",
+  "region": "ap-south-1",
+  "collected_at": "2026-03-16T10:25:31.360286",
+  "backup_plans": [
+    {
+      "error": "An error occurred (AccessDeniedException) when calling the ListBackupPlans operation: User: arn:aws:iam::543927035090:user/sathish.s@yaaralabs.ai is not authorized to perform: backup:ListBackupPlans because no identity-based policy allows the backup:ListBackupPlans action"
+    }
+  ],
+  "rds_backup_config": [],
+  "ebs_snapshot_count_owner": 0
+}
