@@ -1,0 +1,26 @@
+{
+  "collector": "inspector",
+  "account_id": "543927035090",
+  "region": "ap-south-1",
+  "collected_at": "2026-03-16T05:28:05.884313",
+  "finding_report_status": [
+    {
+      "ResponseMetadata": {
+        "RequestId": "a0c54684-4fbf-4415-8b58-3c1b4c837349",
+        "HTTPStatusCode": 200,
+        "HTTPHeaders": {
+          "date": "Mon, 16 Mar 2026 05:28:05 GMT",
+          "content-type": "application/json",
+          "content-length": "16",
+          "connection": "keep-alive",
+          "x-amzn-requestid": "a0c54684-4fbf-4415-8b58-3c1b4c837349",
+          "x-amz-apigw-id": "aTQz-GpRBcwEEoQ=",
+          "x-amzn-trace-id": "Root=1-69b794e5-6a43417c467788796a971593"
+        },
+        "RetryAttempts": 0
+      },
+      "responses": []
+    }
+  ],
+  "findings_sample": []
+}

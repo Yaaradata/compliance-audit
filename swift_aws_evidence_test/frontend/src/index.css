@@ -1,0 +1,63 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+a { color: #38bdf8; text-decoration: none; }
+a:hover { text-decoration: underline; }
+#root { min-height: 100vh; }
+
+/* Layout */
+.app-layout { display: flex; flex-direction: column; min-height: 100vh; }
+.app-header { background: #1e293b; padding: 1rem 1.5rem; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 1rem; }
+.app-header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+.app-nav { display: flex; gap: 1rem; }
+.app-nav a { color: #94a3b8; }
+.app-nav a.active { color: #38bdf8; font-weight: 500; }
+.main { flex: 1; padding: 1.5rem; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+/* Cards */
+.card { background: #1e293b; border-radius: 8px; border: 1px solid #334155; padding: 1.25rem; margin-bottom: 1rem; }
+.card h2 { margin: 0 0 1rem; font-size: 1.1rem; color: #f1f5f9; }
+.stat { font-size: 1.75rem; font-weight: 700; color: #38bdf8; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid #334155; }
+th { color: #94a3b8; font-weight: 500; font-size: 0.875rem; }
+tr:hover { background: #33415533; }
+.hash { font-family: ui-monospace, monospace; font-size: 0.8rem; word-break: break-all; max-width: 200px; }
+
+/* View content button */
+.btn-view-content { background: #334155; color: #38bdf8; border: 1px solid #475569; padding: 0.35rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+.btn-view-content:hover { background: #475569; }
+.btn-view-content:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Fetch AWS evidence — primary action on control view */
+.btn-fetch { background: #0ea5e9; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 500; cursor: pointer; font-size: 0.9rem; }
+.btn-fetch:hover:not(:disabled) { background: #0284c7; }
+.btn-fetch:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* Evidence content modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal-content { background: #1e293b; border: 1px solid #334155; border-radius: 8px; max-width: 90vw; max-height: 85vh; display: flex; flex-direction: column; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #334155; }
+.modal-header h3 { margin: 0; font-size: 1rem; }
+.modal-close { background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 0 0.25rem; }
+.modal-close:hover { color: #e2e8f0; }
+.modal-body { padding: 1rem; overflow: auto; flex: 1; }
+.evidence-json { margin: 0; font-family: ui-monospace, monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-word; color: #e2e8f0; }
+
+/* Empty collected evidence state */
+.empty-evidence-state { padding: 1.25rem; background: #33415522; border-radius: 6px; border: 1px dashed #475569; margin-top: 0.5rem; }
+.empty-evidence-state p { margin: 0 0 0.5rem; color: #94a3b8; }
+.empty-evidence-state p:last-child { margin-bottom: 0; }
+.empty-evidence-hint { font-size: 0.85rem; color: #64748b; }
+.manual-evidence-section { border-top: 1px solid #334155; padding-top: 1rem; }
+
+/* Run detail: AWS calls structure */
+.btn-expand { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px 6px; font-size: 0.75rem; }
+.btn-expand:hover { color: #e2e8f0; }
+.run-detail-aws-calls { background: #0f172a; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
+.aws-calls-structure { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; padding: 0 1rem 1rem; }
+.aws-calls-collector { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 0.75rem 1rem; }
+.aws-calls-collector-name { font-weight: 600; color: #38bdf8; margin-bottom: 0.5rem; font-size: 0.9rem; }
+.aws-calls-list { margin: 0; padding-left: 1.25rem; color: #94a3b8; font-size: 0.8rem; }
+.aws-calls-list li { margin: 0.2rem 0; }
+.aws-calls-list code { color: #cbd5e1; font-size: 0.75rem; }
