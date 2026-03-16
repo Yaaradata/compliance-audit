@@ -47,6 +47,7 @@ export function AppSidebar() {
     (item) =>
       item.href.startsWith("/dashboard") ||
       item.href.startsWith("/evidence") ||
+      item.href.startsWith("/aws") ||
       item.href.startsWith("/review") ||
       item.href.startsWith("/approval") ||
       item.href.startsWith("/report")
@@ -94,6 +95,7 @@ export function AppSidebar() {
     : navItems;
   const navHref = (item: { href: string }) => {
     if (!base) return item.href;
+    if (item.href === "/aws") return "/aws";
     if (item.href === "/dashboard") return `${base}/dashboard`;
     if (item.href.startsWith("/evidence")) return item.href.replace("/evidence", `${base}/evidence`);
     if (item.href.startsWith("/review")) return `${base}/review`;

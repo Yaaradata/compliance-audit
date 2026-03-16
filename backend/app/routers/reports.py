@@ -218,7 +218,7 @@ def regenerate_section(
 def export_report(
     cycle_id: UUID,
     report_id: UUID,
-    format: str = Query("docx", regex="^(docx|pdf)$"),
+    format: str = Query("docx", pattern="^(docx|pdf)$"),
     db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):

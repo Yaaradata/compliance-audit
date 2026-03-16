@@ -29,7 +29,14 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000", "https://compliance-audit.vercel.app"]
 
-    model_config = {"env_file": str(_env_file), "env_file_encoding": "utf-8"}
+    # Optional: upstream SWIFT AWS Evidence service base URL (e.g. http://127.0.0.1:8001)
+    SWIFT_AWS_BASE_URL: str | None = None
+
+    model_config = {
+        "env_file": str(_env_file),
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
     @property
     def database_url(self) -> str:

@@ -43,6 +43,7 @@ export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?:
   ],
   it_sme: [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/aws", label: "AWS" },
     { href: "/report", label: "Report" },
   ],
   internal_reviewer_l1: [

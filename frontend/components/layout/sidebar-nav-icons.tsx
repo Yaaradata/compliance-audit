@@ -46,6 +46,14 @@ export function IconReport({ className }: { className?: string } = {}) {
   );
 }
 
+export function IconAWS({ className }: { className?: string } = {}) {
+  return (
+    <svg className={svgClass(className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+    </svg>
+  );
+}
+
 export function IconAdmin({ className }: { className?: string } = {}) {
   return (
     <svg className={svgClass(className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
@@ -65,6 +73,7 @@ export function IconTenants({ className }: { className?: string } = {}) {
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   "/dashboard": IconDashboard,
+  "/aws": IconAWS,
   "/review": IconReview,
   "/approval": IconApproval,
   "/report": IconReport,

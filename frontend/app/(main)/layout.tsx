@@ -51,11 +51,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/dashboard");
       return;
     }
-    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute) {
+    const isAwsPage = pathname === "/aws" && user?.role === "it_sme";
+    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage) {
       router.replace("/assessments/new");
       return;
     }
-    if (activeCycleId && !isCycleRoute && pathname) {
+    if (activeCycleId && !isCycleRoute && pathname && !isAwsPage) {
       if (pathname === "/dashboard") {
         router.replace(`/cycles/${activeCycleId}/dashboard`);
         return;
@@ -83,7 +84,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (loading) return null;
   if (!user) return null;
   if (isPlatformAdmin && pathname !== "/admin") return null;
-  if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute) return null;
+  const allowAwsWithoutCycle = pathname === "/aws" && user?.role === "it_sme";
+  if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute && !allowAwsWithoutCycle) return null;
 
   // Team setup: standalone page without sidebar or main header
   if (pathname?.includes("/team-setup")) {

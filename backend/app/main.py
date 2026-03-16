@@ -37,6 +37,7 @@ from .routers import (
     audit_log,
     notes,
     notifications,
+    aws,
 )
 
 @asynccontextmanager
@@ -83,6 +84,7 @@ app.include_router(reports.router,      prefix=PREFIX, tags=["reports"])
 app.include_router(vendors.router,      prefix=PREFIX, tags=["vendors"])
 app.include_router(reference.router,    prefix=PREFIX, tags=["reference"])
 app.include_router(audit_log.router,    prefix=PREFIX, tags=["audit-log"])
+app.include_router(aws.router,          prefix=PREFIX, tags=["aws"])
 
 
 @app.get("/health")

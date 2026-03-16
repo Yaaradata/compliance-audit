@@ -1,0 +1,3 @@
+ALTER TABLE swift_2026.collector_runs
+ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP NULL;
+
