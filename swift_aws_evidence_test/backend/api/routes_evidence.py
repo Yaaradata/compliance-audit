@@ -40,13 +40,10 @@ def list_evidence(limit: int = 200, db: Session = Depends(get_db)):
     return [
         {
             "evidence_id": str(e.evidence_id),
-            "run_id": str(e.run_id),
             "item_code": e.item_code,
             "control_id": e.control_id,
             "evidence_type": e.evidence_type,
             "source_system": e.source_system,
-            "storage_uri": e.storage_uri,
-            "file_hash": e.file_hash,
             "collected_at": e.collected_at.isoformat() if e.collected_at else None,
         }
         for e in items
@@ -60,13 +57,10 @@ def get_evidence(evidence_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Evidence not found")
     return {
         "evidence_id": str(e.evidence_id),
-        "run_id": str(e.run_id),
         "item_code": e.item_code,
         "control_id": e.control_id,
         "evidence_type": e.evidence_type,
         "source_system": e.source_system,
-        "storage_uri": e.storage_uri,
-        "file_hash": e.file_hash,
         "collected_at": e.collected_at.isoformat() if e.collected_at else None,
     }
 

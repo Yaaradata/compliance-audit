@@ -6,7 +6,7 @@ End-to-end system that collects AWS security configuration evidence for **SWIFT 
 
 - **Evidence collection**: Python + boto3 — **14 collectors** aligned to the SWIFT–AWS evidence sheet (VPC/Network, IAM, EC2, CloudTrail, Config, SSM, Encryption, MFA/Password, Backup, GuardDuty, Inspector, Logging, Access/Credential)
 - **Storage**: Amazon S3 (`s3://swift-evidence/aws/<account-id>/<collector>/<date>.json`)
-- **Metadata DB**: PostgreSQL (Google Cloud SQL), schema `swift_2025`
+- **Metadata DB**: PostgreSQL (Google Cloud SQL), schema `swift_2026`
 - **Backend**: FastAPI
 - **Frontend**: React + Vite
 - **Hashing**: SHA256 on every evidence file (stored in `evidence.file_hash`)
@@ -27,22 +27,21 @@ Use the main project `backend/.env` or copy to `swift_aws_evidence_test/backend/
 | `AWS_SECRET_ACCESS_KEY` | AWS secret |
 | `AWS_DEFAULT_REGION` | e.g. ap-south-1 |
 | `AWS_ACCOUNT_ID` | 12-digit AWS account ID |
-| `S3_BUCKET_NAME` | Evidence bucket (e.g. swift-evidence) |
-| `SWIFT_SCHEMA` | Schema for evidence tables (default swift_2025) |
+| `S3_BUCKET_NAME` | Evidence bucket (e.g. swift-evidence). Created in AWS on first startup if missing. |
+| `SWIFT_SCHEMA` | Schema for evidence tables (default swift_2026) |
 | `USE_SWIFT_2026` | If true, Control View reads controls/ESM from **swift_2026** (same DB) so data is shown **control-wise** per the real SWIFT 2026 framework |
 
 ## Setup
 
-### 1. Database
+### 1. Database (GCP Cloud SQL)
 
-Create schema and tables (PostgreSQL / Cloud SQL):
+On **first startup**, the backend runs migrations and creates the **swift_2026** schema and tables in PostgreSQL (GCP Cloud SQL or local). Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` in `.env` (use Cloud SQL Proxy or direct host for GCP). No manual SQL run is required unless you prefer:
 
 ```bash
 cd swift_aws_evidence_test/backend
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f sql/01_swift_2025_schema.sql
+python scripts/run_schema.py
+# or: psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f sql/01_swift_2026_schema.sql
 ```
-
-Or run the SQL file from your SQL client against the same DB.
 
 ### 2. Backend
 
@@ -97,7 +96,7 @@ swift_aws_evidence_test/
 │   ├── services/       # collector_service, evidence_service
 │   ├── api/            # routes_runs, routes_evidence, routes_controls
 │   ├── runner/         # run_collector.py
-│   ├── sql/            # 01_swift_2025_schema.sql
+│   ├── sql/            # 01_swift_2026_schema.sql
 │   └── main.py
 └── frontend/
     └── src/
@@ -113,7 +112,7 @@ Data is shown **control-wise**: in the Control View you select a control (e.g. 1
 - **Required evidence items** — from the framework (CEI → control mapping).
 - **Collected evidence** — AWS evidence stored for that `control_id`.
 
-If your database already has the **swift_2026** schema (same compliance DB), set **`USE_SWIFT_2026=true`** in `.env`. The backend will then read controls and the evidence sufficiency matrix from **swift_2026**, so the Control View lists the real SWIFT 2026 controls (e.g. 1.1, 1.2, … 7.4A) and their required CEI. Collected AWS evidence (in `swift_2025.evidence`) is still shown under the matching `control_id`.
+Evidence and collector runs are stored in **swift_2026**. If your database already has a full **swift_2026** framework (same compliance DB), set **`USE_SWIFT_2026=true`** in `.env`. The backend will then read controls and the evidence sufficiency matrix from **swift_2026**, so the Control View lists the real SWIFT 2026 controls (e.g. 1.1, 1.2, … 7.4A) and their required CEI. Collected AWS evidence (in `swift_2026.evidence`) is shown under the matching `control_id`.
 
 ## Getting all evidence (SWIFT–AWS sheet)
 

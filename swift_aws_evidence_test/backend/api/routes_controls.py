@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from core.db import get_db
 from services import get_controls, get_control_matrix_for_control, get_evidence_for_control, get_control_by_id, get_control_ids_with_evidence
+from collectors.evidence_mapping import get_apis_for_control
 
 router = APIRouter(tags=["controls"])
 
@@ -31,6 +32,8 @@ def get_control(control_id: str, db: Session = Depends(get_db)):
     control_info = get_control_by_id(db, control_id)
     evidence = get_evidence_for_control(db, control_id)
     items_for_control = get_control_matrix_for_control(db, control_id)
+    item_codes = [m.get("item_code") for m in items_for_control if m.get("item_code")]
+    aws_calls = get_apis_for_control(item_codes)
     return {
         "control_id": control_id,
         "control_name": control_info.get("control_name") if isinstance(control_info, dict) else (control_info.control_name if control_info else None),
@@ -43,10 +46,9 @@ def get_control(control_id: str, db: Session = Depends(get_db)):
                 "evidence_id": str(e.evidence_id),
                 "item_code": e.item_code,
                 "source_system": e.source_system,
-                "file_hash": e.file_hash,
-                "storage_uri": e.storage_uri,
                 "collected_at": e.collected_at.isoformat() if e.collected_at else None,
             }
             for e in evidence
         ],
+        "aws_calls": aws_calls,
     }

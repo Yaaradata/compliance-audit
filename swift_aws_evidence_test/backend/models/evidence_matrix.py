@@ -1,4 +1,4 @@
-"""evidence_sufficiency_matrix table in swift_2025 schema."""
+"""evidence_sufficiency_matrix table in swift_2026 schema."""
 from sqlalchemy import Column, String, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime

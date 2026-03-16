@@ -1,6 +1,12 @@
 import { useState, Fragment } from 'react'
 import { getRunDetail } from '../api/api'
 
+function formatDate(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString(undefined, { dateStyle: 'short' }) + ' ' + d.toLocaleTimeString(undefined, { timeStyle: 'short' })
+}
+
 export default function RunHistory({ runs }) {
   const [expandedRunId, setExpandedRunId] = useState(null)
   const [runDetail, setRunDetail] = useState(null)
@@ -21,66 +27,60 @@ export default function RunHistory({ runs }) {
   }
 
   if (!runs?.length) {
-    return <p style={{ color: '#94a3b8' }}>No collector runs yet. Run the collector from the backend to populate data.</p>
+    return (
+      <div className="empty-state">
+        <p>No collector runs yet. Use <strong>Fetch AWS evidence</strong> from Control View to collect data.</p>
+      </div>
+    )
   }
+
   return (
     <div className="table-wrap">
-      <table>
+      <table className="data-table">
         <thead>
           <tr>
-            <th style={{ width: 32 }}></th>
-            <th>Run ID</th>
-            <th>Collector</th>
-            <th>Cloud</th>
-            <th>In Time</th>
-            <th>Out Time</th>
+            <th className="th-expand" />
+            <th>Date</th>
             <th>Status</th>
+            <th>Evidence</th>
             <th>Trigger</th>
-            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {runs.map((r) => (
             <Fragment key={r.run_id}>
               <tr className={expandedRunId === r.run_id ? 'row-expanded' : ''}>
-                <td>
-                  <button type="button" className="btn-expand" onClick={() => toggleRun(r.run_id)} aria-label={expandedRunId === r.run_id ? 'Collapse' : 'Show AWS calls'}>
+                <td className="td-expand">
+                  <button
+                    type="button"
+                    className="btn-expand"
+                    onClick={() => toggleRun(r.run_id)}
+                    aria-label={expandedRunId === r.run_id ? 'Collapse' : 'Show details'}
+                  >
                     {expandedRunId === r.run_id ? '▼' : '▶'}
                   </button>
                 </td>
-                <td><code>{String(r.run_id).slice(0, 8)}…</code></td>
-                <td>{r.collector_name}</td>
-                <td>{r.cloud_provider}</td>
-                <td>{r.in_time ? new Date(r.in_time).toLocaleString() : (r.execution_time ? new Date(r.execution_time).toLocaleString() : '—')}</td>
-                <td>{r.out_time ? new Date(r.out_time).toLocaleString() : '—'}</td>
-                <td><span style={{ color: r.status === 'success' ? '#4ade80' : r.status === 'failed' ? '#f87171' : '#fbbf24' }}>{r.status}</span></td>
-                <td>{r.trigger_type || '—'}</td>
+                <td><span className="cell-date">{formatDate(r.in_time || r.execution_time)}</span></td>
                 <td>
-                  <button type="button" className="btn-view-content" onClick={() => toggleRun(r.run_id)}>
-                    {expandedRunId === r.run_id ? 'Hide AWS calls' : 'Show AWS calls'}
-                  </button>
+                  <span className={`status status-${r.status}`}>{r.status}</span>
                 </td>
+                <td><span className="cell-num">{r.evidence_count ?? '—'}</span></td>
+                <td><span className="cell-trigger">{r.trigger_type || '—'}</span></td>
               </tr>
               {expandedRunId === r.run_id && (
-                <tr key={`${r.run_id}-detail`}>
-                  <td colSpan={9} style={{ padding: 0, borderTop: 0, verticalAlign: 'top' }}>
-                    <div className="run-detail-aws-calls">
+                <tr key={`${r.run_id}-detail`} className="row-detail">
+                  <td colSpan={5}>
+                    <div className="run-detail">
                       {loadingDetail ? (
-                        <p style={{ padding: '1rem', color: '#94a3b8' }}>Loading…</p>
-                      ) : runDetail?.aws_calls ? (
-                        <>
-                          <p style={{ margin: '0.75rem 1rem 0.5rem', color: '#94a3b8', fontSize: '0.9rem' }}>
-                            <strong>Run ID:</strong> {runDetail.run_id} &nbsp;|&nbsp;
-                            <strong>In Time:</strong> {runDetail.in_time ? new Date(runDetail.in_time).toLocaleString() : '—'} &nbsp;|&nbsp;
-                            <strong>Out Time:</strong> {runDetail.out_time ? new Date(runDetail.out_time).toLocaleString() : '—'} &nbsp;|&nbsp;
-                            <strong>Evidence count:</strong> {runDetail.evidence_count} &nbsp;|&nbsp;
-                            <strong>AWS calls by collector:</strong>
-                          </p>
-                          <div className="aws-calls-structure">
+                        <p className="detail-loading">Loading…</p>
+                      ) : runDetail?.aws_calls?.length ? (
+                        <div className="detail-aws">
+                          <p className="detail-heading">AWS API calls by collector</p>
+                          <div className="aws-grid">
                             {runDetail.aws_calls.map(({ collector, apis }) => (
-                              <div key={collector} className="aws-calls-collector">
-                                <div className="aws-calls-collector-name">{collector}</div>
-                                <ul className="aws-calls-list">
+                              <div key={collector} className="aws-block">
+                                <div className="aws-block-name">{collector}</div>
+                                <ul>
                                   {apis.map((api, i) => (
                                     <li key={i}><code>{api}</code></li>
                                   ))}
@@ -88,9 +88,9 @@ export default function RunHistory({ runs }) {
                               </div>
                             ))}
                           </div>
-                        </>
+                        </div>
                       ) : (
-                        <p style={{ padding: '1rem', color: '#f87171' }}>Could not load run detail.</p>
+                        <p className="detail-empty">No detail available.</p>
                       )}
                     </div>
                   </td>

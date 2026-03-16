@@ -2,8 +2,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from uuid import UUID
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from core.db import get_db
 from services import get_runs, get_run_by_id, get_evidence_count_by_run_id, run_all_collectors
+from models import Evidence
 from collectors.aws_api_catalog import get_apis_for_run
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -12,6 +14,13 @@ router = APIRouter(prefix="/runs", tags=["runs"])
 @router.get("")
 def list_runs(limit: int = 50, db: Session = Depends(get_db)):
     runs = get_runs(db, limit=limit)
+    run_ids = [r.run_id for r in runs]
+    counts = {}
+    if run_ids:
+        rows = db.query(Evidence.run_id, func.count(Evidence.evidence_id)).filter(
+            Evidence.run_id.in_(run_ids)
+        ).group_by(Evidence.run_id).all()
+        counts = {str(rid): c for rid, c in rows}
     return [
         {
             "run_id": str(r.run_id),
@@ -22,6 +31,7 @@ def list_runs(limit: int = 50, db: Session = Depends(get_db)):
             "execution_time": r.execution_time.isoformat() if r.execution_time else None,
             "status": r.status,
             "trigger_type": r.trigger_type,
+            "evidence_count": counts.get(str(r.run_id), 0),
         }
         for r in runs
     ]

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api import runs_router, evidence_router, controls_router
 from core.db import ensure_schema
+from core import s3_storage
 
 app = FastAPI(title="SWIFT AWS Evidence Test API", version="1.0.0")
 app.add_middleware(
@@ -27,7 +28,8 @@ app.include_router(controls_router)
 
 @app.on_event("startup")
 def startup():
-    ensure_schema()
+    ensure_schema()  # GCP: create swift_2026 schema and tables in Cloud SQL
+    s3_storage.ensure_bucket()  # AWS: create S3 evidence bucket if missing
 
 
 @app.get("/health")

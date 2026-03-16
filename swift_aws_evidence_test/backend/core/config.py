@@ -32,7 +32,7 @@ AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 AWS_ACCOUNT_ID = os.getenv("AWS_ACCOUNT_ID", "").strip()
 
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "swift-evidence")
-SWIFT_SCHEMA = os.getenv("SWIFT_SCHEMA", "swift_2025")
+SWIFT_SCHEMA = os.getenv("SWIFT_SCHEMA", "swift_2026")
 # When true, read controls and evidence_sufficiency_matrix from swift_2026 (same DB) for control-wise view
 USE_SWIFT_2026 = os.getenv("USE_SWIFT_2026", "false").lower() in ("true", "1", "yes")
 

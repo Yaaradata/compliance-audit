@@ -7,11 +7,16 @@ function App() {
   return (
     <div className="app-layout">
       <header className="app-header">
-        <h1>SWIFT AWS Evidence Test</h1>
+        <NavLink to="/" className="app-brand">
+          <span className="app-logo">SWIFT</span>
+          <span className="app-title">AWS Evidence</span>
+        </NavLink>
         <nav className="app-nav">
-          <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>Dashboard</NavLink>
-          <NavLink to="/evidence" className={({ isActive }) => (isActive ? 'active' : '')}>Evidence List</NavLink>
-          <NavLink to="/controls" className={({ isActive }) => (isActive ? 'active' : '')}>Control View</NavLink>
+          <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>
+            Dashboard
+          </NavLink>
+          <NavLink to="/evidence">Evidence</NavLink>
+          <NavLink to="/controls">Controls</NavLink>
         </nav>
       </header>
       <main className="main">

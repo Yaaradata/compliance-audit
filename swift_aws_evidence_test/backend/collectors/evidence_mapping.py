@@ -70,3 +70,23 @@ def get_control_ids_for_item(item_id: str) -> list[str]:
 
 def get_all_high_feasibility_items() -> list[EvidenceItemSpec]:
     return [s for s in EVIDENCE_REGISTRY if s["feasibility"] == "HIGH"]
+
+
+def get_apis_for_control(item_codes: list[str]) -> dict:
+    """
+    Return AWS APIs relevant to a control given its required evidence item codes.
+    Returns {"aws_apis": ["ec2:DescribeVpcs", ...], "by_evidence_item": [{"item_code": "A1", "evidence_item_name": "...", "apis": [...]}]}.
+    """
+    by_item: list[dict] = []
+    all_apis: set[str] = set()
+    item_codes_set = {c.strip() for c in item_codes if c}
+    for spec in EVIDENCE_REGISTRY:
+        item_id = spec.get("item_id") or ""
+        if item_id not in item_codes_set:
+            continue
+        apis = list(spec.get("apis") or [])
+        name = spec.get("name") or item_id
+        by_item.append({"item_code": item_id, "evidence_item_name": name, "apis": apis})
+        for api in apis:
+            all_apis.add(api)
+    return {"aws_apis": sorted(all_apis), "by_evidence_item": by_item}

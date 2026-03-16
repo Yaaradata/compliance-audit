@@ -1,7 +1,7 @@
 """Evidence and control read operations for API.
 When USE_SWIFT_2026 is true, controls and ESM are read from swift_2026 (same DB)
 so the Control View shows the real SWIFT 2026 framework (control-wise). Collected
-evidence stays in swift_2025.evidence and is joined by control_id.
+evidence stays in swift_2026.evidence and is joined by control_id.
 """
 import json
 import uuid
@@ -36,11 +36,11 @@ def get_evidence_by_id(db: Session, evidence_id: UUID):
 
 
 def get_evidence_for_control(db: Session, control_id: str):
-    """Collected AWS evidence for this control (always from swift_2025.evidence)."""
+    """Collected AWS evidence for this control (always from swift_2026.evidence)."""
     return db.query(Evidence).filter(Evidence.control_id == control_id).order_by(Evidence.collected_at.desc()).all()
 
 
-# ----- Control list and ESM: from swift_2025 (test seed) or swift_2026 (real framework) -----
+# ----- Control list and ESM: from swift_2026 (test seed or real framework) -----
 
 def _controls_from_2026(db: Session):
     """Read distinct controls from swift_2026.controls (id, name)."""
@@ -67,12 +67,12 @@ def _matrix_from_2026(db: Session, control_id: str | None = None):
 
 
 def get_controls(db: Session):
-    """Return list of controls. From swift_2026 when USE_SWIFT_2026 else from swift_2025 ESM."""
+    """Return list of controls. From swift_2026 when USE_SWIFT_2026 else from swift_2026 ESM (our seed)."""
     if config.USE_SWIFT_2026:
         rows = _controls_from_2026(db)
         if rows:
             return rows
-    # Default: from our evidence_sufficiency_matrix (swift_2025)
+    # Default: from our evidence_sufficiency_matrix (swift_2026)
     orm_rows = db.query(EvidenceSufficiencyMatrix).all()
     seen = set()
     out = []

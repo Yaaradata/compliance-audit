@@ -24,6 +24,30 @@ def get_s3_client():
     )
 
 
+def ensure_bucket():
+    """Create the S3 evidence bucket in AWS if it does not exist (region from config)."""
+    bucket = config.S3_BUCKET_NAME
+    if not bucket:
+        return
+    try:
+        client = get_s3_client()
+        region = config.AWS_DEFAULT_REGION or "us-east-1"
+        try:
+            client.head_bucket(Bucket=bucket)
+        except ClientError as e:
+            err = e.response.get("Error", {})
+            if err.get("Code") == "404":
+                if region == "us-east-1":
+                    client.create_bucket(Bucket=bucket)
+                else:
+                    client.create_bucket(
+                        Bucket=bucket,
+                        CreateBucketConfiguration={"LocationConstraint": region},
+                    )
+    except Exception:
+        pass  # Don't fail startup if AWS is unreachable or forbidden
+
+
 def s3_key(collector_name: str, timestamp: datetime) -> str:
     """e.g. aws/123456789012/iam/2026-03-14.json"""
     date_str = timestamp.strftime("%Y-%m-%d")

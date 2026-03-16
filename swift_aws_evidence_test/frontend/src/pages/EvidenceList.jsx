@@ -19,28 +19,31 @@ export default function EvidenceList() {
   const handleViewContent = (e) => {
     setContentLoading(true)
     getEvidenceContent(e.evidence_id)
-      .then((content) => setContentModal({ evidenceId: e.evidence_id, content, source: e.source_system }))
-      .catch((err) => setContentModal({ evidenceId: e.evidence_id, error: err.message, source: e.source_system }))
+      .then((content) => setContentModal({ content, source: e.source_system }))
+      .catch((err) => setContentModal({ error: err.message, source: e.source_system }))
       .finally(() => setContentLoading(false))
   }
 
-  if (loading) return <div className="card">Loading...</div>
-  if (error) return <div className="card" style={{ color: '#f87171' }}>Error: {error}</div>
+  if (loading) return <div className="page-loading">Loading evidence…</div>
+  if (error) return <div className="page-error">Error: {error}</div>
 
   return (
-    <div>
-      <h2 style={{ marginBottom: '1rem' }}>Evidence List</h2>
+    <div className="page">
+      <header className="page-header">
+        <h1>Evidence</h1>
+        <p className="page-subtitle">Collected AWS security evidence by item and control.</p>
+      </header>
       <EvidenceTable data={Array.isArray(evidence) ? evidence : []} onViewContent={handleViewContent} />
       {contentModal && (
         <div className="modal-overlay" onClick={() => setContentModal(null)} role="presentation">
           <div className="modal-content" onClick={(ev) => ev.stopPropagation()}>
             <div className="modal-header">
-              <h3>Evidence content — {contentModal.source}</h3>
+              <h3>Evidence content</h3>
               <button type="button" className="modal-close" onClick={() => setContentModal(null)} aria-label="Close">×</button>
             </div>
             <div className="modal-body">
               {contentModal.error ? (
-                <p style={{ color: '#f87171' }}>{contentModal.error}</p>
+                <p className="modal-error">{contentModal.error}</p>
               ) : (
                 <pre className="evidence-json">{JSON.stringify(contentModal.content, null, 2)}</pre>
               )}

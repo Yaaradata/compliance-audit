@@ -1,4 +1,4 @@
-"""Run 01_swift_2025_schema.sql using backend config. Use backend/.env or swift_aws_evidence_test/backend/.env."""
+"""Run 01_swift_2026_schema.sql using backend config. Use backend/.env or swift_aws_evidence_test/backend/.env."""
 import os
 import sys
 from pathlib import Path
@@ -30,7 +30,7 @@ conn = psycopg2.connect(host=host, port=port, dbname=dbname, user=user, password
 conn.autocommit = True
 cur = conn.cursor()
 
-for name in ["01_swift_2025_schema.sql", "02_add_ended_at.sql"]:
+for name in ["01_swift_2026_schema.sql", "02_add_ended_at.sql"]:
     sql_path = backend / "sql" / name
     if sql_path.exists():
         cur.execute(sql_path.read_text(encoding="utf-8"))

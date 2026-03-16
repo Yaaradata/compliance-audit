@@ -1,4 +1,4 @@
-"""collector_runs table in swift_2025 schema."""
+"""collector_runs table in swift_2026 schema."""
 from sqlalchemy import Column, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
