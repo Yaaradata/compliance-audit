@@ -298,3 +298,14 @@ def ensure_evidence_submission_history_table():
         logger.warning(
             "Could not ensure evidence_submission_history table (evidence_submissions may not exist yet): %s", e
         )
+
+
+def ensure_user_group_name():
+    """Add group_name to core.users if missing (compliance officer groups). Idempotent."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE core.users ADD COLUMN IF NOT EXISTS group_name VARCHAR(255)"))
+            conn.commit()
+        logger.info("User group_name column ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure users.group_name: %s", e)

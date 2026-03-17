@@ -52,7 +52,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       return;
     }
     const isAwsPage = pathname?.startsWith("/aws") && user?.role === "it_sme";
-    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage) {
+    const isUsersGroupsPage = pathname?.startsWith("/users-groups");
+    const canAccessUsersGroups = (user?.role === "compliance_officer" || user?.role === "tenant_admin") && isUsersGroupsPage;
+    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage && !canAccessUsersGroups) {
       router.replace("/assessments/new");
       return;
     }
@@ -85,7 +87,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (!user) return null;
   if (isPlatformAdmin && pathname !== "/admin") return null;
   const allowAwsWithoutCycle = pathname?.startsWith("/aws") && user?.role === "it_sme";
-  if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute && !allowAwsWithoutCycle) return null;
+  const allowUsersGroups = pathname?.startsWith("/users-groups") && (user?.role === "compliance_officer" || user?.role === "tenant_admin");
+  const allowAssessmentsPage = pathname?.startsWith("/assessments") && (user?.role === "compliance_officer" || user?.role === "tenant_admin");
+  if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute && !allowAwsWithoutCycle && !allowUsersGroups && !allowAssessmentsPage) return null;
 
   // Team setup: standalone page without sidebar or main header
   if (pathname?.includes("/team-setup")) {

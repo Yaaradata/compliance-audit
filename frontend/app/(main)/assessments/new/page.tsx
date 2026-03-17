@@ -20,6 +20,8 @@ export default function AssessmentsPage() {
   const [complianceAssessment, setComplianceAssessment] = useState<"swift_cscf" | "pci_dss" | "iso">("swift_cscf");
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const canProceedWithCreate = complianceAssessment === "swift_cscf";
   const swiftFrameworks = frameworks.filter((f) => f.code === "SWIFT_CSCF");
@@ -46,13 +48,20 @@ export default function AssessmentsPage() {
     if (!label.trim()) return;
     setCreating(true);
     try {
-      // Derive year from selected framework (e.g. v2025 -> 2025, v2026 -> 2026)
       const selectedFw = frameworks.find((f) => f.id === frameworkId);
       const cycleYear = selectedFw
         ? (selectedFw.version === "v2026" ? 2026 : 2025)
         : new Date().getFullYear();
-      const body: { label: string; cycle_year: number; framework_id?: string } = { label, cycle_year: cycleYear };
+      const body: {
+        label: string;
+        cycle_year: number;
+        framework_id?: string;
+        start_date?: string;
+        end_date?: string;
+      } = { label, cycle_year: cycleYear };
       if (frameworkId) body.framework_id = frameworkId;
+      if (startDate) body.start_date = startDate;
+      if (endDate) body.end_date = endDate;
       const cycle = await api.post<AssessmentCycle>("/assessments", body);
       router.push(`/cycles/${cycle.id}/team-setup`);
     } catch {
@@ -225,6 +234,30 @@ export default function AssessmentsPage() {
                   </p>
                 </div>
               )}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Audit timeline</h3>
+                <p className="text-[11px] text-gray-500 mb-3">Set audit window (used for notifications).</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Audit start date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Audit end date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={handleCreate}

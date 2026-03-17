@@ -28,6 +28,13 @@ export interface Tenant {
 /** Schema name from backend: swift_2025 (2025 framework) or swift_2026 (2026 framework). Drives diagrams and version copy. */
 export type CycleSchemaName = "swift_2025" | "swift_2026";
 
+/** Per-phase deadline (evidence_upload, l1_review, l2_review, approval). Used for notifications. */
+export interface PhaseDeadline {
+  phase: string;
+  start_at: string; // ISO datetime
+  end_at: string;
+}
+
 /** Assessment cycle: one per creation; id is used for all evidence and evaluations for that cycle. */
 export interface AssessmentCycle {
   id: string;
@@ -37,6 +44,12 @@ export interface AssessmentCycle {
   architecture_type: string | null;
   display_id: string;
   created_at: string;
+  /** Audit start/end dates. */
+  start_date?: string | null;
+  end_date?: string | null;
+  target_submission_date?: string | null;
+  /** Per-phase start/end for notifications. */
+  phase_deadlines?: PhaseDeadline[] | null;
   /** swift_2025 or swift_2026: which framework schema to use (2025 vs 2026). */
   schema_name?: CycleSchemaName | null;
 }

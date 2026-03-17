@@ -33,10 +33,14 @@ export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?:
   ],
   tenant_admin: [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/assessments/new", label: "Assessment Cycles" },
+    { href: "/users-groups", label: "Users & Groups" },
     { href: "/report", label: "Report" },
   ],
   compliance_officer: [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/assessments/new", label: "Assessment Cycles" },
+    { href: "/users-groups", label: "Users & Groups" },
     { href: "/review", label: "Review Queue" },
     { href: "/approval", label: "Approval" },
     { href: "/report", label: "Report" },

@@ -48,6 +48,8 @@ export function AppSidebar() {
       item.href.startsWith("/dashboard") ||
       item.href.startsWith("/evidence") ||
       item.href.startsWith("/aws") ||
+      item.href.startsWith("/assessments") ||
+      item.href.startsWith("/users-groups") ||
       item.href.startsWith("/review") ||
       item.href.startsWith("/approval") ||
       item.href.startsWith("/report")

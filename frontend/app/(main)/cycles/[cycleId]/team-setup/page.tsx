@@ -16,6 +16,20 @@ interface TeamUserEntry {
   email: string;
   password: string;
   name: string;
+  /** Date only (YYYY-MM-DD) for phase start; prefilled from audit start date */
+  startAt: string;
+  /** Date only (YYYY-MM-DD) for phase end; prefilled from audit end date */
+  endAt: string;
+}
+
+/** Default start date from audit start date. */
+function defaultStartFromCycle(cycle: AssessmentCycle): string {
+  return cycle.start_date?.slice(0, 10) ?? "";
+}
+
+/** Default end date from audit end date. */
+function defaultEndFromCycle(cycle: AssessmentCycle): string {
+  return cycle.end_date?.slice(0, 10) ?? "";
 }
 
 const initialTeamEntries: TeamUserEntry[] = TEAM_ROLES.map((role) => ({
@@ -23,6 +37,8 @@ const initialTeamEntries: TeamUserEntry[] = TEAM_ROLES.map((role) => ({
   email: "",
   password: "",
   name: "",
+  startAt: "",
+  endAt: "",
 }));
 
 export default function CycleTeamSetupPage() {
@@ -48,7 +64,16 @@ export default function CycleTeamSetupPage() {
     }
     api
       .get<AssessmentCycle>(`/assessments/${cycleId}`)
-      .then(setCycle)
+      .then((data) => {
+        setCycle(data);
+        setEntries((prev) =>
+          prev.map((e) => ({
+            ...e,
+            startAt: e.startAt || defaultStartFromCycle(data),
+            endAt: e.endAt || defaultEndFromCycle(data),
+          }))
+        );
+      })
       .catch(() => setCycle(null))
       .finally(() => setLoading(false));
   }, [user, isPlatformAdmin, cycleId, router]);
@@ -77,12 +102,28 @@ export default function CycleTeamSetupPage() {
     setSubmitting(true);
     try {
       await api.post(`/assessments/${cycleId}/team`, {
-        users: entries.map(({ role, email, password, name }) => ({
-          role,
-          email: email.trim().toLowerCase(),
-          password,
-          name: (name || "").trim() || "",
-        })),
+        users: entries.map(({ role, email, password, name, startAt, endAt }) => {
+          const userPayload: {
+            role: string;
+            email: string;
+            password: string;
+            name: string;
+            start_at?: string;
+            end_at?: string;
+          } = {
+            role,
+            email: email.trim().toLowerCase(),
+            password,
+            name: (name || "").trim() || "",
+          };
+          if (startAt.trim()) {
+            userPayload.start_at = new Date(startAt + "T00:00:00.000Z").toISOString();
+          }
+          if (endAt.trim()) {
+            userPayload.end_at = new Date(endAt + "T23:59:59.999Z").toISOString();
+          }
+          return userPayload;
+        }),
       });
       router.push(`/select-architecture?cycleId=${cycleId}`);
     } catch (err: unknown) {
@@ -185,6 +226,34 @@ export default function CycleTeamSetupPage() {
                   placeholder="Full name"
                   className="input w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 />
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label htmlFor={`start-${entry.role}`} className="block text-xs font-medium text-foreground mb-1">
+                    Start <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id={`start-${entry.role}`}
+                    type="date"
+                    value={entry.startAt}
+                    onChange={(e) => updateEntry(index, "startAt", e.target.value)}
+                    className="input w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  />
+                  <p className="text-xs text-foreground-muted mt-0.5">Prefilled from audit start date</p>
+                </div>
+                <div>
+                  <label htmlFor={`end-${entry.role}`} className="block text-xs font-medium text-foreground mb-1">
+                    End <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id={`end-${entry.role}`}
+                    type="date"
+                    value={entry.endAt}
+                    onChange={(e) => updateEntry(index, "endAt", e.target.value)}
+                    className="input w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  />
+                  <p className="text-xs text-foreground-muted mt-0.5">Prefilled from audit end date</p>
+                </div>
               </div>
             </section>
           ))}

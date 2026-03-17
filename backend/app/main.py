@@ -20,6 +20,7 @@ from .database import (
     ensure_tenant_aws_config_table,
     ensure_evidence_submission_history_table,
     ensure_review_hold_enum,
+    ensure_user_group_name,
 )
 from .aws_evidence.core.db import ensure_schema as ensure_aws_evidence_schema
 from .routers import (
@@ -40,6 +41,7 @@ from .routers import (
     notes,
     notifications,
     aws,
+    compliance,
 )
 
 @asynccontextmanager
@@ -50,6 +52,7 @@ async def lifespan(app: FastAPI):
     ensure_tenant_aws_config_table()
     ensure_evidence_submission_history_table()
     ensure_review_hold_enum()
+    ensure_user_group_name()
     ensure_aws_evidence_schema()  # swift_2026 schema + migrations (collector_runs, evidence, etc.)
     yield
 
@@ -88,6 +91,7 @@ app.include_router(reports.router,      prefix=PREFIX, tags=["reports"])
 app.include_router(vendors.router,      prefix=PREFIX, tags=["vendors"])
 app.include_router(reference.router,    prefix=PREFIX, tags=["reference"])
 app.include_router(audit_log.router,    prefix=PREFIX, tags=["audit-log"])
+app.include_router(compliance.router,   prefix=PREFIX)
 app.include_router(aws.router,          prefix=PREFIX, tags=["aws"])
 
 
