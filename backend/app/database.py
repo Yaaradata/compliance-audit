@@ -191,6 +191,72 @@ def ensure_review_hold_enum():
             )
 
 
+def ensure_tenant_aws_config_table():
+    """
+    Create core.tenant_aws_config if it does not exist.
+    Stores per-tenant AWS connection (encrypted credentials) for evidence collection.
+    """
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE SCHEMA IF NOT EXISTS core"))
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS core.tenant_aws_config (
+                        tenant_id UUID PRIMARY KEY REFERENCES core.tenants(id) ON DELETE CASCADE,
+                        aws_account_id VARCHAR(20),
+                        aws_region VARCHAR(32) NOT NULL DEFAULT 'us-east-1',
+                        connection_type VARCHAR(32) NOT NULL DEFAULT 'access_key',
+                        encrypted_access_key_id TEXT,
+                        encrypted_secret_access_key TEXT,
+                        is_active BOOLEAN NOT NULL DEFAULT true,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE core.tenant_aws_config ADD COLUMN IF NOT EXISTS connection_type VARCHAR(32) NOT NULL DEFAULT 'access_key'"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE core.tenant_aws_config ADD COLUMN IF NOT EXISTS connected_at TIMESTAMPTZ NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE core.tenant_aws_config ADD COLUMN IF NOT EXISTS sso_start_url TEXT NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE core.tenant_aws_config ADD COLUMN IF NOT EXISTS sso_region VARCHAR(32) NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE core.tenant_aws_config ADD COLUMN IF NOT EXISTS encrypted_refresh_token TEXT NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE core.tenant_aws_config ADD COLUMN IF NOT EXISTS sso_account_id VARCHAR(20) NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE core.tenant_aws_config ADD COLUMN IF NOT EXISTS sso_role_name VARCHAR(255) NULL"
+                )
+            )
+            conn.commit()
+        logger.info("Tenant AWS config table ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure tenant_aws_config table (core.tenants may not exist yet): %s", e)
+
+
 def ensure_evidence_submission_history_table():
     """
     Create evidence_submission_history table if it does not exist.

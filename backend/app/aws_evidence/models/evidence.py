@@ -2,8 +2,8 @@
 from datetime import datetime
 import uuid
 
-from sqlalchemy import Column, DateTime, String, Text, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, DateTime, String, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from app.aws_evidence.core.db import Base
 from app.aws_evidence.core.config import SWIFT_SCHEMA
@@ -15,11 +15,12 @@ class Evidence(Base):
 
     evidence_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     run_id = Column(UUID(as_uuid=True), ForeignKey(f"{SWIFT_SCHEMA}.collector_runs.run_id"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), nullable=True)
     item_code = Column(String, nullable=False)
     control_id = Column(String, nullable=False)
     evidence_type = Column(String, nullable=False)
     source_system = Column(String, nullable=False)
-    storage_uri = Column(Text, nullable=False)
     file_hash = Column(String, nullable=False)
     collected_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    response_json = Column(JSONB, nullable=True)
 

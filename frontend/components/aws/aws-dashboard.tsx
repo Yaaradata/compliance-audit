@@ -35,6 +35,7 @@ interface AwsDashboardProps {
   evidenceCount: number;
   controlIdsWithEvidence: string[];
   onFetchEvidence: () => void;
+  onRunDeleted?: () => void;
   fetching: boolean;
   fetchError: string | null;
 }
@@ -44,6 +45,7 @@ export function AwsDashboard({
   evidenceCount,
   controlIdsWithEvidence,
   onFetchEvidence,
+  onRunDeleted,
   fetching,
   fetchError,
 }: AwsDashboardProps) {
@@ -206,7 +208,7 @@ export function AwsDashboard({
           )}
         </div>
         <div className="card rounded-xl overflow-hidden">
-          <AwsRunHistory runs={runs} />
+          <AwsRunHistory runs={runs} onRunDeleted={onRunDeleted} />
         </div>
       </section>
     </div>

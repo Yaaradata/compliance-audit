@@ -12,7 +12,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 _SQL_DIR = Path(__file__).resolve().parents[2] / "sql"
-_MIGRATIONS = ["01_swift_2026_schema.sql", "02_add_ended_at.sql"]
+_MIGRATIONS = [
+    "01_swift_2026_schema.sql",
+    "02_add_ended_at.sql",
+    "03_add_response_json.sql",
+    "04_drop_storage_uri.sql",
+    "05_add_run_error_message.sql",
+    "06_add_tenant_id.sql",
+]
 
 
 def _run_sql_file(conn, filepath: Path) -> None:
@@ -45,6 +52,18 @@ def ensure_schema() -> None:
         if path.exists():
             with engine.connect() as conn:
                 _run_sql_file(conn, path)
+    # Ensure error_message and tenant_id exist (in case migrations didn't run or failed)
+    with engine.connect() as conn:
+        conn.execute(text(
+            f"ALTER TABLE {SWIFT_SCHEMA}.collector_runs ADD COLUMN IF NOT EXISTS error_message TEXT NULL"
+        ))
+        conn.execute(text(
+            f"ALTER TABLE {SWIFT_SCHEMA}.collector_runs ADD COLUMN IF NOT EXISTS tenant_id UUID NULL"
+        ))
+        conn.execute(text(
+            f"ALTER TABLE {SWIFT_SCHEMA}.evidence ADD COLUMN IF NOT EXISTS tenant_id UUID NULL"
+        ))
+        conn.commit()
 
 
 def get_db():

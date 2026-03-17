@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Fragment } from "react";
-import { getRunDetail, type AwsRun, type RunDetail } from "@/lib/aws-api";
+import { getRunDetail, deleteRun, type AwsRun, type RunDetail } from "@/lib/aws-api";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -24,13 +24,39 @@ function normalizeAwsCalls(d: RunDetail | null): { collector: string; apis: stri
 
 interface AwsRunHistoryProps {
   runs: AwsRun[];
+  onRunDeleted?: () => void;
 }
 
-export function AwsRunHistory({ runs }: AwsRunHistoryProps) {
+export function AwsRunHistory({ runs, onRunDeleted }: AwsRunHistoryProps) {
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
   const [detailByRunId, setDetailByRunId] = useState<Record<string, RunDetail | null>>({});
   const [errorByRunId, setErrorByRunId] = useState<Record<string, string>>({});
   const [loadingRunId, setLoadingRunId] = useState<string | null>(null);
+  const [deletingRunId, setDeletingRunId] = useState<string | null>(null);
+
+  const handleDeleteRun = (runId: string) => {
+    if (!confirm("Delete this run and all its evidence? This cannot be undone.")) return;
+    setDeletingRunId(runId);
+    deleteRun(runId)
+      .then(() => {
+        setExpandedRunId((prev) => (prev === runId ? null : prev));
+        setDetailByRunId((prev) => {
+          const next = { ...prev };
+          delete next[runId];
+          return next;
+        });
+        setErrorByRunId((prev) => {
+          const next = { ...prev };
+          delete next[runId];
+          return next;
+        });
+        onRunDeleted?.();
+      })
+      .catch((err: Error) => {
+        setErrorByRunId((prev) => ({ ...prev, [runId]: err.message || "Failed to delete run" }));
+      })
+      .finally(() => setDeletingRunId(null));
+  };
 
   const toggleRun = (runId: string) => {
     if (expandedRunId === runId) {
@@ -76,6 +102,7 @@ export function AwsRunHistory({ runs }: AwsRunHistoryProps) {
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--foreground-muted)" }}>Status</th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--foreground-muted)" }}>Evidence</th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--foreground-muted)" }}>Trigger</th>
+            <th className="w-20 px-4 py-3" />
           </tr>
         </thead>
         <tbody>
@@ -100,48 +127,72 @@ export function AwsRunHistory({ runs }: AwsRunHistoryProps) {
                   {formatDate(r.in_time ?? r.execution_time)}
                 </td>
                 <td className="px-4 py-2">
-                  <span className="font-medium" style={{ color: r.status === "success" ? "var(--success)" : r.status === "failed" ? "var(--danger)" : "var(--warning)" }}>
+                  <span className="font-medium" style={{ color: r.status === "success" ? "var(--success)" : r.status === "failed" || r.status === "partial" ? "var(--danger)" : "var(--warning)" }}>
                     {r.status}
                   </span>
                 </td>
                 <td className="px-4 py-2" style={{ color: "var(--foreground)" }}>{r.evidence_count ?? "—"}</td>
                 <td className="px-4 py-2" style={{ color: "var(--foreground-muted)" }}>{r.trigger_type || "—"}</td>
+                <td className="px-4 py-2">
+                  <button
+                    type="button"
+                    disabled={deletingRunId === r.run_id}
+                    onClick={() => handleDeleteRun(r.run_id)}
+                    className="rounded px-2 py-1 text-xs font-medium transition opacity-80 hover:opacity-100 disabled:opacity-50"
+                    style={{ color: "var(--danger)" }}
+                    title="Delete run and its evidence"
+                  >
+                    {deletingRunId === r.run_id ? "Deleting…" : "Delete"}
+                  </button>
+                </td>
               </tr>
               {expandedRunId === r.run_id && (
                 <tr className="border-b" style={{ borderColor: "var(--border)" }}>
-                  <td colSpan={5} className="p-4" style={{ background: "var(--background)" }}>
+                  <td colSpan={6} className="p-4" style={{ background: "var(--background)" }}>
                     {loadingRunId === r.run_id ? (
                       <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>Loading…</p>
                     ) : errorByRunId[r.run_id] ? (
                       <p className="text-sm" style={{ color: "var(--danger)" }}>{errorByRunId[r.run_id]}</p>
                     ) : (() => {
-                      const awsCalls = normalizeAwsCalls(detailByRunId[r.run_id] ?? null);
-                      return awsCalls.length > 0 ? (
-                        <div>
-                          <p className="mb-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--foreground-muted)" }}>
-                            AWS API calls by collector
-                          </p>
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            {awsCalls.map(({ collector, apis }) => (
-                              <div
-                                key={collector}
-                                className="rounded-lg border p-3"
-                                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-                              >
-                                <div className="mb-2 font-semibold" style={{ color: "var(--primary)" }}>{collector}</div>
-                                <ul className="list-inside list-disc space-y-0.5 text-xs" style={{ color: "var(--foreground-muted)" }}>
-                                  {apis.map((api, i) => (
-                                    <li key={i}>
-                                      <code style={{ color: "var(--foreground)" }}>{api}</code>
-                                    </li>
-                                  ))}
-                                </ul>
+                      const detail = detailByRunId[r.run_id] ?? null;
+                      const errorMsg = detail?.error_message;
+                      const awsCalls = normalizeAwsCalls(detail);
+                      return (
+                        <div className="space-y-3">
+                          {errorMsg && (
+                            <div className="rounded-lg border p-3" style={{ borderColor: "var(--danger)", background: "var(--danger-muted, rgba(239,68,68,0.08))" }}>
+                              <p className="mb-1 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--danger)" }}>Collector errors</p>
+                              <p className="text-sm" style={{ color: "var(--foreground)" }}>{errorMsg}</p>
+                            </div>
+                          )}
+                          {awsCalls.length > 0 ? (
+                            <div>
+                              <p className="mb-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--foreground-muted)" }}>
+                                AWS API calls by collector
+                              </p>
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {awsCalls.map(({ collector, apis }) => (
+                                  <div
+                                    key={collector}
+                                    className="rounded-lg border p-3"
+                                    style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+                                  >
+                                    <div className="mb-2 font-semibold" style={{ color: "var(--primary)" }}>{collector}</div>
+                                    <ul className="list-inside list-disc space-y-0.5 text-xs" style={{ color: "var(--foreground-muted)" }}>
+                                      {apis.map((api, i) => (
+                                        <li key={i}>
+                                          <code style={{ color: "var(--foreground)" }}>{api}</code>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          ) : !errorMsg && (
+                            <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>No detail available.</p>
+                          )}
                         </div>
-                      ) : (
-                        <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>No detail available.</p>
                       );
                     })()}
                   </td>

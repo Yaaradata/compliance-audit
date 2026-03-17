@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     # Optional: upstream SWIFT AWS Evidence service base URL (e.g. http://127.0.0.1:8001)
     SWIFT_AWS_BASE_URL: str | None = None
 
+    # Encrypt tenant AWS credentials at rest. Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    TENANT_AWS_ENCRYPTION_KEY: str = ""
+
     model_config = {
         "env_file": str(_env_file),
         "env_file_encoding": "utf-8",

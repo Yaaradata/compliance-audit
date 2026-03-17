@@ -5,7 +5,8 @@ import { AwsNav } from "@/components/aws/aws-nav";
 
 export default function AwsLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const canAccess = user?.role === "it_sme";
+  const awsRoles = ["it_sme", "tenant_admin", "compliance_officer"];
+  const canAccess = user?.role && awsRoles.includes(user.role);
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">

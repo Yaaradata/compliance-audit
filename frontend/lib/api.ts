@@ -109,6 +109,44 @@ class ApiClient {
   }
 
   /**
+   * POST via Next.js proxy (same origin) with a long timeout. Use for slow
+   * operations so the request goes through the proxy and does not require
+   * the browser to reach NEXT_PUBLIC_BACKEND_URL directly.
+   */
+  async postViaProxy<T>(path: string, body?: unknown, timeoutMs = 120_000): Promise<T> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const token = this.getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (res.status === 401) {
+      this.clearToken();
+      if (typeof window !== "undefined") window.location.href = "/login";
+      throw new Error("Unauthorized");
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      const msg = formatApiErrorDetail(err.detail);
+      const status = res.status;
+      const error = new Error(status === 404 ? `${msg} (${status})` : msg) as Error & { status?: number; path?: string; detail?: unknown; response?: { data?: unknown; status?: number } };
+      error.status = status;
+      error.path = path;
+      error.detail = err.detail;
+      error.response = { data: err, status };
+      throw error;
+    }
+
+    return res.json();
+  }
+
+  /**
    * Call the backend directly (bypassing Next.js rewrite proxy) with a long
    * timeout. Use for slow operations like AI evaluation that exceed the proxy's
    * default ~30 s timeout.

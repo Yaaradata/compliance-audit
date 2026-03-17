@@ -11,11 +11,24 @@ SOURCE_SYSTEM = "aws-guardduty"
 CONTROL_MAPPINGS = [("E1", "6.1"), ("E6", "6.5A"), ("E7", "6.4")]
 
 
-def collect(region: str, account_id: str, output_dir: Path) -> list:
+def collect(region: str, account_id: str, output_dir: Path, session=None) -> list:
     now = datetime.utcnow()
     results = []
     try:
-        gd = boto3.client("guardduty", region_name=region)
+        _collect(region, account_id, output_dir, now, results, session)
+    except Exception as e:
+        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "detector_configs": [], "findings_statistics": []}, f, indent=2, default=str)
+        for item_code, control_id in CONTROL_MAPPINGS:
+            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+    return results
+
+
+def _collect(region: str, account_id: str, output_dir: Path, now: datetime, results: list, session=None) -> None:
+    try:
+        gd = session.client("guardduty", region_name=region) if session else boto3.client("guardduty", region_name=region)
         detectors = gd.list_detectors().get("DetectorIds", [])
     except ClientError as e:
         payload = {"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "detectors": []}
@@ -25,7 +38,7 @@ def collect(region: str, account_id: str, output_dir: Path) -> list:
             json.dump(payload, f, indent=2, default=str)
         for item_code, control_id in CONTROL_MAPPINGS:
             results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
-        return results
+        return
 
     detector_configs = []
     findings_summary = []
@@ -56,4 +69,3 @@ def collect(region: str, account_id: str, output_dir: Path) -> list:
         json.dump(payload, f, indent=2, default=str)
     for item_code, control_id in CONTROL_MAPPINGS:
         results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
-    return results

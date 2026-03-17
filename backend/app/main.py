@@ -17,9 +17,11 @@ from .database import (
     ensure_optional_columns,
     ensure_control_scoping_columns,
     ensure_notes_notifications_tables,
+    ensure_tenant_aws_config_table,
     ensure_evidence_submission_history_table,
     ensure_review_hold_enum,
 )
+from .aws_evidence.core.db import ensure_schema as ensure_aws_evidence_schema
 from .routers import (
     auth,
     tenants,
@@ -45,8 +47,10 @@ async def lifespan(app: FastAPI):
     ensure_optional_columns()
     ensure_control_scoping_columns()
     ensure_notes_notifications_tables()
+    ensure_tenant_aws_config_table()
     ensure_evidence_submission_history_table()
     ensure_review_hold_enum()
+    ensure_aws_evidence_schema()  # swift_2026 schema + migrations (collector_runs, evidence, etc.)
     yield
 
 
