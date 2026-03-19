@@ -52,12 +52,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/dashboard");
       return;
     }
-    const isAwsPage = pathname?.startsWith("/aws") && (user?.role === "it_sme" || effectiveCycleRole === "it_sme");
+    const isAwsPage = pathname?.startsWith("/aws") && effectiveRole === "it_sme";
     const isUsersGroupsPage = pathname?.startsWith("/users-groups");
-    const canAccessUsersGroups = (user?.role === "compliance_officer" || user?.role === "tenant_admin") && isUsersGroupsPage;
+    const canAccessUsersGroups = (effectiveRole === "compliance_officer" || effectiveRole === "tenant_admin") && isUsersGroupsPage;
     const isAssessmentsPage = pathname?.startsWith("/assessments");
     if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage && !canAccessUsersGroups && !isAssessmentsPage) {
       router.replace("/assessments/new");
+      return;
+    }
+    if (pathname?.startsWith("/aws") && effectiveRole !== "it_sme" && effectiveCycleRole !== undefined) {
+      router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/assessments/new");
       return;
     }
     if (activeCycleId && !isCycleRoute && pathname && !isAwsPage) {
@@ -88,8 +92,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (loading) return null;
   if (!user) return null;
   if (isPlatformAdmin && pathname !== "/admin") return null;
-  const allowAwsWithoutCycle = pathname?.startsWith("/aws") && (user?.role === "it_sme" || effectiveCycleRole === "it_sme");
-  const allowUsersGroups = pathname?.startsWith("/users-groups") && (user?.role === "compliance_officer" || user?.role === "tenant_admin");
+  const renderRole = (activeCycleId && effectiveCycleRole !== undefined) ? (effectiveCycleRole ?? user?.role) : user?.role;
+  const allowAwsWithoutCycle = pathname?.startsWith("/aws") && renderRole === "it_sme";
+  const allowUsersGroups = pathname?.startsWith("/users-groups") && (renderRole === "compliance_officer" || renderRole === "tenant_admin");
   const allowAssessmentsPage = pathname?.startsWith("/assessments");
   if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute && !allowAwsWithoutCycle && !allowUsersGroups && !allowAssessmentsPage) return null;
 

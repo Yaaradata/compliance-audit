@@ -4,9 +4,14 @@ import { useAuth } from "@/lib/auth-context";
 import { AwsPageShell } from "@/components/aws/aws-page-shell";
 
 export default function AwsLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  const awsRoles = ["it_sme", "tenant_admin", "compliance_officer"];
-  const canAccess = user?.role && awsRoles.includes(user.role);
+  const { user, activeCycleId, effectiveCycleRole } = useAuth();
+
+  const role =
+    activeCycleId && effectiveCycleRole !== undefined
+      ? effectiveCycleRole ?? user?.role
+      : user?.role;
+
+  const canAccess = role === "it_sme";
 
   if (!canAccess) {
     return (
@@ -16,7 +21,7 @@ export default function AwsLayout({ children }: { children: React.ReactNode }) {
           style={{ borderColor: "var(--border)" }}
         >
           <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-            You do not have access to AWS evidence.
+            You do not have access to AWS evidence. Only IT Expert role can access this page.
           </p>
         </div>
       </div>

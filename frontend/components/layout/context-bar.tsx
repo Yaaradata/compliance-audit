@@ -11,7 +11,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
  * Renders inside the main content area; compact and aligned upward with clear visual hierarchy.
  */
 export function ContextBar() {
-  const { user, logout, selectedArchitectureId, activeCycleId, activeCycleMeta } = useAuth();
+  const { user, logout, selectedArchitectureId, activeCycleId, activeCycleMeta, effectiveCycleRole } = useAuth();
   const arch = selectedArchitectureId ? getArchitecture(selectedArchitectureId) : null;
   const initials = user?.name?.split(/\s+/).map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
 
@@ -38,7 +38,7 @@ export function ContextBar() {
         <ThemeToggle />
         {user && (
           <>
-            <span className="text-xs text-(--foreground-muted)">{getRoleLabel(user.role)}</span>
+            <span className="text-xs text-(--foreground-muted)">{getRoleLabel(activeCycleId ? (effectiveCycleRole ?? user.role) : user.role)}</span>
             <div
               className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-medium shrink-0 bg-(--foreground-muted)"
               title={user.email}

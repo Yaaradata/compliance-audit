@@ -1,6 +1,9 @@
+import logging
 from uuid import UUID
 import uuid as uuid_lib
 from datetime import datetime, timezone, time
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy import text
@@ -242,11 +245,30 @@ def get_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
 
 @router.get("/{cycle_id}/my-role")
 def get_my_role(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Return the current user's effective role for this cycle (from cycle_role_assignments). Null if no assignment (e.g. compliance officer)."""
+    """Return the effective role for this user in this cycle.
+
+    Priority: cycle_role_assignments > cycle_user_assignments (legacy) > user.role (global).
+    This ensures compliance officers get their global role even without a cycle-specific assignment.
+    """
+    from ..models.assessment import CycleRoleAssignment as CRA
+
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user, db)
-    role = get_user_cycle_role(db, user.id, cycle_id)
-    return {"role": role}
+
+    all_role_assignments = db.query(CRA).filter(CRA.cycle_id == cycle_id).all()
+    logger.info(
+        "my-role DEBUG user=%s (id=%s, group=%s, global_role=%s) cycle=%s role_assignments=%s",
+        user.email, user.id, user.group_name, user.role, cycle_id,
+        [(r.role, r.assignment_type, r.group_name, str(r.user_id)) for r in all_role_assignments],
+    )
+
+    cycle_role = get_user_cycle_role(db, user.id, cycle_id)
+    effective_role = cycle_role or user.role
+    logger.info(
+        "my-role RESULT user=%s cycle_role=%s effective=%s",
+        user.email, cycle_role, effective_role,
+    )
+    return {"role": effective_role}
 
 
 @router.delete("/{cycle_id}", status_code=204)

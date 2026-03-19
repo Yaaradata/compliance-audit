@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from "react";
+import React, { createContext, useContext, useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { api } from "./api";
 import type { User, UserRole, Tenant } from "./types";
 
@@ -67,8 +67,8 @@ interface AuthContextValue extends AuthState {
   updateTenantAdmins: (tenantId: string, admins: { email: string; name: string }[]) => void;
   addTenantUser: (tenantId: string, user: { email: string; name: string; password: string; role: string }) => Promise<void>;
   loading: boolean;
-  /** Effective role for the active cycle (from cycle_role_assignments). Null if no assignment (e.g. compliance officer). */
-  effectiveCycleRole: string | null;
+  /** Effective role for the active cycle. undefined = still loading, null = loaded but no role, string = resolved role. */
+  effectiveCycleRole: string | null | undefined;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -83,7 +83,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [effectiveCycleRole, setEffectiveCycleRole] = useState<string | null>(null);
+  const [effectiveCycleRole, setEffectiveCycleRole] = useState<string | null | undefined>(undefined);
+  // Track the last cycle for which the role was successfully resolved to prevent
+  // spurious "loading" resets when the user object refreshes (/auth/me) or when
+  // setActiveCycleId is called with the same cycle ID.
+  const lastResolvedCycleRef = useRef<string | null>(null);
 
   useEffect(() => {
     const cachedUser = loadCachedUser();
@@ -172,31 +176,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setActiveCycleId = useCallback((id: string | null, meta?: ActiveCycleMeta) => {
     if (id) {
       localStorage.setItem(CYCLE_KEY, id);
-      if (meta) {
-        localStorage.setItem(CYCLE_META_KEY, JSON.stringify(meta));
-        setState((s) => ({ ...s, activeCycleId: id, activeCycleMeta: meta }));
-      } else {
-        setState((s) => ({ ...s, activeCycleId: id }));
-      }
-      setEffectiveCycleRole(null);
+      setState((prev) => {
+        // Only clear the resolved role cache when switching to a DIFFERENT cycle.
+        // If the same cycle ID is passed again (e.g. layout re-syncing metadata),
+        // we must NOT reset effectiveCycleRole — that causes the stuck-loading bug.
+        if (prev.activeCycleId !== id) {
+          setEffectiveCycleRole(undefined);
+          lastResolvedCycleRef.current = null;
+        }
+        if (meta) {
+          localStorage.setItem(CYCLE_META_KEY, JSON.stringify(meta));
+          return { ...prev, activeCycleId: id, activeCycleMeta: meta };
+        }
+        return { ...prev, activeCycleId: id };
+      });
     } else {
       localStorage.removeItem(CYCLE_KEY);
       localStorage.removeItem(CYCLE_META_KEY);
       localStorage.removeItem(ARCHITECTURE_KEY);
+      setEffectiveCycleRole(undefined);
+      lastResolvedCycleRef.current = null;
       setState((s) => ({ ...s, activeCycleId: null, activeCycleMeta: null, selectedArchitectureId: null }));
-      setEffectiveCycleRole(null);
     }
   }, []);
 
   useEffect(() => {
     if (!state.activeCycleId || !state.user) {
-      setEffectiveCycleRole(null);
+      setEffectiveCycleRole(undefined);
+      lastResolvedCycleRef.current = null;
       return;
     }
+
+    const cycleId = state.activeCycleId;
+
+    // Only show the loading spinner when the cycle actually changed.
+    // When /auth/me refreshes the user object (same cycle), keep the current
+    // resolved role visible while we silently re-fetch in the background.
+    if (lastResolvedCycleRef.current !== cycleId) {
+      setEffectiveCycleRole(undefined);
+    }
+
+    let cancelled = false;
     api
-      .get<{ role: string | null }>(`/assessments/${state.activeCycleId}/my-role`)
-      .then((res) => setEffectiveCycleRole(res.role ?? null))
-      .catch(() => setEffectiveCycleRole(null));
+      .get<{ role: string | null }>(`/assessments/${cycleId}/my-role`)
+      .then((res) => {
+        if (cancelled) return;
+        const role = res.role ?? null;
+        console.log("[auth] my-role resolved:", { cycleId, role });
+        setEffectiveCycleRole(role);
+        lastResolvedCycleRef.current = cycleId;
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn("[auth] my-role failed:", err);
+        setEffectiveCycleRole(null);
+        lastResolvedCycleRef.current = cycleId;
+      });
+
+    return () => { cancelled = true; };
   }, [state.activeCycleId, state.user]);
 
   const addTenant = useCallback(async (input: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { initialUsers?: { email: string; name: string; password: string; role: string }[]; bankAdmins?: { email: string; name: string }[] }) => {

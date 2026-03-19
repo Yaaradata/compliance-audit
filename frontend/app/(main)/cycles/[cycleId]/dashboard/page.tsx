@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   ComplianceOfficerDashboard,
   ITSmeDashboard,
@@ -12,6 +13,7 @@ import {
 
 const DASHBOARD_BY_ROLE: Record<string, React.ComponentType<{ cycleId: string }>> = {
   compliance_officer: ComplianceOfficerDashboard,
+  tenant_admin: ComplianceOfficerDashboard,
   it_sme: ITSmeDashboard,
   internal_reviewer_l1: L1ReviewerDashboard,
   internal_reviewer_l2: L2ReviewerDashboard,
@@ -21,11 +23,7 @@ const DASHBOARD_BY_ROLE: Record<string, React.ComponentType<{ cycleId: string }>
 export default function CycleDashboardPage() {
   const params = useParams();
   const cycleId = params.cycleId as string;
-  const { user } = useAuth();
-  const role = user?.role ?? "compliance_officer";
-
-  const DashboardComponent =
-    DASHBOARD_BY_ROLE[role] ?? ComplianceOfficerDashboard;
+  const { effectiveCycleRole } = useAuth();
 
   if (!cycleId) {
     return (
@@ -36,6 +34,13 @@ export default function CycleDashboardPage() {
       </div>
     );
   }
+
+  if (effectiveCycleRole === undefined) {
+    return <LoadingState message="Loading dashboard…" />;
+  }
+
+  const DashboardComponent =
+    (effectiveCycleRole && DASHBOARD_BY_ROLE[effectiveCycleRole]) || ComplianceOfficerDashboard;
 
   return <DashboardComponent cycleId={cycleId} />;
 }

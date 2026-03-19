@@ -42,7 +42,7 @@ export function AppSidebar() {
   const cycleIdFromPath = useCycleIdFromPath();
   const cycleId = cycleIdFromPath ?? activeCycleId;
   const [searchQuery, setSearchQuery] = useState("");
-  const role = cycleId ? (effectiveCycleRole ?? user?.role) : user?.role;
+  const role = cycleId && effectiveCycleRole !== undefined ? (effectiveCycleRole ?? user?.role) : user?.role;
   const navItems = getNavForRole(role)?.filter(
     (item) =>
       item.href.startsWith("/dashboard") ||

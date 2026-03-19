@@ -34,7 +34,7 @@ function getBreadcrumb(pathname: string | null): { label: string; href?: string 
 
 export function AppHeader() {
   const pathname = usePathname();
-  const { user, logout, selectedArchitectureId, activeCycleId, activeCycleMeta } = useAuth();
+  const { user, logout, selectedArchitectureId, activeCycleId, activeCycleMeta, effectiveCycleRole } = useAuth();
   const { toggle: toggleSidebar } = useSidebar();
   const arch = selectedArchitectureId ? getArchitecture(selectedArchitectureId) : null;
   const initials = user?.name?.split(/\s+/).map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
@@ -90,7 +90,7 @@ export function AppHeader() {
         <ThemeToggle />
         {user && (
           <>
-            <span className="text-xs text-[var(--foreground-muted)]">{getRoleLabel(user.role)}</span>
+            <span className="text-xs text-[var(--foreground-muted)]">{getRoleLabel(activeCycleId ? (effectiveCycleRole ?? user.role) : user.role)}</span>
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold bg-[var(--primary)] shrink-0"
               title={user.email}
