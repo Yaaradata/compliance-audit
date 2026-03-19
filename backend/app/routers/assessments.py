@@ -1,24 +1,30 @@
 from uuid import UUID
 import uuid as uuid_lib
+from datetime import datetime, timezone, time
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_db_scoped, get_current_user
-from ..constants import PLATFORM_ADMIN_ROLES, CYCLE_SCOPED_ROLES
+from ..dependencies import get_db, get_db_scoped, get_current_user, _resolve_schema_for_cycle
+from ..constants import PLATFORM_ADMIN_ROLES, CYCLE_SCOPED_ROLES, is_cycle_scoped
 from ..middleware.auth import hash_password
 from ..models.tenant import User
-from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceSubmission, CycleUserAssignment
+from ..models.assessment import AssessmentCycle, CyclePhaseDeadline, ControlApplicability, EvidenceSubmission, CycleUserAssignment
 from ..models.approval import ApprovalGate
 from ..models.framework import Control, EvidenceDomain, CanonicalEvidenceItem, AuditFramework
 from ..models.sufficiency import SufficiencyScore
 from ..schemas.assessment import (
     CreateCycleRequest, UpdateCycleRequest, CycleOut,
+    PhaseDeadlineOut,
     CycleTeamCreate, CycleTeamUserCreate,
+    ROLE_TO_PHASE,
     DashboardResponse, DomainScore, ControlScore,
     ControlScopingItem, ControlScopingUpdateRequest,
+    TIMELINE_PHASES,
 )
 from ..services.cycle_cleanup import delete_cycle_evidence_and_related
+from ..services.assignment_constraints import get_user_cycle_ids, get_user_cycle_role
 from ..services.batch_loaders import load_controls_by_ids
 from ..services import storage_service
 from . import controls as controls_router
@@ -44,12 +50,9 @@ def _attach_schema_name(cycle: AssessmentCycle, db: Session) -> None:
 @router.get("", response_model=list[CycleOut])
 def list_cycles(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     q = db.query(AssessmentCycle)
-    if user.role in CYCLE_SCOPED_ROLES:
-        # Cycle-scoped: only cycles they are assigned to
-        assigned_cycle_ids = db.query(CycleUserAssignment.cycle_id).filter(
-            CycleUserAssignment.user_id == user.id
-        ).distinct().all()
-        cycle_ids = [c[0] for c in assigned_cycle_ids]
+    if is_cycle_scoped(user.role):
+        # Cycle-scoped: only cycles they are assigned to (cycle_user_assignments or cycle_role_assignments)
+        cycle_ids = get_user_cycle_ids(db, user.id)
         if not cycle_ids:
             return []
         q = q.filter(AssessmentCycle.id.in_(cycle_ids))
@@ -58,6 +61,10 @@ def list_cycles(db: Session = Depends(get_db), user: User = Depends(get_current_
     cycles = q.order_by(AssessmentCycle.created_at.desc()).all()
     for c in cycles:
         _attach_schema_name(c, db)
+        schema = _resolve_schema_for_cycle(db, c.id)
+        db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+        deadlines = db.query(CyclePhaseDeadline).filter(CyclePhaseDeadline.cycle_id == c.id).all()
+        setattr(c, "phase_deadlines", deadlines)
     return cycles
 
 
@@ -80,27 +87,44 @@ def create_cycle(req: CreateCycleRequest, db: Session = Depends(get_db), user: U
         label=req.label,
         cycle_year=req.cycle_year,
         start_date=req.start_date,
+        end_date=req.end_date,
         target_submission_date=req.target_submission_date,
         created_by=user.id,
     )
     db.add(cycle)
+    db.flush()
+    if req.phase_deadlines:
+        schema = _resolve_schema_for_cycle(db, cycle.id)
+        db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+        for phase in TIMELINE_PHASES:
+            if phase not in req.phase_deadlines:
+                continue
+            pd_in = req.phase_deadlines[phase]
+            db.add(CyclePhaseDeadline(
+                cycle_id=cycle.id,
+                phase=phase,
+                start_at=pd_in.start_at,
+                end_at=pd_in.end_at,
+            ))
     db.commit()
     db.refresh(cycle)
-    return cycle
+    schema = _resolve_schema_for_cycle(db, cycle.id)
+    db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+    deadlines = db.query(CyclePhaseDeadline).filter(CyclePhaseDeadline.cycle_id == cycle.id).all()
+    setattr(cycle, "phase_deadlines", deadlines)
+    _attach_schema_name(cycle, db)
+    return CycleOut.model_validate(cycle)
 
 
 def _require_cycle_access(cycle: AssessmentCycle | None, user: User, db: Session | None = None) -> None:
     """Raise 404 if cycle missing, 403 if user may not access."""
     if not cycle:
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
-    if user.role in CYCLE_SCOPED_ROLES:
+    if is_cycle_scoped(user.role):
         if not db:
             raise HTTPException(status_code=500, detail="Database session required for cycle access check")
-        assigned = db.query(CycleUserAssignment).filter(
-            CycleUserAssignment.cycle_id == cycle.id,
-            CycleUserAssignment.user_id == user.id,
-        ).first()
-        if not assigned:
+        cycle_ids = get_user_cycle_ids(db, user.id)
+        if cycle.id not in cycle_ids:
             raise HTTPException(status_code=403, detail="Access denied")
     elif user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
         if cycle.tenant_id != user.tenant_id:
@@ -134,6 +158,17 @@ def create_cycle_team(
     _require_compliance_officer_or_admin(user)
 
     tenant_id = cycle.tenant_id
+    # Defaults from audit window if per-role dates are not provided
+    default_start_dt = (
+        datetime.combine(cycle.start_date, time.min).replace(tzinfo=timezone.utc)
+        if cycle.start_date
+        else None
+    )
+    default_end_dt = (
+        datetime.combine(cycle.end_date, time.max).replace(tzinfo=timezone.utc)
+        if cycle.end_date
+        else None
+    )
     created = []
     for u in req.users:
         if db.query(User).filter(User.email == u.email.strip().lower()).first():
@@ -159,6 +194,36 @@ def create_cycle_team(
         db.add(assignment)
         created.append({"id": str(new_user.id), "email": new_user.email, "role": new_user.role})
 
+        # Upsert phase deadline for this role's phase (evidence_upload, l1_review, etc.).
+        # If per-user start/end not provided, fall back to audit cycle start/end dates.
+        phase = ROLE_TO_PHASE.get(u.role)
+        if phase and (default_start_dt is not None or u.start_at is not None) and (
+            default_end_dt is not None or u.end_at is not None
+        ):
+            effective_start = u.start_at or default_start_dt
+            effective_end = u.end_at or default_end_dt
+            if effective_start is not None and effective_end is not None:
+                schema = _resolve_schema_for_cycle(db, cycle_id)
+                db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+                existing = db.query(CyclePhaseDeadline).filter(
+                    CyclePhaseDeadline.cycle_id == cycle_id,
+                    CyclePhaseDeadline.phase == phase,
+                ).first()
+                if existing:
+                    existing.start_at = effective_start
+                    existing.end_at = effective_end
+                    existing.updated_at = datetime.now(timezone.utc)
+                else:
+                    db.add(
+                        CyclePhaseDeadline(
+                            cycle_id=cycle_id,
+                            phase=phase,
+                            start_at=effective_start,
+                            end_at=effective_end,
+                        )
+                    )
+                db.flush()
+
     db.commit()
     return created
 
@@ -168,7 +233,20 @@ def get_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user, db)
     _attach_schema_name(cycle, db)
+    schema = _resolve_schema_for_cycle(db, cycle.id)
+    db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+    deadlines = db.query(CyclePhaseDeadline).filter(CyclePhaseDeadline.cycle_id == cycle.id).all()
+    setattr(cycle, "phase_deadlines", deadlines)
     return cycle
+
+
+@router.get("/{cycle_id}/my-role")
+def get_my_role(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Return the current user's effective role for this cycle (from cycle_role_assignments). Null if no assignment (e.g. compliance officer)."""
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+    role = get_user_cycle_role(db, user.id, cycle_id)
+    return {"role": role}
 
 
 @router.delete("/{cycle_id}", status_code=204)
@@ -216,12 +294,26 @@ def update_cycle(cycle_id: UUID, req: UpdateCycleRequest, db: Session = Depends(
 
     if req.label:
         cycle.label = req.label
-    if req.target_submission_date:
+    if req.start_date is not None:
+        cycle.start_date = req.start_date
+    if req.end_date is not None:
+        cycle.end_date = req.end_date
+    if req.target_submission_date is not None:
         cycle.target_submission_date = req.target_submission_date
+    if req.phase_deadlines is not None:
+        db.query(CyclePhaseDeadline).filter(CyclePhaseDeadline.cycle_id == cycle_id).delete(synchronize_session=False)
+        for phase in TIMELINE_PHASES:
+            if phase not in req.phase_deadlines:
+                continue
+            pd_in = req.phase_deadlines[phase]
+            db.add(CyclePhaseDeadline(cycle_id=cycle.id, phase=phase, start_at=pd_in.start_at, end_at=pd_in.end_at))
 
     db.commit()
     db.refresh(cycle)
-    return cycle
+    deadlines = db.query(CyclePhaseDeadline).filter(CyclePhaseDeadline.cycle_id == cycle.id).all()
+    setattr(cycle, "phase_deadlines", deadlines)
+    _attach_schema_name(cycle, db)
+    return CycleOut.model_validate(cycle)
 
 
 @router.get("/{cycle_id}/control-scoping", response_model=list[ControlScopingItem])

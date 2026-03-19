@@ -9,10 +9,12 @@ from ..database import Base
 
 
 class ApprovalGate(Base):
+    """Lives in swift_2025/swift_2026; schema resolved from search_path. FK to core.assessment_cycles."""
     __tablename__ = "approval_gates"
+    __table_args__ = {"schema": None}  # Resolved from search_path (swift_2025 or swift_2026)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assessment_cycles.id"), nullable=False)
+    cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("core.assessment_cycles.id"), nullable=False)
     gate: Mapped[str] = mapped_column(String(30), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pending")
     approved_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))

@@ -24,7 +24,7 @@ class UserOut(BaseModel):
     id: UUID
     email: str
     name: str
-    role: str
+    role: str | None = None
     tenant_id: UUID | None = None
     is_active: bool = True
 

@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
+from ..models.tenant import Tenant
 
 
 class TenantAwsConfig(Base):
@@ -15,7 +16,7 @@ class TenantAwsConfig(Base):
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
+        ForeignKey(Tenant.__table__.c.id, ondelete="CASCADE"),
         primary_key=True,
     )
     aws_account_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
