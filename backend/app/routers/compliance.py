@@ -12,12 +12,14 @@ All of the above persist in the DB (core.users.group_name).
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_current_user
 from ..middleware.auth import hash_password
 from ..models.tenant import User
+from ..services.user_deletion import delete_user_cascade
 from ..schemas.compliance import (
     ComplianceUserOut,
     ComplianceUserCreate,
@@ -54,6 +56,7 @@ def _user_to_out(u: User) -> ComplianceUserOut:
         name=u.name,
         role=u.role,
         group_name=getattr(u, "group_name", None),
+        is_external=getattr(u, "is_external", False),
     )
 
 
@@ -75,6 +78,34 @@ def list_tenant_users(
         .all()
     )
     return [_user_to_out(u) for u in rows]
+
+
+@router.post("/users/{user_id}/delete", status_code=204, response_class=Response)
+def delete_tenant_user(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Delete a user from the tenant and all related assignments across cycles.
+    """
+    _require_compliance_manager(user)
+    _require_tenant(user)
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.tenant_id != user.tenant_id:
+        raise HTTPException(status_code=403, detail="Cannot delete users from another tenant.")
+    if target.id == user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account.")
+    db.expire(target)  # Avoid session refresh of deleted row
+    try:
+        delete_user_cascade(db, user_id)
+        db.commit()
+        return Response(status_code=204)
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post("/users", response_model=ComplianceUserOut, status_code=201)
@@ -104,12 +135,26 @@ def create_tenant_user(
         email=req.email.strip().lower(),
         name=name,
         password_hash=hash_password(req.password),
-        role=req.role,
+        role=None,
+        is_external=req.is_external,
         tenant_id=user.tenant_id,
         group_name=(req.group_name.strip() or None) if req.group_name else None,
     )
     db.add(new_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        err = str(e.orig) if getattr(e, "orig", None) else str(e)
+        if "null value" in err.lower() or "not null" in err.lower() or "violates not-null" in err.lower():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Database still requires a non-null user role. Restart the API (applies auto-migration) or run "
+                    "backend/sql/35_user_role_nullable.sql on your database."
+                ),
+            ) from e
+        raise HTTPException(status_code=400, detail="Could not create user.") from e
     db.refresh(new_user)
     return _user_to_out(new_user)
 
@@ -132,7 +177,10 @@ def update_user_group(
         raise HTTPException(status_code=404, detail="User not found")
     if target.tenant_id != user.tenant_id:
         raise HTTPException(status_code=403, detail="Cannot update users from another tenant.")
-    target.group_name = (req.group_name.strip() or None) if req.group_name else None
+    if req.group_name is not None:
+        target.group_name = (req.group_name.strip() or None) if req.group_name else None
+    if req.is_external is not None:
+        target.is_external = req.is_external
     db.commit()
     db.refresh(target)
     return _user_to_out(target)

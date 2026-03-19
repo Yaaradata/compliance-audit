@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_db_scoped, get_current_user, _resolve_schema_for_cycle
-from ..constants import PLATFORM_ADMIN_ROLES, CYCLE_SCOPED_ROLES
+from ..constants import PLATFORM_ADMIN_ROLES, CYCLE_SCOPED_ROLES, is_cycle_scoped
 from ..middleware.auth import hash_password
 from ..models.tenant import User
 from ..models.assessment import AssessmentCycle, CyclePhaseDeadline, ControlApplicability, EvidenceSubmission, CycleUserAssignment
@@ -24,6 +24,7 @@ from ..schemas.assessment import (
     TIMELINE_PHASES,
 )
 from ..services.cycle_cleanup import delete_cycle_evidence_and_related
+from ..services.assignment_constraints import get_user_cycle_ids, get_user_cycle_role
 from ..services.batch_loaders import load_controls_by_ids
 from ..services import storage_service
 from . import controls as controls_router
@@ -49,12 +50,9 @@ def _attach_schema_name(cycle: AssessmentCycle, db: Session) -> None:
 @router.get("", response_model=list[CycleOut])
 def list_cycles(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     q = db.query(AssessmentCycle)
-    if user.role in CYCLE_SCOPED_ROLES:
-        # Cycle-scoped: only cycles they are assigned to
-        assigned_cycle_ids = db.query(CycleUserAssignment.cycle_id).filter(
-            CycleUserAssignment.user_id == user.id
-        ).distinct().all()
-        cycle_ids = [c[0] for c in assigned_cycle_ids]
+    if is_cycle_scoped(user.role):
+        # Cycle-scoped: only cycles they are assigned to (cycle_user_assignments or cycle_role_assignments)
+        cycle_ids = get_user_cycle_ids(db, user.id)
         if not cycle_ids:
             return []
         q = q.filter(AssessmentCycle.id.in_(cycle_ids))
@@ -122,14 +120,11 @@ def _require_cycle_access(cycle: AssessmentCycle | None, user: User, db: Session
     """Raise 404 if cycle missing, 403 if user may not access."""
     if not cycle:
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
-    if user.role in CYCLE_SCOPED_ROLES:
+    if is_cycle_scoped(user.role):
         if not db:
             raise HTTPException(status_code=500, detail="Database session required for cycle access check")
-        assigned = db.query(CycleUserAssignment).filter(
-            CycleUserAssignment.cycle_id == cycle.id,
-            CycleUserAssignment.user_id == user.id,
-        ).first()
-        if not assigned:
+        cycle_ids = get_user_cycle_ids(db, user.id)
+        if cycle.id not in cycle_ids:
             raise HTTPException(status_code=403, detail="Access denied")
     elif user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
         if cycle.tenant_id != user.tenant_id:
@@ -243,6 +238,15 @@ def get_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
     deadlines = db.query(CyclePhaseDeadline).filter(CyclePhaseDeadline.cycle_id == cycle.id).all()
     setattr(cycle, "phase_deadlines", deadlines)
     return cycle
+
+
+@router.get("/{cycle_id}/my-role")
+def get_my_role(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Return the current user's effective role for this cycle (from cycle_role_assignments). Null if no assignment (e.g. compliance officer)."""
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+    role = get_user_cycle_role(db, user.id, cycle_id)
+    return {"role": role}
 
 
 @router.delete("/{cycle_id}", status_code=204)

@@ -17,6 +17,15 @@ TENANT_ROLES = frozenset({
 CYCLE_SCOPED_ROLES = frozenset({"it_sme", "internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"})
 
 
+def is_cycle_scoped(role: str | None) -> bool:
+    """True if the user's access is determined by cycle_role_assignments.
+
+    This covers both explicitly cycle-scoped roles (it_sme, reviewers, assessor)
+    and null-role users who have no global role yet.
+    """
+    return role is None or role in CYCLE_SCOPED_ROLES
+
+
 def is_platform_admin(role: str | None, tenant_id: str | None) -> bool:
     """True if user is a platform admin (no tenant, platform role)."""
     if tenant_id is not None:

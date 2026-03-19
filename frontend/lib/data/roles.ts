@@ -11,6 +11,12 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   external_assessor: "External Assessor (L3) / Approver",
 };
 
+/** Resolve a display label for any role including null (unassigned). */
+export function getRoleLabel(role: UserRole | null | undefined): string {
+  if (!role) return "Unassigned";
+  return ROLE_LABELS[role] ?? role;
+}
+
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   admin: "Onboard banks, manage tenants, assign bank admins.",
   platform_admin: "Onboard banks, manage tenants, assign bank admins.",
@@ -21,6 +27,18 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   internal_reviewer_l2: "L2 quality reviewer.",
   external_assessor: "Final approver for evidence.",
 };
+
+/** Minimal nav for users with no global role and no active cycle role. */
+export const UNASSIGNED_NAV: { href: string; label: string; icon?: string }[] = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/assessments/new", label: "Assessment Cycles" },
+];
+
+/** Resolve nav items for a role, including null (unassigned). */
+export function getNavForRole(role: UserRole | string | null | undefined): { href: string; label: string; icon?: string }[] {
+  if (!role) return UNASSIGNED_NAV;
+  return NAV_BY_ROLE[role as UserRole] ?? UNASSIGNED_NAV;
+}
 
 export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?: string }[]> = {
   admin: [
@@ -52,14 +70,17 @@ export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?:
   ],
   internal_reviewer_l1: [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/review", label: "Review Queue" },
     { href: "/report", label: "Report" },
   ],
   internal_reviewer_l2: [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/review", label: "Review Queue" },
     { href: "/report", label: "Report" },
   ],
   external_assessor: [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/review", label: "Review Queue" },
     { href: "/report", label: "Report" },
   ],
 };

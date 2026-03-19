@@ -21,6 +21,10 @@ from .database import (
     ensure_evidence_submission_history_table,
     ensure_review_hold_enum,
     ensure_user_group_name,
+    ensure_user_is_external,
+    ensure_user_role_nullable,
+    ensure_cycle_role_assignments,
+    ensure_cycle_evidence_assignments,
 )
 from .aws_evidence.core.db import ensure_schema as ensure_aws_evidence_schema
 from .routers import (
@@ -28,6 +32,7 @@ from .routers import (
     tenants,
     users,
     assessments,
+    cycle_assignments,
     controls,
     evidence,
     files,
@@ -43,7 +48,6 @@ from .routers import (
     aws,
     compliance,
 )
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     ensure_optional_columns()
@@ -53,6 +57,10 @@ async def lifespan(app: FastAPI):
     ensure_evidence_submission_history_table()
     ensure_review_hold_enum()
     ensure_user_group_name()
+    ensure_user_is_external()
+    ensure_user_role_nullable()
+    ensure_cycle_role_assignments()
+    ensure_cycle_evidence_assignments()
     ensure_aws_evidence_schema()  # swift_2026 schema + migrations (collector_runs, evidence, etc.)
     yield
 
@@ -75,11 +83,14 @@ app.add_middleware(
 PREFIX = "/api/v1"
 
 app.include_router(auth.router,          prefix=PREFIX, tags=["auth"])
+app.include_router(compliance.router,   prefix=PREFIX)
 # Notes and notifications registered early so /api/v1/notes and /api/v1/notifications are matched first
 app.include_router(notes.router,        prefix=PREFIX, tags=["notes"])
 app.include_router(notifications.router, prefix=PREFIX, tags=["notifications"])
 app.include_router(tenants.router,      prefix=PREFIX, tags=["tenants"])
 app.include_router(users.router,        prefix=PREFIX, tags=["users"])
+# Register cycle_assignments before assessments so /{cycle_id}/role-assignments etc. match before /{cycle_id}
+app.include_router(cycle_assignments.router, prefix=PREFIX)
 app.include_router(assessments.router,  prefix=PREFIX, tags=["assessments"])
 app.include_router(controls.router,     prefix=PREFIX, tags=["controls"])
 app.include_router(evidence.router,     prefix=PREFIX, tags=["evidence"])
@@ -89,9 +100,10 @@ app.include_router(reviews.router,      prefix=PREFIX, tags=["reviews"])
 app.include_router(approval.router,     prefix=PREFIX, tags=["approval"])
 app.include_router(reports.router,      prefix=PREFIX, tags=["reports"])
 app.include_router(vendors.router,      prefix=PREFIX, tags=["vendors"])
-app.include_router(reference.router,    prefix=PREFIX, tags=["reference"])
+# Diagram image bytes: public route so <img src="/api/v1/ref/diagrams/.../content"> works (no Authorization header).
+app.include_router(reference.diagrams_content_router, prefix=PREFIX)
+app.include_router(reference.router, prefix=PREFIX)
 app.include_router(audit_log.router,    prefix=PREFIX, tags=["audit-log"])
-app.include_router(compliance.router,   prefix=PREFIX)
 app.include_router(aws.router,          prefix=PREFIX, tags=["aws"])
 
 

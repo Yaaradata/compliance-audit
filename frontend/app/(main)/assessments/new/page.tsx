@@ -63,7 +63,7 @@ export default function AssessmentsPage() {
       if (startDate) body.start_date = startDate;
       if (endDate) body.end_date = endDate;
       const cycle = await api.post<AssessmentCycle>("/assessments", body);
-      router.push(`/cycles/${cycle.id}/team-setup`);
+      router.push(`/cycles/${cycle.id}/role-evidence-setup`);
     } catch {
       setCreating(false);
     }
@@ -78,17 +78,27 @@ export default function AssessmentsPage() {
       await api.del(`/assessments/${cycle.id}`);
       setCycles((prev) => prev.filter((c) => c.id !== cycle.id));
       if (cycle.id === activeCycleId) setActiveCycleId(null);
-    } catch {
-      setDeletingId(null);
+    } catch (err: unknown) {
+      const status = (err as Error & { status?: number })?.status;
+      if (status === 404) {
+        // Already deleted (e.g. another tab) — treat as success
+        setCycles((prev) => prev.filter((c) => c.id !== cycle.id));
+        if (cycle.id === activeCycleId) setActiveCycleId(null);
+      }
     } finally {
       setDeletingId(null);
     }
   };
 
-  /** Open the selected assessment: set cycle id (and meta) so all evidence/evaluations are scoped to this cycle. */
+  /**
+   * Open the selected assessment. Resume from where the user left off:
+   * - Setup phase (or no architecture yet): go to Role & Evidence setup first; from there they can
+   *   continue to Select Architecture, so logging back in continues from step 1.
+   * - After setup: set active cycle and go to dashboard (Collection).
+   */
   const handleOpenCycle = (cycle: AssessmentCycle) => {
     if (cycle.phase === "setup" || !cycle.architecture_type) {
-      router.push(`/select-architecture?cycleId=${cycle.id}`);
+      router.push(`/cycles/${cycle.id}/role-evidence-setup`);
       return;
     }
     setArchitecture(cycle.architecture_type);

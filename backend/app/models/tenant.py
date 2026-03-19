@@ -10,6 +10,7 @@ from ..database import Base
 
 class Tenant(Base):
     __tablename__ = "tenants"
+    __table_args__ = {"schema": "core"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -29,14 +30,16 @@ class Tenant(Base):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {"schema": "core"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"))
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("core.tenants.id"))
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[str] = mapped_column(String(30), nullable=False, server_default="it_sme")
+    role: Mapped[str | None] = mapped_column(String(30), nullable=True)
     group_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_external: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

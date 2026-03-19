@@ -9,7 +9,7 @@ import { AppShell } from "@/app/app-shell";
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, activeCycleId, setActiveCycleId, setArchitecture, selectedArchitectureId, isPlatformAdmin, loading } = useAuth();
+  const { user, activeCycleId, setActiveCycleId, setArchitecture, selectedArchitectureId, isPlatformAdmin, loading, effectiveCycleRole } = useAuth();
 
   const isCycleRoute = pathname?.startsWith("/cycles/");
 
@@ -47,14 +47,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       return;
     }
     // Approver (L3): redirect from Approval page to Dashboard; approval is done via Dashboard Review Queue
-    if (user.role === "external_assessor" && pathname?.includes("/approval")) {
+    const effectiveRole = (activeCycleId && effectiveCycleRole !== undefined) ? (effectiveCycleRole ?? user.role) : user.role;
+    if (effectiveRole === "external_assessor" && pathname?.includes("/approval")) {
       router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/dashboard");
       return;
     }
-    const isAwsPage = pathname?.startsWith("/aws") && user?.role === "it_sme";
+    const isAwsPage = pathname?.startsWith("/aws") && (user?.role === "it_sme" || effectiveCycleRole === "it_sme");
     const isUsersGroupsPage = pathname?.startsWith("/users-groups");
     const canAccessUsersGroups = (user?.role === "compliance_officer" || user?.role === "tenant_admin") && isUsersGroupsPage;
-    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage && !canAccessUsersGroups) {
+    const isAssessmentsPage = pathname?.startsWith("/assessments");
+    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage && !canAccessUsersGroups && !isAssessmentsPage) {
       router.replace("/assessments/new");
       return;
     }
@@ -81,14 +83,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         return;
       }
     }
-  }, [user, activeCycleId, selectedArchitectureId, isPlatformAdmin, pathname, router, loading, isCycleRoute]);
+  }, [user, activeCycleId, selectedArchitectureId, isPlatformAdmin, pathname, router, loading, isCycleRoute, effectiveCycleRole]);
 
   if (loading) return null;
   if (!user) return null;
   if (isPlatformAdmin && pathname !== "/admin") return null;
-  const allowAwsWithoutCycle = pathname?.startsWith("/aws") && user?.role === "it_sme";
+  const allowAwsWithoutCycle = pathname?.startsWith("/aws") && (user?.role === "it_sme" || effectiveCycleRole === "it_sme");
   const allowUsersGroups = pathname?.startsWith("/users-groups") && (user?.role === "compliance_officer" || user?.role === "tenant_admin");
-  const allowAssessmentsPage = pathname?.startsWith("/assessments") && (user?.role === "compliance_officer" || user?.role === "tenant_admin");
+  const allowAssessmentsPage = pathname?.startsWith("/assessments");
   if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute && !allowAwsWithoutCycle && !allowUsersGroups && !allowAssessmentsPage) return null;
 
   // Team setup: standalone page without sidebar or main header
@@ -101,12 +103,24 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return <>{children}</>;
   }
 
-  // Role-based route protection
-  const role = user?.role;
-  if (role && pathname) {
+  // Role-based route protection: use cycle role when in cycle context
+  const role = (activeCycleId && effectiveCycleRole !== undefined) ? (effectiveCycleRole ?? user?.role) : user?.role;
+  if (pathname) {
     const isReviewRoute = pathname.includes("/review");
     const isApprovalRoute = pathname.includes("/approval");
     const isDomainRoute = pathname.includes("/domains/");
+
+    // Null-role users (unassigned) can only access dashboard and assessments list
+    if (!role && (isReviewRoute || isApprovalRoute || isDomainRoute)) {
+      return (
+        <AppShell>
+          <div className="flex flex-col items-center justify-center h-64 gap-2">
+            <p className="text-sm text-gray-500">You have not been assigned to any cycle yet.</p>
+            <p className="text-xs text-gray-400">Contact your Compliance Officer for role assignment.</p>
+          </div>
+        </AppShell>
+      );
+    }
 
     if (role === "it_sme" && (isReviewRoute || isApprovalRoute)) {
       return (

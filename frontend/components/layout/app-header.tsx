@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getArchitecture } from "@/lib/frameworks/swift-cscf";
-import { ROLE_LABELS } from "@/lib/data/roles";
+import { getRoleLabel } from "@/lib/data/roles";
 import { useSidebar } from "@/lib/sidebar-context";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -90,7 +90,7 @@ export function AppHeader() {
         <ThemeToggle />
         {user && (
           <>
-            <span className="text-xs text-[var(--foreground-muted)]">{ROLE_LABELS[user.role]}</span>
+            <span className="text-xs text-[var(--foreground-muted)]">{getRoleLabel(user.role)}</span>
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold bg-[var(--primary)] shrink-0"
               title={user.email}

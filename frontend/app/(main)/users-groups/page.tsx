@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
-import { ROLE_LABELS } from "@/lib/data/roles";
+import { getRoleLabel } from "@/lib/data/roles";
 import { PasswordInput } from "@/components/ui/password-input";
 import type { UserRole } from "@/lib/types";
 
@@ -13,8 +13,9 @@ export interface ComplianceUser {
   id: string;
   email: string;
   name: string;
-  role: string;
+  role: string | null;
   group_name: string | null;
+  is_external?: boolean;
 }
 
 interface LocalGroup {
@@ -27,19 +28,25 @@ interface NewUserForm {
   email: string;
   name: string;
   password: string;
-  role: UserRole;
+  is_external: boolean;
   group_name: string | null;
 }
 
 // ─── Constants ───
-const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: "it_sme", label: ROLE_LABELS.it_sme },
-  { value: "internal_reviewer_l1", label: ROLE_LABELS.internal_reviewer_l1 },
-  { value: "internal_reviewer_l2", label: ROLE_LABELS.internal_reviewer_l2 },
-  { value: "external_assessor", label: ROLE_LABELS.external_assessor },
-  { value: "compliance_officer", label: ROLE_LABELS.compliance_officer },
-  { value: "tenant_admin", label: ROLE_LABELS.tenant_admin },
-];
+/** Display labels for roles. */
+const ROLE_DISPLAY: Record<string, string> = {
+  it_sme: "IT Expert",
+  internal_reviewer_l1: "L1",
+  internal_reviewer_l2: "L2",
+  external_assessor: "Approver",
+  compliance_officer: "Compliance Officer",
+  tenant_admin: "Tenant Admin",
+};
+
+function getRoleDisplayLabel(role: string | null): string {
+  if (!role) return "Assigned per cycle";
+  return ROLE_DISPLAY[role] ?? getRoleLabel(role as UserRole) ?? "Assigned per cycle";
+}
 
 const GROUP_COLORS = ["#1f4e79", "#0284c7", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2", "#4f46e5"];
 
@@ -47,7 +54,7 @@ const emptyUserForm: NewUserForm = {
   email: "",
   name: "",
   password: "",
-  role: "it_sme",
+  is_external: false,
   group_name: null,
 };
 
@@ -116,7 +123,8 @@ function getAvatarColor(name: string) {
   return colors[Math.abs(hash) % colors.length];
 }
 
-function roleBadgeStyle(role: string): { bg: string; text: string; border: string } {
+function roleBadgeStyle(role: string | null): { bg: string; text: string; border: string } {
+  if (!role) return { bg: "#f1f5f9", text: "#64748b", border: "#e2e8f0" };
   if (role.includes("compliance") || role.includes("Compliance")) return { bg: "#ecfdf5", text: "#059669", border: "#a7f3d0" };
   if (role.includes("l1") || role.includes("L1")) return { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe" };
   if (role.includes("l2") || role.includes("L2")) return { bg: "#faf5ff", text: "#7c3aed", border: "#ddd6fe" };
@@ -187,7 +195,6 @@ export default function UsersGroupsPage() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"users" | "groups">("users");
   const [search, setSearch] = useState("");
-  const [filterRole, setFilterRole] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [showAddUser, setShowAddUser] = useState(false);
@@ -195,6 +202,7 @@ export default function UsersGroupsPage() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<ComplianceUser | null>(null);
   const [userForm, setUserForm] = useState<NewUserForm>(emptyUserForm);
   const [groupForm, setGroupForm] = useState({ name: "", color: GROUP_COLORS[0], selectedUserIds: [] as string[] });
   const [groupFormUserSearch, setGroupFormUserSearch] = useState("");
@@ -254,13 +262,12 @@ export default function UsersGroupsPage() {
         !search ||
         (u.name || "").toLowerCase().includes(search.toLowerCase()) ||
         u.email.toLowerCase().includes(search.toLowerCase());
-      const matchRole = !filterRole || u.role === filterRole;
       const matchGroup =
         !filterGroup ||
         (filterGroup === "__unassigned__" ? !u.group_name : u.group_name === filterGroup);
-      return matchSearch && matchRole && matchGroup;
+      return matchSearch && matchGroup;
     });
-  }, [users, search, filterRole, filterGroup]);
+  }, [users, search, filterGroup]);
 
   const handleAssignGroup = async (userId: string, groupName: string | null) => {
     setUpdatingId(userId);
@@ -272,6 +279,43 @@ export default function UsersGroupsPage() {
       notify(value ? `Assigned to ${value}` : "Removed from group", "success");
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? "Failed to update group";
+      setError(msg);
+      notify(msg, "error");
+      fetchUsers();
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDeleteUser = async (target: ComplianceUser) => {
+    setUserToDelete(null);
+    setUpdatingId(target.id);
+    setError("");
+    try {
+      await api.deleteUser(`/compliance/users/${target.id}`);
+      setUsers((prev) => prev.filter((u) => u.id !== target.id));
+      setError("");  // Clear any prior error
+      notify(`${target.name || target.email} deleted`);
+      fetchUsers();  // Refresh to ensure list is in sync with server
+    } catch (e: unknown) {
+      const msg = (e as Error)?.message ?? "Failed to delete user";
+      setError(msg);
+      notify(msg, "error");
+      fetchUsers();
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleToggleExternal = async (userId: string, isExternal: boolean) => {
+    setUpdatingId(userId);
+    setError("");
+    try {
+      const updated = await api.patch<ComplianceUser>(`/compliance/users/${userId}`, { is_external: isExternal });
+      setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+      notify(isExternal ? "Marked as external (L3 eligible)" : "Marked as internal", "success");
+    } catch (e: unknown) {
+      const msg = (e as Error)?.message ?? "Failed to update";
       setError(msg);
       notify(msg, "error");
       fetchUsers();
@@ -293,7 +337,7 @@ export default function UsersGroupsPage() {
         email: userForm.email.trim().toLowerCase(),
         name: (userForm.name || userForm.email).trim(),
         password: userForm.password,
-        role: userForm.role,
+        is_external: userForm.is_external,
         group_name: userForm.group_name?.trim() || null,
       });
       fetchUsers();
@@ -309,7 +353,7 @@ export default function UsersGroupsPage() {
     }
   };
 
-  const handleBulkAdd = async (rows: { name: string; email: string; password: string; role: string; group: string }[]) => {
+  const handleBulkAdd = async (rows: { name: string; email: string; password: string; is_external: boolean; group: string }[]) => {
     const valid = rows.filter((r) => r.name.trim() && r.email.trim() && r.password.length >= 8);
     if (valid.length === 0) return;
     setSubmitting(true);
@@ -320,7 +364,7 @@ export default function UsersGroupsPage() {
           email: r.email.trim().toLowerCase(),
           name: r.name.trim() || r.email.trim(),
           password: r.password,
-          role: (ROLE_OPTIONS.find((o) => o.label === r.role)?.value ?? "it_sme") as UserRole,
+          is_external: r.is_external,
           group_name: r.group?.trim() || null,
         });
       }
@@ -449,7 +493,7 @@ export default function UsersGroupsPage() {
         <header className="mb-8">
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Users & Groups</h1>
           <p className="mt-1 text-sm text-foreground-muted">
-            Manage team members, assign roles and passwords, and organize them into groups.
+            Manage team members and organize them into groups. Roles are assigned per audit cycle.
           </p>
         </header>
 
@@ -545,6 +589,37 @@ export default function UsersGroupsPage() {
           </div>
         )}
 
+        {/* Delete user confirmation modal */}
+        {userToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setUserToDelete(null)}>
+            <div
+              className="mx-4 max-w-md rounded-2xl bg-white p-6 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-foreground mb-2">Delete User</h3>
+              <p className="text-sm text-foreground-muted mb-4">
+                Permanently delete <strong>{userToDelete.name || userToDelete.email}</strong> ({userToDelete.email})? This will remove them from all cycle assignments and related records.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setUserToDelete(null)}
+                  className="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteUser(userToDelete)}
+                  className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Users tab */}
         {tab === "users" && (
           <>
@@ -578,35 +653,31 @@ export default function UsersGroupsPage() {
                       className={inputBase}
                     />
                   </Field>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="Role">
-                      <select
-                        value={userForm.role}
-                        onChange={(e) => setUserForm((f) => ({ ...f, role: e.target.value as UserRole }))}
-                        className={inputBase}
-                      >
-                        {ROLE_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Group">
-                      <select
-                        value={userForm.group_name ?? ""}
-                        onChange={(e) => setUserForm((f) => ({ ...f, group_name: e.target.value || null }))}
-                        className={inputBase}
-                      >
-                        <option value="">No group</option>
-                        {groupsDisplay.map((g) => (
-                          <option key={g.id} value={g.name}>
-                            {g.name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                  </div>
+                  <Field label="External assessor">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={userForm.is_external}
+                        onChange={(e) => setUserForm((f) => ({ ...f, is_external: e.target.checked }))}
+                        className="rounded border-slate-300 text-(--primary) focus:ring-(--primary)/40"
+                      />
+                      <span className="text-sm text-foreground">Eligible for L3/Approver role (assign per cycle)</span>
+                    </label>
+                  </Field>
+                  <Field label="Group">
+                    <select
+                      value={userForm.group_name ?? ""}
+                      onChange={(e) => setUserForm((f) => ({ ...f, group_name: e.target.value || null }))}
+                      className={inputBase}
+                    >
+                      <option value="">No group</option>
+                      {groupsDisplay.map((g) => (
+                        <option key={g.id} value={g.name}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                   <div className="mt-6 flex justify-end gap-3 pt-5 border-t border-slate-200/60">
                     <button
                       type="button"
@@ -635,7 +706,6 @@ export default function UsersGroupsPage() {
                 groups={groupsDisplay}
                 onBulkAdd={handleBulkAdd}
                 submitting={submitting}
-                roleOptions={ROLE_OPTIONS}
                 inputBase={inputBase}
               />
             )}
@@ -653,19 +723,6 @@ export default function UsersGroupsPage() {
                   className={`${filterInputBase} w-full pl-9 pr-4 cursor-text`}
                 />
               </div>
-              <select
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
-                className={`${filterInputBase} shrink-0 w-[140px] pl-4 pr-9 bg-size-[12px] bg-position-[right_0.75rem_center] bg-no-repeat`}
-                style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E\")" }}
-              >
-                <option value="">All Roles</option>
-                {ROLE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
               <select
                 value={filterGroup}
                 onChange={(e) => setFilterGroup(e.target.value)}
@@ -714,6 +771,14 @@ export default function UsersGroupsPage() {
                         <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground-muted">
                           Group
                         </th>
+                        <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground-muted" title="External assessor (L3 eligible)">
+                          Ext
+                        </th>
+                        {canAccess && (
+                          <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-foreground-muted">
+                            Actions
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
@@ -742,7 +807,7 @@ export default function UsersGroupsPage() {
                                 className="inline-block rounded-full px-3 py-1 text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
                                 style={{ background: rc.bg, color: rc.text }}
                               >
-                                {ROLE_LABELS[u.role as UserRole] ?? u.role}
+                                {getRoleDisplayLabel(u.role)}
                               </span>
                             </td>
                             <td className="px-5 py-4">
@@ -763,6 +828,34 @@ export default function UsersGroupsPage() {
                                 <span className="ml-2 text-xs text-foreground-muted">Updating…</span>
                               )}
                             </td>
+                            <td className="px-5 py-4">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleExternal(u.id, !u.is_external)}
+                                disabled={updatingId === u.id}
+                                title={u.is_external ? "External (L3 eligible). Click to mark internal." : "Internal. Click to mark external (L3 eligible)."}
+                                className={`rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-60 ${
+                                  u.is_external ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                }`}
+                              >
+                                {u.is_external ? "EXT" : "—"}
+                              </button>
+                            </td>
+                            {canAccess && (
+                              <td className="px-5 py-4 text-right">
+                                {u.id !== user?.id && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setUserToDelete(u)}
+                                    disabled={updatingId === u.id}
+                                    title="Delete user"
+                                    className="rounded p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-60"
+                                  >
+                                    <IconTrash />
+                                  </button>
+                                )}
+                              </td>
+                            )}
                           </tr>
                         );
                       })}
@@ -981,7 +1074,7 @@ export default function UsersGroupsPage() {
                           <div className="min-w-0 flex-1">
                             <div className="truncate text-sm font-medium text-foreground">{m.name || "—"}</div>
                             <div className="truncate text-xs text-foreground-muted">
-                              {ROLE_LABELS[m.role as UserRole] ?? m.role}
+                              {getRoleDisplayLabel(m.role)}
                             </div>
                           </div>
                         </div>
@@ -1010,20 +1103,19 @@ function BulkAddInline({
   groups,
   onBulkAdd,
   submitting,
-  roleOptions,
   inputBase,
 }: {
   onClose: () => void;
   groups: LocalGroup[];
-  onBulkAdd: (rows: { name: string; email: string; password: string; role: string; group: string }[]) => void;
+  onBulkAdd: (rows: { name: string; email: string; password: string; is_external: boolean; group: string }[]) => void;
   submitting: boolean;
-  roleOptions: { value: UserRole; label: string }[];
   inputBase: string;
 }) {
+  const [defaultIsExternal, setDefaultIsExternal] = useState(false);
   const [rows, setRows] = useState([
-    { name: "", email: "", password: "", role: roleOptions[0].label, group: "" },
-    { name: "", email: "", password: "", role: roleOptions[0].label, group: "" },
-    { name: "", email: "", password: "", role: roleOptions[0].label, group: "" },
+    { name: "", email: "", password: "", group: "" },
+    { name: "", email: "", password: "", group: "" },
+    { name: "", email: "", password: "", group: "" },
   ]);
   const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
 
@@ -1036,18 +1128,18 @@ function BulkAddInline({
   };
 
   const addRow = () =>
-    setRows((prev) => [...prev, { name: "", email: "", password: "", role: roleOptions[0].label, group: "" }]);
+    setRows((prev) => [...prev, { name: "", email: "", password: "", group: "" }]);
 
   const removeRow = (i: number) => setRows((prev) => (prev.length > 1 ? prev.filter((_, j) => j !== i) : prev));
 
   const handleSubmit = () => {
     const valid = rows.filter((r) => r.name.trim() && r.email.trim() && r.password.length >= 8);
     if (valid.length === 0) return;
-    onBulkAdd(valid);
+    onBulkAdd(valid.map((r) => ({ ...r, is_external: defaultIsExternal })));
     setRows([
-      { name: "", email: "", password: "", role: roleOptions[0].label, group: "" },
-      { name: "", email: "", password: "", role: roleOptions[0].label, group: "" },
-      { name: "", email: "", password: "", role: roleOptions[0].label, group: "" },
+      { name: "", email: "", password: "", group: "" },
+      { name: "", email: "", password: "", group: "" },
+      { name: "", email: "", password: "", group: "" },
     ]);
     setShowPasswords({});
     onClose();
@@ -1071,6 +1163,17 @@ function BulkAddInline({
       <p className="mb-5 text-sm text-foreground-muted">
         Add multiple users at once. Fill in name, email, and password (min 8 characters) for each row.
       </p>
+      <div className="mb-4 flex items-center gap-3">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={defaultIsExternal}
+            onChange={(e) => setDefaultIsExternal(e.target.checked)}
+            className="rounded border-slate-300 text-[#1f4e79] focus:ring-[#1f4e79]"
+          />
+          <span className="text-sm font-medium text-foreground">External assessor (eligible for L3) for all</span>
+        </label>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -1079,7 +1182,6 @@ function BulkAddInline({
               <th className="pb-2 pr-2">Name *</th>
               <th className="pb-2 pr-2">Email *</th>
               <th className="pb-2 pr-2">Password *</th>
-              <th className="pb-2 pr-2">Role</th>
               <th className="pb-2 pr-2">Group</th>
               <th className="w-10 pb-2"></th>
             </tr>
@@ -1131,19 +1233,6 @@ function BulkAddInline({
                       )}
                     </button>
                   </div>
-                </td>
-                <td className="py-1 pr-2">
-                  <select
-                    value={row.role}
-                    onChange={(e) => updateRow(i, "role", e.target.value)}
-                    className={`${inputBase} py-2 text-xs`}
-                  >
-                    {roleOptions.map((o) => (
-                      <option key={o.value} value={o.label}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
                 </td>
                 <td className="py-1 pr-2">
                   <select

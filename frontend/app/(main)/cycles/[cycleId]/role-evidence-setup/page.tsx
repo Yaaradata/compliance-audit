@@ -1,0 +1,1026 @@
+"use client";
+
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
+import type { AssessmentCycle } from "@/lib/types";
+
+interface ComplianceUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  group_name: string | null;
+  is_external?: boolean;
+}
+
+interface RoleAssignment {
+  id: string;
+  role: string;
+  assignment_type: string;
+  group_name: string | null;
+  user_id: string | null;
+}
+
+interface EvidenceItem {
+  id: string;
+  domain_id: string;
+  name: string;
+  priority: string;
+}
+
+interface EvidenceAssignment {
+  id: string;
+  evidence_item_id: string;
+  assignment_type: string;
+  group_name: string | null;
+  user_id: string | null;
+}
+
+const ROLE_DEFS = [
+  { id: "it_sme", label: "IT Expert", short: "IT Expert", desc: "Uploads and submits evidence", cardClass: "bg-blue-100 border border-blue-200" },
+  { id: "internal_reviewer_l1", label: "L1", short: "L1", desc: "First-level review of evidence", cardClass: "bg-emerald-100 border border-emerald-200" },
+  { id: "internal_reviewer_l2", label: "L2", short: "L2", desc: "Second-level review and validation", cardClass: "bg-violet-100 border border-violet-200" },
+  { id: "external_assessor", label: "Approver", short: "Approver", desc: "Final independent approval (external only)", cardClass: "bg-amber-100 border border-amber-200" },
+];
+
+const DOMAIN_NAMES: Record<string, string> = {
+  A: "Network & Architecture",
+  B: "System Hardening",
+  C: "Access Management",
+  D: "Vulnerability & Patch",
+  E: "Monitoring & Detection",
+  F: "Third-Party",
+  G: "Physical Security",
+  H: "Policies & Governance",
+};
+
+function getInitials(name: string) {
+  return (name || "?")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+export default function RoleEvidenceSetupPage() {
+  const params = useParams();
+  const router = useRouter();
+  const cycleId = params.cycleId as string;
+  const { user, isPlatformAdmin, logout } = useAuth();
+
+  const [cycle, setCycle] = useState<AssessmentCycle | null>(null);
+  const [users, setUsers] = useState<ComplianceUser[]>([]);
+  const [roleAssignments, setRoleAssignments] = useState<RoleAssignment[]>([]);
+  const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
+  const [evidenceAssignments, setEvidenceAssignments] = useState<EvidenceAssignment[]>([]);
+  const [conflicts, setConflicts] = useState<{ uid: string; name: string; roles: string[]; msg: string }[]>([]);
+  const [step, setStep] = useState<"roles" | "evidence">("roles");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+
+  const canAccess = user?.role === "compliance_officer" || user?.role === "tenant_admin";
+
+  const fetchData = useCallback(async () => {
+    if (!canAccess || !cycleId) return;
+    try {
+      // Fetch cycle first; if it fails, show "not found"
+      const cycleData = await api.get<AssessmentCycle>(`/assessments/${cycleId}`);
+      setCycle(cycleData);
+
+      // Fetch the rest in parallel; if any fail, keep cycle and use empty defaults
+      const [usersData, roleData, evidenceData, evAssignData, conflictsData] = await Promise.all([
+        api.get<ComplianceUser[]>("/compliance/users"),
+        api.get<RoleAssignment[]>(`/assessments/${cycleId}/role-assignments`).catch(() => []),
+        api.get<EvidenceItem[]>(`/assessments/${cycleId}/evidence-items`).catch(() => []),
+        api.get<EvidenceAssignment[]>(`/assessments/${cycleId}/evidence-assignments`).catch(() => []),
+        api.get<{ conflicts: { uid: string; name: string; roles: string[]; msg: string }[] }>(`/assessments/${cycleId}/assignment-conflicts`).catch(() => ({ conflicts: [] })),
+      ]);
+      setUsers(usersData);
+      setRoleAssignments(roleData);
+      setEvidenceItems(evidenceData);
+      setEvidenceAssignments(evAssignData);
+      setConflicts(conflictsData.conflicts || []);
+    } catch {
+      setCycle(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [canAccess, cycleId]);
+
+  useEffect(() => {
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (isPlatformAdmin) {
+      router.replace("/admin");
+      return;
+    }
+    if (!canAccess) {
+      router.replace("/assessments/new");
+      return;
+    }
+    fetchData();
+  }, [user, isPlatformAdmin, canAccess, router, fetchData]);
+
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(null), 2600);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
+
+  const groups = useMemo(() => {
+    const names = new Set(users.map((u) => u.group_name).filter((g): g is string => !!g));
+    return Array.from(names);
+  }, [users]);
+
+  const selectableUsers = useMemo(
+    () => users.filter((u) => u.id !== user?.id),
+    [users, user?.id]
+  );
+  const l3Users = useMemo(() => selectableUsers.filter((u) => u.is_external), [selectableUsers]);
+  const nonL3Users = useMemo(() => selectableUsers.filter((u) => !u.is_external), [selectableUsers]);
+
+  const assignmentsByRole = useMemo(() => {
+    const m: Record<string, { groups: string[]; users: string[] }> = {};
+    for (const r of ROLE_DEFS) {
+      m[r.id] = { groups: [], users: [] };
+    }
+    for (const a of roleAssignments) {
+      if (a.assignment_type === "group" && a.group_name) {
+        m[a.role]?.groups.push(a.group_name);
+      } else if (a.assignment_type === "user" && a.user_id) {
+        m[a.role]?.users.push(a.user_id);
+      }
+    }
+    return m;
+  }, [roleAssignments]);
+
+  /** True when every role (IT Expert, L1, L2, Approver) has at least one person or group assigned. */
+  const allRolesFilled = useMemo(() => {
+    return ROLE_DEFS.every((r) => {
+      const a = assignmentsByRole[r.id] || { groups: [], users: [] };
+      return a.groups.length > 0 || a.users.length > 0;
+    });
+  }, [assignmentsByRole]);
+
+  /** Roles that still need at least one assignment. */
+  const rolesMissingAssignments = useMemo(() => {
+    return ROLE_DEFS.filter((r) => {
+      const a = assignmentsByRole[r.id] || { groups: [], users: [] };
+      return a.groups.length === 0 && a.users.length === 0;
+    });
+  }, [assignmentsByRole]);
+
+  /** Resume on the Evidence step if user already completed roles (e.g. logged out and back in). */
+  const hasRestoredStep = useRef(false);
+  useEffect(() => {
+    if (loading || !cycle || hasRestoredStep.current) return;
+    if (allRolesFilled && conflicts.length === 0) {
+      setStep("evidence");
+      hasRestoredStep.current = true;
+    }
+  }, [loading, cycle, allRolesFilled, conflicts.length]);
+
+  const addRoleAssignment = async (role: string, type: "group" | "user", id: string) => {
+    const current = [...roleAssignments];
+    if (type === "group") {
+      current.push({ id: "", role, assignment_type: "group", group_name: id, user_id: null });
+    } else {
+      current.push({ id: "", role, assignment_type: "user", group_name: null, user_id: id });
+    }
+    await saveRoleAssignments(current);
+  };
+
+  const removeRoleAssignment = async (role: string, type: "group" | "user", id: string) => {
+    const current = roleAssignments.filter(
+      (a) => !(a.role === role && a.assignment_type === type && (type === "group" ? a.group_name === id : a.user_id === id))
+    );
+    await saveRoleAssignments(current);
+  };
+
+  const saveRoleAssignments = async (assignments: RoleAssignment[]) => {
+    setError("");
+    setSubmitting(true);
+    try {
+      const payload = assignments.map((a) => {
+        const item: { role: string; assignment_type: string; group_name?: string; user_id?: string } = {
+          role: a.role,
+          assignment_type: a.assignment_type,
+        };
+        if (a.assignment_type === "group" && a.group_name) {
+          item.group_name = a.group_name;
+        } else if (a.assignment_type === "user" && a.user_id) {
+          item.user_id = a.user_id;
+        }
+        return item;
+      });
+      await api.put(`/assessments/${cycleId}/role-assignments`, { assignments: payload });
+      await fetchData();
+      setToast("Role assignments saved.");
+    } catch (e: unknown) {
+      const err = e as Error & { detail?: { conflicts?: { uid: string; name: string; roles: string[]; msg: string }[]; message?: string } };
+      let msg = err?.message ?? "Failed to save.";
+      const detail = err.detail;
+      if (detail && typeof detail === "object" && Array.isArray(detail.conflicts) && detail.conflicts.length > 0) {
+        setConflicts(detail.conflicts);
+        msg = detail.message ?? msg;
+      }
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const smeOptions = useMemo(() => {
+    const a = assignmentsByRole["it_sme"] || { groups: [], users: [] };
+    return { groups: a.groups, users: a.users };
+  }, [assignmentsByRole]);
+
+  const addEvidenceAssignment = (itemId: string, type: "group" | "user", id: string) => {
+    const existing = evidenceAssignments.filter((e) => e.evidence_item_id === itemId && e.assignment_type === type && (type === "group" ? e.group_name === id : e.user_id === id));
+    if (existing.length > 0) return;
+    const next = [...evidenceAssignments];
+    next.push({
+      id: "",
+      evidence_item_id: itemId,
+      assignment_type: type,
+      group_name: type === "group" ? id : null,
+      user_id: type === "user" ? id : null,
+    });
+    setEvidenceAssignments(next);
+  };
+
+  const removeEvidenceAssignment = (itemId: string, type: "group" | "user", id: string) => {
+    setEvidenceAssignments((prev) =>
+      prev.filter((e) => !(e.evidence_item_id === itemId && e.assignment_type === type && (type === "group" ? e.group_name === id : e.user_id === id)))
+    );
+  };
+
+  const handleSaveEvidence = async (): Promise<boolean> => {
+    setError("");
+    setSubmitting(true);
+    try {
+      const payload = evidenceAssignments.map((a) => ({
+        evidence_item_id: a.evidence_item_id,
+        assignment_type: a.assignment_type,
+        group_name: a.group_name || undefined,
+        user_id: a.user_id || undefined,
+      }));
+      await api.put(`/assessments/${cycleId}/evidence-assignments`, { assignments: payload });
+      await fetchData();
+      setToast("Evidence assignments saved.");
+      return true;
+    } catch (e: unknown) {
+      setError((e as Error)?.message ?? "Failed to save.");
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleContinueToArchitecture = async () => {
+    const saved = await handleSaveEvidence();
+    if (!saved) return;
+    router.push(`/select-architecture?cycleId=${cycleId}`);
+  };
+
+  const handleBulkAssignByDomain = (domainId: string, type: "group" | "user", id: string) => {
+    const itemsInDomain = evidenceItems.filter((e) => e.domain_id === domainId);
+    const next = [...evidenceAssignments];
+    for (const item of itemsInDomain) {
+      const existing = next.some((e) => e.evidence_item_id === item.id && e.assignment_type === type && (type === "group" ? e.group_name === id : e.user_id === id));
+      if (!existing) {
+        next.push({
+          id: "",
+          evidence_item_id: item.id,
+          assignment_type: type,
+          group_name: type === "group" ? id : null,
+          user_id: type === "user" ? id : null,
+        });
+      }
+    }
+    setEvidenceAssignments(next);
+  };
+
+  if (!user) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <main className="flex-1 flex items-center justify-center p-6">
+          <p className="text-sm text-foreground-muted">Loading…</p>
+        </main>
+      </div>
+    );
+  }
+  if (!cycle) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <main className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center">
+            <p className="text-sm text-foreground-muted mb-4">Assessment cycle not found.</p>
+            <Link href="/assessments/new" className="text-sm font-medium text-primary hover:underline">
+              Back to assessment cycles
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      {toast && (
+        <div className="fixed bottom-7 right-7 z-50 rounded-xl bg-foreground px-6 py-3 text-sm font-medium text-white shadow-lg">
+          {toast}
+        </div>
+      )}
+
+      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-900">Role & Evidence Assignment</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Assign groups and users to roles for this audit cycle. Then assign evidence items to IT Experts.
+          </p>
+          <p className="text-sm text-slate-600 mt-2">
+            Cycle: <span className="font-semibold text-slate-900">{cycle.label}</span>
+            {cycle.display_id && <span className="ml-2 font-mono text-slate-500">{cycle.display_id}</span>}
+          </p>
+        </div>
+
+        <div className="flex gap-1 mb-6 p-1.5 rounded-xl bg-slate-200">
+          <button
+            type="button"
+            onClick={() => setStep("roles")}
+            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+              step === "roles"
+                ? "bg-[#1f4e79] text-white shadow-md"
+                : "text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            1. Assign Roles
+          </button>
+          <button
+            type="button"
+            onClick={() => allRolesFilled && setStep("evidence")}
+            disabled={!allRolesFilled}
+            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+              step === "evidence"
+                ? "bg-[#1f4e79] text-white shadow-md"
+                : allRolesFilled
+                  ? "text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900"
+                  : "text-slate-400 bg-slate-100 cursor-not-allowed"
+            }`}
+          >
+            2. Assign Evidence
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm font-medium text-red-800 shadow-sm">
+            {error}
+          </div>
+        )}
+
+        {step === "roles" && (
+          <>
+            {conflicts.length > 0 && (
+              <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3">
+                <div className="font-semibold text-red-800 mb-2">
+                  Segregation of Duties Violations — {conflicts.length} found
+                </div>
+                <ul className="text-sm text-red-700 space-y-1">
+                  {conflicts.slice(0, 6).map((c, i) => (
+                    <li key={i}>{c.msg}</li>
+                  ))}
+                  {conflicts.length > 6 && <li>...and {conflicts.length - 6} more</li>}
+                </ul>
+              </div>
+            )}
+
+            {!allRolesFilled && rolesMissingAssignments.length > 0 && (
+              <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+                <div className="font-semibold text-amber-900 mb-1">
+                  Assign at least one person or group to each role
+                </div>
+                <p className="text-sm text-amber-800">
+                  Missing roles: {rolesMissingAssignments.map((r) => r.label).join(", ")}
+                </p>
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {ROLE_DEFS.map((r) => {
+                const a = assignmentsByRole[r.id] || { groups: [], users: [] };
+                const isL3 = r.id === "external_assessor";
+                const assignedGroupsInOtherRoles = new Set(
+                  ROLE_DEFS.filter((def) => def.id !== r.id)
+                    .flatMap((def) => assignmentsByRole[def.id]?.groups || [])
+                );
+                const assignedUsersInOtherRoles = new Set(
+                  ROLE_DEFS.filter((def) => def.id !== r.id)
+                    .flatMap((def) => assignmentsByRole[def.id]?.users || [])
+                );
+                // Groups that contain any external user must not be assignable to IT/L1/L2.
+                // This keeps external assessors exclusive to Approver (L3) assignments.
+                const groupsWithExternalMembers = new Set(
+                  selectableUsers
+                    .filter((u) => u.is_external && u.group_name)
+                    .map((u) => u.group_name as string)
+                );
+                // If a group is assigned to another role, all users in that group are also blocked
+                // from appearing in this role's Individuals tab.
+                const usersFromAssignedGroupsInOtherRoles = new Set(
+                  selectableUsers
+                    .filter((u) => u.group_name && assignedGroupsInOtherRoles.has(u.group_name))
+                    .map((u) => u.id)
+                );
+                const filteredRoleGroups = groups.filter(
+                  (g) =>
+                    !assignedGroupsInOtherRoles.has(g) &&
+                    (r.id === "external_assessor" || !groupsWithExternalMembers.has(g))
+                );
+                const filteredRoleUsers = (isL3 ? l3Users : nonL3Users).filter(
+                  (u) =>
+                    !assignedUsersInOtherRoles.has(u.id) &&
+                    !usersFromAssignedGroupsInOtherRoles.has(u.id)
+                );
+                return (
+                  <div key={r.id} className={`rounded-xl p-5 shadow-md ${r.cardClass}`}>
+                    <div className="mb-3">
+                      <div className="text-lg font-bold text-slate-900">{r.label}</div>
+                      <div className="text-sm text-slate-600 mt-0.5">{r.desc}</div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {a.groups.map((g) => (
+                        <span
+                          key={g}
+                          className="inline-flex items-center gap-1 rounded-full bg-[#1f4e79] px-2.5 py-1 text-xs font-medium text-white"
+                        >
+                          {g}
+                          <button
+                            type="button"
+                            onClick={() => removeRoleAssignment(r.id, "group", g)}
+                            className="hover:opacity-80"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      {a.users.map((uid) => {
+                        const u = users.find((x) => x.id === uid);
+                        return (
+                          <span
+                            key={uid}
+                            className="inline-flex items-center gap-1 rounded-full bg-[#1f4e79] px-2.5 py-1 text-xs font-medium text-white"
+                          >
+                            {u?.name || u?.email || uid}
+                            <button
+                              type="button"
+                              onClick={() => removeRoleAssignment(r.id, "user", uid)}
+                              className="hover:opacity-80"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <RolePicker
+                      roleId={r.id}
+                      isL3={isL3}
+                      groups={filteredRoleGroups}
+                      users={filteredRoleUsers}
+                      assignments={a}
+                      onAdd={(type, id) => addRoleAssignment(r.id, type, id)}
+                      disabled={submitting}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => allRolesFilled && setStep("evidence")}
+                disabled={conflicts.length > 0 || !allRolesFilled}
+                title={!allRolesFilled ? "Assign at least one person or group to each role first" : undefined}
+                className="rounded-xl bg-[#1f4e79] px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-[#173a5c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Continue to Evidence Assignment →
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(`/select-architecture?cycleId=${cycleId}`)}
+                className="rounded-xl bg-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-400 transition-colors"
+              >
+                Skip for now
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === "evidence" && (
+          <>
+            {smeOptions.groups.length === 0 && smeOptions.users.length === 0 && (
+              <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
+                Assign IT Experts in Step 1 before assigning evidence items.
+              </div>
+            )}
+            <div className="mb-4 flex flex-wrap gap-2">
+              {Object.entries(DOMAIN_NAMES).map(([domainId, domainName]) => {
+                const count = evidenceItems.filter((e) => e.domain_id === domainId).length;
+                if (count === 0) return null;
+                return (
+                  <BulkAssignDomainButton
+                    key={domainId}
+                    domainId={domainId}
+                    domainName={domainName}
+                    smeOptions={smeOptions}
+                    groups={groups}
+                    users={users}
+                    onAssign={handleBulkAssignByDomain}
+                    disabled={smeOptions.groups.length === 0 && smeOptions.users.length === 0}
+                  />
+                );
+              })}
+            </div>
+            <div className="rounded-xl bg-white shadow-md overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-100">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Code</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Evidence Item</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Domain</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">IT SME Assigned</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {evidenceItems.map((ev) => {
+                      const ea = evidenceAssignments.filter((e) => e.evidence_item_id === ev.id);
+                      return (
+                        <tr key={ev.id} className="border-t border-slate-200">
+                          <td className="px-4 py-3 font-mono font-semibold text-[#1f4e79]">{ev.id}</td>
+                          <td className="px-4 py-3 text-slate-900">{ev.name}</td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {ev.domain_id}: {DOMAIN_NAMES[ev.domain_id] || ev.domain_id}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {ea.map((e) => (
+                                <span
+                                  key={`${e.evidence_item_id}-${e.assignment_type}-${e.group_name || e.user_id}`}
+                                  className="inline-flex items-center gap-1 rounded-full bg-[#1f4e79] px-2.5 py-1 text-xs font-medium text-white"
+                                >
+                                  {e.group_name || users.find((u) => u.id === e.user_id)?.name || "—"}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeEvidenceAssignment(ev.id, e.assignment_type as "group" | "user", (e.group_name || e.user_id)!)}
+                                    className="hover:opacity-80"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                              <EvidencePicker
+                                itemId={ev.id}
+                                smeOptions={smeOptions}
+                                groups={groups}
+                                users={users}
+                                assignments={ea}
+                                onAdd={(type, id) => addEvidenceAssignment(ev.id, type, id)}
+                                disabled={submitting || (smeOptions.groups.length === 0 && smeOptions.users.length === 0)}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep("roles")}
+                className="rounded-xl bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-300 transition-colors"
+              >
+                ← Back to Roles
+              </button>
+              <button
+                type="button"
+                onClick={handleContinueToArchitecture}
+                disabled={submitting}
+                className="rounded-xl bg-[#1f4e79] px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-[#173a5c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {submitting ? "Saving…" : "Continue to Architecture"}
+              </button>
+            </div>
+          </>
+        )}
+      </main>
+
+    </div>
+  );
+}
+
+function BulkAssignDomainButton({
+  domainId,
+  domainName,
+  smeOptions,
+  groups,
+  users,
+  onAssign,
+  disabled,
+}: {
+  domainId: string;
+  domainName: string;
+  smeOptions: { groups: string[]; users: string[] };
+  groups: string[];
+  users: ComplianceUser[];
+  onAssign: (domainId: string, type: "group" | "user", id: string) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"groups" | "users">("groups");
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const filteredGroups = groups.filter((g) => smeOptions.groups.includes(g) && g.toLowerCase().includes(q.toLowerCase()));
+  // IT Expert individuals should include:
+  // 1) directly assigned IT Expert users
+  // 2) users that belong to IT Expert-assigned groups
+  const smeUserIds = new Set<string>([
+    ...smeOptions.users,
+    ...users
+      .filter((u) => u.group_name && smeOptions.groups.includes(u.group_name))
+      .map((u) => u.id),
+  ]);
+  const filteredUsers = users.filter(
+    (u) =>
+      smeUserIds.has(u.id) &&
+      (((u.name || "").toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase())))
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        className="rounded-lg bg-slate-600 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50 transition-colors shadow"
+      >
+        Assign all in {domainId}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-xl bg-white shadow-xl overflow-hidden ring-1 ring-slate-300">
+          <div className="px-3 py-2 text-xs font-medium text-slate-600 border-b border-slate-200 bg-slate-100">
+            Assign one IT Expert to all items in Domain {domainId}: {domainName}
+          </div>
+          <div className="flex border-b border-slate-200 bg-slate-50">
+            <button
+              type="button"
+              onClick={() => { setView("groups"); setQ(""); }}
+              className={`flex-1 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors ${view === "groups" ? "bg-[#1f4e79] text-white" : "text-slate-600 hover:bg-slate-200"}`}
+            >
+              Groups
+            </button>
+            <button
+              type="button"
+              onClick={() => { setView("users"); setQ(""); }}
+              className={`flex-1 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors ${view === "users" ? "bg-[#1f4e79] text-white" : "text-slate-600 hover:bg-slate-200"}`}
+            >
+              Individuals
+            </button>
+          </div>
+          <div className="p-2 border-b border-slate-200 bg-white">
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Type to search..."
+              className="w-full rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-[#1f4e79]/40 focus:bg-white border border-slate-300"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1">
+            {view === "groups" &&
+              (filteredGroups.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-500">No IT Expert groups</p>
+              ) : (
+                filteredGroups.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => { onAssign(domainId, "group", g); setOpen(false); }}
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 transition-colors"
+                  >
+                    <span className="font-medium">{g}</span>
+                  </button>
+                ))
+              ))}
+            {view === "users" &&
+              (filteredUsers.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-500">No IT Expert users</p>
+              ) : (
+                filteredUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => { onAssign(domainId, "user", u.id); setOpen(false); }}
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 transition-colors"
+                  >
+                    <span className="w-6 h-6 rounded-full bg-[#1f4e79] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                      {getInitials(u.name || u.email)}
+                    </span>
+                    <span className="truncate font-medium text-slate-900">{u.name || u.email}</span>
+                  </button>
+                ))
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EvidencePicker({
+  itemId,
+  smeOptions,
+  groups,
+  users,
+  assignments,
+  onAdd,
+  disabled,
+}: {
+  itemId: string;
+  smeOptions: { groups: string[]; users: string[] };
+  groups: string[];
+  users: ComplianceUser[];
+  assignments: EvidenceAssignment[];
+  onAdd: (type: "group" | "user", id: string) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"groups" | "users">("groups");
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const assignedGroups = assignments.filter((a) => a.assignment_type === "group" && a.group_name).map((a) => a.group_name!);
+  const assignedUsers = assignments.filter((a) => a.assignment_type === "user" && a.user_id).map((a) => a.user_id!);
+
+  const filteredGroups = groups.filter((g) => smeOptions.groups.includes(g) && g.toLowerCase().includes(q.toLowerCase()));
+  // IT Expert individuals should include:
+  // 1) directly assigned IT Expert users
+  // 2) users that belong to IT Expert-assigned groups
+  const smeUserIds = new Set<string>([
+    ...smeOptions.users,
+    ...users
+      .filter((u) => u.group_name && smeOptions.groups.includes(u.group_name))
+      .map((u) => u.id),
+  ]);
+  const filteredUsers = users.filter(
+    (u) =>
+      smeUserIds.has(u.id) &&
+      (((u.name || "").toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase()))
+      )
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        className="rounded-lg bg-[#1f4e79] px-3 py-2 text-xs font-semibold text-white hover:bg-[#173a5c] disabled:opacity-50 transition-colors shadow"
+      >
+        + Add
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-xl bg-white shadow-xl overflow-hidden ring-1 ring-slate-300">
+          <div className="flex border-b border-slate-200 bg-slate-100">
+            <button
+              type="button"
+              onClick={() => { setView("groups"); setQ(""); }}
+              className={`flex-1 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors ${view === "groups" ? "bg-[#1f4e79] text-white" : "text-slate-600 hover:bg-slate-200"}`}
+            >
+              Groups
+            </button>
+            <button
+              type="button"
+              onClick={() => { setView("users"); setQ(""); }}
+              className={`flex-1 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors ${view === "users" ? "bg-[#1f4e79] text-white" : "text-slate-600 hover:bg-slate-200"}`}
+            >
+              Individuals
+            </button>
+          </div>
+          <div className="p-2 border-b border-slate-200 bg-white">
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Type to search..."
+              className="w-full rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-[#1f4e79]/40 focus:bg-white border border-slate-300"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1">
+            {view === "groups" &&
+              (filteredGroups.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-500">No IT Expert groups</p>
+              ) : (
+                filteredGroups.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => { onAdd("group", g); setOpen(false); }}
+                    disabled={assignedGroups.includes(g)}
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <span className="font-medium">{g}</span>
+                    {assignedGroups.includes(g) && <span className="text-[#1f4e79] font-bold">✓</span>}
+                  </button>
+                ))
+              ))}
+            {view === "users" &&
+              (filteredUsers.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-500">No IT Expert users</p>
+              ) : (
+                filteredUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => { onAdd("user", u.id); setOpen(false); }}
+                    disabled={assignedUsers.includes(u.id)}
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <span className="w-6 h-6 rounded-full bg-[#1f4e79] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                      {getInitials(u.name || u.email)}
+                    </span>
+                    <span className="truncate font-medium text-slate-900">{u.name || u.email}</span>
+                    {assignedUsers.includes(u.id) && <span className="text-[#1f4e79] font-bold shrink-0">✓</span>}
+                  </button>
+                ))
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RolePicker({
+  roleId,
+  isL3,
+  groups,
+  users,
+  assignments,
+  onAdd,
+  disabled,
+}: {
+  roleId: string;
+  isL3: boolean;
+  groups: string[];
+  users: ComplianceUser[];
+  assignments: { groups: string[]; users: string[] };
+  onAdd: (type: "group" | "user", id: string) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"groups" | "users">(isL3 ? "users" : "groups");
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const filteredGroups = groups.filter((g) => g.toLowerCase().includes(q.toLowerCase()));
+  const filteredUsers = users.filter(
+    (u) =>
+      (u.name || "").toLowerCase().includes(q.toLowerCase()) ||
+      u.email.toLowerCase().includes(q.toLowerCase())
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        className="rounded-lg bg-[#1f4e79] px-3 py-2 text-xs font-semibold text-white hover:bg-[#173a5c] disabled:opacity-50 transition-colors shadow"
+      >
+        + Add
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-xl bg-white shadow-xl overflow-hidden ring-1 ring-slate-300">
+          {isL3 && (
+            <div className="px-3 py-2 text-xs font-medium text-amber-900 bg-amber-100 border-b border-amber-300">
+              Only external assessors are eligible for L3
+            </div>
+          )}
+          <div className="flex border-b border-slate-200 bg-slate-100">
+            {!isL3 && (
+              <button
+                type="button"
+                onClick={() => { setView("groups"); setQ(""); }}
+                className={`flex-1 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors ${view === "groups" ? "bg-[#1f4e79] text-white" : "text-slate-600 hover:bg-slate-200"}`}
+              >
+                Groups
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => { setView("users"); setQ(""); }}
+              className={`flex-1 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors ${view === "users" ? "bg-[#1f4e79] text-white" : "text-slate-600 hover:bg-slate-200"}`}
+            >
+              Individuals
+            </button>
+          </div>
+          <div className="p-2 border-b border-slate-200 bg-white">
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Type to search..."
+              className="w-full rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-[#1f4e79]/40 focus:bg-white border border-slate-300"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1">
+            {view === "groups" &&
+              (filteredGroups.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-500">No groups found</p>
+              ) : (
+                filteredGroups.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => { onAdd("group", g); setOpen(false); }}
+                    disabled={assignments.groups.includes(g)}
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <span className="font-medium text-slate-900">{g}</span>
+                    {assignments.groups.includes(g) && <span className="text-[#1f4e79] font-bold">✓</span>}
+                  </button>
+                ))
+              ))}
+            {view === "users" &&
+              (filteredUsers.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-500">
+                  {isL3 ? "No external users. Mark users as external in Users & Groups." : "No users found"}
+                </p>
+              ) : (
+                filteredUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => { onAdd("user", u.id); setOpen(false); }}
+                    disabled={assignments.users.includes(u.id)}
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <span className="w-6 h-6 rounded-full bg-[#1f4e79] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                      {getInitials(u.name || u.email)}
+                    </span>
+                    <span className="truncate font-medium text-slate-900">{u.name || u.email}</span>
+                    {u.is_external && <span className="text-amber-700 text-[10px] font-medium">EXT</span>}
+                    {assignments.users.includes(u.id) && <span className="text-[#1f4e79] font-bold shrink-0">✓</span>}
+                  </button>
+                ))
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

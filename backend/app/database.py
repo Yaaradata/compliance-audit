@@ -309,3 +309,120 @@ def ensure_user_group_name():
         logger.info("User group_name column ensured.")
     except Exception as e:
         logger.warning("Could not ensure users.group_name: %s", e)
+
+
+def ensure_user_is_external():
+    """Add is_external to core.users if missing (L3 external assessor constraint). Idempotent."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE core.users ADD COLUMN IF NOT EXISTS is_external BOOLEAN NOT NULL DEFAULT false"))
+            conn.commit()
+        logger.info("User is_external column ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure users.is_external: %s", e)
+
+
+def ensure_user_role_nullable():
+    """
+    Allow NULL on core.users.role so compliance-created users have no global role
+    (per-cycle roles only). Matches migration 35_user_role_nullable.sql; idempotent.
+    """
+    try:
+        with engine.begin() as conn:
+            row = conn.execute(
+                text(
+                    """
+                    SELECT is_nullable
+                    FROM information_schema.columns
+                    WHERE table_schema = 'core'
+                      AND table_name = 'users'
+                      AND column_name = 'role'
+                    """
+                )
+            ).fetchone()
+            if row and row[0] == "NO":
+                conn.execute(text("ALTER TABLE core.users ALTER COLUMN role DROP DEFAULT"))
+                conn.execute(text("ALTER TABLE core.users ALTER COLUMN role DROP NOT NULL"))
+                logger.info("core.users.role is now nullable (per-cycle RBAC).")
+    except Exception as e:
+        logger.warning("Could not ensure users.role nullable (run backend/sql/35_user_role_nullable.sql if needed): %s", e)
+
+
+def ensure_cycle_role_assignments():
+    """Create core.cycle_role_assignments if missing. Idempotent."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text("""
+                CREATE TABLE IF NOT EXISTS core.cycle_role_assignments (
+                  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                  cycle_id UUID NOT NULL REFERENCES core.assessment_cycles(id) ON DELETE CASCADE,
+                  role TEXT NOT NULL,
+                  assignment_type TEXT NOT NULL,
+                  group_name VARCHAR(255),
+                  user_id UUID REFERENCES core.users(id) ON DELETE CASCADE,
+                  CONSTRAINT chk_role_assignment_type CHECK (
+                    (assignment_type = 'group' AND group_name IS NOT NULL AND user_id IS NULL) OR
+                    (assignment_type = 'user' AND user_id IS NOT NULL AND group_name IS NULL)
+                  )
+                )
+                """)
+            )
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_cycle_role_assignments_group "
+                    "ON core.cycle_role_assignments (cycle_id, role, group_name) WHERE group_name IS NOT NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_cycle_role_assignments_user "
+                    "ON core.cycle_role_assignments (cycle_id, role, user_id) WHERE user_id IS NOT NULL"
+                )
+            )
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_cycle_role_assignments_cycle ON core.cycle_role_assignments(cycle_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_cycle_role_assignments_user_id ON core.cycle_role_assignments(user_id)"))
+            conn.commit()
+        logger.info("cycle_role_assignments table ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure cycle_role_assignments: %s", e)
+
+
+def ensure_cycle_evidence_assignments():
+    """Create core.cycle_evidence_assignments if missing. Idempotent."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text("""
+                CREATE TABLE IF NOT EXISTS core.cycle_evidence_assignments (
+                  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                  cycle_id UUID NOT NULL REFERENCES core.assessment_cycles(id) ON DELETE CASCADE,
+                  evidence_item_id VARCHAR(5) NOT NULL,
+                  assignment_type TEXT NOT NULL,
+                  group_name VARCHAR(255),
+                  user_id UUID REFERENCES core.users(id) ON DELETE CASCADE,
+                  CONSTRAINT chk_evidence_assignment_type CHECK (
+                    (assignment_type = 'group' AND group_name IS NOT NULL AND user_id IS NULL) OR
+                    (assignment_type = 'user' AND user_id IS NOT NULL AND group_name IS NULL)
+                  )
+                )
+                """)
+            )
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_cycle_evidence_assignments_group "
+                    "ON core.cycle_evidence_assignments (cycle_id, evidence_item_id, group_name) WHERE group_name IS NOT NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_cycle_evidence_assignments_user "
+                    "ON core.cycle_evidence_assignments (cycle_id, evidence_item_id, user_id) WHERE user_id IS NOT NULL"
+                )
+            )
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_cycle_evidence_assignments_cycle ON core.cycle_evidence_assignments(cycle_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_cycle_evidence_assignments_item ON core.cycle_evidence_assignments(evidence_item_id)"))
+            conn.commit()
+        logger.info("cycle_evidence_assignments table ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure cycle_evidence_assignments: %s", e)

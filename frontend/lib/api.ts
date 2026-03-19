@@ -1,10 +1,13 @@
-/** Format FastAPI validation error detail (string or array of {loc, msg}) for display. */
+/** Format FastAPI validation error detail (string, array of {loc, msg}, or object with message) for display. */
 function formatApiErrorDetail(detail: unknown): string {
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail)) {
     return detail
       .map((e: { loc?: unknown[]; msg?: string }) => `${(e.loc || []).join(".")}: ${e.msg || ""}`)
       .join("; ");
+  }
+  if (detail && typeof detail === "object" && "message" in detail && typeof (detail as { message: unknown }).message === "string") {
+    return (detail as { message: string }).message;
   }
   return "Request failed";
 }
@@ -223,6 +226,14 @@ class ApiClient {
   put<T>(path: string, body?: unknown) { return this.request<T>("PUT", path, body); }
   patch<T>(path: string, body?: unknown) { return this.request<T>("PATCH", path, body); }
   del<T>(path: string) { return this.request<T>("DELETE", path); }
+
+  /**
+   * Delete user via POST (workaround for 405 on DELETE).
+   * Calls POST /compliance/users/{id}/delete
+   */
+  async deleteUser(path: string): Promise<void> {
+    return this.request<void>("POST", `${path}/delete`);
+  }
 
   /** Fetch a file as Blob (e.g. for evidence attachments). Uses same auth as request(). */
   async getBlob(path: string): Promise<Blob> {
