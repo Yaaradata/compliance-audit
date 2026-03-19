@@ -124,7 +124,7 @@ export function AwsRunHistory({ runs, onRunDeleted }: AwsRunHistoryProps) {
                   </button>
                 </td>
                 <td className="px-4 py-2" style={{ color: "var(--foreground-muted)" }}>
-                  {formatDate(r.in_time ?? r.execution_time)}
+                  {formatDate(r.ended_at ?? r.in_time ?? r.execution_time)}
                 </td>
                 <td className="px-4 py-2">
                   <span className="font-medium" style={{ color: r.status === "success" ? "var(--success)" : r.status === "failed" || r.status === "partial" ? "var(--danger)" : "var(--warning)" }}>

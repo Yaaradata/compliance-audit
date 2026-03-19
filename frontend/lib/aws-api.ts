@@ -20,6 +20,7 @@ export interface AwsRun {
 
 export interface AwsEvidenceRow {
   evidence_id: string;
+  run_id?: string;
   item_code: string;
   control_id: string;
   evidence_type: string;
@@ -34,11 +35,24 @@ export interface AwsControl {
   mandatory_flag?: string | null;
 }
 
+export interface AwsEvidenceByRun {
+  run_id: string;
+  execution_time: string | null;
+  ended_at: string | null;
+  status: string;
+  trigger_type: string | null;
+  evidence_count: number;
+  evidence: AwsEvidenceRow[];
+}
+
 export interface AwsControlDetail {
   control_id: string;
   control_name: string | null;
+  /** When requested with item_code filter, only this item is returned. */
+  item_code?: string | null;
   required_evidence_items: { item_code: string; evidence_item_name: string | null }[];
-  collected_evidence: AwsEvidenceRow[];
+  /** Evidence grouped by collector run (Run 1, Run 2, …). Use this for control → run → evidence hierarchy. */
+  evidence_by_run: AwsEvidenceByRun[];
   aws_calls: {
     aws_apis: string[];
     by_evidence_item: { item_code: string; evidence_item_name: string; apis: string[] }[];
@@ -87,12 +101,24 @@ export function getControls(): Promise<AwsControl[]> {
   return api.get<AwsControl[]>(`${PREFIX}/controls`).then((r) => (Array.isArray(r) ? r : []));
 }
 
-export function getControl(controlId: string): Promise<AwsControlDetail> {
-  return api.get<AwsControlDetail>(`${PREFIX}/control/${controlId}`);
+export function getControl(controlId: string, itemCode?: string | null): Promise<AwsControlDetail> {
+  const qs = itemCode?.trim() ? `?item_code=${encodeURIComponent(itemCode.trim())}` : "";
+  return api.get<AwsControlDetail>(`${PREFIX}/control/${controlId}${qs}`);
 }
 
 export function getControlsCoverage(): Promise<{ control_ids_with_evidence: string[] }> {
   return api.get<{ control_ids_with_evidence: string[] }>(`${PREFIX}/controls/coverage`).catch(() => ({ control_ids_with_evidence: [] }));
+}
+
+/** (control_id, control_name, item_code) for each evidence item that has evidence. Use for sidebar so clicking A2 shows only A2. */
+export interface AwsControlItemWithEvidence {
+  control_id: string;
+  control_name: string | null;
+  item_code: string;
+}
+
+export function getControlsCoverageItems(): Promise<AwsControlItemWithEvidence[]> {
+  return api.get<AwsControlItemWithEvidence[]>(`${PREFIX}/controls/coverage/items`).then((r) => (Array.isArray(r) ? r : []));
 }
 
 export function submitManualEvidence(body: {
@@ -112,6 +138,40 @@ export interface AwsCredentialsConfig {
   connection_type?: string;
   is_active?: boolean;
   connected_at?: string | null;
+  role_arn?: string | null;
+}
+
+export interface AwsConnectSetup {
+  external_id: string;
+  platform_account_id?: string | null;
+  trust_policy_template: string;
+}
+
+export function getAwsConnectSetup(): Promise<AwsConnectSetup> {
+  return api.get<AwsConnectSetup>(`${PREFIX}/connect/setup`);
+}
+
+/** Connect using Role ARN + Region only. Backend uses configured External ID (e.g. Swift-Audit). */
+export function saveAwsConnect(body: {
+  role_arn: string;
+  region?: string;
+}): Promise<{ ok: boolean; message?: string }> {
+  return api.post<{ ok: boolean; message?: string }>(`${PREFIX}/connect`, {
+    role_arn: body.role_arn.trim(),
+    region: (body.region || "us-east-1").trim() || "us-east-1",
+  });
+}
+
+export interface DeleteAwsConnectResult {
+  ok: boolean;
+  message?: string;
+  deleted_evidence?: number;
+  deleted_runs?: number;
+}
+
+/** Disconnect AWS account and delete all evidence and collector runs for this tenant. Cannot be undone. */
+export function deleteAwsConnect(): Promise<DeleteAwsConnectResult> {
+  return api.del<DeleteAwsConnectResult>(`${PREFIX}/connect`);
 }
 
 export function getAwsCredentials(): Promise<AwsCredentialsConfig> {
@@ -123,6 +183,17 @@ export function getAwsCredentials(): Promise<AwsCredentialsConfig> {
     is_active: r?.is_active ?? true,
     connected_at: r?.connected_at ?? null,
   }));
+}
+
+/** Enter the system with only Account ID and Region (no credentials). */
+export function saveAwsContext(body: {
+  aws_account_id: string;
+  aws_region?: string;
+}): Promise<{ ok: boolean; message?: string }> {
+  return api.post<{ ok: boolean; message?: string }>(`${PREFIX}/context`, {
+    aws_account_id: (body.aws_account_id || "").trim(),
+    aws_region: (body.aws_region || "us-east-1").trim() || "us-east-1",
+  });
 }
 
 export function saveAwsCredentials(body: {

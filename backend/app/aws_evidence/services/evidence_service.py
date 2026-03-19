@@ -4,7 +4,7 @@ import json
 import uuid
 from uuid import UUID
 
-from sqlalchemy import desc, text
+from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
 from app.aws_evidence.core import config
@@ -16,7 +16,9 @@ from app.services.storage_service import upload as storage_upload
 
 
 def get_runs(db: Session, limit: int = 50, tenant_id: UUID | None = None):
-    q = db.query(CollectorRun).order_by(desc(CollectorRun.execution_time))
+    # Order by most recently finished (ended_at) or started (execution_time) so "last run" is first
+    order_col = func.coalesce(CollectorRun.ended_at, CollectorRun.execution_time)
+    q = db.query(CollectorRun).order_by(desc(order_col))
     if tenant_id is not None:
         q = q.filter(CollectorRun.tenant_id == tenant_id)
     return q.limit(limit).all()
@@ -65,6 +67,54 @@ def get_evidence_for_control(db: Session, control_id: str, tenant_id: UUID | Non
     if tenant_id is not None:
         q = q.filter(Evidence.tenant_id == tenant_id)
     return q.order_by(Evidence.collected_at.desc()).all()
+
+
+def get_evidence_for_control_grouped_by_run(db: Session, control_id: str, tenant_id: UUID | None = None):
+    """
+    Collected AWS evidence for this control, grouped by collector run.
+    Returns list of dicts: { run_id, execution_time, ended_at, status, trigger_type, evidence_count, evidence }.
+    Runs ordered by most recent first; evidence within each run by collected_at desc.
+    """
+    evidence_list = get_evidence_for_control(db, control_id, tenant_id=tenant_id)
+    if not evidence_list:
+        return []
+    run_ids = list({e.run_id for e in evidence_list})
+    runs = {r.run_id: r for r in db.query(CollectorRun).filter(CollectorRun.run_id.in_(run_ids)).all()}
+    by_run: dict[UUID, list] = {}
+    for e in evidence_list:
+        by_run.setdefault(e.run_id, []).append(e)
+    # Build run summary with evidence, ordered by run end/start time (most recent first)
+    order_col = func.coalesce(CollectorRun.ended_at, CollectorRun.execution_time)
+    runs_ordered = (
+        db.query(CollectorRun)
+        .filter(CollectorRun.run_id.in_(run_ids))
+        .order_by(desc(order_col))
+        .all()
+    )
+    out = []
+    for run in runs_ordered:
+        ev_list = by_run.get(run.run_id, [])
+        ev_list.sort(key=lambda x: x.collected_at or datetime.min, reverse=True)
+        out.append({
+            "run_id": str(run.run_id),
+            "execution_time": run.execution_time.isoformat() if run.execution_time else None,
+            "ended_at": run.ended_at.isoformat() if run.ended_at else None,
+            "status": run.status,
+            "trigger_type": run.trigger_type,
+            "evidence_count": len(ev_list),
+            "evidence": [
+                {
+                    "evidence_id": str(e.evidence_id),
+                    "item_code": e.item_code,
+                    "control_id": e.control_id,
+                    "evidence_type": e.evidence_type,
+                    "source_system": e.source_system,
+                    "collected_at": e.collected_at.isoformat() if e.collected_at else None,
+                }
+                for e in ev_list
+            ],
+        })
+    return out
 
 
 def _controls_from_2026(db: Session):
@@ -203,6 +253,31 @@ def get_control_ids_with_evidence(db: Session, tenant_id: UUID | None = None) ->
     return [row[0] for row in q.all()]
 
 
+def get_control_item_pairs_with_evidence(db: Session, tenant_id: UUID | None = None) -> list[dict]:
+    """
+    Return (control_id, control_name, item_code) for each (control_id, item_code) that has at least one evidence row.
+    Used so the UI can list one sidebar entry per evidence item (e.g. A2, C2) and show only that item's evidence.
+    """
+    q = (
+        db.query(Evidence.control_id, Evidence.item_code)
+        .distinct()
+    )
+    if tenant_id is not None:
+        q = q.filter(Evidence.tenant_id == tenant_id)
+    pairs = q.all()
+    if not pairs:
+        return []
+    control_ids = list({c for c, _ in pairs})
+    control_names = {}
+    for cid in control_ids:
+        info = get_control_by_id(db, cid)
+        control_names[cid] = info.get("control_name") or cid
+    return [
+        {"control_id": cid, "control_name": control_names.get(cid), "item_code": item}
+        for cid, item in pairs
+    ]
+
+
 def delete_run(db: Session, run_id: UUID) -> int:
     """
     Delete a collector run and its evidence rows.
@@ -212,6 +287,17 @@ def delete_run(db: Session, run_id: UUID) -> int:
     db.query(CollectorRun).filter(CollectorRun.run_id == run_id).delete()
     db.commit()
     return deleted_evidence
+
+
+def delete_all_evidence_and_runs_for_tenant(db: Session, tenant_id: UUID) -> dict:
+    """
+    Delete all evidence and collector runs for the given tenant.
+    Returns {"deleted_evidence": int, "deleted_runs": int}.
+    """
+    deleted_evidence = db.query(Evidence).filter(Evidence.tenant_id == tenant_id).delete()
+    deleted_runs = db.query(CollectorRun).filter(CollectorRun.tenant_id == tenant_id).delete()
+    db.commit()
+    return {"deleted_evidence": deleted_evidence, "deleted_runs": deleted_runs}
 
 
 def create_manual_evidence(

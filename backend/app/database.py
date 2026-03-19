@@ -251,6 +251,16 @@ def ensure_tenant_aws_config_table():
                     "ALTER TABLE core.tenant_aws_config ADD COLUMN IF NOT EXISTS sso_role_name VARCHAR(255) NULL"
                 )
             )
+            conn.execute(
+                text(
+                    "ALTER TABLE core.tenant_aws_config ADD COLUMN IF NOT EXISTS role_arn VARCHAR(512) NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE core.tenant_aws_config ADD COLUMN IF NOT EXISTS external_id VARCHAR(255) NULL"
+                )
+            )
             conn.commit()
         logger.info("Tenant AWS config table ensured.")
     except Exception as e:

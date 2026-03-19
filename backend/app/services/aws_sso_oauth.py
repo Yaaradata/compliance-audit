@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 from app.models.tenant_aws_config import TenantAwsConfig
 from app.services.tenant_aws_config import get_config, _encrypt, _decrypt
 
+logger = logging.getLogger(__name__)
+
 
 def get_credentials_via_sso(db: Session, tenant_id: uuid.UUID) -> dict | None:
     """
@@ -103,10 +105,9 @@ def get_credentials_via_sso(db: Session, tenant_id: uuid.UUID) -> dict | None:
         "account_id": account_id,
     }
 
-logger = logging.getLogger(__name__)
 
-# In-memory cache for device flow: device_code -> { tenant_id, client_id, client_secret, start_url, sso_region }
-# Entries expire after 10 minutes; cleaned on access.
+# In-memory cache for device flow: device_code -> { tenant_id, client_id, client_secret, start_url, sso_region, last_poll_at }
+# Entries expire after 10 minutes; cleaned on access. last_poll_at used to respect recommended poll interval.
 _DEVICE_CACHE: dict[str, dict] = {}
 _CACHE_TTL_SEC = 600
 
@@ -179,6 +180,8 @@ def start_device_authorization(
         "start_url": start_url,
         "sso_region": region,
         "expires_at": time.time() + min(expires_in, _CACHE_TTL_SEC),
+        "interval": max(int(auth.get("interval", 5)), 2),
+        "last_poll_at": 0,
     }
 
     return {
@@ -194,7 +197,8 @@ def start_device_authorization(
 def poll_device_token(device_code: str, db: Session) -> dict:
     """
     Exchange device_code for tokens (poll once). Raises ValueError if pending/expired.
-    On success: saves refresh_token and chosen account/role to tenant_aws_config, returns { "ok": True, "account_id", "role_name" }.
+    On success: saves encrypted refresh_token only (no long-lived access keys); fetches temp creds on demand.
+    Returns { "ok": True, "account_id", "account_name", "role_name" }.
     """
     import boto3
     from botocore.exceptions import ClientError
@@ -206,6 +210,13 @@ def poll_device_token(device_code: str, db: Session) -> dict:
     if (entry.get("expires_at") or 0) < time.time():
         _DEVICE_CACHE.pop(device_code, None)
         raise ValueError("Device code expired. Please start sign-in again.")
+
+    # Respect recommended poll interval to avoid SlowDownException
+    interval = max(int(entry.get("interval", 5)), 2)
+    last_poll = entry.get("last_poll_at") or 0
+    if time.time() - last_poll < interval:
+        raise ValueError("Waiting for you to authorize in the browser. Please open the link and enter the code.") from None
+    entry["last_poll_at"] = time.time()
 
     tenant_id = uuid.UUID(entry["tenant_id"])
     client_id = entry["client_id"]
