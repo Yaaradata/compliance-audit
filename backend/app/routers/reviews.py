@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 from ..dependencies import get_db, get_db_scoped, get_db_for_review, get_current_user
+from ..constants import CYCLE_SCOPED_ROLES, PLATFORM_ADMIN_ROLES, is_cycle_scoped
 from ..models.tenant import User
-from ..models.assessment import EvidenceSubmission, EvidenceAttachment
+from ..models.assessment import AssessmentCycle, EvidenceSubmission, EvidenceAttachment
 from ..models.review import ReviewerChecklist, ReviewAssignment, ReviewComment
 from ..schemas.review import (
     CreateReviewRequest,
@@ -23,6 +24,7 @@ from ..schemas.review import (
     SubmitForReviewResponse,
 )
 from ..services import storage_service
+from ..services.assignment_constraints import get_user_cycle_ids, get_user_cycle_role
 from ..services import evidence_status as evidence_status_svc
 from ..services.batch_loaders import (
     load_submissions_by_ids,
@@ -36,6 +38,18 @@ from .notifications import create_notification
 router = APIRouter()
 
 REVIEW_LEVELS = ("L1", "L2", "L3")
+
+
+def _require_cycle_access(cycle: AssessmentCycle | None, user: User, db: Session) -> None:
+    if not cycle:
+        raise HTTPException(status_code=404, detail="Assessment cycle not found")
+    if is_cycle_scoped(user.role):
+        cycle_ids = get_user_cycle_ids(db, user.id)
+        if cycle.id not in cycle_ids:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
+        if cycle.tenant_id != user.tenant_id:
+            raise HTTPException(status_code=403, detail="Access denied")
 LEVEL_ROLE_MAP = {"L1": "internal_reviewer_l1", "L2": "internal_reviewer_l2", "L3": "external_assessor"}
 
 # DB uses enum review_level: 'l1_completeness', 'l2_quality', 'l3_assessment'
@@ -198,7 +212,12 @@ def submit_for_review(
 ):
     """Submit evidence for review. Creates L1 review assignment automatically.
     Accepts optional evaluation_edits to persist submitter's met/note overrides so L1 reviewer sees correct counts."""
-    if user.role not in ("compliance_officer", "it_sme", "admin"):
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
+    effective_role = get_user_cycle_role(db, user.id, cycle_id) or user.role
+    can_submit = user.role in ("admin", "tenant_admin", "compliance_officer") or effective_role == "it_sme"
+    if not can_submit:
         raise HTTPException(status_code=403, detail="Only evidence submitters can submit for review")
 
     submission = (
@@ -239,6 +258,8 @@ def list_reviews(
     db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
     logger.info("list_reviews: start cycle_id=%s", cycle_id)
     try:
         return _list_reviews_impl(cycle_id, status, level, db, user)
@@ -254,6 +275,7 @@ def _list_reviews_impl(
     db: Session,
     user: User,
 ) -> list:
+    effective_role = get_user_cycle_role(db, user.id, cycle_id) or user.role
     submissions_query = db.query(EvidenceSubmission).filter(EvidenceSubmission.cycle_id == cycle_id)
     if user.role not in ("admin", "tenant_admin"):
         submissions_query = submissions_query.filter(EvidenceSubmission.tenant_id == user.tenant_id)
@@ -336,11 +358,11 @@ def _list_reviews_impl(
 
     q = db.query(ReviewAssignment).filter(ReviewAssignment.submission_id.in_(sub_ids))
 
-    if user.role == "internal_reviewer_l1":
+    if effective_role == "internal_reviewer_l1":
         q = q.filter(ReviewAssignment.level == LEVEL_TO_DB["L1"])
-    elif user.role == "internal_reviewer_l2":
+    elif effective_role == "internal_reviewer_l2":
         q = q.filter(ReviewAssignment.level == LEVEL_TO_DB["L2"])
-    elif user.role == "external_assessor":
+    elif effective_role == "external_assessor":
         q = q.filter(ReviewAssignment.level == LEVEL_TO_DB["L3"])
 
     if status:
@@ -383,6 +405,9 @@ def create_review(
     db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
     review = ReviewAssignment(
         submission_id=req.submission_id,
         reviewer_id=req.reviewer_id,
@@ -561,7 +586,10 @@ def update_review(
 
     level_display = DB_TO_LEVEL.get(review.level, review.level)
     is_assignee = user.id == review.reviewer_id
-    can_by_role = user.role in ("compliance_officer", "admin") or user.role == LEVEL_ROLE_MAP.get(level_display)
+    sub_for_role = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == review.submission_id).first()
+    eff_role = get_user_cycle_role(db, user.id, sub_for_role.cycle_id) if sub_for_role else None
+    active_role = eff_role or user.role
+    can_by_role = active_role in ("compliance_officer", "admin") or active_role == LEVEL_ROLE_MAP.get(level_display)
     # When review is on hold, allow any same-tenant user who can see the review to update (hold → approve → L2)
     # (get_db_for_review already enforces same-tenant access, so if we're here they have access)
     can_act_on_hold = False
@@ -725,6 +753,9 @@ def get_evidence_detail(
     user: User = Depends(get_current_user),
 ):
     """Full evidence detail with signed URLs, form data, AI eval, and review history."""
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
     submission = (
         db.query(EvidenceSubmission)
         .filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id)

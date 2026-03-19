@@ -10,6 +10,7 @@ from ..database import Base
 
 class AuditFramework(Base):
     __tablename__ = "audit_frameworks"
+    __table_args__ = {"schema": "core"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
     code: Mapped[str] = mapped_column(String(30), nullable=False)

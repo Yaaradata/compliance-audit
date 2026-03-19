@@ -8,8 +8,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_db_scoped, get_current_user, _resolve_schema_for_cycle
+from ..constants import CYCLE_SCOPED_ROLES, PLATFORM_ADMIN_ROLES, is_cycle_scoped
 from ..models.tenant import User
-from ..models.assessment import EvidenceSubmission, EvidenceAttachment, EvidenceSubmissionHistory, ControlApplicability
+from ..models.assessment import AssessmentCycle, EvidenceSubmission, EvidenceAttachment, EvidenceSubmissionHistory, ControlApplicability
 from ..models.framework import CanonicalEvidenceItem, ItemControlMapping, EvidenceSufficiencyMatrix, EvidenceBasedQuestion
 from ..models.sufficiency import SufficiencyEvaluation, SufficiencyScore
 from ..schemas.evidence import (
@@ -22,6 +23,7 @@ from ..schemas.evidence import (
     AiCriterionResultOut,
 )
 from ..services import ai_service
+from ..services.assignment_constraints import get_user_cycle_ids, get_user_cycle_role, get_user_assigned_evidence_items
 from ..services.ai_service import _eval_criteria_pass_if_only, _parse_numbered_criteria as _parse_criteria_ai
 from ..services import evidence_status as evidence_status_svc
 from ..services.batch_loaders import (
@@ -34,6 +36,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _CONTROL_ID_ALL = "ALL"
+
+
+def _require_cycle_access(cycle: AssessmentCycle | None, user: User, db: Session) -> None:
+    """Raise 404 if cycle missing, 403 if user may not access."""
+    if not cycle:
+        raise HTTPException(status_code=404, detail="Assessment cycle not found")
+    if is_cycle_scoped(user.role):
+        cycle_ids = get_user_cycle_ids(db, user.id)
+        if cycle.id not in cycle_ids:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
+        if cycle.tenant_id != user.tenant_id:
+            raise HTTPException(status_code=403, detail="Access denied")
 
 
 def _applicable_control_ids_for_cycle(db: Session, cycle_id: UUID) -> set[str]:
@@ -91,6 +106,9 @@ def list_evidence(
     db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
     q = db.query(EvidenceSubmission).filter(EvidenceSubmission.cycle_id == cycle_id)
     if user.role != "admin":
         q = q.filter(EvidenceSubmission.tenant_id == user.tenant_id)
@@ -99,6 +117,14 @@ def list_evidence(
     if status:
         q = q.filter(EvidenceSubmission.status == evidence_status_svc.evidence_status_to_db(status))
     subs = q.order_by(EvidenceSubmission.created_at.desc()).all()
+
+    # For cycle-scoped IT Experts: filter by assigned evidence items when assignments exist
+    effective_role = get_user_cycle_role(db, user.id, cycle_id)
+    if effective_role == "it_sme":
+        assigned = get_user_assigned_evidence_items(db, cycle_id, user.id)
+        if assigned is not None and assigned:
+            subs = [s for s in subs if (s.evidence_item_id or "").strip().upper() in assigned]
+
     return [_submission_to_out(s, db) for s in subs]
 
 
@@ -116,8 +142,24 @@ def _submission_snapshot(sub: EvidenceSubmission) -> dict:
 
 @router.post("/assessments/{cycle_id}/evidence", response_model=SubmissionOut, status_code=201)
 def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
-    if user.role not in EVIDENCE_WRITE_ROLES:
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
+    effective_role = get_user_cycle_role(db, user.id, cycle_id)
+    can_write = user.role in EVIDENCE_WRITE_ROLES or effective_role == "it_sme"
+    if not can_write:
         raise HTTPException(status_code=403, detail="Not authorized to create evidence")
+
+    # For IT Experts: respect cycle_evidence_assignments when assignments exist
+    if effective_role == "it_sme":
+        assigned = get_user_assigned_evidence_items(db, cycle_id, user.id)
+        if assigned is not None:
+            item_upper = (req.evidence_item_id or "").strip().upper()
+            if item_upper not in assigned:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You are not assigned to this evidence item. Contact your Compliance Officer.",
+                )
 
     # Get-or-create: avoid duplicate submissions for same (cycle, tenant, evidence_item_id, scope_key)
     q = db.query(EvidenceSubmission).filter(
@@ -165,6 +207,9 @@ def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = 
 
 @router.get("/assessments/{cycle_id}/evidence/{sub_id}", response_model=SubmissionOut)
 def get_evidence(cycle_id: UUID, sub_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
@@ -178,6 +223,9 @@ def get_evidence_history(
     db: Session = Depends(get_db_scoped),
     user: User = Depends(get_current_user),
 ):
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
@@ -214,11 +262,25 @@ def get_evidence_history(
 
 @router.put("/assessments/{cycle_id}/evidence/{sub_id}", response_model=SubmissionOut)
 def update_evidence(cycle_id: UUID, sub_id: UUID, req: UpdateSubmissionRequest, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
-    if user.role not in EVIDENCE_WRITE_ROLES:
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
+    effective_role = get_user_cycle_role(db, user.id, cycle_id)
+    can_write = user.role in EVIDENCE_WRITE_ROLES or effective_role == "it_sme"
+    if not can_write:
         raise HTTPException(status_code=403, detail="Not authorized to update evidence")
+
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
+
+    # For IT Experts: respect evidence assignment
+    if effective_role == "it_sme":
+        assigned = get_user_assigned_evidence_items(db, cycle_id, user.id)
+        if assigned is not None:
+            item_upper = (sub.evidence_item_id or "").strip().upper()
+            if item_upper not in assigned:
+                raise HTTPException(status_code=403, detail="Access denied to this evidence submission")
 
     snapshot_before = _submission_snapshot(sub)
     change_types = []
@@ -269,9 +331,23 @@ def update_evidence(cycle_id: UUID, sub_id: UUID, req: UpdateSubmissionRequest, 
 
 @router.delete("/assessments/{cycle_id}/evidence/{sub_id}", status_code=204)
 def delete_evidence(cycle_id: UUID, sub_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
+    effective_role = get_user_cycle_role(db, user.id, cycle_id)
+    can_write = user.role in EVIDENCE_WRITE_ROLES or effective_role == "it_sme"
+    if not can_write:
+        raise HTTPException(status_code=403, detail="Not authorized to delete evidence")
+
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
+    if effective_role == "it_sme":
+        assigned = get_user_assigned_evidence_items(db, cycle_id, user.id)
+        if assigned is not None:
+            item_upper = (sub.evidence_item_id or "").strip().upper()
+            if item_upper not in assigned:
+                raise HTTPException(status_code=403, detail="Access denied to this evidence submission")
     if sub.status != "draft":
         raise HTTPException(status_code=400, detail="Only draft submissions can be deleted")
     db.delete(sub)
@@ -651,6 +727,27 @@ def evaluate_evidence(
     included in the prompt as readable numbered lists. Evaluation runs when
     there are uploads and/or form context; otherwise a placeholder response is returned.
     """
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
+    effective_role = get_user_cycle_role(db, user.id, cycle_id)
+    can_write = user.role in EVIDENCE_WRITE_ROLES or effective_role == "it_sme"
+    if not can_write:
+        raise HTTPException(status_code=403, detail="Not authorized to evaluate evidence")
+
+    # For IT Experts: respect evidence assignment when evaluating (has submission)
+    if req.submission_id and effective_role == "it_sme":
+        sub = db.query(EvidenceSubmission).filter(
+            EvidenceSubmission.id == req.submission_id,
+            EvidenceSubmission.cycle_id == cycle_id,
+        ).first()
+        if sub:
+            assigned = get_user_assigned_evidence_items(db, cycle_id, user.id)
+            if assigned is not None:
+                item_upper = (sub.evidence_item_id or "").strip().upper()
+                if item_upper not in assigned:
+                    raise HTTPException(status_code=403, detail="Access denied to this evidence submission")
+
     canonical = (
         db.query(CanonicalEvidenceItem)
         .filter(CanonicalEvidenceItem.id == req.evidence_item_id)

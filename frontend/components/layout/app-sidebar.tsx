@@ -16,7 +16,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getArchitecture, getDomainsForArchitecture } from "@/lib/frameworks/swift-cscf";
 import { useCycleIdFromPath } from "@/lib/hooks/use-cycle-id";
-import { NAV_BY_ROLE } from "@/lib/data/roles";
+import { getNavForRole } from "@/lib/data/roles";
 import { useSidebar } from "@/lib/sidebar-context";
 import { api } from "@/lib/api";
 import { SidebarHeader } from "@/components/layout/sidebar-header";
@@ -38,16 +38,18 @@ interface DomainScore {
 export function AppSidebar() {
   const pathname = usePathname();
   const { open, toggle, setOpen } = useSidebar();
-  const { user, selectedArchitectureId, activeCycleId } = useAuth();
+  const { user, selectedArchitectureId, activeCycleId, effectiveCycleRole } = useAuth();
   const cycleIdFromPath = useCycleIdFromPath();
   const cycleId = cycleIdFromPath ?? activeCycleId;
   const [searchQuery, setSearchQuery] = useState("");
-  const role = user?.role ?? "compliance_officer";
-  const navItems = NAV_BY_ROLE[role].filter(
+  const role = cycleId ? (effectiveCycleRole ?? user?.role) : user?.role;
+  const navItems = getNavForRole(role)?.filter(
     (item) =>
       item.href.startsWith("/dashboard") ||
       item.href.startsWith("/evidence") ||
       item.href.startsWith("/aws") ||
+      item.href.startsWith("/assessments") ||
+      item.href.startsWith("/users-groups") ||
       item.href.startsWith("/review") ||
       item.href.startsWith("/approval") ||
       item.href.startsWith("/report")
@@ -103,6 +105,21 @@ export function AppSidebar() {
     if (item.href.startsWith("/report")) return `${base}/report`;
     return item.href;
   };
+  const isCycleSetupRoute =
+    pathname?.includes("/team-setup") ||
+    pathname?.includes("/role-evidence-setup") ||
+    pathname?.includes("/control-scoping");
+  const isMainPageRoute =
+    pathname === "/dashboard" ||
+    pathname?.endsWith("/dashboard") ||
+    pathname?.startsWith("/assessments/new");
+  const shouldShowDomains =
+    staticDomains.length > 0 &&
+    cycleId &&
+    role &&
+    !["internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"].includes(role) &&
+    !isCycleSetupRoute &&
+    !isMainPageRoute;
 
   const sidebarWidth = open ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED;
 
@@ -206,7 +223,7 @@ export function AppSidebar() {
             Compliance officer reaches it via: Create cycle → Team setup → Select architecture → Control scoping. */}
 
         {/* Domains: smart rows — hidden for L1/L2/L3 reviewers (evidence is read-only for them) */}
-        {staticDomains.length > 0 && cycleId && !["internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"].includes(role) && (() => {
+        {shouldShowDomains && (() => {
           const domainsFiltered = q
             ? staticDomains.filter((d) => d.name.toLowerCase().includes(q) || d.id.toLowerCase().includes(q))
             : staticDomains;

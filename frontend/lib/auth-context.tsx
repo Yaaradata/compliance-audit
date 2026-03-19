@@ -55,8 +55,8 @@ export function getStoredTenants(): Tenant[] {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string, role: UserRole, name?: string) => Promise<boolean>;
-  signup: (email: string, password: string, role: UserRole, name: string, tenantId?: string) => Promise<boolean>;
+  login: (email: string, password: string, role: UserRole | null, name?: string) => Promise<boolean>;
+  signup: (email: string, password: string, role: UserRole | null, name: string, tenantId?: string) => Promise<boolean>;
   logout: () => void;
   setArchitecture: (architectureId: string) => void;
   setActiveCycleId: (id: string | null, meta?: ActiveCycleMeta) => void;
@@ -67,6 +67,8 @@ interface AuthContextValue extends AuthState {
   updateTenantAdmins: (tenantId: string, admins: { email: string; name: string }[]) => void;
   addTenantUser: (tenantId: string, user: { email: string; name: string; password: string; role: string }) => Promise<void>;
   loading: boolean;
+  /** Effective role for the active cycle (from cycle_role_assignments). Null if no assignment (e.g. compliance officer). */
+  effectiveCycleRole: string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -81,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [effectiveCycleRole, setEffectiveCycleRole] = useState<string | null>(null);
 
   useEffect(() => {
     const cachedUser = loadCachedUser();
@@ -90,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (token && cachedUser) {
       const archId = loadArchitectureId();
       setState({ user: cachedUser, tenant: null, selectedArchitectureId: archId, activeCycleId: cycleId, activeCycleMeta: loadActiveCycleMeta() });
-      api.get<{ id: string; email: string; name: string; role: UserRole; tenant_id: string | null }>("/auth/me")
+      api.get<{ id: string; email: string; name: string; role: UserRole | null; tenant_id: string | null }>("/auth/me")
         .then((u) => {
           const user: User = { id: u.id, email: u.email, name: u.name, role: u.role, tenantId: u.tenant_id };
           localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -126,9 +129,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = useCallback(async (email: string, password: string, role: UserRole, _name?: string): Promise<boolean> => {
+  const login = useCallback(async (email: string, password: string, role: UserRole | null, _name?: string): Promise<boolean> => {
     try {
-      const res = await api.post<{ token: string; user: { id: string; email: string; name: string; role: UserRole; tenant_id: string | null } }>("/auth/login", { email, password });
+      const res = await api.post<{ token: string; user: { id: string; email: string; name: string; role: UserRole | null; tenant_id: string | null } }>("/auth/login", { email, password });
       api.setToken(res.token);
       const user: User = { id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role, tenantId: res.user.tenant_id };
       localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -139,9 +142,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const signup = useCallback(async (email: string, password: string, role: UserRole, name: string, tenantId?: string): Promise<boolean> => {
+  const signup = useCallback(async (email: string, password: string, role: UserRole | null, name: string, tenantId?: string): Promise<boolean> => {
     try {
-      const res = await api.post<{ token: string; user: { id: string; email: string; name: string; role: UserRole; tenant_id: string | null } }>("/auth/signup", { email, password, name, role, tenant_id: tenantId });
+      const res = await api.post<{ token: string; user: { id: string; email: string; name: string; role: UserRole | null; tenant_id: string | null } }>("/auth/signup", { email, password, name, role, tenant_id: tenantId });
       api.setToken(res.token);
       const user: User = { id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role, tenantId: res.user.tenant_id };
       localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -175,13 +178,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setState((s) => ({ ...s, activeCycleId: id }));
       }
+      setEffectiveCycleRole(null);
     } else {
       localStorage.removeItem(CYCLE_KEY);
       localStorage.removeItem(CYCLE_META_KEY);
       localStorage.removeItem(ARCHITECTURE_KEY);
       setState((s) => ({ ...s, activeCycleId: null, activeCycleMeta: null, selectedArchitectureId: null }));
+      setEffectiveCycleRole(null);
     }
   }, []);
+
+  useEffect(() => {
+    if (!state.activeCycleId || !state.user) {
+      setEffectiveCycleRole(null);
+      return;
+    }
+    api
+      .get<{ role: string | null }>(`/assessments/${state.activeCycleId}/my-role`)
+      .then((res) => setEffectiveCycleRole(res.role ?? null))
+      .catch(() => setEffectiveCycleRole(null));
+  }, [state.activeCycleId, state.user]);
 
   const addTenant = useCallback(async (input: Omit<Tenant, "id" | "createdAt" | "bankAdmins"> & { initialUsers?: { email: string; name: string; password: string; role: string }[]; bankAdmins?: { email: string; name: string }[] }) => {
     const tenant = await api.post<Tenant>("/tenants", {
@@ -218,8 +234,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updateTenantAdmins,
       addTenantUser,
       loading,
+      effectiveCycleRole,
     }),
-    [state, login, signup, logout, setArchitecture, setActiveCycleId, tenants, addTenant, updateTenantAdmins, addTenantUser, loading]
+    [state, login, signup, logout, setArchitecture, setActiveCycleId, tenants, addTenant, updateTenantAdmins, addTenantUser, loading, effectiveCycleRole]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

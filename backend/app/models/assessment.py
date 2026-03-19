@@ -6,6 +6,15 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
+from ..models.tenant import Tenant, User  # Import so core tables are in metadata before FKs resolve
+from ..models.framework import AuditFramework
+
+# Phases for cycle_phase_deadlines (used for notifications and deadline checks)
+CYCLE_PHASE_EVIDENCE_UPLOAD = "evidence_upload"
+CYCLE_PHASE_L1_REVIEW = "l1_review"
+CYCLE_PHASE_L2_REVIEW = "l2_review"
+CYCLE_PHASE_APPROVAL = "approval"
+CYCLE_PHASES = (CYCLE_PHASE_EVIDENCE_UPLOAD, CYCLE_PHASE_L1_REVIEW, CYCLE_PHASE_L2_REVIEW, CYCLE_PHASE_APPROVAL)
 
 
 class CycleUserAssignment(Base):
@@ -14,22 +23,50 @@ class CycleUserAssignment(Base):
     __table_args__ = {"schema": "core"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assessment_cycles.id", ondelete="CASCADE"), nullable=False)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("core.assessment_cycles.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey(User.__table__.c.id, ondelete="CASCADE"), nullable=False)
     role: Mapped[str] = mapped_column(String(30), nullable=False)
+
+
+class CycleRoleAssignment(Base):
+    """Per-cycle role assignments. Assigns groups or users to roles (it_sme, internal_reviewer_l1, internal_reviewer_l2, external_assessor)."""
+    __tablename__ = "cycle_role_assignments"
+    __table_args__ = {"schema": "core"}
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("core.assessment_cycles.id", ondelete="CASCADE"), nullable=False)
+    role: Mapped[str] = mapped_column(String(30), nullable=False)
+    assignment_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    group_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey(User.__table__.c.id, ondelete="CASCADE"), nullable=True)
+
+
+class CycleEvidenceAssignment(Base):
+    """Per-cycle evidence item to IT SME assignment. Only groups/users with it_sme role for this cycle can be assigned."""
+    __tablename__ = "cycle_evidence_assignments"
+    __table_args__ = {"schema": "core"}
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("core.assessment_cycles.id", ondelete="CASCADE"), nullable=False)
+    evidence_item_id: Mapped[str] = mapped_column(String(5), nullable=False)
+    assignment_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    group_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey(User.__table__.c.id, ondelete="CASCADE"), nullable=True)
 
 
 class AssessmentCycle(Base):
     __tablename__ = "assessment_cycles"
+    __table_args__ = {"schema": "core"}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
-    framework_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("audit_frameworks.id"))
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey(Tenant.__table__.c.id), nullable=False)
+    framework_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey(AuditFramework.__table__.c.id))
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     cycle_year: Mapped[int] = mapped_column(Integer, nullable=False)
     phase: Mapped[str] = mapped_column(String(20), nullable=False, server_default="setup")
     architecture_type: Mapped[str | None] = mapped_column(String(5))
     start_date: Mapped[date | None] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)
     target_submission_date: Mapped[date | None] = mapped_column(Date)
     snapshot_data: Mapped[dict] = mapped_column(JSONB, server_default="{}")
     previous_cycle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
@@ -41,13 +78,33 @@ class AssessmentCycle(Base):
     tenant = relationship("Tenant", back_populates="assessment_cycles", foreign_keys=[tenant_id])
     control_applicabilities = relationship("ControlApplicability", back_populates="cycle", cascade="all, delete-orphan")
     approval_gates = relationship("ApprovalGate", back_populates="cycle", cascade="all, delete-orphan")
+    # phase_deadlines: not a relationship (table lives in swift_2025/swift_2026); load via query in routers
+
+
+class CyclePhaseDeadline(Base):
+    """Per-phase start/end windows for a cycle (evidence_upload, l1_review, l2_review, approval). Used for notifications.
+    Table exists in both swift_2025 and swift_2026; schema is resolved from cycle's framework via search_path."""
+    __tablename__ = "cycle_phase_deadlines"
+    __table_args__ = {"schema": None}  # Resolved from search_path (swift_2025 or swift_2026)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("core.assessment_cycles.id", ondelete="CASCADE"), nullable=False)
+    phase: Mapped[str] = mapped_column(String(30), nullable=False)
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+    # No relationship to AssessmentCycle (cross-schema); routers load by cycle_id after setting search_path
 
 
 class ControlApplicability(Base):
+    """Lives in swift_2025/swift_2026; schema resolved from search_path. FK to core.assessment_cycles."""
     __tablename__ = "control_applicability"
+    __table_args__ = {"schema": None}  # Resolved from search_path (swift_2025 or swift_2026)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assessment_cycles.id"), nullable=False)
+    cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("core.assessment_cycles.id"), nullable=False)
     control_id: Mapped[str] = mapped_column(String(10), nullable=False)
     applicability: Mapped[str] = mapped_column(String(20), nullable=False)
     is_overridden: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
@@ -112,7 +169,7 @@ class EvidenceSubmissionHistory(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
     submission_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("evidence_submissions.id", ondelete="CASCADE"), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
-    changed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    changed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey(User.__table__.c.id))
     changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
     change_type: Mapped[str] = mapped_column(String(50), nullable=False)
     snapshot_before: Mapped[dict | None] = mapped_column(JSONB)

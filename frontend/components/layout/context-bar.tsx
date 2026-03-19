@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getArchitecture } from "@/lib/frameworks/swift-cscf";
-import { ROLE_LABELS } from "@/lib/data/roles";
+import { getRoleLabel } from "@/lib/data/roles";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 /**
@@ -38,7 +38,7 @@ export function ContextBar() {
         <ThemeToggle />
         {user && (
           <>
-            <span className="text-xs text-(--foreground-muted)">{ROLE_LABELS[user.role]}</span>
+            <span className="text-xs text-(--foreground-muted)">{getRoleLabel(user.role)}</span>
             <div
               className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-medium shrink-0 bg-(--foreground-muted)"
               title={user.email}

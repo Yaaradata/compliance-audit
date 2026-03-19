@@ -5,12 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_db, get_db_scoped, get_current_user
-from ..constants import PLATFORM_ADMIN_ROLES, CYCLE_SCOPED_ROLES
+from ..constants import PLATFORM_ADMIN_ROLES, CYCLE_SCOPED_ROLES, is_cycle_scoped
 from ..models.tenant import User
-from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceSubmission, CycleUserAssignment
+from ..models.assessment import AssessmentCycle, ControlApplicability, EvidenceSubmission
 from ..models.framework import Control, ItemControlMapping, EvidenceSufficiencyMatrix, CanonicalEvidenceItem
 from ..models.sufficiency import SufficiencyScore
 from ..schemas.assessment import ControlScore
+from ..services.assignment_constraints import get_user_cycle_ids
 from ..services.batch_loaders import (
     load_controls_by_ids,
     load_sufficiency_scores,
@@ -27,12 +28,9 @@ CONTROL_ID_ALL = "ALL"
 def _require_cycle_access(cycle: AssessmentCycle | None, user: User, db: Session) -> None:
     if not cycle:
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
-    if user.role in CYCLE_SCOPED_ROLES:
-        assigned = db.query(CycleUserAssignment).filter(
-            CycleUserAssignment.cycle_id == cycle.id,
-            CycleUserAssignment.user_id == user.id,
-        ).first()
-        if not assigned:
+    if is_cycle_scoped(user.role):
+        cycle_ids = get_user_cycle_ids(db, user.id)
+        if cycle.id not in cycle_ids:
             raise HTTPException(status_code=403, detail="Access denied")
     elif user.role not in PLATFORM_ADMIN_ROLES or user.tenant_id is not None:
         if cycle.tenant_id != user.tenant_id:

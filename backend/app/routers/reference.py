@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_db_ref
-from ..models.assessment import ControlApplicability
+from ..dependencies import get_db, get_db_ref, get_current_user
+from ..models.tenant import User
+from ..models.assessment import AssessmentCycle, ControlApplicability
 from ..services import storage_service
 from ..services.batch_loaders import (
     load_controls_by_ids,
@@ -27,7 +28,25 @@ from ..schemas.reference import (
     ArchitectureTypeOut,
 )
 
-router = APIRouter(prefix="/ref")
+router = APIRouter(
+    prefix="/ref",
+    tags=["reference"],
+    dependencies=[Depends(get_current_user)],
+)
+
+# No auth: used as <img src="..."> fallback when GCS signing fails; browsers cannot send Bearer tokens.
+diagrams_content_router = APIRouter(prefix="/ref/diagrams", tags=["reference"])
+
+
+def _ensure_ref_cycle_access(cycle_id: UUID | None, user: User, db: Session) -> None:
+    """When cycle_id is set, require same access as assessment routes (tenant or cycle assignment)."""
+    if cycle_id is None:
+        return
+    from ..routers.assessments import _require_cycle_access
+
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
 
 # Architecture type metadata (display labels). Control lists and counts come from DB per cycle.
 REF_ARCHITECTURE_TYPES: list[dict] = [
@@ -84,7 +103,9 @@ def get_domain(
     domain_id: str,
     cycle_id: UUID | None = Query(None, description="When set, only controls in scope (applicable) for this cycle are returned."),
     db: Session = Depends(get_db_ref),
+    user: User = Depends(get_current_user),
 ):
+    _ensure_ref_cycle_access(cycle_id, user, db)
     # Normalize: take first char only (handles "A:1" from devtools), uppercase, default to "A"
     raw = (domain_id or "").strip()
     domain_id_clean = (raw.split(":")[0] or raw or "A")[:1].upper() or "A"
@@ -185,7 +206,9 @@ def get_evidence_item(
     item_id: str,
     cycle_id: UUID | None = Query(None, description="When set, only controls in scope (applicable) for this cycle are returned."),
     db: Session = Depends(get_db_ref),
+    user: User = Depends(get_current_user),
 ):
+    _ensure_ref_cycle_access(cycle_id, user, db)
     item = db.query(CanonicalEvidenceItem).filter(CanonicalEvidenceItem.id == item_id).first()
     if not item:
         return {"item": None, "controls": []}
@@ -206,8 +229,10 @@ def get_evidence_item_questions(
     item_id: str,
     cycle_id: UUID = Query(..., description="Required to resolve schema (swift_2025 or swift_2026) for questions."),
     db: Session = Depends(get_db_ref),
+    user: User = Depends(get_current_user),
 ):
     """Return evidence_based_questions for this evidence item. Schema resolved from cycle_id."""
+    _ensure_ref_cycle_access(cycle_id, user, db)
     questions = (
         db.query(EvidenceBasedQuestion)
         .filter(EvidenceBasedQuestion.evidence_item_id == item_id.upper())
@@ -222,8 +247,10 @@ def get_evidence_item_form_metadata(
     item_id: str,
     cycle_id: UUID = Query(..., description="Required to resolve schema for questions."),
     db: Session = Depends(get_db_ref),
+    user: User = Depends(get_current_user),
 ):
     """Return form metadata (labels, key order, spreadsheet column labels) from evidence_based_questions."""
+    _ensure_ref_cycle_access(cycle_id, user, db)
     questions = (
         db.query(EvidenceBasedQuestion)
         .filter(EvidenceBasedQuestion.evidence_item_id == item_id.upper())
@@ -252,8 +279,10 @@ def get_evidence_item_matrix(
     item_id: str,
     cycle_id: UUID | None = Query(None, description="When set, only rows for controls in scope (applicable) for this cycle are returned."),
     db: Session = Depends(get_db_ref),
+    user: User = Depends(get_current_user),
 ):
     """Return evidence_sufficiency_matrix rows for this evidence item. With cycle_id, only applicable controls (same as Per-Control tab)."""
+    _ensure_ref_cycle_access(cycle_id, user, db)
     rows = db.query(EvidenceSufficiencyMatrix).filter(
         EvidenceSufficiencyMatrix.item_code == item_id
     ).all()
@@ -279,7 +308,7 @@ def get_diagram_url(
     return {"url": url, "filename": filename}
 
 
-@router.get("/diagrams/{filename}/content")
+@diagrams_content_router.get("/{filename}/content")
 def stream_diagram_content(
     filename: str,
     version: str | None = Query(None, description="swift_2025 or swift_2026 for diagram folder"),
