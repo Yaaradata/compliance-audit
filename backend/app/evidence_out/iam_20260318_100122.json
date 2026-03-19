@@ -1,0 +1,29 @@
+{
+  "collector": "iam",
+  "account_id": "405466951861",
+  "region": "us-east-1",
+  "collected_at": "2026-03-18T10:01:22.264125",
+  "users": [],
+  "roles": [
+    {
+      "RoleName": "AuditPlatformReadOnlyRole",
+      "RoleId": "AROAV4Z5WWC2YMC57DYR2",
+      "Arn": "arn:aws:iam::405466951861:role/AuditPlatformReadOnlyRole"
+    },
+    {
+      "RoleName": "AWSServiceRoleForResourceExplorer",
+      "RoleId": "AROAV4Z5WWC23E3W6OXQQ",
+      "Arn": "arn:aws:iam::405466951861:role/aws-service-role/resource-explorer-2.amazonaws.com/AWSServiceRoleForResourceExplorer"
+    },
+    {
+      "RoleName": "AWSServiceRoleForSupport",
+      "RoleId": "AROAV4Z5WWC2UNOBKRJSF",
+      "Arn": "arn:aws:iam::405466951861:role/aws-service-role/support.amazonaws.com/AWSServiceRoleForSupport"
+    },
+    {
+      "RoleName": "AWSServiceRoleForTrustedAdvisor",
+      "RoleId": "AROAV4Z5WWC2VMNNKRODY",
+      "Arn": "arn:aws:iam::405466951861:role/aws-service-role/trustedadvisor.amazonaws.com/AWSServiceRoleForTrustedAdvisor"
+    }
+  ]
+}

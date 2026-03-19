@@ -10,9 +10,12 @@ from app.constants import PLATFORM_ADMIN_ROLES
 from app.dependencies import get_current_user, get_db
 from app.models.tenant import User
 from app.services.tenant_aws_config import (
+    delete_connection as delete_aws_connection,
     get_config_public,
     get_credentials_for_collect,
     save_config,
+    save_context,
+    save_connection_assume_role,
     test_connection as test_connection_service,
 )
 from app.services.aws_sso_oauth import start_device_authorization, poll_device_token
@@ -28,10 +31,13 @@ from app.aws_evidence.services import (
     get_control_matrix_for_control,
     get_control_by_id,
     get_evidence_for_control,
+    get_evidence_for_control_grouped_by_run,
     get_control_ids_with_evidence,
+    get_control_item_pairs_with_evidence,
     create_manual_evidence,
     run_all_collectors,
     delete_run,
+    delete_all_evidence_and_runs_for_tenant,
     run_belongs_to_tenant,
     evidence_belongs_to_tenant,
 )
@@ -67,6 +73,79 @@ class AwsCredentialsBody(BaseModel):
     aws_account_id: str | None = None
 
 
+class AwsContextBody(BaseModel):
+    """Account ID and Region only — enter the system without credentials."""
+    aws_account_id: str
+    aws_region: str = "us-east-1"
+
+
+class AwsConnectBody(BaseModel):
+    """Role ARN + Region only. Backend uses configured External ID (e.g. Swift-Audit)."""
+    role_arn: str
+    region: str = "us-east-1"
+
+
+@router.post("/connect")
+def connect_validate_and_save(
+    body: AwsConnectBody,
+    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    Validate connection by calling STS AssumeRole with Role ARN and platform External ID; if success, save role_arn, region.
+    Tenant role trust policy must allow your platform account and use the same External ID (set via AWS_ASSUME_ROLE_EXTERNAL_ID, default Swift-Audit).
+    """
+    try:
+        save_connection_assume_role(
+            db,
+            tenant_id,
+            role_arn=body.role_arn.strip(),
+            region=(body.region or "us-east-1").strip() or "us-east-1",
+        )
+        return {"ok": True, "message": "Validated and connected. You can run audits from the Dashboard."}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.delete("/connect")
+def disconnect_and_delete_all(
+    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    db: Session = Depends(get_db),
+    aws_db: Session = Depends(get_aws_db),
+) -> dict:
+    """
+    Disconnect the current AWS account: delete all evidence and collector runs for this tenant,
+    then remove the AWS connection config. Cannot be undone.
+    """
+    try:
+        ensure_aws_schema()
+        result = delete_all_evidence_and_runs_for_tenant(aws_db, tenant_id)
+        delete_aws_connection(db, tenant_id)
+        return {
+            "ok": True,
+            "message": "Connection and all evidence data have been deleted.",
+            "deleted_evidence": result["deleted_evidence"],
+            "deleted_runs": result["deleted_runs"],
+        }
+    except Exception as exc:
+        logger.exception("DELETE /aws/connect failed: %s", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+def _validate_sso_start_url(url: str) -> str:
+    """Validate IAM Identity Center start URL format (https, awsapps.com/start)."""
+    u = (url or "").strip()
+    if not u:
+        raise ValueError("sso_start_url is required")
+    if not u.startswith("https://"):
+        raise ValueError("sso_start_url must use HTTPS")
+    if "awsapps.com" not in u and ".awsapps.com" not in u:
+        raise ValueError("sso_start_url should be your IAM Identity Center URL (e.g. https://my-company.awsapps.com/start)")
+    if len(u) > 512:
+        raise ValueError("sso_start_url is too long")
+    return u
+
+
 class OAuthStartBody(BaseModel):
     sso_start_url: str
     sso_region: str = "us-east-1"
@@ -81,12 +160,17 @@ def oauth_start(
     body: OAuthStartBody,
     tenant_id: UUID = Depends(get_effective_aws_tenant),
 ) -> dict:
-    """Start AWS SSO device authorization. Returns verification URL and user code for the user to complete sign-in."""
+    """
+    Start AWS SSO device authorization (IAM Identity Center).
+    Returns verification_uri, verification_uri_complete, user_code, device_code, expires_in, interval.
+    Frontend shows URL + code to user and polls POST /aws/auth/oauth/poll with device_code until success.
+    """
     try:
+        start_url = _validate_sso_start_url(body.sso_start_url)
         return start_device_authorization(
             tenant_id=tenant_id,
-            sso_start_url=body.sso_start_url.strip(),
-            sso_region=body.sso_region.strip() or "us-east-1",
+            sso_start_url=start_url,
+            sso_region=(body.sso_region or "us-east-1").strip() or "us-east-1",
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -98,9 +182,16 @@ def oauth_poll(
     tenant_id: UUID = Depends(get_effective_aws_tenant),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Exchange device code for tokens and save SSO connection. Call after user has completed browser sign-in."""
+    """
+    Poll device code: exchange for tokens and save SSO connection.
+    Call after user has completed browser sign-in. Respect interval from start response (e.g. 5s).
+    On success: stores encrypted refresh token only (no long-lived access keys); returns account_id, role_name.
+    """
+    device_code = (body.device_code or "").strip()
+    if not device_code:
+        raise HTTPException(status_code=400, detail="device_code is required")
     try:
-        return poll_device_token(body.device_code, db)
+        return poll_device_token(device_code, db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -112,6 +203,25 @@ def get_credentials(
 ) -> dict:
     """Get AWS connection config for the effective tenant (no secrets)."""
     return get_config_public(db, tenant_id)
+
+
+@router.post("/context")
+def save_aws_context(
+    body: AwsContextBody,
+    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Save only Account ID and Region to enter the system. No credentials required."""
+    account_id = (body.aws_account_id or "").strip()
+    if not account_id:
+        raise HTTPException(status_code=400, detail="AWS Account ID is required.")
+    save_context(
+        db,
+        tenant_id,
+        aws_account_id=account_id,
+        aws_region=(body.aws_region or "us-east-1").strip() or "us-east-1",
+    )
+    return {"ok": True, "message": "Connected. You can use Dashboard, Evidence, and Controls."}
 
 
 @router.post("/credentials")
@@ -250,7 +360,7 @@ def trigger_collect(
     if not creds:
         raise HTTPException(
             status_code=400,
-            detail="No AWS credentials configured for this tenant. Go to AWS → Credentials and enter your Access Key and Secret.",
+            detail="No AWS connection configured. Go to AWS → Connect and enter Account ID and Region (backend uses env AWS credentials), or add Access Key and Secret in Credentials.",
         )
     try:
         run_id = run_all_collectors(tenant_id=tenant_id, credentials=creds, trigger_type="manual")
@@ -277,6 +387,7 @@ def list_evidence(
     return [
         {
             "evidence_id": str(e.evidence_id),
+            "run_id": str(e.run_id),
             "item_code": e.item_code,
             "control_id": e.control_id,
             "evidence_type": e.evidence_type,
@@ -340,37 +451,59 @@ def controls_coverage(
         return {"control_ids_with_evidence": []}
 
 
+@router.get("/controls/coverage/items")
+def controls_coverage_items(
+    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    db: Session = Depends(get_aws_db),
+) -> list:
+    """(control_id, control_name, item_code) for each evidence item that has at least one evidence row. Use for sidebar so clicking A2 shows only A2 evidence."""
+    try:
+        return get_control_item_pairs_with_evidence(db, tenant_id=tenant_id)
+    except Exception:
+        return []
+
+
 @router.get("/control/{control_id}")
 def get_control_detail(
     control_id: str,
+    item_code: str | None = Query(None, description="Filter to this evidence item only (e.g. A2). When set, only that item's evidence and required items are returned."),
     tenant_id: UUID = Depends(get_effective_aws_tenant),
     db: Session = Depends(get_aws_db),
 ) -> dict:
-    """Control detail with required evidence items, collected evidence, and AWS calls."""
+    """Control detail with required evidence items, evidence grouped by run, and AWS calls. Optional item_code filters to a single evidence item (e.g. A2) so the panel shows only that item's data."""
     try:
         control = get_control_by_id(db, control_id)
         matrix = get_control_matrix_for_control(db, control_id)
-        collected = get_evidence_for_control(db, control_id, tenant_id=tenant_id)
+        evidence_by_run = get_evidence_for_control_grouped_by_run(db, control_id, tenant_id=tenant_id)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    item_codes = [m.get("item_code") for m in matrix if m.get("item_code")]
+
+    if item_code and item_code.strip():
+        item_code = item_code.strip()
+        required = [m for m in matrix if (m.get("item_code") or "").strip() == item_code]
+        item_codes = [item_code]
+        # Filter evidence_by_run to only evidence rows with this item_code
+        filtered_runs = []
+        for run in evidence_by_run:
+            run_evidence = [e for e in run.get("evidence", []) if (e.get("item_code") or "").strip() == item_code]
+            if run_evidence:
+                filtered_runs.append({
+                    **run,
+                    "evidence": run_evidence,
+                    "evidence_count": len(run_evidence),
+                })
+        evidence_by_run = filtered_runs
+    else:
+        required = [{"item_code": m.get("item_code"), "evidence_item_name": m.get("evidence_item_name")} for m in matrix]
+        item_codes = [m.get("item_code") for m in matrix if m.get("item_code")]
+
     aws_calls = get_apis_for_control_items(item_codes) if item_codes else {"aws_apis": [], "by_evidence_item": []}
-    required = [{"item_code": m.get("item_code"), "evidence_item_name": m.get("evidence_item_name")} for m in matrix]
     return {
         "control_id": control.get("control_id") or control_id,
         "control_name": control.get("control_name"),
+        "item_code": item_code if item_code else None,
         "required_evidence_items": required,
-        "collected_evidence": [
-            {
-                "evidence_id": str(e.evidence_id),
-                "item_code": e.item_code,
-                "control_id": e.control_id,
-                "evidence_type": e.evidence_type,
-                "source_system": e.source_system,
-                "collected_at": e.collected_at.isoformat() if e.collected_at else None,
-            }
-            for e in collected
-        ],
+        "evidence_by_run": evidence_by_run,
         "aws_calls": aws_calls,
     }
 

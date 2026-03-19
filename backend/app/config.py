@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # Encrypt tenant AWS credentials at rest. Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     TENANT_AWS_ENCRYPTION_KEY: str = ""
 
+    # Fixed External ID used when connecting via Role ARN (no per-tenant ID in UI). Tenant role trust policy must use this value. Default: Swift-Audit
+    AWS_ASSUME_ROLE_EXTERNAL_ID: str = "Swift-Audit"
+
     model_config = {
         "env_file": str(_env_file),
         "env_file_encoding": "utf-8",

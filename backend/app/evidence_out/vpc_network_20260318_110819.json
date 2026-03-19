@@ -1,0 +1,346 @@
+{
+  "collector": "vpc_network",
+  "account_id": "405466951861",
+  "region": "us-east-1",
+  "collected_at": "2026-03-18T11:08:19.570881",
+  "vpcs": [
+    {
+      "OwnerId": "405466951861",
+      "InstanceTenancy": "default",
+      "CidrBlockAssociationSet": [
+        {
+          "AssociationId": "vpc-cidr-assoc-01443e1593d2b7c5f",
+          "CidrBlock": "172.31.0.0/16",
+          "CidrBlockState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "IsDefault": true,
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "VpcId": "vpc-066e4916d75a61164",
+      "State": "available",
+      "CidrBlock": "172.31.0.0/16",
+      "DhcpOptionsId": "dopt-09474db3fa76e47d6"
+    }
+  ],
+  "subnets": [
+    {
+      "AvailabilityZoneId": "use1-az4",
+      "MapCustomerOwnedIpOnLaunch": false,
+      "OwnerId": "405466951861",
+      "AssignIpv6AddressOnCreation": false,
+      "Ipv6CidrBlockAssociationSet": [],
+      "SubnetArn": "arn:aws:ec2:us-east-1:405466951861:subnet/subnet-092e2dd6e1d2ee309",
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "SubnetId": "subnet-092e2dd6e1d2ee309",
+      "State": "available",
+      "VpcId": "vpc-066e4916d75a61164",
+      "CidrBlock": "172.31.16.0/20",
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "us-east-1c",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true
+    },
+    {
+      "AvailabilityZoneId": "use1-az6",
+      "MapCustomerOwnedIpOnLaunch": false,
+      "OwnerId": "405466951861",
+      "AssignIpv6AddressOnCreation": false,
+      "Ipv6CidrBlockAssociationSet": [],
+      "SubnetArn": "arn:aws:ec2:us-east-1:405466951861:subnet/subnet-0e37b6dce523a4516",
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "SubnetId": "subnet-0e37b6dce523a4516",
+      "State": "available",
+      "VpcId": "vpc-066e4916d75a61164",
+      "CidrBlock": "172.31.32.0/20",
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "us-east-1d",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true
+    },
+    {
+      "AvailabilityZoneId": "use1-az3",
+      "MapCustomerOwnedIpOnLaunch": false,
+      "OwnerId": "405466951861",
+      "AssignIpv6AddressOnCreation": false,
+      "Ipv6CidrBlockAssociationSet": [],
+      "SubnetArn": "arn:aws:ec2:us-east-1:405466951861:subnet/subnet-063fc6da3971c5375",
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "SubnetId": "subnet-063fc6da3971c5375",
+      "State": "available",
+      "VpcId": "vpc-066e4916d75a61164",
+      "CidrBlock": "172.31.48.0/20",
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "us-east-1e",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true
+    },
+    {
+      "AvailabilityZoneId": "use1-az1",
+      "MapCustomerOwnedIpOnLaunch": false,
+      "OwnerId": "405466951861",
+      "AssignIpv6AddressOnCreation": false,
+      "Ipv6CidrBlockAssociationSet": [],
+      "SubnetArn": "arn:aws:ec2:us-east-1:405466951861:subnet/subnet-0a08de8635b14f007",
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "SubnetId": "subnet-0a08de8635b14f007",
+      "State": "available",
+      "VpcId": "vpc-066e4916d75a61164",
+      "CidrBlock": "172.31.0.0/20",
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "us-east-1a",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true
+    },
+    {
+      "AvailabilityZoneId": "use1-az2",
+      "MapCustomerOwnedIpOnLaunch": false,
+      "OwnerId": "405466951861",
+      "AssignIpv6AddressOnCreation": false,
+      "Ipv6CidrBlockAssociationSet": [],
+      "SubnetArn": "arn:aws:ec2:us-east-1:405466951861:subnet/subnet-0adfb751a8a7c1672",
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "SubnetId": "subnet-0adfb751a8a7c1672",
+      "State": "available",
+      "VpcId": "vpc-066e4916d75a61164",
+      "CidrBlock": "172.31.80.0/20",
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "us-east-1b",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true
+    },
+    {
+      "AvailabilityZoneId": "use1-az5",
+      "MapCustomerOwnedIpOnLaunch": false,
+      "OwnerId": "405466951861",
+      "AssignIpv6AddressOnCreation": false,
+      "Ipv6CidrBlockAssociationSet": [],
+      "SubnetArn": "arn:aws:ec2:us-east-1:405466951861:subnet/subnet-0dc304a730f207833",
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "SubnetId": "subnet-0dc304a730f207833",
+      "State": "available",
+      "VpcId": "vpc-066e4916d75a61164",
+      "CidrBlock": "172.31.64.0/20",
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "us-east-1f",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true
+    }
+  ],
+  "route_tables": [
+    {
+      "Associations": [
+        {
+          "Main": true,
+          "RouteTableAssociationId": "rtbassoc-06300bcf25fcf7e06",
+          "RouteTableId": "rtb-0ffa8ab669cc9ef7a",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "RouteTableId": "rtb-0ffa8ab669cc9ef7a",
+      "Routes": [
+        {
+          "DestinationCidrBlock": "172.31.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        },
+        {
+          "DestinationCidrBlock": "0.0.0.0/0",
+          "GatewayId": "igw-004d5217d1bdfa6aa",
+          "Origin": "CreateRoute",
+          "State": "active"
+        }
+      ],
+      "Tags": [],
+      "VpcId": "vpc-066e4916d75a61164",
+      "OwnerId": "405466951861"
+    }
+  ],
+  "internet_gateways": [
+    {
+      "Attachments": [
+        {
+          "State": "available",
+          "VpcId": "vpc-066e4916d75a61164"
+        }
+      ],
+      "InternetGatewayId": "igw-004d5217d1bdfa6aa",
+      "OwnerId": "405466951861",
+      "Tags": []
+    }
+  ],
+  "nat_gateways": [],
+  "flow_logs": [],
+  "security_groups": [
+    {
+      "GroupId": "sg-0bfcd63c59f9be353",
+      "IpPermissionsEgress": [
+        {
+          "IpProtocol": "-1",
+          "UserIdGroupPairs": [],
+          "IpRanges": [
+            {
+              "CidrIp": "0.0.0.0/0"
+            }
+          ],
+          "Ipv6Ranges": [],
+          "PrefixListIds": []
+        }
+      ],
+      "VpcId": "vpc-066e4916d75a61164",
+      "SecurityGroupArn": "arn:aws:ec2:us-east-1:405466951861:security-group/sg-0bfcd63c59f9be353",
+      "OwnerId": "405466951861",
+      "GroupName": "default",
+      "Description": "default VPC security group",
+      "IpPermissions": [
+        {
+          "IpProtocol": "-1",
+          "UserIdGroupPairs": [
+            {
+              "UserId": "405466951861",
+              "GroupId": "sg-0bfcd63c59f9be353"
+            }
+          ],
+          "IpRanges": [],
+          "Ipv6Ranges": [],
+          "PrefixListIds": []
+        }
+      ]
+    }
+  ],
+  "network_acls": [
+    {
+      "Associations": [
+        {
+          "NetworkAclAssociationId": "aclassoc-066033df4e88d0e57",
+          "NetworkAclId": "acl-009518ec0b293e5c0",
+          "SubnetId": "subnet-063fc6da3971c5375"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-0bb820770e04811a9",
+          "NetworkAclId": "acl-009518ec0b293e5c0",
+          "SubnetId": "subnet-0dc304a730f207833"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-074a39ab3e5290edf",
+          "NetworkAclId": "acl-009518ec0b293e5c0",
+          "SubnetId": "subnet-092e2dd6e1d2ee309"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-0d74b308825d3ab5b",
+          "NetworkAclId": "acl-009518ec0b293e5c0",
+          "SubnetId": "subnet-0a08de8635b14f007"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-0cba97936ceea8b7e",
+          "NetworkAclId": "acl-009518ec0b293e5c0",
+          "SubnetId": "subnet-0e37b6dce523a4516"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-0f3f750f24415018e",
+          "NetworkAclId": "acl-009518ec0b293e5c0",
+          "SubnetId": "subnet-0adfb751a8a7c1672"
+        }
+      ],
+      "Entries": [
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        }
+      ],
+      "IsDefault": true,
+      "NetworkAclId": "acl-009518ec0b293e5c0",
+      "Tags": [],
+      "VpcId": "vpc-066e4916d75a61164",
+      "OwnerId": "405466951861"
+    }
+  ],
+  "vpc_peering_connections": [],
+  "vpn_connections": [],
+  "vpc_endpoints": []
+}

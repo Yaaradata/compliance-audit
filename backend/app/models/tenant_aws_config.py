@@ -28,6 +28,8 @@ class TenantAwsConfig(Base):
     encrypted_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     sso_account_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
     sso_role_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    role_arn: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     connected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))

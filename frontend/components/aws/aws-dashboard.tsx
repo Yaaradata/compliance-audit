@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Play, ExternalLink, Clock, AlertCircle } from "lucide-react";
 import { AwsKpiCards } from "./aws-kpi-cards";
+import { AwsSectionTitle } from "./aws-page-header";
 import { AwsQuickLinks } from "./aws-quick-links";
 import { AwsRunHistory } from "./aws-run-history";
 import type { AwsRun } from "@/lib/aws-api";
@@ -53,37 +54,38 @@ export function AwsDashboard({
   const successRate = runs.length ? Math.round((successRuns / runs.length) * 100) : 0;
   const recentRuns = runs.slice(0, 8);
   const lastRun = runs[0];
-  const lastCollectedAt = lastRun?.in_time ?? lastRun?.execution_time;
+  // Use end time when available so "Last collected" shows when the run finished (e.g. "Just now")
+  const lastCollectedAt = lastRun?.ended_at ?? lastRun?.in_time ?? lastRun?.execution_time;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      {/* Hero — matches OverallProgress gradient (primary palette) */}
+    <div className="w-full flex flex-col gap-6">
+      {/* Hero — full width, primary gradient */}
       <section
         aria-label="Overview"
-        className="rounded-xl p-5 text-white"
+        className="w-full rounded-xl p-6 text-white"
         style={{
           background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)",
         }}
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm opacity-90">Compliance evidence at a glance</div>
-            <p className="mt-1 max-w-xl text-sm opacity-90">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold opacity-95">Compliance evidence at a glance</h2>
+            <p className="mt-2 max-w-xl text-sm opacity-90">
               Collect and view AWS security evidence for SWIFT controls. Run collectors or browse by control.
             </p>
             {lastCollectedAt && (
-              <p className="mt-3 flex items-center gap-2 text-xs opacity-80">
-                <Clock className="h-3.5 w-3.5" />
+              <p className="mt-4 flex items-center gap-2 text-xs opacity-85">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
                 Last collected {formatRelative(lastCollectedAt)} ({formatDateTime(lastCollectedAt)})
               </p>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-3 sm:shrink-0">
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={onFetchEvidence}
               disabled={fetching}
-              className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 font-semibold text-[var(--primary)] shadow-sm transition hover:bg-white/90 disabled:opacity-70"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 font-semibold text-[var(--primary)] shadow-sm transition hover:bg-white/90 disabled:opacity-70 min-h-[42px]"
             >
               {fetching ? (
                 <>
@@ -99,13 +101,16 @@ export function AwsDashboard({
             </button>
             <Link
               href="/aws/controls"
-              className="inline-flex items-center gap-2 rounded-lg border border-white/40 bg-white/10 px-5 py-2.5 font-medium text-white transition hover:bg-white/20"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/40 bg-white/10 px-5 py-2.5 font-medium text-white transition hover:bg-white/20 min-h-[42px]"
             >
               View controls
               <ExternalLink className="h-4 w-4" />
             </Link>
           </div>
         </div>
+        {fetching && (
+          <p className="mt-3 text-xs opacity-90 text-white/90">Run in progress. This page will update automatically when collection finishes.</p>
+        )}
         {fetchError && (
           <div className="mt-4 flex items-start gap-2 rounded-lg bg-white/15 px-4 py-3 text-sm text-white">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -114,11 +119,9 @@ export function AwsDashboard({
         )}
       </section>
 
-      {/* KPIs — same structure as OverallProgress stats */}
-      <section aria-label="Key metrics">
-        <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>
-          Key metrics
-        </div>
+      {/* KPIs */}
+      <section aria-label="Key metrics" className="w-full">
+        <AwsSectionTitle>Key metrics</AwsSectionTitle>
         <AwsKpiCards
           runsCount={runs.length}
           evidenceCount={evidenceCount}
@@ -128,11 +131,9 @@ export function AwsDashboard({
       </section>
 
       {/* Two-column: Recent runs + Quick links */}
-      <section aria-label="Recent activity and quick links" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>
-            Recent runs
-          </div>
+      <section aria-label="Recent activity and quick links" className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="min-w-0">
+          <AwsSectionTitle>Recent runs</AwsSectionTitle>
           <div className="card rounded-xl p-4">
             {recentRuns.length === 0 ? (
               <div className="py-8 text-center">
@@ -159,7 +160,7 @@ export function AwsDashboard({
                       aria-hidden
                     />
                     <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--foreground-muted)" }}>
-                      {formatRelative(r.in_time ?? r.execution_time)} ·{" "}
+                      {formatRelative(r.ended_at ?? r.in_time ?? r.execution_time)} ·{" "}
                       <span className="font-medium" style={{ color: "var(--foreground)" }}>
                         {r.evidence_count ?? 0}
                       </span>{" "}
@@ -184,20 +185,16 @@ export function AwsDashboard({
             View all →
           </Link>
         </div>
-        <div>
-          <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>
-            Quick links
-          </div>
+        <div className="min-w-0">
+          <AwsSectionTitle>Quick links</AwsSectionTitle>
           <AwsQuickLinks />
         </div>
       </section>
 
       {/* Run history */}
-      <section id="run-history" aria-labelledby="run-history-heading">
+      <section id="run-history" aria-labelledby="run-history-heading" className="w-full">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <h2 id="run-history-heading" className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-            Run history
-          </h2>
+          <AwsSectionTitle id="run-history-heading" className="mb-0">Run history</AwsSectionTitle>
           {runs.length > 0 && (
             <span
               className="rounded-full px-2.5 py-0.5 text-xs font-medium"
@@ -207,7 +204,7 @@ export function AwsDashboard({
             </span>
           )}
         </div>
-        <div className="card rounded-xl overflow-hidden">
+        <div className="card rounded-xl overflow-hidden w-full">
           <AwsRunHistory runs={runs} onRunDeleted={onRunDeleted} />
         </div>
       </section>

@@ -8,27 +8,26 @@ const NAV_LINKS = [
   { href: "/aws/dashboard", label: "Dashboard" },
   { href: "/aws/evidence", label: "Evidence" },
   { href: "/aws/controls", label: "Controls" },
-  { href: "/aws/credentials", label: "Credentials" },
 ];
 
 export function AwsNav() {
   const pathname = usePathname();
   return (
     <nav
-      className="flex gap-0.5 rounded-xl border p-1"
-      style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-      aria-label="AWS evidence"
+      className="flex gap-1 rounded-xl border p-1.5 w-full max-w-fit"
+      style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      aria-label="AWS section"
     >
       {NAV_LINKS.map(({ href, label }) => {
-        const isActive = href === "/aws" ? pathname === "/aws" : pathname?.startsWith(href);
+        const isActive = href === "/aws" ? pathname === "/aws" || pathname === "/aws/" : pathname?.startsWith(href);
         return (
           <Link
             key={href}
             href={href}
-            className="rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90"
+            className="rounded-lg px-5 py-2.5 text-sm font-medium transition-colors min-h-[40px] flex items-center justify-center"
             style={
               isActive
-                ? { background: "var(--primary)", color: "white" }
+                ? { background: "var(--primary)", color: "var(--primary-foreground, white)" }
                 : { color: "var(--foreground-muted)" }
             }
           >

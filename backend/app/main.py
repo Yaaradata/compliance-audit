@@ -1,3 +1,4 @@
+import logging
 import warnings
 from contextlib import asynccontextmanager
 
@@ -11,6 +12,9 @@ warnings.filterwarnings(
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
+logger = logging.getLogger(__name__)
 
 from .config import settings
 from .database import (
@@ -68,6 +72,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class RequestLogMiddleware(BaseHTTPMiddleware):
+    """Log every request so we can see when the backend receives traffic (helps debug proxy/connection issues)."""
+
+    async def dispatch(self, request, call_next):
+        print(f"[Backend] {request.method} {request.url.path}", flush=True)
+        try:
+            response = await call_next(request)
+            print(f"[Backend] {request.method} {request.url.path} -> {response.status_code}", flush=True)
+            return response
+        except Exception as e:
+            print(f"[Backend] {request.method} {request.url.path} -> ERROR: {e}", flush=True)
+            logger.exception("%s %s -> error: %s", request.method, request.url.path, e)
+            raise
+
+
+app.add_middleware(RequestLogMiddleware)
 
 PREFIX = "/api/v1"
 

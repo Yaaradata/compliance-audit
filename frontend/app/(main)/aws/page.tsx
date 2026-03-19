@@ -1,30 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { CheckCircle2, ExternalLink, KeyRound, Loader2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, Trash2, Cloud, Shield, MapPin } from "lucide-react";
+import { AwsPageHeader, awsButtonSecondaryClass, awsButtonPrimaryClass } from "@/components/aws/aws-page-header";
 import {
   getAwsCredentials,
-  saveAwsCredentials,
+  saveAwsConnect,
+  deleteAwsConnect,
   testAwsCredentials,
-  startAwsOAuth,
-  pollAwsOAuth,
   type AwsCredentialsConfig,
 } from "@/lib/aws-api";
-
-const REGIONS = [
-  "us-east-1",
-  "us-east-2",
-  "us-west-1",
-  "us-west-2",
-  "eu-west-1",
-  "eu-west-2",
-  "eu-central-1",
-  "ap-southeast-1",
-  "ap-southeast-2",
-  "ap-northeast-1",
-  "ap-northeast-2",
-];
+import { AWS_REGIONS } from "@/lib/aws-regions";
 
 function formatConnectedAt(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -37,22 +24,12 @@ export default function AwsConnectPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [form, setForm] = useState({
-    access_key_id: "",
-    secret_access_key: "",
-    aws_region: "us-east-1",
-    aws_account_id: "",
+    role_arn: "",
+    region: "us-east-1",
   });
-  const [oauthForm, setOauthForm] = useState({ sso_start_url: "", sso_region: "us-east-1" });
-  const [oauthState, setOauthState] = useState<{
-    verification_uri_complete: string;
-    user_code: string;
-    device_code: string;
-    interval: number;
-  } | null>(null);
-  const [oauthLoading, setOauthLoading] = useState(false);
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -67,21 +44,28 @@ export default function AwsConnectPage() {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (config) {
-      setForm((f) => ({
-        ...f,
-        aws_region: config.aws_region || "us-east-1",
-        aws_account_id: config.aws_account_id || "",
-      }));
-    }
-  }, [config?.aws_region, config?.aws_account_id]);
+  const onDisconnect = () => {
+    if (!config?.has_config) return;
+    if (!confirm("This will disconnect your AWS account and permanently delete all evidence and collector run data for this tenant. This cannot be undone. Continue?")) return;
+    setMessage(null);
+    setDisconnecting(true);
+    deleteAwsConnect()
+      .then((res) => {
+        setMessage({
+          type: "success",
+          text: res.message || "Disconnected. All evidence data has been deleted.",
+        });
+        load();
+      })
+      .catch((err: Error & { detail?: unknown }) => {
+        const text = typeof err.detail === "string" ? err.detail : err.message || "Failed to disconnect.";
+        setMessage({ type: "error", text });
+      })
+      .finally(() => setDisconnecting(false));
+  };
 
   const onTestConnection = () => {
-    if (!config?.has_config) {
-      setMessage({ type: "error", text: "Save credentials first, then test connection." });
-      return;
-    }
+    if (!config?.has_config) return;
     setMessage(null);
     setTesting(true);
     testAwsCredentials()
@@ -98,77 +82,26 @@ export default function AwsConnectPage() {
       .finally(() => setTesting(false));
   };
 
-  const onOAuthStart = (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage(null);
-    const url = oauthForm.sso_start_url.trim();
-    if (!url) {
-      setMessage({ type: "error", text: "Enter your AWS IAM Identity Center start URL (e.g. https://my-company.awsapps.com/start)." });
-      return;
-    }
-    setOauthLoading(true);
-    startAwsOAuth({ sso_start_url: url, sso_region: oauthForm.sso_region || "us-east-1" })
-      .then((res) => {
-        setOauthState({
-          verification_uri_complete: res.verification_uri_complete,
-          user_code: res.user_code,
-          device_code: res.device_code,
-          interval: Math.max(res.interval || 5, 2),
-        });
-        setMessage({ type: "success", text: "Open the link below and enter the code. This page will connect automatically once you sign in." });
-      })
-      .catch((err: Error & { detail?: unknown }) => {
-        const text = typeof err.detail === "string" ? err.detail : err.message || "Failed to start sign-in.";
-        setMessage({ type: "error", text });
-      })
-      .finally(() => setOauthLoading(false));
-  };
-
-  useEffect(() => {
-    if (!oauthState) return;
-    const poll = () => {
-      pollAwsOAuth({ device_code: oauthState.device_code })
-        .then((res) => {
-          if (res.ok) {
-            setOauthState(null);
-            setMessage({ type: "success", text: `Connected as ${res.account_name || res.account_id || ""} (${res.role_name || ""}).` });
-            load();
-          }
-        })
-        .catch((err: Error & { detail?: unknown }) => {
-          const text = typeof err.detail === "string" ? err.detail : err.message || "";
-          if (text.includes("AuthorizationPendingException") || text.includes("Waiting for you")) return;
-          setOauthState(null);
-          setMessage({ type: "error", text: text || "Sign-in failed or expired." });
-        });
-    };
-    pollTimerRef.current = setInterval(poll, oauthState.interval * 1000);
-    return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    };
-  }, [oauthState, load]);
-
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
-    if (!form.access_key_id.trim() || !form.secret_access_key.trim()) {
-      setMessage({ type: "error", text: "Access Key ID and Secret Access Key are required." });
+    const roleArn = form.role_arn.trim();
+    if (!roleArn) {
+      setMessage({ type: "error", text: "Role ARN is required." });
       return;
     }
     setSaving(true);
-    saveAwsCredentials({
-      access_key_id: form.access_key_id.trim(),
-      secret_access_key: form.secret_access_key,
-      aws_region: form.aws_region || "us-east-1",
-      aws_account_id: form.aws_account_id.trim() || undefined,
+    saveAwsConnect({
+      role_arn: roleArn,
+      region: form.region || "us-east-1",
     })
       .then((res) => {
-        setMessage({ type: "success", text: res.message || "Connected. You can now use the Dashboard to collect evidence." });
-        setForm((f) => ({ ...f, secret_access_key: "" }));
+        setMessage({ type: "success", text: res.message || "Validated and connected." });
         load();
+        if (typeof window !== "undefined") window.dispatchEvent(new Event("aws-connection-changed"));
       })
       .catch((err: Error & { detail?: unknown }) => {
-        const text = typeof err.detail === "string" ? err.detail : err.message || "Failed to save credentials.";
+        const text = typeof err.detail === "string" ? err.detail : err.message || "Validation failed.";
         setMessage({ type: "error", text });
       })
       .finally(() => setSaving(false));
@@ -176,260 +109,195 @@ export default function AwsConnectPage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Connect AWS account</div>
-        <div className="card rounded-xl p-8 text-center text-sm" style={{ color: "var(--foreground-muted)" }}>Loading…</div>
-      </div>
+      <>
+        <AwsPageHeader title="Connect" subtitle="Connect your AWS account to collect evidence for SWIFT controls." />
+        <div className="w-full max-w-xl mx-auto flex flex-col items-center justify-center py-16">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--muted)", color: "var(--primary)" }}>
+            <Loader2 className="w-6 h-6 animate-spin" />
+          </div>
+          <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>Checking connection…</p>
+          <p className="text-xs mt-1" style={{ color: "var(--foreground-muted)" }}>Loading…</p>
+        </div>
+      </>
     );
   }
 
-  // Already connected: show success state and links to Dashboard / Evidence / Controls
   if (config?.has_config) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
+      <>
+        <AwsPageHeader title="Connect" subtitle="Your AWS account connection status and quick links." />
+        <div className="w-full max-w-4xl mx-auto space-y-6">
         <div
-          className="rounded-xl border p-6 flex flex-col gap-4"
-          style={{ borderColor: "var(--success)", background: "var(--success-muted, rgba(34,197,94,0.06))" }}
+          className="card rounded-xl border p-6 flex flex-col gap-5"
+          style={{ borderColor: "var(--success)", background: "var(--success-bg, rgba(34,197,94,0.06))" }}
         >
-          <div className="flex items-start gap-3">
-            <CheckCircle2 className="h-8 w-8 shrink-0" style={{ color: "var(--success)" }} />
-            <div>
-              <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>Connected to AWS</h2>
-              <p className="text-sm mt-1" style={{ color: "var(--foreground-muted)" }}>
-                Your AWS account is linked. Region: <strong style={{ color: "var(--foreground)" }}>{config.aws_region}</strong>
-                {config.aws_account_id && (
-                  <> · Account: <strong style={{ color: "var(--foreground)" }}>{config.aws_account_id}</strong></>
-                )}
-              </p>
-              {config.connected_at && (
-                <p className="text-xs mt-2" style={{ color: "var(--foreground-muted)" }}>
-                  Connected {formatConnectedAt(config.connected_at)}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-8 w-8 shrink-0" style={{ color: "var(--success)" }} />
+              <div>
+                <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>Connected to AWS</h2>
+                <p className="text-sm mt-1" style={{ color: "var(--foreground-muted)" }}>
+                  {config.connection_type === "assume_role" && config.role_arn ? (
+                    <>Role: <strong style={{ color: "var(--foreground)" }}>{config.role_arn}</strong></>
+                  ) : (
+                    <>Account: <strong style={{ color: "var(--foreground)" }}>{config.aws_account_id}</strong></>
+                  )}
+                  {" · "}
+                  Region: <strong style={{ color: "var(--foreground)" }}>{config.aws_region}</strong>
                 </p>
-              )}
+                {config.connected_at && (
+                  <p className="text-xs mt-2" style={{ color: "var(--foreground-muted)" }}>
+                    Connected {formatConnectedAt(config.connected_at)}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={testing}
+                onClick={onTestConnection}
+                className={awsButtonSecondaryClass}
+                style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+              >
+                {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {testing ? "Testing…" : "Test connection"}
+              </button>
+              <button
+                type="button"
+                disabled={disconnecting}
+                onClick={onDisconnect}
+                className={awsButtonSecondaryClass}
+                style={{ borderColor: "var(--danger)", color: "var(--danger)", background: "transparent" }}
+                title="Disconnect and delete all evidence data"
+              >
+                {disconnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {disconnecting ? "Disconnecting…" : "Disconnect & delete all evidence"}
+              </button>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/aws/dashboard"
-              className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
-            >
+            <Link href="/aws/dashboard" className={awsButtonPrimaryClass}>
               Go to Dashboard
               <ExternalLink className="h-4 w-4" />
             </Link>
             <Link
               href="/aws/evidence"
-              className="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition hover:opacity-90"
+              className={awsButtonSecondaryClass}
               style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
             >
               Evidence
             </Link>
             <Link
               href="/aws/controls"
-              className="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition hover:opacity-90"
+              className={awsButtonSecondaryClass}
               style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
             >
               Controls
             </Link>
-            <Link
-              href="/aws/credentials"
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition hover:opacity-90"
-              style={{ color: "var(--foreground-muted)" }}
-            >
-              <KeyRound className="h-4 w-4" />
-              Edit credentials
-            </Link>
           </div>
         </div>
         {message && (
           <div
-            className="rounded-lg border px-3 py-2 text-sm"
+            className="rounded-lg border px-4 py-3 text-sm"
             style={{
               borderColor: message.type === "success" ? "var(--success)" : "var(--danger)",
-              background: message.type === "success" ? "var(--success-muted, rgba(34,197,94,0.08))" : "var(--danger-muted, rgba(239,68,68,0.08))",
+              background: message.type === "success" ? "var(--success-bg)" : "var(--danger-bg)",
               color: message.type === "success" ? "var(--success)" : "var(--danger)",
             }}
           >
             {message.text}
           </div>
         )}
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={testing}
-            onClick={onTestConnection}
-            className="rounded-lg border px-3 py-2 text-sm font-medium transition disabled:opacity-60"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-          >
-            {testing ? "Testing…" : "Test connection"}
-          </button>
         </div>
-      </div>
+      </>
     );
   }
 
-  // Not connected: show SSO (preferred) and access key form
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <header>
-        <h1 className="text-lg font-semibold mb-1" style={{ color: "var(--foreground)" }}>Connect your AWS account</h1>
-        <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-          Sign in with AWS IAM Identity Center (SSO) or use access keys. Credentials are stored encrypted and used only for evidence collection.
-        </p>
-      </header>
-
-      {/* SSO device flow */}
-      <div className="card rounded-xl p-6 space-y-4" style={{ borderColor: "var(--border)" }}>
-        <h2 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Sign in with AWS (SSO)</h2>
-        {!oauthState ? (
-          <form onSubmit={onOAuthStart} className="space-y-4">
+    <>
+      <AwsPageHeader
+        title="Connect"
+        subtitle="Enter your IAM Role ARN and region. We validate with AssumeRole and run read-only audits. Your role must trust this platform and use the configured External ID (e.g. Swift-Audit)."
+      />
+      <div className="w-full max-w-4xl mx-auto space-y-6">
+      <div className="grid gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <section className="card rounded-xl border p-6" style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center gap-2 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
+            <Shield className="w-5 h-5" style={{ color: "var(--primary)" }} />
+            <h2 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Connection details</h2>
+          </div>
+          <form onSubmit={onSubmit} className="space-y-5 pt-4">
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--foreground-muted)" }}>
-                IAM Identity Center start URL
+                Role ARN
               </label>
               <input
-                type="url"
-                value={oauthForm.sso_start_url}
-                onChange={(e) => setOauthForm((f) => ({ ...f, sso_start_url: e.target.value }))}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                type="text"
+                value={form.role_arn}
+                onChange={(e) => setForm((f) => ({ ...f, role_arn: e.target.value }))}
+                className="w-full rounded-lg border px-3 py-2.5 text-sm font-mono"
                 style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-                placeholder="https://my-company.awsapps.com/start"
+                placeholder="arn:aws:iam::123456789012:role/AuditPlatformReadOnlyRole"
+                autoComplete="off"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--foreground-muted)" }}>
-                SSO region
+              <label className="block text-xs font-medium mb-1.5 flex items-center gap-1.5" style={{ color: "var(--foreground-muted)" }}>
+                <MapPin className="w-3.5 h-3.5" />
+                AWS Region
               </label>
               <select
-                value={oauthForm.sso_region}
-                onChange={(e) => setOauthForm((f) => ({ ...f, sso_region: e.target.value }))}
-                className="w-full rounded-lg border px-3 py-2 text-sm"
+                value={form.region}
+                onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))}
+                className="w-full rounded-lg border px-3 py-2.5 text-sm"
                 style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
               >
-                {REGIONS.map((r) => (
+                {AWS_REGIONS.map((r) => (
                   <option key={r} value={r}>{r}</option>
                 ))}
               </select>
             </div>
-            <button
-              type="submit"
-              disabled={oauthLoading}
-              className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition disabled:opacity-60"
-              style={{ background: "var(--primary)" }}
-            >
-              {oauthLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {oauthLoading ? "Starting…" : "Start sign-in"}
-            </button>
-          </form>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-              Open this link and enter the code below:
-            </p>
-            <a
-              href={oauthState.verification_uri_complete}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition hover:opacity-90"
-              style={{ borderColor: "var(--primary)", color: "var(--primary)" }}
-            >
-              Open AWS sign-in <ExternalLink className="h-4 w-4" />
-            </a>
-            <div className="flex items-center gap-2">
-              <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>Code:</span>
-              <code className="rounded bg-[var(--surface)] px-3 py-1.5 text-lg font-mono font-semibold" style={{ color: "var(--foreground)" }}>
-                {oauthState.user_code}
-              </code>
+            {message && (
+              <div
+                className="rounded-lg border px-4 py-3 text-sm"
+                style={{
+                  borderColor: message.type === "success" ? "var(--success)" : "var(--danger)",
+                  background: message.type === "success" ? "var(--success-bg)" : "var(--danger-bg)",
+                  color: message.type === "success" ? "var(--success)" : "var(--danger)",
+                }}
+              >
+                {message.text}
+              </div>
+            )}
+            <div className="pt-1">
+              <button
+                type="submit"
+                disabled={saving}
+                className={`w-full ${awsButtonPrimaryClass}`}
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {saving ? "Validating…" : "Validate & Connect"}
+              </button>
             </div>
-            <p className="text-xs flex items-center gap-2" style={{ color: "var(--foreground-muted)" }}>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Waiting for you to complete sign-in…
-            </p>
-          </div>
-        )}
+          </form>
+        </section>
+
+        <section className="card rounded-xl border p-5 space-y-3" style={{ borderColor: "var(--border)" }}>
+          <h2 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>How to set up the IAM role</h2>
+          <ol className="list-decimal list-inside space-y-1.5 text-xs sm:text-sm" style={{ color: "var(--foreground-muted)" }}>
+            <li>In your AWS account, go to <strong>IAM → Roles → Create role</strong>.</li>
+            <li>Create a role for this platform (for example, <code className="font-mono">AuditPlatformReadOnlyRole</code>).</li>
+            <li>Set the trust relationship to allow the platform&apos;s AWS account and External ID configured with the product.</li>
+            <li>Attach a read-only policy (e.g. <code className="font-mono">ReadOnlyAccess</code> or a custom, least-privilege policy).</li>
+            <li>Copy the <strong>Role ARN</strong> and paste it into the form on the left, then choose the AWS region and connect.</li>
+          </ol>
+          <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>
+            After connecting, you&apos;ll be able to fetch AWS evidence from the Dashboard and browse collected evidence and controls.
+          </p>
+        </section>
       </div>
-
-      <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>Or use access keys:</p>
-
-      <form onSubmit={onSubmit} className="card rounded-xl p-6 space-y-4">
-        <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--foreground-muted)" }}>
-            Access Key ID
-          </label>
-          <input
-            type="text"
-            value={form.access_key_id}
-            onChange={(e) => setForm((f) => ({ ...f, access_key_id: e.target.value }))}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-            placeholder="AKIA..."
-            autoComplete="off"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--foreground-muted)" }}>
-            Secret Access Key
-          </label>
-          <input
-            type="password"
-            value={form.secret_access_key}
-            onChange={(e) => setForm((f) => ({ ...f, secret_access_key: e.target.value }))}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-            placeholder="••••••••"
-            autoComplete="new-password"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--foreground-muted)" }}>
-            AWS Region
-          </label>
-          <select
-            value={form.aws_region}
-            onChange={(e) => setForm((f) => ({ ...f, aws_region: e.target.value }))}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-          >
-            {REGIONS.map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--foreground-muted)" }}>
-            AWS Account ID <span className="opacity-70">(optional)</span>
-          </label>
-          <input
-            type="text"
-            value={form.aws_account_id}
-            onChange={(e) => setForm((f) => ({ ...f, aws_account_id: e.target.value }))}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-            placeholder="123456789012"
-          />
-        </div>
-        {message && (
-          <div
-            className="rounded-lg border px-3 py-2 text-sm"
-            style={{
-              borderColor: message.type === "success" ? "var(--success)" : "var(--danger)",
-              background: message.type === "success" ? "var(--success-muted, rgba(34,197,94,0.08))" : "var(--danger-muted, rgba(239,68,68,0.08))",
-              color: message.type === "success" ? "var(--success)" : "var(--danger)",
-            }}
-          >
-            {message.text}
-          </div>
-        )}
-        <div className="flex flex-wrap items-center gap-3 pt-2">
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition disabled:opacity-60"
-            style={{ background: "var(--primary)" }}
-          >
-            {saving ? "Connecting…" : "Connect AWS account"}
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+    </>
   );
 }
