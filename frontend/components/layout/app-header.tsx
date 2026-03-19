@@ -39,6 +39,9 @@ export function AppHeader() {
   const arch = selectedArchitectureId ? getArchitecture(selectedArchitectureId) : null;
   const initials = user?.name?.split(/\s+/).map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
   const breadcrumb = getBreadcrumb(pathname);
+  const roleForLabel = (
+    activeCycleId ? (effectiveCycleRole ?? user?.role) : user?.role
+  ) as Parameters<typeof getRoleLabel>[0];
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -90,7 +93,7 @@ export function AppHeader() {
         <ThemeToggle />
         {user && (
           <>
-            <span className="text-xs text-[var(--foreground-muted)]">{getRoleLabel(activeCycleId ? (effectiveCycleRole ?? user.role) : user.role)}</span>
+            <span className="text-xs text-[var(--foreground-muted)]">{getRoleLabel(roleForLabel)}</span>
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold bg-[var(--primary)] shrink-0"
               title={user.email}
