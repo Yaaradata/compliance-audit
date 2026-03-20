@@ -4,11 +4,14 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { CheckCircle2, ExternalLink, Loader2, Trash2, Cloud, Shield, MapPin } from "lucide-react";
 import { AwsPageHeader, awsButtonSecondaryClass, awsButtonPrimaryClass } from "@/components/aws/aws-page-header";
+import { useAuth } from "@/lib/auth-context";
 import {
-  getAwsCredentials,
+  getAwsCredentialsForCycle,
   saveAwsConnect,
   deleteAwsConnect,
   testAwsCredentials,
+  markAwsConnectionForCycle,
+  clearAwsConnectionCycleMarker,
   type AwsCredentialsConfig,
 } from "@/lib/aws-api";
 import { AWS_REGIONS } from "@/lib/aws-regions";
@@ -20,6 +23,7 @@ function formatConnectedAt(iso: string | null | undefined): string {
 }
 
 export default function AwsConnectPage() {
+  const { activeCycleId } = useAuth();
   const [config, setConfig] = useState<AwsCredentialsConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,11 +38,11 @@ export default function AwsConnectPage() {
   const load = useCallback(() => {
     setLoading(true);
     setMessage(null);
-    getAwsCredentials()
+    getAwsCredentialsForCycle(activeCycleId)
       .then(setConfig)
       .catch(() => setConfig({ has_config: false, aws_region: "us-east-1", aws_account_id: null }))
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeCycleId]);
 
   useEffect(() => {
     load();
@@ -51,6 +55,7 @@ export default function AwsConnectPage() {
     setDisconnecting(true);
     deleteAwsConnect()
       .then((res) => {
+        clearAwsConnectionCycleMarker();
         setMessage({
           type: "success",
           text: res.message || "Disconnected. All evidence data has been deleted.",
@@ -96,6 +101,7 @@ export default function AwsConnectPage() {
       region: form.region || "us-east-1",
     })
       .then((res) => {
+        markAwsConnectionForCycle(activeCycleId);
         setMessage({ type: "success", text: res.message || "Validated and connected." });
         load();
         if (typeof window !== "undefined") window.dispatchEvent(new Event("aws-connection-changed"));
@@ -188,13 +194,6 @@ export default function AwsConnectPage() {
             >
               Evidence
             </Link>
-            <Link
-              href="/aws/controls"
-              className={awsButtonSecondaryClass}
-              style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-            >
-              Controls
-            </Link>
           </div>
         </div>
         {message && (
@@ -221,6 +220,11 @@ export default function AwsConnectPage() {
         subtitle="Enter your IAM Role ARN and region. We validate with AssumeRole and run read-only audits. Your role must trust this platform and use the configured External ID (e.g. Swift-Audit)."
       />
       <div className="w-full max-w-4xl mx-auto space-y-6">
+      {!activeCycleId && (
+        <div className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: "var(--warning)", background: "var(--warning-bg)", color: "var(--warning)" }}>
+          Select an assessment cycle first. AWS connection is maintained per cycle.
+        </div>
+      )}
       <div className="grid gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <section className="card rounded-xl border p-6" style={{ borderColor: "var(--border)" }}>
           <div className="flex items-center gap-2 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
@@ -293,7 +297,7 @@ export default function AwsConnectPage() {
             <li>Copy the <strong>Role ARN</strong> and paste it into the form on the left, then choose the AWS region and connect.</li>
           </ol>
           <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>
-            After connecting, you&apos;ll be able to fetch AWS evidence from the Dashboard and browse collected evidence and controls.
+            After connecting, you&apos;ll be able to fetch AWS evidence and review evidence from the Dashboard.
           </p>
         </section>
       </div>

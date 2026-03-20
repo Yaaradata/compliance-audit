@@ -31,7 +31,7 @@ export function AwsKpiCard({
   const style = variantStyles[variant] ?? variantStyles.default;
   return (
     <div
-      className="card rounded-xl p-4 transition-shadow hover:shadow-md"
+      className="card rounded-xl p-5 transition-shadow hover:shadow-md"
       role="figure"
       aria-label={`${label}: ${value}`}
     >
@@ -44,10 +44,10 @@ export function AwsKpiCard({
           <Icon className="h-5 w-5" strokeWidth={2} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-2xl font-bold tabular-nums tracking-tight" style={{ color: "var(--foreground)" }}>
+          <p className="text-2xl sm:text-[1.75rem] font-bold tabular-nums tracking-tight leading-none" style={{ color: "var(--foreground)" }}>
             {value}
           </p>
-          <p className="mt-0.5 text-xs font-medium" style={{ color: "var(--foreground-muted)" }}>
+          <p className="mt-1 text-sm font-medium" style={{ color: "var(--foreground-muted)" }}>
             {label}
           </p>
         </div>

@@ -5,6 +5,7 @@
 import { api } from "@/lib/api";
 
 const PREFIX = "/aws";
+const AWS_CONNECTION_CYCLE_KEY = "aws_connection_cycle_id";
 
 export interface AwsRun {
   run_id: string;
@@ -183,6 +184,46 @@ export function getAwsCredentials(): Promise<AwsCredentialsConfig> {
     is_active: r?.is_active ?? true,
     connected_at: r?.connected_at ?? null,
   }));
+}
+
+export function markAwsConnectionForCycle(cycleId: string | null | undefined): void {
+  if (typeof window === "undefined") return;
+  if (cycleId && cycleId.trim()) {
+    localStorage.setItem(AWS_CONNECTION_CYCLE_KEY, cycleId.trim());
+  } else {
+    localStorage.removeItem(AWS_CONNECTION_CYCLE_KEY);
+  }
+}
+
+export function clearAwsConnectionCycleMarker(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(AWS_CONNECTION_CYCLE_KEY);
+}
+
+export function getAwsConnectionCycleId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(AWS_CONNECTION_CYCLE_KEY);
+}
+
+export function isAwsConnectionVisibleForCycle(cycleId: string | null | undefined): boolean {
+  const boundCycle = getAwsConnectionCycleId();
+  if (!boundCycle) return true; // backward-compat: old/global connection
+  if (!cycleId) return false;
+  return boundCycle === cycleId;
+}
+
+export function getAwsCredentialsForCycle(cycleId: string | null | undefined): Promise<AwsCredentialsConfig> {
+  return getAwsCredentials().then((cfg) => {
+    if (cfg.has_config && !isAwsConnectionVisibleForCycle(cycleId)) {
+      return {
+        ...cfg,
+        has_config: false,
+        aws_account_id: null,
+        role_arn: null,
+      };
+    }
+    return cfg;
+  });
 }
 
 /** Enter the system with only Account ID and Region (no credentials). */

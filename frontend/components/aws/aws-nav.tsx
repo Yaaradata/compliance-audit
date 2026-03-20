@@ -7,7 +7,6 @@ const NAV_LINKS = [
   { href: "/aws", label: "Connect" },
   { href: "/aws/dashboard", label: "Dashboard" },
   { href: "/aws/evidence", label: "Evidence" },
-  { href: "/aws/controls", label: "Controls" },
 ];
 
 export function AwsNav() {

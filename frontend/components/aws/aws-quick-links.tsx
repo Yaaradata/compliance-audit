@@ -1,32 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, ListChecks, ChevronRight } from "lucide-react";
+import { FileText, ChevronRight } from "lucide-react";
 
 const LINKS = [
   {
-    href: "/aws/evidence",
+    key: "evidence",
     title: "Evidence",
     desc: "Browse all collected evidence",
     icon: FileText,
     style: "bg-[var(--info-bg)] text-[var(--info)] hover:opacity-90",
   },
-  {
-    href: "/aws/controls",
-    title: "Controls",
-    desc: "View controls and fetch by control",
-    icon: ListChecks,
-    style: "bg-[var(--primary-muted)] text-[var(--primary)] hover:opacity-90",
-  },
 ];
 
-export function AwsQuickLinks() {
+export function AwsQuickLinks({
+  evidenceHref = "/aws/evidence",
+}: {
+  evidenceHref?: string;
+}) {
   return (
     <nav className="flex flex-col gap-3" aria-label="Quick links">
-      {LINKS.map(({ href, title, desc, icon: Icon, style }) => (
+      {LINKS.map(({ key, title, desc, icon: Icon, style }) => (
         <Link
-          key={href}
-          href={href}
+          key={key}
+          href={evidenceHref}
           className="card rounded-xl p-4 flex items-center gap-4 transition-shadow hover:shadow-md"
         >
           <div

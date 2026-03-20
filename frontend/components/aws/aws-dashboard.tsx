@@ -1,12 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Play, ExternalLink, Clock, AlertCircle } from "lucide-react";
+import { Play, Clock, AlertCircle, FileText, Loader2, BarChart3 } from "lucide-react";
 import { AwsKpiCards } from "./aws-kpi-cards";
 import { AwsSectionTitle } from "./aws-page-header";
-import { AwsQuickLinks } from "./aws-quick-links";
-import { AwsRunHistory } from "./aws-run-history";
-import type { AwsRun } from "@/lib/aws-api";
+import { AwsEvidenceTable } from "./aws-evidence-table";
+import { RunHistoryVisualsPlotly } from "./run-history-visuals-plotly";
+import type { AwsRun, AwsEvidenceRow } from "@/lib/aws-api";
 
 function formatRelative(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -33,48 +34,93 @@ function formatDateTime(iso: string | null | undefined): string {
 
 interface AwsDashboardProps {
   runs: AwsRun[];
+  evidenceRows: AwsEvidenceRow[];
   evidenceCount: number;
   controlIdsWithEvidence: string[];
   onFetchEvidence: () => void;
-  onRunDeleted?: () => void;
+  onRefresh: () => void;
+  onViewEvidenceContent: (row: AwsEvidenceRow) => void;
   fetching: boolean;
   fetchError: string | null;
 }
 
 export function AwsDashboard({
   runs,
+  evidenceRows,
   evidenceCount,
   controlIdsWithEvidence,
   onFetchEvidence,
-  onRunDeleted,
+  onRefresh,
+  onViewEvidenceContent,
   fetching,
   fetchError,
 }: AwsDashboardProps) {
+  const [activeSection, setActiveSection] = useState<"evidence" | "run-history" | null>("evidence");
+  const [evidenceSectionLoading, setEvidenceSectionLoading] = useState(false);
+  const [runHistorySectionLoading, setRunHistorySectionLoading] = useState(false);
   const successRuns = runs.filter((r) => r.status === "success").length;
   const successRate = runs.length ? Math.round((successRuns / runs.length) * 100) : 0;
-  const recentRuns = runs.slice(0, 8);
   const lastRun = runs[0];
   // Use end time when available so "Last collected" shows when the run finished (e.g. "Just now")
   const lastCollectedAt = lastRun?.ended_at ?? lastRun?.in_time ?? lastRun?.execution_time;
 
+  const openEvidenceSection = () => {
+    if (activeSection === "evidence") return;
+    setEvidenceSectionLoading(true);
+    setTimeout(() => {
+      setActiveSection("evidence");
+      setEvidenceSectionLoading(false);
+    }, 450);
+  };
+
+  const openRunHistorySection = () => {
+    if (activeSection === "run-history") return;
+    setRunHistorySectionLoading(true);
+    setTimeout(() => {
+      setActiveSection("run-history");
+      setRunHistorySectionLoading(false);
+    }, 450);
+  };
+
   return (
-    <div className="w-full flex flex-col gap-6">
+    <div className="w-full flex flex-col gap-7">
       {/* Hero — full width, primary gradient */}
       <section
         aria-label="Overview"
-        className="w-full rounded-xl p-6 text-white"
+        className="w-full rounded-2xl p-6 md:p-7 text-white shadow-sm"
         style={{
           background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)",
         }}
       >
+        <div className="mb-4 pb-4 border-b border-white/20 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-lg md:text-xl font-semibold text-white leading-tight">Dashboard</h1>
+            <p className="text-sm text-white/85 mt-1">Compliance evidence at a glance. Run collectors and view key metrics.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/aws"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/35 bg-white/10 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/20 transition"
+            >
+              Account
+            </Link>
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/35 bg-white/10 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/20 transition"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold opacity-95">Compliance evidence at a glance</h2>
-            <p className="mt-2 max-w-xl text-sm opacity-90">
-              Collect and view AWS security evidence for SWIFT controls. Run collectors or browse by control.
+            <h2 className="text-xl md:text-2xl font-semibold opacity-95 leading-tight">Compliance evidence at a glance</h2>
+            <p className="mt-2 max-w-2xl text-sm md:text-base opacity-90 leading-relaxed">
+              Collect and view AWS security evidence for SWIFT controls.
             </p>
             {lastCollectedAt && (
-              <p className="mt-4 flex items-center gap-2 text-xs opacity-85">
+              <p className="mt-4 flex items-center gap-2 text-sm opacity-85">
                 <Clock className="h-3.5 w-3.5 shrink-0" />
                 Last collected {formatRelative(lastCollectedAt)} ({formatDateTime(lastCollectedAt)})
               </p>
@@ -85,7 +131,7 @@ export function AwsDashboard({
               type="button"
               onClick={onFetchEvidence}
               disabled={fetching}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 font-semibold text-[var(--primary)] shadow-sm transition hover:bg-white/90 disabled:opacity-70 min-h-[42px]"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-[var(--primary)] shadow-sm transition hover:bg-white/90 disabled:opacity-70 min-h-[44px]"
             >
               {fetching ? (
                 <>
@@ -99,17 +145,30 @@ export function AwsDashboard({
                 </>
               )}
             </button>
-            <Link
-              href="/aws/controls"
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/40 bg-white/10 px-5 py-2.5 font-medium text-white transition hover:bg-white/20 min-h-[42px]"
-            >
-              View controls
-              <ExternalLink className="h-4 w-4" />
-            </Link>
+            <div className="inline-flex items-stretch rounded-lg border border-white/35 overflow-hidden">
+              <button
+                type="button"
+                onClick={openEvidenceSection}
+                disabled={evidenceSectionLoading || activeSection === "evidence"}
+                className="inline-flex items-center justify-center gap-2 bg-white/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/20 min-h-[44px] disabled:opacity-70"
+              >
+                {evidenceSectionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                {activeSection === "evidence" ? "Evidence loaded" : "Show evidence"}
+              </button>
+              <button
+                type="button"
+                onClick={openRunHistorySection}
+                disabled={runHistorySectionLoading || activeSection === "run-history"}
+                className="inline-flex items-center justify-center gap-2 border-l border-white/25 bg-white/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/20 min-h-[44px] disabled:opacity-70"
+              >
+                {runHistorySectionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
+                {activeSection === "run-history" ? "Run Details loaded" : "Run Details"}
+              </button>
+            </div>
           </div>
         </div>
         {fetching && (
-          <p className="mt-3 text-xs opacity-90 text-white/90">Run in progress. This page will update automatically when collection finishes.</p>
+          <p className="mt-3 text-sm opacity-90 text-white/90">Run in progress. This page updates automatically when collection finishes.</p>
         )}
         {fetchError && (
           <div className="mt-4 flex items-start gap-2 rounded-lg bg-white/15 px-4 py-3 text-sm text-white">
@@ -130,84 +189,37 @@ export function AwsDashboard({
         />
       </section>
 
-      {/* Two-column: Recent runs + Quick links */}
-      <section aria-label="Recent activity and quick links" className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="min-w-0">
-          <AwsSectionTitle>Recent runs</AwsSectionTitle>
-          <div className="card rounded-xl p-4">
-            {recentRuns.length === 0 ? (
-              <div className="py-8 text-center">
-                <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>No runs yet</p>
-                <p className="mt-1 text-xs" style={{ color: "var(--foreground-muted)" }}>
-                  Use <strong>Fetch AWS evidence</strong> above to run collectors.
-                </p>
-              </div>
-            ) : (
-              <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
-                {recentRuns.map((r) => (
-                  <li key={r.run_id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
-                    <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{
-                        background:
-                          r.status === "success"
-                            ? "var(--success)"
-                            : r.status === "failed"
-                              ? "var(--danger)"
-                              : "var(--warning)",
-                      }}
-                      title={r.status}
-                      aria-hidden
-                    />
-                    <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--foreground-muted)" }}>
-                      {formatRelative(r.ended_at ?? r.in_time ?? r.execution_time)} ·{" "}
-                      <span className="font-medium" style={{ color: "var(--foreground)" }}>
-                        {r.evidence_count ?? 0}
-                      </span>{" "}
-                      items
-                    </span>
-                    <span
-                      className="shrink-0 rounded px-2 py-0.5 text-xs"
-                      style={{ background: "var(--muted)", color: "var(--foreground-muted)" }}
-                    >
-                      {r.trigger_type || "—"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <Link
-            href="#run-history"
-            className="mt-2 text-xs font-medium"
-            style={{ color: "var(--primary)" }}
-          >
-            View all →
-          </Link>
-        </div>
-        <div className="min-w-0">
-          <AwsSectionTitle>Quick links</AwsSectionTitle>
-          <AwsQuickLinks />
-        </div>
-      </section>
-
-      {/* Run history */}
-      <section id="run-history" aria-labelledby="run-history-heading" className="w-full">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <AwsSectionTitle id="run-history-heading" className="mb-0">Run history</AwsSectionTitle>
-          {runs.length > 0 && (
+      {activeSection === "run-history" && (
+        <section id="run-history" aria-label="Run activity" className="w-full">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <AwsSectionTitle className="mb-0">Run history insights</AwsSectionTitle>
             <span
               className="rounded-full px-2.5 py-0.5 text-xs font-medium"
               style={{ background: "var(--muted)", color: "var(--foreground-muted)" }}
             >
               {runs.length} run{runs.length !== 1 ? "s" : ""}
             </span>
-          )}
-        </div>
-        <div className="card rounded-xl overflow-hidden w-full">
-          <AwsRunHistory runs={runs} onRunDeleted={onRunDeleted} />
-        </div>
-      </section>
+          </div>
+          <RunHistoryVisuals runs={runs} evidenceRows={evidenceRows} />
+        </section>
+      )}
+
+      {activeSection === "evidence" && (
+        <section id="dashboard-evidence" aria-label="Evidence section" className="w-full">
+          <AwsSectionTitle>Evidence table</AwsSectionTitle>
+          <AwsEvidenceTable
+            data={evidenceRows.slice(0, 150)}
+            runs={runs}
+            onViewContent={onViewEvidenceContent}
+          />
+        </section>
+      )}
+
+      
     </div>
   );
+}
+
+function RunHistoryVisuals({ runs, evidenceRows }: { runs: AwsRun[]; evidenceRows: AwsEvidenceRow[] }) {
+  return <RunHistoryVisualsPlotly runs={runs} evidenceRows={evidenceRows} />;
 }

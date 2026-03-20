@@ -127,7 +127,17 @@ export function AwsRunHistory({ runs, onRunDeleted }: AwsRunHistoryProps) {
                   {formatDate(r.ended_at ?? r.in_time ?? r.execution_time)}
                 </td>
                 <td className="px-4 py-2">
-                  <span className="font-medium" style={{ color: r.status === "success" ? "var(--success)" : r.status === "failed" || r.status === "partial" ? "var(--danger)" : "var(--warning)" }}>
+                  <span
+                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                      r.status === "success"
+                        ? "bg-[var(--success)]/15 text-[var(--success)]"
+                        : r.status === "partial"
+                          ? "bg-amber-500/15 text-amber-600"
+                          : r.status === "failed"
+                            ? "bg-[var(--danger)]/15 text-[var(--danger)]"
+                            : "bg-[var(--warning)]/15 text-[var(--warning)]"
+                    }`}
+                  >
                     {r.status}
                   </span>
                 </td>

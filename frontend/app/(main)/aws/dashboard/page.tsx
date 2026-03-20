@@ -1,13 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { RotateCw } from "lucide-react";
-import Link from "next/link";
-import { getRuns, getEvidence, getControlsCoverage, fetchAwsEvidence, getRunDetail } from "@/lib/aws-api";
+import { useAuth } from "@/lib/auth-context";
+import {
+  getRuns,
+  getEvidence,
+  getControlsCoverage,
+  getControlsCoverageItems,
+  getEvidenceContent,
+  fetchAwsEvidence,
+  getRunDetail,
+  isAwsConnectionVisibleForCycle,
+} from "@/lib/aws-api";
 import { AwsDashboard } from "@/components/aws/aws-dashboard";
 import { AwsDashboardSkeleton } from "@/components/aws/aws-dashboard-skeleton";
-import { AwsPageHeader, awsButtonSecondaryClass } from "@/components/aws/aws-page-header";
-import type { AwsRun } from "@/lib/aws-api";
+import { AwsEvidenceContentModal } from "@/components/aws/aws-evidence-content-modal";
+import type { AwsRun, AwsEvidenceRow, AwsControlItemWithEvidence } from "@/lib/aws-api";
 
 const POLL_INTERVAL_MS = 4000;
 const TIMEOUT_POLL_INTERVAL_MS = 6000;
@@ -15,35 +23,75 @@ const TIMEOUT_POLL_MAX_MS = 3 * 60 * 1000; // 3 minutes
 const RUN_TERMINAL_STATUSES = ["success", "partial", "failed"];
 
 export default function AwsDashboardPage() {
+  const { activeCycleId } = useAuth();
   const [runs, setRuns] = useState<AwsRun[]>([]);
+  const [evidenceRows, setEvidenceRows] = useState<AwsEvidenceRow[]>([]);
   const [evidenceCount, setEvidenceCount] = useState(0);
   const [controlIdsWithEvidence, setControlIdsWithEvidence] = useState<string[]>([]);
+  const [controlItems, setControlItems] = useState<AwsControlItemWithEvidence[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [contentModal, setContentModal] = useState<{
+    content?: unknown;
+    error?: string;
+    comparison?: {
+      controlId: string;
+      itemCode: string;
+      selectedEvidenceId: string;
+      entries: Array<{
+        evidenceId: string;
+        runId?: string;
+        runLabel: string;
+        runStatus: string;
+        sourceSystem: string;
+        evidenceType: string;
+        collectedAt: string | null;
+        isCurrent: boolean;
+        content?: unknown;
+        error?: string;
+      }>;
+    };
+  } | null>(null);
+  const [contentLoading, setContentLoading] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutPollStartRef = useRef<number>(0);
 
   const load = useCallback(() => {
     setLoading(true);
+    if (!isAwsConnectionVisibleForCycle(activeCycleId)) {
+      setRuns([]);
+      setEvidenceRows([]);
+      setEvidenceCount(0);
+      setControlIdsWithEvidence([]);
+      setControlItems([]);
+      setFetchError("No AWS connection for this cycle. Open AWS Connect and configure this cycle.");
+      setLoading(false);
+      return;
+    }
     Promise.all([
       getRuns(50),
-      getEvidence(500).then((list) => list.length),
+      getEvidence(500),
       getControlsCoverage().then((d) => d.control_ids_with_evidence || []),
+      getControlsCoverageItems(),
     ])
-      .then(([runsList, count, ids]) => {
+      .then(([runsList, evidenceList, ids, itemPairs]) => {
         setRuns(runsList);
-        setEvidenceCount(count);
+        setEvidenceRows(evidenceList);
+        setEvidenceCount(evidenceList.length);
         setControlIdsWithEvidence(ids);
+        setControlItems(itemPairs);
       })
       .catch(() => {
         setRuns([]);
+        setEvidenceRows([]);
         setEvidenceCount(0);
         setControlIdsWithEvidence([]);
+        setControlItems([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeCycleId]);
 
   useEffect(() => {
     load();
@@ -57,6 +105,10 @@ export default function AwsDashboardPage() {
   }, []);
 
   const onFetchEvidence = useCallback(() => {
+    if (!isAwsConnectionVisibleForCycle(activeCycleId)) {
+      setFetchError("No AWS connection for this cycle. Open AWS Connect and configure this cycle.");
+      return;
+    }
     setFetchError(null);
     setFetching(true);
     fetchAwsEvidence()
@@ -122,13 +174,16 @@ export default function AwsDashboardPage() {
             }
             Promise.all([
               getRuns(10),
-              getEvidence(500).then((list) => list.length),
+              getEvidence(500),
               getControlsCoverage().then((d) => d.control_ids_with_evidence || []),
+              getControlsCoverageItems(),
             ])
-              .then(([runsList, count, ids]) => {
+              .then(([runsList, evidenceList, ids, itemPairs]) => {
                 setRuns(runsList);
-                setEvidenceCount(count);
+                setEvidenceRows(evidenceList);
+                setEvidenceCount(evidenceList.length);
                 setControlIdsWithEvidence(ids);
+                setControlItems(itemPairs);
                 const first = runsList[0];
                 const endedAt = first?.ended_at ? new Date(first.ended_at).getTime() : 0;
                 const isRecentCompleted =
@@ -154,25 +209,85 @@ export default function AwsDashboardPage() {
         }
         setFetching(false);
       });
-  }, [load]);
+  }, [load, activeCycleId]);
+
+  const onViewContent = useCallback((row: AwsEvidenceRow) => {
+    setContentLoading(true);
+    setContentModal(null);
+    const runIndexById = new Map(runs.map((r, idx) => [r.run_id, idx]));
+    const relatedRows = evidenceRows.filter((r) => r.item_code === row.item_code && r.control_id === row.control_id);
+    const bestRowByRun = new Map<string, AwsEvidenceRow>();
+    for (const r of relatedRows) {
+      const key = r.run_id || `no-run-${r.evidence_id}`;
+      const existing = bestRowByRun.get(key);
+      if (!existing) {
+        bestRowByRun.set(key, r);
+        continue;
+      }
+      const existingTs = existing.collected_at ? new Date(existing.collected_at).getTime() : 0;
+      const currentTs = r.collected_at ? new Date(r.collected_at).getTime() : 0;
+      if (currentTs > existingTs) bestRowByRun.set(key, r);
+    }
+    const rowsForComparison = Array.from(bestRowByRun.values())
+      .sort((a, b) => {
+        const ai = a.run_id ? (runIndexById.get(a.run_id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+        const bi = b.run_id ? (runIndexById.get(b.run_id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+        if (ai !== bi) return ai - bi;
+        const at = a.collected_at ? new Date(a.collected_at).getTime() : 0;
+        const bt = b.collected_at ? new Date(b.collected_at).getTime() : 0;
+        return bt - at;
+      })
+      .slice(0, 8);
+
+    const labelByRunId = new Map(runs.map((r, idx) => [r.run_id, `Run ${idx + 1}`]));
+
+    Promise.all(
+      rowsForComparison.map(async (r) => {
+        try {
+          const content = await getEvidenceContent(r.evidence_id);
+          return {
+            evidenceId: r.evidence_id,
+            runId: r.run_id,
+            runLabel: r.run_id ? labelByRunId.get(r.run_id) || "Run —" : "Run —",
+            runStatus: r.run_id ? runs.find((x) => x.run_id === r.run_id)?.status ?? "unknown" : "unknown",
+            sourceSystem: r.source_system,
+            evidenceType: r.evidence_type,
+            collectedAt: r.collected_at,
+            isCurrent: r.evidence_id === row.evidence_id,
+            content,
+          };
+        } catch (err) {
+          return {
+            evidenceId: r.evidence_id,
+            runId: r.run_id,
+            runLabel: r.run_id ? labelByRunId.get(r.run_id) || "Run —" : "Run —",
+            runStatus: r.run_id ? runs.find((x) => x.run_id === r.run_id)?.status ?? "unknown" : "unknown",
+            sourceSystem: r.source_system,
+            evidenceType: r.evidence_type,
+            collectedAt: r.collected_at,
+            isCurrent: r.evidence_id === row.evidence_id,
+            error: err instanceof Error ? err.message : "Failed to load content",
+          };
+        }
+      })
+    )
+      .then((entries) =>
+        setContentModal({
+          comparison: {
+            controlId: row.control_id,
+            itemCode: row.item_code,
+            selectedEvidenceId: row.evidence_id,
+            entries,
+          },
+        })
+      )
+      .catch((err) => setContentModal({ error: err instanceof Error ? err.message : "Failed to load content" }))
+      .finally(() => setContentLoading(false));
+  }, [runs, evidenceRows]);
 
   if (loading) {
     return (
       <>
-        <AwsPageHeader
-          title="Dashboard"
-          subtitle="Compliance evidence at a glance. Run collectors and view key metrics."
-        >
-          <button
-            type="button"
-            onClick={load}
-            className={awsButtonSecondaryClass}
-            style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-          >
-            <RotateCw className="h-4 w-4" />
-            Refresh
-          </button>
-        </AwsPageHeader>
         <AwsDashboardSkeleton />
       </>
     );
@@ -180,37 +295,30 @@ export default function AwsDashboardPage() {
 
   return (
     <>
-      <AwsPageHeader
-        title="Dashboard"
-        subtitle="Compliance evidence at a glance. Run collectors and view key metrics."
-      >
-        <Link
-          href="/aws"
-          className={awsButtonSecondaryClass}
-          style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-        >
-          Account
-        </Link>
-        <button
-          type="button"
-          onClick={load}
-          className={awsButtonSecondaryClass}
-          style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
-          title="Refresh dashboard data"
-        >
-          <RotateCw className="h-4 w-4" />
-          Refresh
-        </button>
-      </AwsPageHeader>
       <AwsDashboard
         runs={runs}
+        evidenceRows={evidenceRows}
         evidenceCount={evidenceCount}
         controlIdsWithEvidence={controlIdsWithEvidence}
         onFetchEvidence={onFetchEvidence}
-        onRunDeleted={load}
+        onRefresh={load}
+        onViewEvidenceContent={onViewContent}
         fetching={fetching}
         fetchError={fetchError}
       />
+      {contentLoading && !contentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <p className="rounded-lg bg-[var(--card)] px-4 py-2 text-sm text-[var(--foreground)]">Loading content…</p>
+        </div>
+      )}
+      {contentModal && (
+        <AwsEvidenceContentModal
+          content={contentModal.content}
+          error={contentModal.error}
+          comparison={contentModal.comparison}
+          onClose={() => setContentModal(null)}
+        />
+      )}
     </>
   );
 }
