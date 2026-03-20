@@ -136,6 +136,8 @@ export interface EvidenceQuestion {
   upload_label: string | null;
   /** User-facing guidance to help complete the question. */
   guide?: string | null;
+  /** Classification: "AWS", "AWS + Human", "Human", etc. Drives auto-fill and dual-tab UI. */
+  evidence_source?: string | null;
   /** Parent question key; this question is shown only when parent value is in show_when_values. */
   show_when_question?: string | null;
   /** Values that trigger visibility when parent select matches. */

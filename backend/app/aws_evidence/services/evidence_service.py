@@ -12,15 +12,30 @@ from app.aws_evidence.core.db import ensure_schema
 from app.aws_evidence.core.hash_utils import sha256_bytes
 from app.aws_evidence.core.json_utils import sanitize_for_jsonb
 from app.aws_evidence.models import CollectorRun, Evidence, EvidenceSufficiencyMatrix
+
+
+def _apply_scope_filter(q, model, tenant_id: UUID | None, cycle_id: UUID | None, user_id: UUID | None):
+    if tenant_id is not None:
+        q = q.filter(model.tenant_id == tenant_id)
+    if cycle_id is not None and hasattr(model, "cycle_id"):
+        q = q.filter(model.cycle_id == cycle_id)
+    if user_id is not None and hasattr(model, "user_id"):
+        q = q.filter(model.user_id == user_id)
+    return q
 from app.services.storage_service import upload as storage_upload
 
 
-def get_runs(db: Session, limit: int = 50, tenant_id: UUID | None = None):
+def get_runs(
+    db: Session,
+    limit: int = 50,
+    tenant_id: UUID | None = None,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+):
     # Order by most recently finished (ended_at) or started (execution_time) so "last run" is first
     order_col = func.coalesce(CollectorRun.ended_at, CollectorRun.execution_time)
     q = db.query(CollectorRun).order_by(desc(order_col))
-    if tenant_id is not None:
-        q = q.filter(CollectorRun.tenant_id == tenant_id)
+    q = _apply_scope_filter(q, CollectorRun, tenant_id, cycle_id, user_id)
     return q.limit(limit).all()
 
 
@@ -28,21 +43,37 @@ def get_run_by_id(db: Session, run_id: UUID):
     return db.query(CollectorRun).filter(CollectorRun.run_id == run_id).first()
 
 
-def run_belongs_to_tenant(run: CollectorRun | None, tenant_id: UUID | None) -> bool:
-    """True if run is accessible for this tenant (run.tenant_id matches or legacy run with null tenant_id and platform admin)."""
+def run_belongs_to_tenant(
+    run: CollectorRun | None,
+    tenant_id: UUID | None,
+    cycle_id: UUID | None,
+    user_id: UUID | None,
+) -> bool:
+    """True if run is accessible for this tenant+cycle+user scope."""
     if not run:
         return False
-    if run.tenant_id is None:
-        return tenant_id is None  # legacy: only platform admin (no tenant) sees
-    return tenant_id is not None and run.tenant_id == tenant_id
+    return (
+        tenant_id is not None
+        and run.tenant_id == tenant_id
+        and getattr(run, "cycle_id", None) == cycle_id
+        and getattr(run, "user_id", None) == user_id
+    )
 
 
-def evidence_belongs_to_tenant(ev: Evidence | None, tenant_id: UUID | None) -> bool:
+def evidence_belongs_to_tenant(
+    ev: Evidence | None,
+    tenant_id: UUID | None,
+    cycle_id: UUID | None,
+    user_id: UUID | None,
+) -> bool:
     if not ev:
         return False
-    if ev.tenant_id is None:
-        return tenant_id is None
-    return tenant_id is not None and ev.tenant_id == tenant_id
+    return (
+        tenant_id is not None
+        and ev.tenant_id == tenant_id
+        and getattr(ev, "cycle_id", None) == cycle_id
+        and getattr(ev, "user_id", None) == user_id
+    )
 
 
 
@@ -50,10 +81,15 @@ def get_evidence_count_by_run_id(db: Session, run_id: UUID) -> int:
     return db.query(Evidence).filter(Evidence.run_id == run_id).count()
 
 
-def get_evidence_list(db: Session, limit: int = 200, tenant_id: UUID | None = None):
+def get_evidence_list(
+    db: Session,
+    limit: int = 200,
+    tenant_id: UUID | None = None,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+):
     q = db.query(Evidence).order_by(desc(Evidence.collected_at))
-    if tenant_id is not None:
-        q = q.filter(Evidence.tenant_id == tenant_id)
+    q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
     return q.limit(limit).all()
 
 
@@ -61,21 +97,95 @@ def get_evidence_by_id(db: Session, evidence_id: UUID):
     return db.query(Evidence).filter(Evidence.evidence_id == evidence_id).first()
 
 
-def get_evidence_for_control(db: Session, control_id: str, tenant_id: UUID | None = None):
+def get_evidence_for_control(
+    db: Session,
+    control_id: str,
+    tenant_id: UUID | None = None,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+):
     """Collected AWS evidence for this control (always from swift_2026.evidence)."""
     q = db.query(Evidence).filter(Evidence.control_id == control_id)
-    if tenant_id is not None:
-        q = q.filter(Evidence.tenant_id == tenant_id)
+    q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
     return q.order_by(Evidence.collected_at.desc()).all()
 
 
-def get_evidence_for_control_grouped_by_run(db: Session, control_id: str, tenant_id: UUID | None = None):
+def get_evidence_for_item_code(
+    db: Session,
+    item_code: str,
+    tenant_id: UUID | None = None,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+    limit: int = 100,
+):
+    """Collected AWS evidence rows for a canonical evidence item (e.g. A1, B2). Scoped by tenant/cycle/user."""
+    code = (item_code or "").strip().upper()
+    q = db.query(Evidence).filter(Evidence.item_code == code)
+    q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
+    return q.order_by(desc(Evidence.collected_at)).limit(limit).all()
+
+
+def build_aws_evidence_bundle_for_llm(
+    rows: list,
+    max_chars: int = 120_000,
+) -> list[dict]:
+    """
+    Deduplicate by file_hash (same snapshot reused for many control rows) and serialize response_json for prompts.
+    """
+    seen_hashes: set[str] = set()
+    bundle: list[dict] = []
+    for e in rows or []:
+        h = getattr(e, "file_hash", None) or ""
+        if h and h in seen_hashes:
+            continue
+        if h:
+            seen_hashes.add(h)
+        payload = getattr(e, "response_json", None)
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except Exception:
+                payload = {"_truncated_text": (payload or "")[:8000]}
+        bundle.append(
+            {
+                "evidence_id": str(getattr(e, "evidence_id", "") or ""),
+                "control_id": getattr(e, "control_id", None),
+                "source_system": getattr(e, "source_system", None),
+                "evidence_type": getattr(e, "evidence_type", None),
+                "collected_at": e.collected_at.isoformat() if getattr(e, "collected_at", None) else None,
+                "response_json": payload,
+            }
+        )
+    # Cap total serialized size
+    text = json.dumps(bundle, default=str)
+    while len(text) > max_chars and len(bundle) > 1:
+        bundle = bundle[:-1]
+        text = json.dumps(bundle, default=str)
+    if len(text) > max_chars and bundle:
+        bundle[0]["response_json"] = {"_note": "truncated", "_partial": str(bundle[0].get("response_json"))[: max_chars // 2]}
+        bundle = bundle[:1]
+    return bundle
+
+
+def get_evidence_for_control_grouped_by_run(
+    db: Session,
+    control_id: str,
+    tenant_id: UUID | None = None,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+):
     """
     Collected AWS evidence for this control, grouped by collector run.
     Returns list of dicts: { run_id, execution_time, ended_at, status, trigger_type, evidence_count, evidence }.
     Runs ordered by most recent first; evidence within each run by collected_at desc.
     """
-    evidence_list = get_evidence_for_control(db, control_id, tenant_id=tenant_id)
+    evidence_list = get_evidence_for_control(
+        db,
+        control_id,
+        tenant_id=tenant_id,
+        cycle_id=cycle_id,
+        user_id=user_id,
+    )
     if not evidence_list:
         return []
     run_ids = list({e.run_id for e in evidence_list})
@@ -245,15 +355,24 @@ def get_control_by_id(db: Session, control_id: str):
     return {"control_id": control_id, "control_name": orm.control_name if orm else None}
 
 
-def get_control_ids_with_evidence(db: Session, tenant_id: UUID | None = None) -> list[str]:
+def get_control_ids_with_evidence(
+    db: Session,
+    tenant_id: UUID | None = None,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+) -> list[str]:
     """Return distinct control_ids that have at least one evidence row."""
     q = db.query(Evidence.control_id).distinct()
-    if tenant_id is not None:
-        q = q.filter(Evidence.tenant_id == tenant_id)
+    q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
     return [row[0] for row in q.all()]
 
 
-def get_control_item_pairs_with_evidence(db: Session, tenant_id: UUID | None = None) -> list[dict]:
+def get_control_item_pairs_with_evidence(
+    db: Session,
+    tenant_id: UUID | None = None,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+) -> list[dict]:
     """
     Return (control_id, control_name, item_code) for each (control_id, item_code) that has at least one evidence row.
     Used so the UI can list one sidebar entry per evidence item (e.g. A2, C2) and show only that item's evidence.
@@ -262,8 +381,7 @@ def get_control_item_pairs_with_evidence(db: Session, tenant_id: UUID | None = N
         db.query(Evidence.control_id, Evidence.item_code)
         .distinct()
     )
-    if tenant_id is not None:
-        q = q.filter(Evidence.tenant_id == tenant_id)
+    q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
     pairs = q.all()
     if not pairs:
         return []
@@ -289,13 +407,30 @@ def delete_run(db: Session, run_id: UUID) -> int:
     return deleted_evidence
 
 
-def delete_all_evidence_and_runs_for_tenant(db: Session, tenant_id: UUID) -> dict:
+def delete_all_evidence_and_runs_for_tenant(
+    db: Session,
+    tenant_id: UUID,
+    cycle_id: UUID,
+    user_id: UUID,
+) -> dict:
     """
     Delete all evidence and collector runs for the given tenant.
     Returns {"deleted_evidence": int, "deleted_runs": int}.
     """
-    deleted_evidence = db.query(Evidence).filter(Evidence.tenant_id == tenant_id).delete()
-    deleted_runs = db.query(CollectorRun).filter(CollectorRun.tenant_id == tenant_id).delete()
+    deleted_evidence = (
+        db.query(Evidence)
+        .filter(Evidence.tenant_id == tenant_id)
+        .filter(Evidence.cycle_id == cycle_id)
+        .filter(Evidence.user_id == user_id)
+        .delete()
+    )
+    deleted_runs = (
+        db.query(CollectorRun)
+        .filter(CollectorRun.tenant_id == tenant_id)
+        .filter(CollectorRun.cycle_id == cycle_id)
+        .filter(CollectorRun.user_id == user_id)
+        .delete()
+    )
     db.commit()
     return {"deleted_evidence": deleted_evidence, "deleted_runs": deleted_runs}
 
@@ -308,6 +443,8 @@ def create_manual_evidence(
     evidence_type: str = "manual",
     source_system: str = "manual",
     tenant_id: UUID | None = None,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
 ) -> UUID:
     """Create a collector_run (manual), upload content to GCS, insert evidence with response_json. Returns evidence_id."""
     ensure_schema()
@@ -317,6 +454,8 @@ def create_manual_evidence(
     run = CollectorRun(
         run_id=run_id,
         tenant_id=tenant_id,
+        cycle_id=cycle_id,
+        user_id=user_id,
         collector_name="manual",
         cloud_provider="n/a",
         execution_time=now,
@@ -337,6 +476,8 @@ def create_manual_evidence(
         evidence_id=evidence_id,
         run_id=run_id,
         tenant_id=tenant_id,
+        cycle_id=cycle_id,
+        user_id=user_id,
         item_code=item_code,
         control_id=control_id,
         evidence_type=evidence_type,

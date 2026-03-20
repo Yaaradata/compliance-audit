@@ -97,16 +97,21 @@ export default function AssessmentsPage() {
    * - After setup: set active cycle and go to dashboard (Collection).
    */
   const handleOpenCycle = (cycle: AssessmentCycle) => {
-    if (cycle.phase === "setup" || !cycle.architecture_type) {
-      router.push(`/cycles/${cycle.id}/role-evidence-setup`);
-      return;
-    }
-    setArchitecture(cycle.architecture_type);
+    // Always set active cycle context first so sidebar/header reflect
+    // the selected cycle immediately, regardless of destination page.
     setActiveCycleId(cycle.id, {
       label: cycle.label,
       cycle_year: cycle.cycle_year,
       display_id: cycle.display_id,
     });
+    if (cycle.architecture_type) {
+      setArchitecture(cycle.architecture_type);
+    }
+
+    if (cycle.phase === "setup" || !cycle.architecture_type) {
+      router.push(`/cycles/${cycle.id}/role-evidence-setup`);
+      return;
+    }
     router.push(`/cycles/${cycle.id}/dashboard`);
   };
 

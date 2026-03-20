@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -48,6 +49,13 @@ from app.aws_evidence.collectors.aws_api_catalog import get_apis_for_run as get_
 router = APIRouter(prefix="/aws")
 
 
+@dataclass(frozen=True)
+class AwsScope:
+    tenant_id: UUID
+    cycle_id: UUID
+    user_id: UUID
+
+
 def get_effective_aws_tenant(
     tenant_id: UUID | None = Query(None, description="For platform admin: tenant to act on"),
     user: User = Depends(get_current_user),
@@ -64,6 +72,16 @@ def get_effective_aws_tenant(
         status_code=403,
         detail="Tenant context required for AWS operations. Sign in with a tenant account or, as platform admin, pass ?tenant_id=.",
     )
+
+
+def get_effective_aws_scope(
+    cycle_id: UUID = Query(..., description="Cycle scope for AWS operations"),
+    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    user: User = Depends(get_current_user),
+) -> AwsScope:
+    if not user.id:
+        raise HTTPException(status_code=403, detail="User context required for AWS operations.")
+    return AwsScope(tenant_id=tenant_id, cycle_id=cycle_id, user_id=user.id)
 
 
 class AwsCredentialsBody(BaseModel):
@@ -88,7 +106,7 @@ class AwsConnectBody(BaseModel):
 @router.post("/connect")
 def connect_validate_and_save(
     body: AwsConnectBody,
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_db),
 ) -> dict:
     """
@@ -98,18 +116,27 @@ def connect_validate_and_save(
     try:
         save_connection_assume_role(
             db,
-            tenant_id,
+            scope.tenant_id,
+            scope.cycle_id,
+            scope.user_id,
             role_arn=body.role_arn.strip(),
             region=(body.region or "us-east-1").strip() or "us-east-1",
         )
         return {"ok": True, "message": "Validated and connected. You can run audits from the Dashboard."}
     except ValueError as e:
+        logger.warning(
+            "AWS connect validation failed (tenant=%s cycle=%s user=%s): %s",
+            scope.tenant_id,
+            scope.cycle_id,
+            scope.user_id,
+            str(e),
+        )
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.delete("/connect")
 def disconnect_and_delete_all(
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_db),
     aws_db: Session = Depends(get_aws_db),
 ) -> dict:
@@ -119,8 +146,10 @@ def disconnect_and_delete_all(
     """
     try:
         ensure_aws_schema()
-        result = delete_all_evidence_and_runs_for_tenant(aws_db, tenant_id)
-        delete_aws_connection(db, tenant_id)
+        result = delete_all_evidence_and_runs_for_tenant(
+            aws_db, scope.tenant_id, scope.cycle_id, scope.user_id
+        )
+        delete_aws_connection(db, scope.tenant_id, scope.cycle_id, scope.user_id)
         return {
             "ok": True,
             "message": "Connection and all evidence data have been deleted.",
@@ -158,7 +187,7 @@ class OAuthPollBody(BaseModel):
 @router.post("/auth/oauth/start")
 def oauth_start(
     body: OAuthStartBody,
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
 ) -> dict:
     """
     Start AWS SSO device authorization (IAM Identity Center).
@@ -168,7 +197,9 @@ def oauth_start(
     try:
         start_url = _validate_sso_start_url(body.sso_start_url)
         return start_device_authorization(
-            tenant_id=tenant_id,
+            tenant_id=scope.tenant_id,
+            cycle_id=scope.cycle_id,
+            user_id=scope.user_id,
             sso_start_url=start_url,
             sso_region=(body.sso_region or "us-east-1").strip() or "us-east-1",
         )
@@ -179,7 +210,7 @@ def oauth_start(
 @router.post("/auth/oauth/poll")
 def oauth_poll(
     body: OAuthPollBody,
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_db),
 ) -> dict:
     """
@@ -198,17 +229,17 @@ def oauth_poll(
 
 @router.get("/credentials")
 def get_credentials(
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_db),
 ) -> dict:
     """Get AWS connection config for the effective tenant (no secrets)."""
-    return get_config_public(db, tenant_id)
+    return get_config_public(db, scope.tenant_id, scope.cycle_id, scope.user_id)
 
 
 @router.post("/context")
 def save_aws_context(
     body: AwsContextBody,
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_db),
 ) -> dict:
     """Save only Account ID and Region to enter the system. No credentials required."""
@@ -217,7 +248,9 @@ def save_aws_context(
         raise HTTPException(status_code=400, detail="AWS Account ID is required.")
     save_context(
         db,
-        tenant_id,
+        scope.tenant_id,
+        scope.cycle_id,
+        scope.user_id,
         aws_account_id=account_id,
         aws_region=(body.aws_region or "us-east-1").strip() or "us-east-1",
     )
@@ -227,14 +260,16 @@ def save_aws_context(
 @router.post("/credentials")
 def save_credentials(
     body: AwsCredentialsBody,
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_db),
 ) -> dict:
     """Save encrypted AWS credentials for the effective tenant."""
     try:
         save_config(
             db,
-            tenant_id,
+            scope.tenant_id,
+            scope.cycle_id,
+            scope.user_id,
             access_key_id=body.access_key_id,
             secret_access_key=body.secret_access_key,
             aws_region=body.aws_region or "us-east-1",
@@ -247,12 +282,12 @@ def save_credentials(
 
 @router.post("/credentials/test")
 def test_credentials(
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_db),
 ) -> dict:
     """Test saved AWS credentials with STS GetCallerIdentity. No secrets in response."""
     try:
-        return test_connection_service(db, tenant_id)
+        return test_connection_service(db, scope.tenant_id, scope.cycle_id, scope.user_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -260,20 +295,32 @@ def test_credentials(
 @router.get("/runs")
 def list_runs(
     limit: int = Query(20, ge=1, le=100),
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_aws_db),
 ) -> list[dict]:
     """
     List recent collector runs (execution history) with evidence counts for the current tenant.
     """
     try:
-        runs = get_runs(db, limit=limit, tenant_id=tenant_id)
+        runs = get_runs(
+            db,
+            limit=limit,
+            tenant_id=scope.tenant_id,
+            cycle_id=scope.cycle_id,
+            user_id=scope.user_id,
+        )
     except Exception as exc:
         logger.exception("GET /aws/runs failed: %s", exc)
         db.rollback()
         try:
             ensure_aws_schema()
-            runs = get_runs(db, limit=limit, tenant_id=tenant_id)
+            runs = get_runs(
+                db,
+                limit=limit,
+                tenant_id=scope.tenant_id,
+                cycle_id=scope.cycle_id,
+                user_id=scope.user_id,
+            )
         except Exception as retry_exc:
             logger.exception("GET /aws/runs retry after ensure_schema failed: %s", retry_exc)
             raise HTTPException(status_code=502, detail=str(retry_exc)) from retry_exc
@@ -301,14 +348,14 @@ def list_runs(
 @router.get("/runs/{run_id}")
 def get_run_detail(
     run_id: UUID,
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_aws_db),
 ) -> dict:
     """Run detail with evidence count and AWS API calls by collector."""
     run = get_run_by_id(db, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    if not run_belongs_to_tenant(run, tenant_id):
+    if not run_belongs_to_tenant(run, scope.tenant_id, scope.cycle_id, scope.user_id):
         raise HTTPException(status_code=404, detail="Run not found")
     count = get_evidence_count_by_run_id(db, run_id)
     aws_calls = get_run_aws_calls(run.collector_name or "all")
@@ -330,14 +377,14 @@ def get_run_detail(
 @router.delete("/runs/{run_id}")
 def delete_run_history(
     run_id: UUID,
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_aws_db),
 ) -> dict:
     """
     Delete a collector run and all associated evidence rows.
     """
     run = get_run_by_id(db, run_id)
-    if not run or not run_belongs_to_tenant(run, tenant_id):
+    if not run or not run_belongs_to_tenant(run, scope.tenant_id, scope.cycle_id, scope.user_id):
         raise HTTPException(status_code=404, detail="Run not found")
     try:
         deleted = delete_run(db, run_id)
@@ -349,21 +396,27 @@ def delete_run_history(
 
 @router.post("/runs/collect")
 def trigger_collect(
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_db),
 ) -> dict:
     """
     Trigger AWS evidence collection using the tenant's saved credentials.
     Returns run_id on success.
     """
-    creds = get_credentials_for_collect(db, tenant_id)
+    creds = get_credentials_for_collect(db, scope.tenant_id, scope.cycle_id, scope.user_id)
     if not creds:
         raise HTTPException(
             status_code=400,
             detail="No AWS connection configured. Go to AWS → Connect and enter Account ID and Region (backend uses env AWS credentials), or add Access Key and Secret in Credentials.",
         )
     try:
-        run_id = run_all_collectors(tenant_id=tenant_id, credentials=creds, trigger_type="manual")
+        run_id = run_all_collectors(
+            tenant_id=scope.tenant_id,
+            cycle_id=scope.cycle_id,
+            user_id=scope.user_id,
+            credentials=creds,
+            trigger_type="manual",
+        )
         return {"run_id": str(run_id), "status": "success"}
     except Exception as exc:  # pragma: no cover
         msg = str(exc) if str(exc) else "Collection failed"
@@ -373,14 +426,20 @@ def trigger_collect(
 @router.get("/evidence")
 def list_evidence(
     limit: int = Query(200, ge=1, le=1000),
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_aws_db),
 ) -> list[dict]:
     """
     List AWS evidence rows for the current tenant.
     """
     try:
-        items = get_evidence_list(db, limit=limit, tenant_id=tenant_id)
+        items = get_evidence_list(
+            db,
+            limit=limit,
+            tenant_id=scope.tenant_id,
+            cycle_id=scope.cycle_id,
+            user_id=scope.user_id,
+        )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -401,7 +460,7 @@ def list_evidence(
 @router.get("/evidence/{evidence_id}/content")
 def get_evidence_content(
     evidence_id: UUID,
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_aws_db),
 ) -> dict:
     """
@@ -414,7 +473,7 @@ def get_evidence_content(
 
     if not e:
         raise HTTPException(status_code=404, detail="Evidence not found")
-    if not evidence_belongs_to_tenant(e, tenant_id):
+    if not evidence_belongs_to_tenant(e, scope.tenant_id, scope.cycle_id, scope.user_id):
         raise HTTPException(status_code=404, detail="Evidence not found")
 
     if e.response_json is None:
@@ -427,7 +486,7 @@ def get_evidence_content(
 
 @router.get("/controls")
 def list_controls(
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_aws_db),
 ) -> list[dict]:
     """List controls from evidence_sufficiency_matrix (or swift_2026.controls when USE_SWIFT_2026)."""
@@ -440,12 +499,14 @@ def list_controls(
 
 @router.get("/controls/coverage")
 def controls_coverage(
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_aws_db),
 ) -> dict:
     """Control IDs that have at least one evidence row for the current tenant."""
     try:
-        ids = get_control_ids_with_evidence(db, tenant_id=tenant_id)
+        ids = get_control_ids_with_evidence(
+            db, tenant_id=scope.tenant_id, cycle_id=scope.cycle_id, user_id=scope.user_id
+        )
         return {"control_ids_with_evidence": ids}
     except Exception:
         return {"control_ids_with_evidence": []}
@@ -453,12 +514,14 @@ def controls_coverage(
 
 @router.get("/controls/coverage/items")
 def controls_coverage_items(
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_aws_db),
 ) -> list:
     """(control_id, control_name, item_code) for each evidence item that has at least one evidence row. Use for sidebar so clicking A2 shows only A2 evidence."""
     try:
-        return get_control_item_pairs_with_evidence(db, tenant_id=tenant_id)
+        return get_control_item_pairs_with_evidence(
+            db, tenant_id=scope.tenant_id, cycle_id=scope.cycle_id, user_id=scope.user_id
+        )
     except Exception:
         return []
 
@@ -467,14 +530,20 @@ def controls_coverage_items(
 def get_control_detail(
     control_id: str,
     item_code: str | None = Query(None, description="Filter to this evidence item only (e.g. A2). When set, only that item's evidence and required items are returned."),
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_aws_db),
 ) -> dict:
     """Control detail with required evidence items, evidence grouped by run, and AWS calls. Optional item_code filters to a single evidence item (e.g. A2) so the panel shows only that item's data."""
     try:
         control = get_control_by_id(db, control_id)
         matrix = get_control_matrix_for_control(db, control_id)
-        evidence_by_run = get_evidence_for_control_grouped_by_run(db, control_id, tenant_id=tenant_id)
+        evidence_by_run = get_evidence_for_control_grouped_by_run(
+            db,
+            control_id,
+            tenant_id=scope.tenant_id,
+            cycle_id=scope.cycle_id,
+            user_id=scope.user_id,
+        )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -519,7 +588,7 @@ class ManualEvidenceCreate(BaseModel):
 @router.post("/evidence", status_code=201)
 def create_manual_evidence_endpoint(
     body: ManualEvidenceCreate,
-    tenant_id: UUID = Depends(get_effective_aws_tenant),
+    scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_aws_db),
 ) -> dict:
     """Submit manual evidence for a control."""
@@ -531,7 +600,9 @@ def create_manual_evidence_endpoint(
             content=body.content,
             evidence_type=body.evidence_type or "manual",
             source_system=body.source_system or "manual",
-            tenant_id=tenant_id,
+            tenant_id=scope.tenant_id,
+            cycle_id=scope.cycle_id,
+            user_id=scope.user_id,
         )
         return {"evidence_id": str(evidence_id), "control_id": body.control_id, "item_code": body.item_code}
     except Exception as exc:

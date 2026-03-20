@@ -129,13 +129,14 @@ export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidence
     { key: "actions", label: "", className: "text-right w-24" },
   ] as const;
   type ColumnKey = (typeof columns)[number]["key"];
+  type ColumnDef = (typeof columns)[number];
   const DEFAULT_COLUMN_ORDER: ColumnKey[] = columns.map((c) => c.key);
   const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(DEFAULT_COLUMN_ORDER);
   const [draggingColumn, setDraggingColumn] = useState<ColumnKey | null>(null);
 
-  const orderedColumns = useMemo(() => {
-    const byKey = new Map(columns.map((c) => [c.key, c]));
-    return columnOrder.map((key) => byKey.get(key)).filter(Boolean) as typeof columns;
+  const orderedColumns = useMemo((): ColumnDef[] => {
+    const byKey = new Map<ColumnKey, ColumnDef>(columns.map((c) => [c.key, c]));
+    return columnOrder.map((key) => byKey.get(key)).filter((c): c is ColumnDef => c !== undefined);
   }, [columnOrder]);
 
   const moveColumn = (from: ColumnKey, to: ColumnKey) => {
@@ -279,7 +280,7 @@ export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidence
               {orderedColumns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap ${col.key === "actions" ? "text-right" : ""} ${col.className ?? ""} ${col.key !== "actions" ? "cursor-pointer select-none" : ""}`}
+                  className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap ${col.key === "actions" ? "text-right" : ""} ${"className" in col ? col.className : ""} ${col.key !== "actions" ? "cursor-pointer select-none" : ""}`}
                   style={{ color: "var(--foreground-muted)" }}
                   draggable={col.key !== "actions"}
                   onDragStart={() => setDraggingColumn(col.key)}

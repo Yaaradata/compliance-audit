@@ -41,6 +41,7 @@ export function AppSidebar() {
   const { user, selectedArchitectureId, activeCycleId, effectiveCycleRole } = useAuth();
   const cycleIdFromPath = useCycleIdFromPath();
   const cycleId = cycleIdFromPath ?? activeCycleId;
+  const hasCycleInPath = Boolean(cycleIdFromPath && pathname?.startsWith("/cycles/"));
   const [searchQuery, setSearchQuery] = useState("");
   const role = cycleId && effectiveCycleRole !== undefined ? (effectiveCycleRole ?? user?.role) : user?.role;
   const navItems = getNavForRole(role)?.filter(
@@ -115,7 +116,7 @@ export function AppSidebar() {
     pathname?.startsWith("/assessments/new");
   const shouldShowDomains =
     staticDomains.length > 0 &&
-    cycleId &&
+    hasCycleInPath &&
     role &&
     !["internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"].includes(role) &&
     !isCycleSetupRoute &&

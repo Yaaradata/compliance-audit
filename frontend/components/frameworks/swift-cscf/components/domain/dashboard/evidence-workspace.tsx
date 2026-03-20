@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
+import { api } from "@/lib/api";
 import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
 import { A5_EVIDENCE_ITEM_ID, A5_ARCHITECTURE_KEYS } from "@/lib/frameworks/swift-cscf/constants";
 import type { EvidenceItem, DomainConfig } from "@/lib/types";
@@ -97,6 +98,12 @@ export function EvidenceWorkspace({
   const [focusedQuestionLabel, setFocusedQuestionLabel] = useState<string | null>(null);
   const [guideAtBottom, setGuideAtBottom] = useState(false);
   const [guideSpacerHeight, setGuideSpacerHeight] = useState(0);
+  const [awsSuggestLoading, setAwsSuggestLoading] = useState(false);
+  const [awsSuggestMessage, setAwsSuggestMessage] = useState<string | null>(null);
+  const [awsSuggestError, setAwsSuggestError] = useState<string | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<Record<string, string>>({});
+  const [questionSources, setQuestionSources] = useState<Record<string, string>>({});
+  const autoFilledItemsRef = useRef<Set<string>>(new Set());
   const evidenceScrollRef = useRef<HTMLDivElement>(null);
   const guidanceContentRef = useRef<HTMLDivElement>(null);
   const focusedQuestionElementRef = useRef<HTMLElement | null>(null);
@@ -176,11 +183,72 @@ export function EvidenceWorkspace({
         setGuideAtBottom(false);
         setGuideSpacerHeight(0);
         focusedQuestionElementRef.current = null;
+        setAwsSuggestMessage(null);
+        setAwsSuggestError(null);
+        setAiSuggestions({});
+        setQuestionSources({});
       }
     } else {
       prevItemIdRef.current = null;
     }
   }, [currentItem?.id]);
+
+  useEffect(() => {
+    if (!cycleId || !currentItem) return;
+    if (autoFilledItemsRef.current.has(currentItem.id)) return;
+    handleSuggestFromAws(currentItem.id);
+  }, [cycleId, currentItem?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSuggestFromAws = useCallback(async (itemId?: string) => {
+    const targetItem = itemId ?? currentItem?.id;
+    if (!cycleId || !targetItem) return;
+    setAwsSuggestLoading(true);
+    setAwsSuggestError(null);
+    setAwsSuggestMessage(null);
+    setAiSuggestions({});
+    try {
+      const res = await api.postViaProxy<{
+        suggestions: Record<string, string>;
+        question_keys_attempted: string[];
+        question_sources: Record<string, string>;
+        aws_evidence_bundle_count: number;
+        aws_evidence_row_count: number;
+        message?: string | null;
+      }>(`/assessments/${cycleId}/evidence-items/${targetItem}/suggest-from-aws`, {}, 180_000);
+      const sugg = res.suggestions ?? {};
+      const sources = res.question_sources ?? {};
+      setQuestionSources(sources);
+      setAiSuggestions(sugg);
+      autoFilledItemsRef.current.add(targetItem);
+
+      const keys = Object.keys(sugg).filter((k) => (sugg[k] ?? "").trim().length > 0);
+      keys.forEach((k) => {
+        const src = (sources[k] ?? "").trim().toLowerCase();
+        const isAwsPlusHuman = src.startsWith("aws") && src.includes("human");
+        if (isAwsPlusHuman) {
+          onItemFormChange(`${k}__ai`, sugg[k]!);
+        } else {
+          onItemFormChange(k, sugg[k]!);
+          onItemFormChange(`${k}__ai`, sugg[k]!);
+        }
+      });
+      if (keys.length > 0) {
+        await onEnsureSubmission(targetItem);
+        onItemFormBlur();
+      }
+      if (res.message) setAwsSuggestMessage(res.message);
+      else if (keys.length > 0) {
+        setAwsSuggestMessage(`Filled ${keys.length} field(s) from AWS evidence (${res.aws_evidence_bundle_count} snapshot(s)).`);
+      } else {
+        setAwsSuggestMessage("No suggestions returned — check AWS collection or question evidence_source (AWS / AWS + Human).");
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Request failed";
+      setAwsSuggestError(msg);
+    } finally {
+      setAwsSuggestLoading(false);
+    }
+  }, [cycleId, currentItem?.id, onItemFormChange, onEnsureSubmission, onItemFormBlur]);
 
   if (!currentItem) {
     return (
@@ -199,6 +267,39 @@ export function EvidenceWorkspace({
               <A5ArchitecturePreview formData={itemFormData} />
             </div>
           )}
+          <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between rounded-lg border border-(--border) bg-(--surface) px-3 py-2.5">
+            <div className="text-[11px] text-(--foreground-muted) min-w-0">
+              {awsSuggestLoading ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block size-3.5 border-2 border-sky-300 border-t-sky-600 rounded-full animate-spin" />
+                  <span className="font-semibold text-sky-700 dark:text-sky-300">Auto-filling from AWS evidence…</span>
+                </span>
+              ) : (
+                <>
+                  <span className="font-semibold text-foreground">AWS-assisted answers</span>
+                  {" — "}
+                  Auto-fills questions where evidence_source is AWS or AWS + Human.
+                </>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                autoFilledItemsRef.current.delete(currentItem.id);
+                handleSuggestFromAws(currentItem.id);
+              }}
+              disabled={awsSuggestLoading}
+              className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg border border-(--border) bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-(--muted)/40 disabled:opacity-50"
+            >
+              {awsSuggestLoading ? "Generating…" : "Re-generate AWS suggestions"}
+            </button>
+            {awsSuggestError && (
+              <p className="text-[11px] text-red-600 w-full">{awsSuggestError}</p>
+            )}
+            {awsSuggestMessage && !awsSuggestError && (
+              <p className="text-[11px] text-(--foreground-muted) w-full">{awsSuggestMessage}</p>
+            )}
+          </div>
           <EvidenceQuestionsForm
             evidenceItemId={currentItem.id}
             cycleId={cycleId}
@@ -210,6 +311,9 @@ export function EvidenceWorkspace({
             onEnsureSubmission={onEnsureSubmission}
             fieldFeedback={aiEvaluationResult?.field_feedback ?? {}}
             onQuestionFocus={handleQuestionFocus}
+            aiSuggestLoading={awsSuggestLoading}
+            aiSuggestions={aiSuggestions}
+            questionSources={questionSources}
           />
           {!aiEvaluationResult && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-2xl border border-(--border) bg-gradient-to-br from-background to-background/80 shadow-md hover:shadow-lg transition-shadow duration-200">

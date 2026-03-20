@@ -1,0 +1,81 @@
+{
+  "collector": "ssm_patch",
+  "account_id": "405466951861",
+  "region": "eu-north-1",
+  "collected_at": "2026-03-20T14:39:58.437778",
+  "instance_patch_states": [
+    {
+      "note": "No EC2 instances in region; no patch states to report"
+    }
+  ],
+  "patch_baselines": [
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-00764af0685e36dda",
+      "BaselineName": "AWS-MacOSDefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-00fefc5ccccc02f85",
+      "BaselineName": "AWS-RaspbianDefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-0300fea62ab0fad46",
+      "BaselineName": "AWS-AmazonLinuxDefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-039e7fce1b0590361",
+      "BaselineName": "AWS-WindowsPredefinedPatchBaseline-OS-Applications"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-05052fba97e7406bf",
+      "BaselineName": "AWS-AlmaLinuxDefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-062def4bf92b5fded",
+      "BaselineName": "AWS-RockyLinuxDefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-067edc8090d2feb00",
+      "BaselineName": "AWS-WindowsPredefinedPatchBaseline-OS"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-0723fcf5403c27c5f",
+      "BaselineName": "AWS-RedHatDefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-07ab814de7f0e5879",
+      "BaselineName": "AWS-CentOSDefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-089635cbf3739307a",
+      "BaselineName": "AWS-DefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-0be00c59fae1cad84",
+      "BaselineName": "AWS-SuseDefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-0c3d4afd9d8a36158",
+      "BaselineName": "AWS-AmazonLinux2DefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-0ce843ccf58c5a610",
+      "BaselineName": "AWS-AmazonLinux2023DefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-0d27bf104145140bf",
+      "BaselineName": "AWS-UbuntuDefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-0d488cfc197759c0e",
+      "BaselineName": "AWS-AmazonLinux2022DefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-0e01ea35c90c2d453",
+      "BaselineName": "AWS-OracleLinuxDefaultPatchBaseline"
+    },
+    {
+      "BaselineId": "arn:aws:ssm:eu-north-1:035476931495:patchbaseline/pb-0ee719725cbad5a4f",
+      "BaselineName": "AWS-DebianDefaultPatchBaseline"
+    }
+  ]
+}

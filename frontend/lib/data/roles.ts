@@ -12,9 +12,9 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 /** Resolve a display label for any role including null (unassigned). */
-export function getRoleLabel(role: UserRole | null | undefined): string {
+export function getRoleLabel(role: UserRole | string | null | undefined): string {
   if (!role) return "Unassigned";
-  return ROLE_LABELS[role] ?? role;
+  return ROLE_LABELS[role as UserRole] ?? role;
 }
 
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { getEvidenceContent, type AwsEvidenceRow, type AwsRun } from "@/lib/aws-api";
+import { useAuth } from "@/lib/auth-context";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
@@ -105,6 +106,7 @@ function cleanFeatureLabel(feature: string): string {
 }
 
 export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]; evidenceRows: AwsEvidenceRow[] }) {
+  const { activeCycleId } = useAuth();
   const [activeSidebar, setActiveSidebar] = useState<"metrics" | "comparisor">("metrics");
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
@@ -191,7 +193,7 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
 
     const contentList = await Promise.all(
       comparableRuns.map(async ({ run, evidence }) => {
-        const content = await getEvidenceContent(evidence.evidence_id);
+        const content = await getEvidenceContent(evidence.evidence_id, activeCycleId);
         return { run, evidence, values: flattenContent(content) };
       })
     );
@@ -214,7 +216,7 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
       })),
       rows,
     };
-  }, [evidenceRows, runs, runLabelMap]);
+  }, [evidenceRows, runs, runLabelMap, activeCycleId]);
 
   const compareRuns = useCallback(async () => {
     if (!controlOptions.length) return;
@@ -384,8 +386,8 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
           layout={{
             height: 280,
             margin: { l: 40, r: 20, t: 10, b: 40 },
-            xaxis: { title: "Run sequence" },
-            yaxis: { title: "Evidence count", rangemode: "tozero" },
+            xaxis: { title: { text: "Run sequence" } },
+            yaxis: { title: { text: "Evidence count" }, rangemode: "tozero" },
             paper_bgcolor: "transparent",
             plot_bgcolor: "transparent",
             font: { color: "#0f172a", size: 12 },
@@ -428,8 +430,8 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
           layout={{
             height: 300,
             margin: { l: 50, r: 20, t: 10, b: 50 },
-            xaxis: { title: "Month", automargin: true },
-            yaxis: { title: "Runs", rangemode: "tozero" },
+            xaxis: { title: { text: "Month" }, automargin: true },
+            yaxis: { title: { text: "Runs" }, rangemode: "tozero" },
             paper_bgcolor: "transparent",
             plot_bgcolor: "transparent",
             font: { color: "#0f172a", size: 12 },

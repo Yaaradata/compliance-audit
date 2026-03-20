@@ -157,7 +157,7 @@ $CloudSqlInstance = "${ProjectId}:${Region}:compliance-audit"
 $BaseEnv = "GOOGLE_CLOUD_PROJECT=$ProjectId,CLOUD_SQL_INSTANCE=$CloudSqlInstance,GCS_BUCKET_NAME=$BucketName"
 if ($SkipDeploy) {
     Write-Host "[6/7] Skipping deploy (use -SkipDeploy). Run manually in a separate terminal:" -ForegroundColor Yellow
-    Write-Host "  gcloud run deploy $ServiceName --image=$FullImage --region=$Region --platform=managed --allow-unauthenticated --service-account=compliance-api-runner@${ProjectId}.iam.gserviceaccount.com --add-cloudsql-instances=$CloudSqlInstance --memory=2Gi --cpu=2 --min-instances=0 --max-instances=10 --port=8080 --set-env-vars=`"$BaseEnv`""
+    Write-Host "  gcloud run deploy $ServiceName --image=$FullImage --region=$Region --platform=managed --allow-unauthenticated --service-account=compliance-api-runner@${ProjectId}.iam.gserviceaccount.com --add-cloudsql-instances=$CloudSqlInstance --memory=2Gi --cpu=2 --cpu-boost --min-instances=0 --max-instances=10 --port=8080 --set-env-vars=`"$BaseEnv`""
     exit 0
 }
 Write-Host "[6/7] Deploying to Cloud Run..." -ForegroundColor Yellow
@@ -171,6 +171,7 @@ Write-Host "[6/7] Deploying to Cloud Run..." -ForegroundColor Yellow
     --add-cloudsql-instances=$CloudSqlInstance `
     --memory=2Gi `
     --cpu=2 `
+    --cpu-boost `
     --min-instances=0 `
     --max-instances=10 `
     --port=8080 `

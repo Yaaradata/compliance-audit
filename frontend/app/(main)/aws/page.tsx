@@ -53,7 +53,7 @@ export default function AwsConnectPage() {
     if (!confirm("This will disconnect your AWS account and permanently delete all evidence and collector run data for this tenant. This cannot be undone. Continue?")) return;
     setMessage(null);
     setDisconnecting(true);
-    deleteAwsConnect()
+    deleteAwsConnect(activeCycleId)
       .then((res) => {
         clearAwsConnectionCycleMarker();
         setMessage({
@@ -73,7 +73,7 @@ export default function AwsConnectPage() {
     if (!config?.has_config) return;
     setMessage(null);
     setTesting(true);
-    testAwsCredentials()
+    testAwsCredentials(activeCycleId)
       .then((res) => {
         setMessage({
           type: "success",
@@ -99,7 +99,7 @@ export default function AwsConnectPage() {
     saveAwsConnect({
       role_arn: roleArn,
       region: form.region || "us-east-1",
-    })
+    }, activeCycleId)
       .then((res) => {
         markAwsConnectionForCycle(activeCycleId);
         setMessage({ type: "success", text: res.message || "Validated and connected." });

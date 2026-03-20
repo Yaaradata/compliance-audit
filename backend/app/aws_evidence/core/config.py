@@ -42,6 +42,11 @@ USE_SWIFT_2026 = os.getenv("USE_SWIFT_2026", "false").lower() in ("true", "1", "
 
 
 def get_database_url() -> str:
+    """Match main app `Settings.database_url`: Cloud Run uses Unix socket when CLOUD_SQL_INSTANCE is set."""
+    cloud_sql = os.getenv("CLOUD_SQL_INSTANCE", "").strip()
+    if cloud_sql:
+        ssl = "&sslmode=require" if DB_SSL else ""
+        return f"postgresql://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}?host=/cloudsql/{cloud_sql}{ssl}"
     ssl = "?sslmode=require" if DB_SSL else ""
     return f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}{ssl}"
 

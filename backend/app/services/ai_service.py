@@ -195,6 +195,13 @@ def _format_criteria_with_control_ids(control_id: str, parsed: list[tuple[str, s
     return "\n".join(f"  {control_id}_{prefix}{id_}: {label}" for id_, label in parsed)
 
 
+def _matrix_row_field(row: Any, name: str) -> Any:
+    """Read a field from either a dict row or an ORM model (e.g. EvidenceSufficiencyMatrix)."""
+    if isinstance(row, dict):
+        return row.get(name)
+    return getattr(row, name, None)
+
+
 def _build_prompt(
     item: Any,
     mappings: list[Any],
@@ -213,10 +220,10 @@ def _build_prompt(
         sufficiency_parts = []
         evaluation_parts = []
         for row in matrix_rows:
-            cid = getattr(row, "control_id", None) or row.get("control_id")
-            cname = getattr(row, "control_name", None) or row.get("control_name") or cid
-            suf_raw = getattr(row, "sufficiency_criteria", None) or row.get("sufficiency_criteria")
-            ev_raw = getattr(row, "evaluation_criteria", None) or row.get("evaluation_criteria")
+            cid = _matrix_row_field(row, "control_id")
+            cname = _matrix_row_field(row, "control_name") or cid
+            suf_raw = _matrix_row_field(row, "sufficiency_criteria")
+            ev_raw = _matrix_row_field(row, "evaluation_criteria")
             suf_parsed = _parse_numbered_criteria(suf_raw)
             ev_structured = _parse_evaluation_criteria_structured(ev_raw)
             if suf_parsed:
@@ -617,6 +624,76 @@ def generate_report_section(snapshot: dict, section_key: str) -> str:
         cleaned = cleaned[:cleaned.rfind("```")]
 
     return cleaned.strip()
+
+
+def suggest_answers_from_aws_evidence(
+    *,
+    evidence_item_id: str,
+    questions: list[dict],
+    aws_evidence_bundle: list[dict],
+) -> dict[str, str]:
+    """
+    Use Vertex AI to map AWS collector JSON into form question_key -> string answers.
+    `questions`: list of {question_key, label, question_type, options, guide}.
+    """
+    if not questions:
+        return {}
+    if not aws_evidence_bundle:
+        return {}
+
+    try:
+        model = _get_model()
+    except Exception as init_err:
+        logger.exception("Vertex AI init failed (suggest-from-aws)")
+        raise ValueError(
+            "Vertex AI is not available. Set GOOGLE_CLOUD_PROJECT and credentials."
+        ) from init_err
+
+    q_json = json.dumps(questions, indent=2, default=str)
+    ev_json = json.dumps(aws_evidence_bundle, indent=2, default=str)
+
+    prompt = f"""You are a SWIFT CSCF compliance assistant. The user collected read-only AWS configuration snapshots for evidence item {evidence_item_id}.
+
+## AWS evidence (JSON — may include multiple collectors / controls)
+{ev_json}
+
+## Form fields to fill (only these question_key values)
+Each field lists: question_key, label, question_type, options (if select/multiselect), guide (rubric).
+
+{q_json}
+
+## Rules
+1. Output **only** a single JSON object: keys must be exactly the question_key values listed above, values must be strings.
+2. For question_type "select", the value must be **exactly** one of the listed options strings (character-for-character), or "" if unknown.
+3. For "multiselect", use a single string: option values separated by comma, or "" if unknown.
+4. For "date" use YYYY-MM-DD only when clearly supported by evidence; otherwise "".
+5. For "checkbox" use "true" or "false" (lowercase) or "".
+6. For "text" / "textarea", give concise factual answers grounded **only** in the AWS evidence JSON. If the evidence does not contain the information, use "".
+7. For "spreadsheet", options contains column definitions (array of objects with key, label, type, options). Return a JSON-encoded string of an array of row objects, e.g. "[{{\\"hostname\\":\\"web01\\",\\"ip_address\\":\\"10.0.0.1\\"}}]". Each row must only use the column keys defined in options. For select columns, use one of the listed options. Populate rows from the AWS evidence; if no data is available, return "[]".
+8. Do not invent ARNs, account IDs, resource names, or dates not present in the evidence.
+9. Do not add keys that were not listed.
+
+Return JSON only, no markdown fences."""
+
+    response = model.generate_content([Part.from_text(prompt)])
+    text = _get_response_text(response)
+    if not (text and text.strip()):
+        raise ValueError("Vertex AI returned empty text for suggest-from-aws.")
+
+    try:
+        parsed = _parse_ai_response(text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Model returned invalid JSON: {e}") from e
+    if not isinstance(parsed, dict):
+        raise ValueError("Model response was not a JSON object.")
+
+    allowed = {q["question_key"] for q in questions if q.get("question_key")}
+    out: dict[str, str] = {}
+    for k, v in parsed.items():
+        if k not in allowed:
+            continue
+        out[str(k)] = "" if v is None else str(v).strip()
+    return out
 
 
 def _static_glossary() -> str:

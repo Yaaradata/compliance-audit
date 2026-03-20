@@ -11,13 +11,18 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.models.tenant_aws_config import TenantAwsConfig
+from app.models.cycle_user_aws_config import CycleUserAwsConfig
 from app.services.tenant_aws_config import get_config, _encrypt, _decrypt
 
 logger = logging.getLogger(__name__)
 
 
-def get_credentials_via_sso(db: Session, tenant_id: uuid.UUID) -> dict | None:
+def get_credentials_via_sso(
+    db: Session,
+    tenant_id: uuid.UUID,
+    cycle_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> dict | None:
     """
     Resolve temporary AWS credentials via SSO refresh token (ListAccountRoles + GetRoleCredentials).
     Returns dict with access_key_id, secret_access_key, region, account_id for use by collectors.
@@ -25,7 +30,7 @@ def get_credentials_via_sso(db: Session, tenant_id: uuid.UUID) -> dict | None:
     import boto3
     from botocore.exceptions import ClientError
 
-    row = get_config(db, tenant_id)
+    row = get_config(db, tenant_id, cycle_id, user_id)
     if not row or getattr(row, "connection_type", None) != "oauth2":
         return None
     refresh_token_enc = getattr(row, "encrypted_refresh_token", None)
@@ -106,7 +111,7 @@ def get_credentials_via_sso(db: Session, tenant_id: uuid.UUID) -> dict | None:
     }
 
 
-# In-memory cache for device flow: device_code -> { tenant_id, client_id, client_secret, start_url, sso_region, last_poll_at }
+# In-memory cache for device flow: device_code -> scope + OIDC client/session metadata.
 # Entries expire after 10 minutes; cleaned on access. last_poll_at used to respect recommended poll interval.
 _DEVICE_CACHE: dict[str, dict] = {}
 _CACHE_TTL_SEC = 600
@@ -122,6 +127,8 @@ def _cache_clean():
 
 def start_device_authorization(
     tenant_id: uuid.UUID,
+    cycle_id: uuid.UUID,
+    user_id: uuid.UUID,
     sso_start_url: str,
     sso_region: str = "us-east-1",
 ) -> dict:
@@ -175,6 +182,8 @@ def start_device_authorization(
     expires_in = int(auth.get("expiresIn", 600))
     _DEVICE_CACHE[device_code] = {
         "tenant_id": str(tenant_id),
+        "cycle_id": str(cycle_id),
+        "user_id": str(user_id),
         "client_id": client_id,
         "client_secret": client_secret,
         "start_url": start_url,
@@ -219,6 +228,8 @@ def poll_device_token(device_code: str, db: Session) -> dict:
     entry["last_poll_at"] = time.time()
 
     tenant_id = uuid.UUID(entry["tenant_id"])
+    cycle_id = uuid.UUID(entry["cycle_id"])
+    user_id = uuid.UUID(entry["user_id"])
     client_id = entry["client_id"]
     client_secret = entry["client_secret"]
     start_url = entry["start_url"]
@@ -281,9 +292,9 @@ def poll_device_token(device_code: str, db: Session) -> dict:
     role_name = role_list[0].get("roleName", "")
 
     # Persist to tenant_aws_config
-    row = get_config(db, tenant_id)
+    row = get_config(db, tenant_id, cycle_id, user_id)
     if not row:
-        row = TenantAwsConfig(tenant_id=tenant_id)
+        row = CycleUserAwsConfig(tenant_id=tenant_id, cycle_id=cycle_id, user_id=user_id)
         db.add(row)
     row.connection_type = "oauth2"
     row.sso_start_url = start_url

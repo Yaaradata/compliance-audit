@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import warnings
 from contextlib import asynccontextmanager
@@ -52,20 +53,33 @@ from .routers import (
     aws,
     compliance,
 )
+
+
+def _run_startup_migrations_sync() -> None:
+    """Idempotent DB/schema fixes. Runs in a worker thread so Uvicorn can bind PORT first (Cloud Run)."""
+    try:
+        ensure_optional_columns()
+        ensure_control_scoping_columns()
+        ensure_notes_notifications_tables()
+        ensure_tenant_aws_config_table()
+        ensure_evidence_submission_history_table()
+        ensure_review_hold_enum()
+        ensure_user_group_name()
+        ensure_user_is_external()
+        ensure_user_role_nullable()
+        ensure_cycle_role_assignments()
+        ensure_cycle_evidence_assignments()
+        ensure_aws_evidence_schema()  # swift_2026 schema + migrations (collector_runs, evidence, etc.)
+        logger.info("Startup migrations completed successfully.")
+    except Exception:
+        logger.exception("Startup migrations failed (API is up; fix DB/config and redeploy or retry).")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    ensure_optional_columns()
-    ensure_control_scoping_columns()
-    ensure_notes_notifications_tables()
-    ensure_tenant_aws_config_table()
-    ensure_evidence_submission_history_table()
-    ensure_review_hold_enum()
-    ensure_user_group_name()
-    ensure_user_is_external()
-    ensure_user_role_nullable()
-    ensure_cycle_role_assignments()
-    ensure_cycle_evidence_assignments()
-    ensure_aws_evidence_schema()  # swift_2026 schema + migrations (collector_runs, evidence, etc.)
+    # Uvicorn runs lifespan startup BEFORE binding the socket. Heavy sync work here blocks Cloud Run
+    # from seeing PORT=8080 until finished. Defer migrations to a thread so the server listens immediately.
+    asyncio.create_task(asyncio.to_thread(_run_startup_migrations_sync))
     yield
 
 

@@ -336,14 +336,15 @@ export default function RoleEvidenceSetupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="flex min-h-0 min-w-0 w-full flex-col bg-background">
       {toast && (
         <div className="fixed bottom-7 right-7 z-50 rounded-xl bg-foreground px-6 py-3 text-sm font-medium text-white shadow-lg">
           {toast}
         </div>
       )}
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-8">
+      {/* Full-width within AppShell (no max-w-*); shell already applies horizontal padding */}
+      <div className="w-full min-w-0 flex-1 pb-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Role & Evidence Assignment</h1>
           <p className="text-sm text-slate-600 mt-1">
@@ -355,11 +356,11 @@ export default function RoleEvidenceSetupPage() {
           </p>
         </div>
 
-        <div className="flex gap-1 mb-6 p-1.5 rounded-xl bg-slate-200">
+        <div className="flex w-full min-w-0 gap-1 mb-6 p-1.5 rounded-xl bg-slate-200">
           <button
             type="button"
             onClick={() => setStep("roles")}
-            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+            className={`flex-1 sm:flex-none px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
               step === "roles"
                 ? "bg-[#1f4e79] text-white shadow-md"
                 : "text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900"
@@ -371,7 +372,7 @@ export default function RoleEvidenceSetupPage() {
             type="button"
             onClick={() => allRolesFilled && setStep("evidence")}
             disabled={!allRolesFilled}
-            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+            className={`flex-1 sm:flex-none px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
               step === "evidence"
                 ? "bg-[#1f4e79] text-white shadow-md"
                 : allRolesFilled
@@ -416,7 +417,7 @@ export default function RoleEvidenceSetupPage() {
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid w-full min-w-0 gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               {ROLE_DEFS.map((r) => {
                 const a = assignmentsByRole[r.id] || { groups: [], users: [] };
                 const isL3 = r.id === "external_assessor";
@@ -507,7 +508,7 @@ export default function RoleEvidenceSetupPage() {
               })}
             </div>
 
-            <div className="mt-6 flex gap-3">
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => allRolesFilled && setStep("evidence")}
@@ -553,8 +554,8 @@ export default function RoleEvidenceSetupPage() {
                 );
               })}
             </div>
-            <div className="rounded-xl bg-white shadow-md overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="rounded-xl bg-white shadow-md overflow-hidden w-full min-w-0">
+              <div className="overflow-x-auto w-full min-w-0">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-100">
@@ -609,7 +610,7 @@ export default function RoleEvidenceSetupPage() {
                 </table>
               </div>
             </div>
-            <div className="mt-6 flex gap-3">
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => setStep("roles")}
@@ -628,8 +629,7 @@ export default function RoleEvidenceSetupPage() {
             </div>
           </>
         )}
-      </main>
-
+      </div>
     </div>
   );
 }

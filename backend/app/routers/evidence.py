@@ -21,7 +21,10 @@ from ..schemas.evidence import (
     EvaluateEvidenceRequest,
     EvaluateEvidenceResponse,
     AiCriterionResultOut,
+    AwsEvidenceSuggestResponse,
 )
+from app.aws_evidence.core.db import get_db as get_aws_db, ensure_schema as ensure_aws_schema
+from app.aws_evidence.services import evidence_service as aws_evidence_service
 from ..services import ai_service
 from ..services.assignment_constraints import get_user_cycle_ids, get_user_cycle_role, get_user_assigned_evidence_items
 from ..services.ai_service import _eval_criteria_pass_if_only, _parse_numbered_criteria as _parse_criteria_ai
@@ -36,6 +39,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _CONTROL_ID_ALL = "ALL"
+
+_AWS_LLM_FILL_TYPES = frozenset({"text", "textarea", "select", "date", "checkbox", "multiselect", "spreadsheet"})
+
+
+def _evidence_source_allows_aws_llm(evidence_source: str | None) -> bool:
+    """True when classification is AWS-only or AWS+Human (excludes Human-only)."""
+    s = " ".join((evidence_source or "").split()).strip().lower()
+    if not s:
+        return False
+    if s == "aws":
+        return True
+    if s.startswith("aws") and "human" in s:
+        return True
+    return False
 
 
 def _require_cycle_access(cycle: AssessmentCycle | None, user: User, db: Session) -> None:
@@ -707,6 +724,124 @@ def _recalculate_control_sufficiency(
             db.flush()
             existing_scores_map[control_id] = new_score
         _sync_to_control_applicability(db, cycle_id, control_id, score, status)
+
+
+@router.post(
+    "/assessments/{cycle_id}/evidence-items/{item_id}/suggest-from-aws",
+    response_model=AwsEvidenceSuggestResponse,
+)
+def suggest_evidence_fields_from_aws(
+    cycle_id: UUID,
+    item_id: str,
+    db: Session = Depends(get_db_scoped),
+    aws_db: Session = Depends(get_aws_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    For the current user + cycle, load scoped rows from swift_2026.evidence for this evidence item,
+    then ask Vertex AI to suggest answers only for form questions whose evidence_source is
+    AWS or AWS + Human (excludes file/spreadsheet types).
+    """
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
+    effective_role = get_user_cycle_role(db, user.id, cycle_id)
+    can_write = user.role in EVIDENCE_WRITE_ROLES or effective_role == "it_sme"
+    if not can_write:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    item_upper = (item_id or "").strip().upper()
+    if effective_role == "it_sme":
+        assigned = get_user_assigned_evidence_items(db, cycle_id, user.id)
+        if assigned is not None and item_upper not in assigned:
+            raise HTTPException(status_code=403, detail="You are not assigned to this evidence item.")
+
+    if user.tenant_id is None:
+        raise HTTPException(status_code=400, detail="User has no tenant context")
+
+    questions_orm = (
+        db.query(EvidenceBasedQuestion)
+        .filter(EvidenceBasedQuestion.evidence_item_id == item_upper)
+        .order_by(EvidenceBasedQuestion.sort_order, EvidenceBasedQuestion.question_key)
+        .all()
+    )
+    eligible_payload: list[dict] = []
+    question_sources: dict[str, str] = {}
+    for q in questions_orm:
+        src_raw = getattr(q, "evidence_source", None) or ""
+        if not _evidence_source_allows_aws_llm(src_raw):
+            continue
+        qtype = (q.question_type or "").strip().lower()
+        if qtype not in _AWS_LLM_FILL_TYPES:
+            continue
+        opts = q.options if isinstance(q.options, list) else []
+        if qtype == "spreadsheet":
+            payload_opts = opts
+        elif opts and qtype in ("select", "multiselect"):
+            payload_opts = [str(x) for x in opts]
+        else:
+            payload_opts = []
+        eligible_payload.append(
+            {
+                "question_key": q.question_key,
+                "label": q.label,
+                "question_type": q.question_type,
+                "options": payload_opts,
+                "guide": (q.guide or "")[:4000],
+            }
+        )
+        question_sources[q.question_key] = src_raw.strip()
+
+    if not eligible_payload:
+        return AwsEvidenceSuggestResponse(
+            suggestions={},
+            question_keys_attempted=[],
+            question_sources={},
+            aws_evidence_bundle_count=0,
+            aws_evidence_row_count=0,
+            message="No questions with evidence_source AWS or AWS + Human (or no LLM-fillable field types) for this item.",
+        )
+
+    ensure_aws_schema()
+    aws_rows = aws_evidence_service.get_evidence_for_item_code(
+        aws_db,
+        item_upper,
+        tenant_id=user.tenant_id,
+        cycle_id=cycle_id,
+        user_id=user.id,
+        limit=120,
+    )
+    bundle = aws_evidence_service.build_aws_evidence_bundle_for_llm(aws_rows)
+    if not bundle:
+        return AwsEvidenceSuggestResponse(
+            suggestions={},
+            question_keys_attempted=[p["question_key"] for p in eligible_payload],
+            question_sources=question_sources,
+            aws_evidence_bundle_count=0,
+            aws_evidence_row_count=len(aws_rows),
+            message="No AWS collector evidence found for this cycle and user. Run AWS collection first.",
+        )
+
+    try:
+        suggestions = ai_service.suggest_answers_from_aws_evidence(
+            evidence_item_id=item_upper,
+            questions=eligible_payload,
+            aws_evidence_bundle=bundle,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.exception("suggest-from-aws failed")
+        raise HTTPException(status_code=502, detail=f"LLM error: {e}") from e
+
+    return AwsEvidenceSuggestResponse(
+        suggestions=suggestions,
+        question_keys_attempted=[p["question_key"] for p in eligible_payload],
+        question_sources=question_sources,
+        aws_evidence_bundle_count=len(bundle),
+        aws_evidence_row_count=len(aws_rows),
+        message=None,
+    )
 
 
 @router.post("/assessments/{cycle_id}/evidence/evaluate", response_model=EvaluateEvidenceResponse)

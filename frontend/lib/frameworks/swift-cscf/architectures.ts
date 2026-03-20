@@ -1,4 +1,4 @@
-import type { Architecture } from "@/lib/types";
+import type { Architecture, ArchitectureId, CycleSchemaName } from "@/lib/types";
 
 /**
  * SWIFT CSCF v2025 — 5 architecture types.
@@ -8,7 +8,174 @@ import type { Architecture } from "@/lib/types";
  * A3: User runs a connector (e.g. Alliance Lite2) within their secure zone.
  * A4: User operates a customer connector (middleware, API, file transfer client).
  * B:  No local SWIFT footprint — GUI/browser access via service bureau only.
+ *
+ * For **CSCF v2026** control applicability, see `CSCF_V2026_CONTROLS` and `getArchitecture(id, schemaName)`.
  */
+
+function isSwift2026Schema(schemaName: CycleSchemaName | string | null | undefined): boolean {
+  return String(schemaName ?? "").trim().toLowerCase() === "swift_2026";
+}
+
+/**
+ * CSCF v2026 — mandatory vs advisory split follows SWIFT naming (suffix **A** = advisory).
+ * Applicability matrix (official table summary):
+ * - **A1, A2, A3:** 31 controls each — all rows except **1.5** (1.5 is A4-only).
+ * - **A4:** 29 controls — excludes **1.1**, **2.1**, **2.10**; includes **1.5**.
+ * - **B:** 23 controls — **19 mandatory + 4 advisory** (2.11A, 5.3A, 7.3A, 7.4A).
+ */
+export const CSCF_V2026_CONTROLS: Record<
+  ArchitectureId,
+  { mandatoryControls: string[]; advisoryControls: string[]; domainIds: string[] }
+> = {
+  A1: {
+    mandatoryControls: [
+      "1.1",
+      "1.2",
+      "1.3",
+      "1.4",
+      "2.1",
+      "2.2",
+      "2.3",
+      "2.4",
+      "2.6",
+      "2.7",
+      "2.8",
+      "2.9",
+      "2.10",
+      "3.1",
+      "4.1",
+      "4.2",
+      "5.1",
+      "5.2",
+      "5.4",
+      "6.1",
+      "6.2",
+      "6.3",
+      "6.4",
+      "7.1",
+      "7.2",
+    ],
+    advisoryControls: ["2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A"],
+    domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
+  },
+  A2: {
+    mandatoryControls: [
+      "1.1",
+      "1.2",
+      "1.3",
+      "1.4",
+      "2.1",
+      "2.2",
+      "2.3",
+      "2.4",
+      "2.6",
+      "2.7",
+      "2.8",
+      "2.9",
+      "2.10",
+      "3.1",
+      "4.1",
+      "4.2",
+      "5.1",
+      "5.2",
+      "5.4",
+      "6.1",
+      "6.2",
+      "6.3",
+      "6.4",
+      "7.1",
+      "7.2",
+    ],
+    advisoryControls: ["2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A"],
+    domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
+  },
+  A3: {
+    mandatoryControls: [
+      "1.1",
+      "1.2",
+      "1.3",
+      "1.4",
+      "2.1",
+      "2.2",
+      "2.3",
+      "2.4",
+      "2.6",
+      "2.7",
+      "2.8",
+      "2.9",
+      "2.10",
+      "3.1",
+      "4.1",
+      "4.2",
+      "5.1",
+      "5.2",
+      "5.4",
+      "6.1",
+      "6.2",
+      "6.3",
+      "6.4",
+      "7.1",
+      "7.2",
+    ],
+    advisoryControls: ["2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A"],
+    domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
+  },
+  A4: {
+    mandatoryControls: [
+      "1.2",
+      "1.3",
+      "1.4",
+      "1.5",
+      "2.2",
+      "2.3",
+      "2.4",
+      "2.6",
+      "2.7",
+      "2.8",
+      "2.9",
+      "3.1",
+      "4.1",
+      "4.2",
+      "5.1",
+      "5.2",
+      "5.4",
+      "6.1",
+      "6.2",
+      "6.3",
+      "6.4",
+      "7.1",
+      "7.2",
+    ],
+    advisoryControls: ["2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A"],
+    domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
+  },
+  B: {
+    mandatoryControls: [
+      "1.2",
+      "1.3",
+      "1.4",
+      "2.2",
+      "2.3",
+      "2.6",
+      "2.7",
+      "2.8",
+      "2.9",
+      "3.1",
+      "4.1",
+      "4.2",
+      "5.1",
+      "5.2",
+      "5.4",
+      "6.1",
+      "6.4",
+      "7.1",
+      "7.2",
+    ],
+    advisoryControls: ["2.11A", "5.3A", "7.3A", "7.4A"],
+    /** Include F: control 2.8 (outsourcing) is in scope for B but mapped to domain F in `domains.ts`. */
+    domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
+  },
+};
 
 const ALL_MANDATORY = [
   "1.1","1.2","1.3","1.4","1.5",
@@ -118,7 +285,8 @@ export const ARCHITECTURES: Architecture[] = [
       "7.1","7.2",
     ],
     advisoryControls: ["2.11A","5.3A","7.3A","7.4A"],
-    domainIds: ["A", "B", "C", "D", "E", "G", "H"],
+    /** Include F: mandatory 2.8 maps to Third-Party & Outsourcing in `domains.ts`. */
+    domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
     cscfVersion: "2025",
     components: [
       "General-purpose Operator PCs",
@@ -127,8 +295,53 @@ export const ARCHITECTURES: Architecture[] = [
   },
 ];
 
-export function getArchitecture(id: string): Architecture | undefined {
-  return ARCHITECTURES.find((a) => a.id === id);
+/**
+ * Return architecture definitions with control lists and domains for the given cycle schema.
+ * Use `swift_2026` for CSCF v2026 table; otherwise v2025 defaults from `ARCHITECTURES`.
+ */
+export function getArchitecturesForSchema(
+  schemaName: CycleSchemaName | string | null | undefined
+): Architecture[] {
+  if (!isSwift2026Schema(schemaName)) {
+    return ARCHITECTURES;
+  }
+  return ARCHITECTURES.map((a) => {
+    const v = CSCF_V2026_CONTROLS[a.id as ArchitectureId];
+    if (!v) return { ...a, cscfVersion: "2026" };
+    return {
+      ...a,
+      mandatoryControls: v.mandatoryControls,
+      advisoryControls: v.advisoryControls,
+      domainIds: v.domainIds,
+      cscfVersion: "2026",
+    };
+  });
+}
+
+/**
+ * Lookup one architecture. Pass `schemaName` from the assessment cycle (`schema_name`) so v2026
+ * control counts match the official matrix; omit for legacy v2025-only behaviour.
+ */
+export function getArchitecture(
+  id: string,
+  schemaName?: CycleSchemaName | string | null
+): Architecture | undefined {
+  const base = ARCHITECTURES.find((a) => a.id === id);
+  if (!base) return undefined;
+  if (!isSwift2026Schema(schemaName)) {
+    return base;
+  }
+  const v = CSCF_V2026_CONTROLS[id as ArchitectureId];
+  if (!v) {
+    return { ...base, cscfVersion: "2026" };
+  }
+  return {
+    ...base,
+    mandatoryControls: v.mandatoryControls,
+    advisoryControls: v.advisoryControls,
+    domainIds: v.domainIds,
+    cscfVersion: "2026",
+  };
 }
 
 export const ARCHITECTURE_DIAGRAMS: Record<string, string[]> = {

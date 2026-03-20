@@ -6,6 +6,10 @@ import { api } from "@/lib/api";
 
 const PREFIX = "/aws";
 const AWS_CONNECTION_CYCLE_KEY = "aws_connection_cycle_id";
+const scopeQuery = (cycleId: string | null | undefined): string => {
+  const id = (cycleId || "").trim();
+  return id ? `?cycle_id=${encodeURIComponent(id)}` : "";
+};
 
 export interface AwsRun {
   run_id: string;
@@ -73,42 +77,56 @@ export interface RunDetail {
   error_message?: string | null;
 }
 
-export function getRuns(limit = 50): Promise<AwsRun[]> {
-  return api.get<AwsRun[]>(`${PREFIX}/runs?limit=${limit}`).then((r) => (Array.isArray(r) ? r : []));
+export function getRuns(limit = 50, cycleId?: string | null): Promise<AwsRun[]> {
+  const qs = scopeQuery(cycleId);
+  const url = `${PREFIX}/runs?limit=${limit}${qs ? `&${qs.slice(1)}` : ""}`;
+  return api.get<AwsRun[]>(url).then((r) => (Array.isArray(r) ? r : []));
 }
 
-export function getRunDetail(runId: string): Promise<RunDetail> {
-  return api.get<RunDetail>(`${PREFIX}/runs/${runId}`);
+export function getRunDetail(runId: string, cycleId?: string | null): Promise<RunDetail> {
+  return api.get<RunDetail>(`${PREFIX}/runs/${runId}${scopeQuery(cycleId)}`);
 }
 
-export function deleteRun(runId: string): Promise<{ run_id: string; deleted_evidence: number }> {
-  return api.del<{ run_id: string; deleted_evidence: number }>(`${PREFIX}/runs/${runId}`);
+export function deleteRun(runId: string, cycleId?: string | null): Promise<{ run_id: string; deleted_evidence: number }> {
+  return api.del<{ run_id: string; deleted_evidence: number }>(`${PREFIX}/runs/${runId}${scopeQuery(cycleId)}`);
 }
 
-export function fetchAwsEvidence(): Promise<{ run_id: string; status: string }> {
+export function fetchAwsEvidence(cycleId?: string | null): Promise<{ run_id: string; status: string }> {
   // Use proxy so the request goes through Next.js → backend (no direct browser → backend).
-  return api.postViaProxy<{ run_id: string; status: string }>(`${PREFIX}/runs/collect`, {}, 120_000);
+  return api.postViaProxy<{ run_id: string; status: string }>(`${PREFIX}/runs/collect${scopeQuery(cycleId)}`, {}, 120_000);
 }
 
-export function getEvidence(limit = 1000): Promise<AwsEvidenceRow[]> {
-  return api.get<AwsEvidenceRow[]>(`${PREFIX}/evidence?limit=${limit}`).then((r) => (Array.isArray(r) ? r : []));
+export function getEvidence(limit = 1000, cycleId?: string | null): Promise<AwsEvidenceRow[]> {
+  const qs = scopeQuery(cycleId);
+  const url = `${PREFIX}/evidence?limit=${limit}${qs ? `&${qs.slice(1)}` : ""}`;
+  return api.get<AwsEvidenceRow[]>(url).then((r) => (Array.isArray(r) ? r : []));
 }
 
-export function getEvidenceContent(evidenceId: string): Promise<unknown> {
-  return api.get<unknown>(`${PREFIX}/evidence/${evidenceId}/content`);
+export function getEvidenceContent(evidenceId: string, cycleId?: string | null): Promise<unknown> {
+  return api.get<unknown>(`${PREFIX}/evidence/${evidenceId}/content${scopeQuery(cycleId)}`);
 }
 
-export function getControls(): Promise<AwsControl[]> {
-  return api.get<AwsControl[]>(`${PREFIX}/controls`).then((r) => (Array.isArray(r) ? r : []));
+export function getControls(cycleId?: string | null): Promise<AwsControl[]> {
+  return api
+    .get<AwsControl[]>(`${PREFIX}/controls${scopeQuery(cycleId)}`)
+    .then((r) => (Array.isArray(r) ? r : []));
 }
 
-export function getControl(controlId: string, itemCode?: string | null): Promise<AwsControlDetail> {
-  const qs = itemCode?.trim() ? `?item_code=${encodeURIComponent(itemCode.trim())}` : "";
-  return api.get<AwsControlDetail>(`${PREFIX}/control/${controlId}${qs}`);
+export function getControl(
+  controlId: string,
+  itemCode?: string | null,
+  cycleId?: string | null
+): Promise<AwsControlDetail> {
+  const itemQs = itemCode?.trim() ? `item_code=${encodeURIComponent(itemCode.trim())}` : "";
+  const cycleQs = scopeQuery(cycleId).replace("?", "");
+  const joined = [itemQs, cycleQs].filter(Boolean).join("&");
+  return api.get<AwsControlDetail>(`${PREFIX}/control/${controlId}${joined ? `?${joined}` : ""}`);
 }
 
-export function getControlsCoverage(): Promise<{ control_ids_with_evidence: string[] }> {
-  return api.get<{ control_ids_with_evidence: string[] }>(`${PREFIX}/controls/coverage`).catch(() => ({ control_ids_with_evidence: [] }));
+export function getControlsCoverage(cycleId?: string | null): Promise<{ control_ids_with_evidence: string[] }> {
+  return api
+    .get<{ control_ids_with_evidence: string[] }>(`${PREFIX}/controls/coverage${scopeQuery(cycleId)}`)
+    .catch(() => ({ control_ids_with_evidence: [] }));
 }
 
 /** (control_id, control_name, item_code) for each evidence item that has evidence. Use for sidebar so clicking A2 shows only A2. */
@@ -118,8 +136,10 @@ export interface AwsControlItemWithEvidence {
   item_code: string;
 }
 
-export function getControlsCoverageItems(): Promise<AwsControlItemWithEvidence[]> {
-  return api.get<AwsControlItemWithEvidence[]>(`${PREFIX}/controls/coverage/items`).then((r) => (Array.isArray(r) ? r : []));
+export function getControlsCoverageItems(cycleId?: string | null): Promise<AwsControlItemWithEvidence[]> {
+  return api
+    .get<AwsControlItemWithEvidence[]>(`${PREFIX}/controls/coverage/items${scopeQuery(cycleId)}`)
+    .then((r) => (Array.isArray(r) ? r : []));
 }
 
 export function submitManualEvidence(body: {
@@ -128,8 +148,8 @@ export function submitManualEvidence(body: {
   content: Record<string, unknown>;
   evidence_type?: string;
   source_system?: string;
-}): Promise<{ evidence_id: string; control_id: string; item_code: string }> {
-  return api.post<{ evidence_id: string; control_id: string; item_code: string }>(`${PREFIX}/evidence`, body);
+}, cycleId?: string | null): Promise<{ evidence_id: string; control_id: string; item_code: string }> {
+  return api.post<{ evidence_id: string; control_id: string; item_code: string }>(`${PREFIX}/evidence${scopeQuery(cycleId)}`, body);
 }
 
 export interface AwsCredentialsConfig {
@@ -148,16 +168,16 @@ export interface AwsConnectSetup {
   trust_policy_template: string;
 }
 
-export function getAwsConnectSetup(): Promise<AwsConnectSetup> {
-  return api.get<AwsConnectSetup>(`${PREFIX}/connect/setup`);
+export function getAwsConnectSetup(cycleId?: string | null): Promise<AwsConnectSetup> {
+  return api.get<AwsConnectSetup>(`${PREFIX}/connect/setup${scopeQuery(cycleId)}`);
 }
 
 /** Connect using Role ARN + Region only. Backend uses configured External ID (e.g. Swift-Audit). */
 export function saveAwsConnect(body: {
   role_arn: string;
   region?: string;
-}): Promise<{ ok: boolean; message?: string }> {
-  return api.post<{ ok: boolean; message?: string }>(`${PREFIX}/connect`, {
+}, cycleId?: string | null): Promise<{ ok: boolean; message?: string }> {
+  return api.post<{ ok: boolean; message?: string }>(`${PREFIX}/connect${scopeQuery(cycleId)}`, {
     role_arn: body.role_arn.trim(),
     region: (body.region || "us-east-1").trim() || "us-east-1",
   });
@@ -171,12 +191,12 @@ export interface DeleteAwsConnectResult {
 }
 
 /** Disconnect AWS account and delete all evidence and collector runs for this tenant. Cannot be undone. */
-export function deleteAwsConnect(): Promise<DeleteAwsConnectResult> {
-  return api.del<DeleteAwsConnectResult>(`${PREFIX}/connect`);
+export function deleteAwsConnect(cycleId?: string | null): Promise<DeleteAwsConnectResult> {
+  return api.del<DeleteAwsConnectResult>(`${PREFIX}/connect${scopeQuery(cycleId)}`);
 }
 
-export function getAwsCredentials(): Promise<AwsCredentialsConfig> {
-  return api.get<AwsCredentialsConfig>(`${PREFIX}/credentials`).then((r) => ({
+export function getAwsCredentials(cycleId?: string | null): Promise<AwsCredentialsConfig> {
+  return api.get<AwsCredentialsConfig>(`${PREFIX}/credentials${scopeQuery(cycleId)}`).then((r) => ({
     has_config: r?.has_config ?? false,
     aws_region: r?.aws_region ?? "us-east-1",
     aws_account_id: r?.aws_account_id ?? null,
@@ -213,7 +233,7 @@ export function isAwsConnectionVisibleForCycle(cycleId: string | null | undefine
 }
 
 export function getAwsCredentialsForCycle(cycleId: string | null | undefined): Promise<AwsCredentialsConfig> {
-  return getAwsCredentials().then((cfg) => {
+  return getAwsCredentials(cycleId).then((cfg) => {
     if (cfg.has_config && !isAwsConnectionVisibleForCycle(cycleId)) {
       return {
         ...cfg,
@@ -230,8 +250,8 @@ export function getAwsCredentialsForCycle(cycleId: string | null | undefined): P
 export function saveAwsContext(body: {
   aws_account_id: string;
   aws_region?: string;
-}): Promise<{ ok: boolean; message?: string }> {
-  return api.post<{ ok: boolean; message?: string }>(`${PREFIX}/context`, {
+}, cycleId?: string | null): Promise<{ ok: boolean; message?: string }> {
+  return api.post<{ ok: boolean; message?: string }>(`${PREFIX}/context${scopeQuery(cycleId)}`, {
     aws_account_id: (body.aws_account_id || "").trim(),
     aws_region: (body.aws_region || "us-east-1").trim() || "us-east-1",
   });
@@ -242,8 +262,8 @@ export function saveAwsCredentials(body: {
   secret_access_key: string;
   aws_region?: string;
   aws_account_id?: string | null;
-}): Promise<{ ok: boolean; message?: string }> {
-  return api.post<{ ok: boolean; message?: string }>(`${PREFIX}/credentials`, body);
+}, cycleId?: string | null): Promise<{ ok: boolean; message?: string }> {
+  return api.post<{ ok: boolean; message?: string }>(`${PREFIX}/credentials${scopeQuery(cycleId)}`, body);
 }
 
 export interface AwsCredentialsTestResult {
@@ -253,8 +273,8 @@ export interface AwsCredentialsTestResult {
   arn?: string;
 }
 
-export function testAwsCredentials(): Promise<AwsCredentialsTestResult> {
-  return api.post<AwsCredentialsTestResult>(`${PREFIX}/credentials/test`, {});
+export function testAwsCredentials(cycleId?: string | null): Promise<AwsCredentialsTestResult> {
+  return api.post<AwsCredentialsTestResult>(`${PREFIX}/credentials/test${scopeQuery(cycleId)}`, {});
 }
 
 // ——— AWS SSO (OAuth2) device flow ———
@@ -268,8 +288,11 @@ export interface OAuthStartResult {
   interval: number;
 }
 
-export function startAwsOAuth(body: { sso_start_url: string; sso_region?: string }): Promise<OAuthStartResult> {
-  return api.post<OAuthStartResult>(`${PREFIX}/auth/oauth/start`, {
+export function startAwsOAuth(
+  body: { sso_start_url: string; sso_region?: string },
+  cycleId?: string | null
+): Promise<OAuthStartResult> {
+  return api.post<OAuthStartResult>(`${PREFIX}/auth/oauth/start${scopeQuery(cycleId)}`, {
     sso_start_url: body.sso_start_url.trim(),
     sso_region: (body.sso_region || "us-east-1").trim() || "us-east-1",
   });
@@ -282,6 +305,9 @@ export interface OAuthPollResult {
   role_name?: string;
 }
 
-export function pollAwsOAuth(body: { device_code: string }): Promise<OAuthPollResult> {
-  return api.post<OAuthPollResult>(`${PREFIX}/auth/oauth/poll`, { device_code: body.device_code });
+export function pollAwsOAuth(
+  body: { device_code: string },
+  cycleId?: string | null
+): Promise<OAuthPollResult> {
+  return api.post<OAuthPollResult>(`${PREFIX}/auth/oauth/poll${scopeQuery(cycleId)}`, { device_code: body.device_code });
 }

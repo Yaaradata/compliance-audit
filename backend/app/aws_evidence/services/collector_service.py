@@ -29,6 +29,8 @@ def _session_from_credentials(credentials: dict):
 
 def run_all_collectors(
     tenant_id: UUID,
+    cycle_id: UUID,
+    user_id: UUID,
     credentials: dict,
     trigger_type: str = "manual",
 ) -> uuid.UUID:
@@ -43,6 +45,8 @@ def run_all_collectors(
     run = CollectorRun(
         run_id=run_id,
         tenant_id=tenant_id,
+        cycle_id=cycle_id,
+        user_id=user_id,
         collector_name="all",
         cloud_provider="aws",
         execution_time=datetime.utcnow(),
@@ -97,6 +101,8 @@ def run_all_collectors(
                         evidence_id=uuid.uuid4(),
                         run_id=run_id,
                         tenant_id=tenant_id,
+                        cycle_id=cycle_id,
+                        user_id=user_id,
                         item_code=item_code,
                         control_id=control_id,
                         evidence_type=evidence_type,

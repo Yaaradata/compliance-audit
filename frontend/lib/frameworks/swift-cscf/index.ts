@@ -8,12 +8,16 @@ export { DOMAIN_GRADIENTS, getDomainsForArchitecture } from "./domains";
 export {
   ARCHITECTURES,
   ARCHITECTURE_DIAGRAMS,
+  CSCF_V2026_CONTROLS,
   getArchitecture,
+  getArchitecturesForSchema,
   getDiagramFolder,
   getArchitectureDiagramUrl,
   getArchitectureDiagramPath,
   getArchitectureDiagramUrlAsync,
 } from "./architectures";
+
+export { ARCHITECTURE_VARIANTS, type ArchitectureVariant } from "./architecture-variants";
 
 export { DOMAINS, DOMAIN_APPROVAL_ORDER, APPROVAL_IDEOLOGY_DESCRIPTION } from "./approval-ideology";
 

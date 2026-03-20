@@ -3,6 +3,8 @@
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { SidebarProvider, useSidebar } from "@/lib/sidebar-context";
+import { useAuth } from "@/lib/auth-context";
+import { usePathname } from "next/navigation";
 
 /**
  * Layout: Left = fixed sidebar (YaaraLabs nav). Right = content area:
@@ -14,21 +16,32 @@ const CONTENT_PX = "px-2 sm:px-4";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { open, toggle } = useSidebar();
+  const pathname = usePathname();
+  const { user, activeCycleId, effectiveCycleRole } = useAuth();
+  const effectiveRole =
+    activeCycleId && effectiveCycleRole !== undefined
+      ? effectiveCycleRole ?? user?.role
+      : user?.role;
+  const isCycleRoute = pathname?.startsWith("/cycles/");
+  const showSidebar = Boolean(activeCycleId || isCycleRoute || effectiveRole === "compliance_officer");
+
   return (
     <div className="h-screen flex overflow-hidden" style={{ background: "var(--background)" }}>
       {/* Mobile backdrop when sidebar open */}
-      <div
-        role="button"
-        tabIndex={-1}
-        aria-label="Close menu"
-        onClick={toggle}
-        onKeyDown={(e) => e.key === "Escape" && toggle()}
-        className={`fixed inset-0 z-30 bg-black/40 transition-opacity md:hidden ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-      />
-      <AppSidebar />
+      {showSidebar && (
+        <div
+          role="button"
+          tabIndex={-1}
+          aria-label="Close menu"
+          onClick={toggle}
+          onKeyDown={(e) => e.key === "Escape" && toggle()}
+          className={`fixed inset-0 z-30 bg-black/40 transition-opacity md:hidden ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        />
+      )}
+      {showSidebar && <AppSidebar />}
       <div
         className={`flex-1 flex flex-col min-w-0 overflow-hidden min-h-0 transition-[margin] duration-200 ease-out ${
-          open ? "md:ml-[260px]" : "md:ml-[56px]"
+          showSidebar ? (open ? "md:ml-[260px]" : "md:ml-[56px]") : "md:ml-0"
         }`}
       >
         <header className={`shrink-0 border-b border-(--border) bg-(--surface) ${CONTENT_PX}`}>

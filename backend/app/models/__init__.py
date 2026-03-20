@@ -1,5 +1,6 @@
 from .tenant import Tenant, User
 from .tenant_aws_config import TenantAwsConfig
+from .cycle_user_aws_config import CycleUserAwsConfig
 from .framework import AuditFramework, Control, EvidenceDomain, CanonicalEvidenceItem, ItemControlMapping, EvidenceSufficiencyMatrix, CrossDomainDependency
 from .assessment import AssessmentCycle, CyclePhaseDeadline, ControlApplicability, EvidenceSubmission, EvidenceAttachment, EvidenceSubmissionHistory
 from .review import ReviewerChecklist, ReviewAssignment, ReviewComment
@@ -10,7 +11,7 @@ from .audit import AuditLog
 from .notes import Note, Notification
 
 __all__ = [
-    "Tenant", "User", "TenantAwsConfig",
+    "Tenant", "User", "TenantAwsConfig", "CycleUserAwsConfig",
     "AuditFramework", "Control", "EvidenceDomain", "CanonicalEvidenceItem", "ItemControlMapping", "EvidenceSufficiencyMatrix", "CrossDomainDependency",
     "AssessmentCycle", "CyclePhaseDeadline", "ControlApplicability", "EvidenceSubmission", "EvidenceAttachment", "EvidenceSubmissionHistory",
     "ReviewerChecklist", "ReviewAssignment", "ReviewComment",

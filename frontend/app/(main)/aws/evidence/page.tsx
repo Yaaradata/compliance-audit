@@ -9,8 +9,10 @@ import { AwsEvidenceContentModal } from "@/components/aws/aws-evidence-content-m
 import { AwsKpiCard } from "@/components/aws/aws-kpi-cards";
 import { AwsPageHeader, AwsSectionTitle, awsButtonSecondaryClass } from "@/components/aws/aws-page-header";
 import type { AwsEvidenceRow, AwsRun } from "@/lib/aws-api";
+import { useAuth } from "@/lib/auth-context";
 
 export default function AwsEvidencePage() {
+  const { activeCycleId } = useAuth();
   const [data, setData] = useState<AwsEvidenceRow[]>([]);
   const [runs, setRuns] = useState<AwsRun[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +25,7 @@ export default function AwsEvidencePage() {
   const load = useCallback(() => {
     setError(null);
     setLoading(true);
-    Promise.all([getEvidence(500), getRuns(50), getControlsCoverage()])
+    Promise.all([getEvidence(500, activeCycleId), getRuns(50, activeCycleId), getControlsCoverage(activeCycleId)])
       .then(([evidence, runsList, coverage]) => {
         setData(evidence);
         setRuns(runsList ?? []);
@@ -37,7 +39,7 @@ export default function AwsEvidencePage() {
         setControlsWithEvidenceCount(0);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeCycleId]);
 
   useEffect(() => {
     load();
@@ -52,7 +54,7 @@ export default function AwsEvidencePage() {
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
     const checkRunInProgress = () => {
-      getRuns(3)
+      getRuns(3, activeCycleId)
         .then((runsList) => {
           const running = runsList?.some((r) => r.status === "running");
           if (!running && interval) {
@@ -63,7 +65,7 @@ export default function AwsEvidencePage() {
         })
         .catch(() => {});
     };
-    getRuns(1)
+    getRuns(1, activeCycleId)
       .then((runsList) => {
         if (runsList?.[0]?.status === "running") {
           interval = setInterval(checkRunInProgress, 5000);
@@ -73,16 +75,16 @@ export default function AwsEvidencePage() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [load]);
+  }, [load, activeCycleId]);
 
   const onViewContent = useCallback((row: AwsEvidenceRow) => {
     setContentLoading(true);
     setModal(null);
-    getEvidenceContent(row.evidence_id)
+    getEvidenceContent(row.evidence_id, activeCycleId)
       .then((content) => setModal({ content }))
       .catch((err) => setModal({ error: err instanceof Error ? err.message : "Failed to load content" }))
       .finally(() => setContentLoading(false));
-  }, []);
+  }, [activeCycleId]);
 
   const uniqueSources = new Set(data.map((e) => e.source_system)).size;
 

@@ -71,10 +71,10 @@ export default function AwsDashboardPage() {
       return;
     }
     Promise.all([
-      getRuns(50),
-      getEvidence(500),
-      getControlsCoverage().then((d) => d.control_ids_with_evidence || []),
-      getControlsCoverageItems(),
+      getRuns(50, activeCycleId),
+      getEvidence(500, activeCycleId),
+      getControlsCoverage(activeCycleId).then((d) => d.control_ids_with_evidence || []),
+      getControlsCoverageItems(activeCycleId),
     ])
       .then(([runsList, evidenceList, ids, itemPairs]) => {
         setRuns(runsList);
@@ -111,7 +111,7 @@ export default function AwsDashboardPage() {
     }
     setFetchError(null);
     setFetching(true);
-    fetchAwsEvidence()
+    fetchAwsEvidence(activeCycleId)
       .then((res) => {
         const runId = res?.run_id;
         if (!runId) {
@@ -120,7 +120,7 @@ export default function AwsDashboardPage() {
           return;
         }
         const poll = () => {
-          getRunDetail(runId)
+          getRunDetail(runId, activeCycleId)
             .then((detail) => {
               if (RUN_TERMINAL_STATUSES.includes(detail?.status ?? "")) {
                 if (pollRef.current) {
@@ -173,10 +173,10 @@ export default function AwsDashboardPage() {
               return;
             }
             Promise.all([
-              getRuns(10),
-              getEvidence(500),
-              getControlsCoverage().then((d) => d.control_ids_with_evidence || []),
-              getControlsCoverageItems(),
+              getRuns(10, activeCycleId),
+              getEvidence(500, activeCycleId),
+              getControlsCoverage(activeCycleId).then((d) => d.control_ids_with_evidence || []),
+              getControlsCoverageItems(activeCycleId),
             ])
               .then(([runsList, evidenceList, ids, itemPairs]) => {
                 setRuns(runsList);
@@ -244,7 +244,7 @@ export default function AwsDashboardPage() {
     Promise.all(
       rowsForComparison.map(async (r) => {
         try {
-          const content = await getEvidenceContent(r.evidence_id);
+          const content = await getEvidenceContent(r.evidence_id, activeCycleId);
           return {
             evidenceId: r.evidence_id,
             runId: r.run_id,
@@ -283,7 +283,7 @@ export default function AwsDashboardPage() {
       )
       .catch((err) => setContentModal({ error: err instanceof Error ? err.message : "Failed to load content" }))
       .finally(() => setContentLoading(false));
-  }, [runs, evidenceRows]);
+  }, [runs, evidenceRows, activeCycleId]);
 
   if (loading) {
     return (

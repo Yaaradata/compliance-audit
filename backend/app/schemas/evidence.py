@@ -98,3 +98,13 @@ class EvaluateEvidenceResponse(BaseModel):
     remediation: str | None = None
     """Per-form-field feedback: key = form field key (e.g. diagram_date, connector_zone_statement), value = null if adequate or message for 'AI — needs more info'."""
     field_feedback: dict[str, str | None] = {}
+
+
+class AwsEvidenceSuggestResponse(BaseModel):
+    """LLM-suggested form field values from scoped AWS collector evidence (swift_2026.evidence)."""
+    suggestions: dict[str, str] = {}
+    question_keys_attempted: list[str] = []
+    question_sources: dict[str, str] = {}
+    aws_evidence_bundle_count: int = 0
+    aws_evidence_row_count: int = 0
+    message: str | None = None

@@ -15,6 +15,8 @@ class CollectorRun(Base):
 
     run_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id = Column(UUID(as_uuid=True), nullable=True)
+    cycle_id = Column(UUID(as_uuid=True), nullable=True)
+    user_id = Column(UUID(as_uuid=True), nullable=True)
     collector_name = Column(String, nullable=False)
     cloud_provider = Column(String, nullable=False, default="aws")
     execution_time = Column(DateTime, nullable=False, default=datetime.utcnow)

@@ -135,6 +135,7 @@ class EvidenceQuestionOut(BaseModel):
     accept: str | None = None
     upload_label: str | None = None
     guide: str | None = None
+    evidence_source: str | None = None
     show_when_question: str | None = None
     show_when_values: list[str] = []
 

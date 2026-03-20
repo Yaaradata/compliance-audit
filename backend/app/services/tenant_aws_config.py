@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.models.cycle_user_aws_config import CycleUserAwsConfig
 from app.models.tenant_aws_config import TenantAwsConfig
 
 logger = logging.getLogger(__name__)
@@ -116,13 +117,31 @@ def _account_id_from_role_arn(role_arn: str) -> str | None:
     return None
 
 
-def get_config(db: Session, tenant_id: UUID) -> TenantAwsConfig | None:
-    return db.query(TenantAwsConfig).filter(TenantAwsConfig.tenant_id == tenant_id).first()
+def get_config(
+    db: Session,
+    tenant_id: UUID,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+) -> CycleUserAwsConfig | TenantAwsConfig | None:
+    if cycle_id is None or user_id is None:
+        return db.query(TenantAwsConfig).filter(TenantAwsConfig.tenant_id == tenant_id).first()
+    return (
+        db.query(CycleUserAwsConfig)
+        .filter(CycleUserAwsConfig.tenant_id == tenant_id)
+        .filter(CycleUserAwsConfig.cycle_id == cycle_id)
+        .filter(CycleUserAwsConfig.user_id == user_id)
+        .first()
+    )
 
 
-def get_config_public(db: Session, tenant_id: UUID) -> dict:
+def get_config_public(
+    db: Session,
+    tenant_id: UUID,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+) -> dict:
     """Return non-sensitive config for UI (no secrets). Never return decrypted secret."""
-    row = get_config(db, tenant_id)
+    row = get_config(db, tenant_id, cycle_id, user_id)
     if not row:
         return {
             "has_config": False,
@@ -166,7 +185,12 @@ def _get_app_aws_credentials() -> dict | None:
     }
 
 
-def get_credentials_for_collect(db: Session, tenant_id: UUID) -> dict | None:
+def get_credentials_for_collect(
+    db: Session,
+    tenant_id: UUID,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+) -> dict | None:
     """
     Return credentials for running collectors.
     - oauth2: SSO refresh token -> temporary credentials.
@@ -174,13 +198,13 @@ def get_credentials_for_collect(db: Session, tenant_id: UUID) -> dict | None:
     - context: tenant has only Account ID + Region; use app-level AWS credentials from env (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) with tenant's account_id and region so collection runs against that account.
     Returns dict with access_key_id, secret_access_key, region, account_id (and optional session_token for SSO).
     """
-    row = get_config(db, tenant_id)
+    row = get_config(db, tenant_id, cycle_id, user_id)
     if not row or not row.is_active:
         return None
     ctype = getattr(row, "connection_type", None) or "access_key"
     if ctype == "oauth2":
         from app.services.aws_sso_oauth import get_credentials_via_sso
-        return get_credentials_via_sso(db, tenant_id)
+        return get_credentials_via_sso(db, tenant_id, cycle_id, user_id)
     if ctype == "assume_role":
         role_arn = (getattr(row, "role_arn", None) or "").strip()
         external_id = (getattr(row, "external_id", None) or "").strip()
@@ -236,6 +260,8 @@ def get_credentials_for_collect(db: Session, tenant_id: UUID) -> dict | None:
 def save_config(
     db: Session,
     tenant_id: UUID,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
     *,
     access_key_id: str,
     secret_access_key: str,
@@ -244,9 +270,12 @@ def save_config(
 ) -> None:
     """Encrypt and store config; create or update."""
     _get_fernet()  # validate key before saving
-    row = get_config(db, tenant_id)
+    row = get_config(db, tenant_id, cycle_id, user_id)
     if not row:
-        row = TenantAwsConfig(tenant_id=tenant_id)
+        if cycle_id is None or user_id is None:
+            row = TenantAwsConfig(tenant_id=tenant_id)
+        else:
+            row = CycleUserAwsConfig(tenant_id=tenant_id, cycle_id=cycle_id, user_id=user_id)
         db.add(row)
     row.aws_region = (aws_region or "us-east-1").strip() or "us-east-1"
     row.aws_account_id = (aws_account_id or "").strip() or None
@@ -261,14 +290,22 @@ def save_config(
     db.commit()
 
 
-def get_connect_setup(db: Session, tenant_id: UUID) -> dict:
+def get_connect_setup(
+    db: Session,
+    tenant_id: UUID,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+) -> dict:
     """
     Return external_id (get or create), trust policy template, and optionally platform_account_id for the Connect UI.
     User puts external_id in the trust policy and creates the IAM role in their account.
     """
-    row = get_config(db, tenant_id)
+    row = get_config(db, tenant_id, cycle_id, user_id)
     if not row:
-        row = TenantAwsConfig(tenant_id=tenant_id)
+        if cycle_id is None or user_id is None:
+            row = TenantAwsConfig(tenant_id=tenant_id)
+        else:
+            row = CycleUserAwsConfig(tenant_id=tenant_id, cycle_id=cycle_id, user_id=user_id)
         db.add(row)
         db.flush()
     external_id = (getattr(row, "external_id", None) or "").strip()
@@ -314,6 +351,8 @@ def get_connect_setup(db: Session, tenant_id: UUID) -> dict:
 def save_connection_assume_role(
     db: Session,
     tenant_id: UUID,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
     *,
     role_arn: str,
     region: str = "us-east-1",
@@ -327,9 +366,12 @@ def save_connection_assume_role(
     ok, err = validate_aws_connection(role_arn, external_id)
     if not ok:
         raise ValueError(err or "AssumeRole validation failed.")
-    row = get_config(db, tenant_id)
+    row = get_config(db, tenant_id, cycle_id, user_id)
     if not row:
-        row = TenantAwsConfig(tenant_id=tenant_id)
+        if cycle_id is None or user_id is None:
+            row = TenantAwsConfig(tenant_id=tenant_id)
+        else:
+            row = CycleUserAwsConfig(tenant_id=tenant_id, cycle_id=cycle_id, user_id=user_id)
         db.add(row)
     row.role_arn = role_arn
     row.external_id = external_id
@@ -351,9 +393,14 @@ def save_connection_assume_role(
     db.commit()
 
 
-def delete_connection(db: Session, tenant_id: UUID) -> None:
-    """Remove the tenant's AWS connection config (delete the row). Call after deleting evidence/runs if desired."""
-    row = get_config(db, tenant_id)
+def delete_connection(
+    db: Session,
+    tenant_id: UUID,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+) -> None:
+    """Remove AWS connection config for this tenant+cycle+user scope."""
+    row = get_config(db, tenant_id, cycle_id, user_id)
     if row:
         db.delete(row)
         db.commit()
@@ -362,14 +409,19 @@ def delete_connection(db: Session, tenant_id: UUID) -> None:
 def save_context(
     db: Session,
     tenant_id: UUID,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
     *,
     aws_account_id: str,
     aws_region: str = "us-east-1",
 ) -> None:
     """Save only AWS account ID and region (no credentials). Used for context-only entry to the system."""
-    row = get_config(db, tenant_id)
+    row = get_config(db, tenant_id, cycle_id, user_id)
     if not row:
-        row = TenantAwsConfig(tenant_id=tenant_id)
+        if cycle_id is None or user_id is None:
+            row = TenantAwsConfig(tenant_id=tenant_id)
+        else:
+            row = CycleUserAwsConfig(tenant_id=tenant_id, cycle_id=cycle_id, user_id=user_id)
         db.add(row)
     row.aws_account_id = (aws_account_id or "").strip() or None
     row.aws_region = (aws_region or "us-east-1").strip() or "us-east-1"
@@ -389,12 +441,17 @@ def save_context(
     db.commit()
 
 
-def test_connection(db: Session, tenant_id: UUID) -> dict:
+def test_connection(
+    db: Session,
+    tenant_id: UUID,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+) -> dict:
     """
     Test tenant AWS credentials by calling STS GetCallerIdentity.
     Returns {"ok": True, "account_id": "...", "user_id": "...", "arn": "..."} or raises ValueError.
     """
-    creds = get_credentials_for_collect(db, tenant_id)
+    creds = get_credentials_for_collect(db, tenant_id, cycle_id, user_id)
     if not creds:
         raise ValueError("No AWS credentials configured for this tenant.")
     try:
