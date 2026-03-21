@@ -1,9 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { getEvidenceContent, type AwsEvidenceRow, type AwsRun } from "@/lib/aws-api";
 import { useAuth } from "@/lib/auth-context";
+import {
+  awsAccordionTriggerClass,
+  awsButtonSecondarySmClass,
+  awsPillTabButtonClass,
+  awsPillTabListClass,
+  awsRowExpandButtonClass,
+} from "@/components/aws/aws-ui";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
@@ -13,6 +20,11 @@ function formatDateTime(iso: string | null | undefined): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+/** Matches labels used for month-wise run counts (must match aggregation keys). */
+function monthLabelFromDate(d: Date): string {
+  return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
 }
 
 function statusColor(status: string | null | undefined): string {
@@ -105,16 +117,115 @@ function cleanFeatureLabel(feature: string): string {
   return feature.replace(/\[\d+\]/g, "").replace(/\.\./g, ".").replace(/\.$/, "");
 }
 
-export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]; evidenceRows: AwsEvidenceRow[] }) {
+/** Split flat dotted keys into top-level groups (e.g. internet_gateways.*) vs leaf rows (account_id). */
+function partitionFeatureRows(
+  rows: Array<{ feature: string; valuesByRun: Record<string, string>; diff: boolean; group: string }>
+): {
+  flat: typeof rows;
+  groups: Array<{ parent: string; children: Array<{ row: (typeof rows)[number]; childLabel: string }> }>;
+} {
+  const flat: typeof rows = [];
+  const groupMap = new Map<string, Array<{ row: (typeof rows)[number]; childLabel: string }>>();
+  const sorted = [...rows].sort((a, b) =>
+    cleanFeatureLabel(a.feature).localeCompare(cleanFeatureLabel(b.feature))
+  );
+  for (const row of sorted) {
+    const cleaned = cleanFeatureLabel(row.feature);
+    const dot = cleaned.indexOf(".");
+    if (dot === -1) {
+      flat.push(row);
+    } else {
+      const parent = cleaned.slice(0, dot);
+      const childLabel = cleaned.slice(dot + 1);
+      const list = groupMap.get(parent) ?? [];
+      list.push({ row, childLabel });
+      groupMap.set(parent, list);
+    }
+  }
+  const groups = Array.from(groupMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([parent, children]) => ({ parent, children }));
+  return { flat, groups };
+}
+
+/** Distinct pill colors for control buttons within an item-code row. */
+const CONTROL_BUTTON_COLORS = [
+  "#2563eb",
+  "#0ea5e9",
+  "#10b981",
+  "#f59e0b",
+  "#8b5cf6",
+  "#ec4899",
+  "#14b8a6",
+];
+
+function getControlIdFromKey(controlKey: string): string {
+  return controlKey.split("::")[0] ?? "";
+}
+
+function getItemCodeFromKey(controlKey: string): string {
+  return controlKey.split("::")[1] ?? "";
+}
+
+/** Group controls by item code (e.g. A1, A2); sort controls by control id. */
+function groupControlsByItemCode(controls: ControlComparison[]): [string, ControlComparison[]][] {
+  const map = new Map<string, ControlComparison[]>();
+  for (const c of controls) {
+    const itemCode = getItemCodeFromKey(c.controlKey);
+    const list = map.get(itemCode) ?? [];
+    list.push(c);
+    map.set(itemCode, list);
+  }
+  for (const [, list] of map) {
+    list.sort((a, b) =>
+      getControlIdFromKey(a.controlKey).localeCompare(getControlIdFromKey(b.controlKey), undefined, {
+        numeric: true,
+      })
+    );
+  }
+  return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+export function RunHistoryVisualsPlotly({
+  runs,
+  evidenceRows,
+  focusComparisorControlKey = null,
+  deferredCharts = false,
+}: {
+  runs: AwsRun[];
+  evidenceRows: AwsEvidenceRow[];
+  /** When set, switch to Run Comparisor and select this control (`control_id::item_code`). */
+  focusComparisorControlKey?: string | null;
+  /** When true (e.g. Evidence tab visible), skip Plotly charts but still preload Run Comparisor in the background. */
+  deferredCharts?: boolean;
+}) {
   const { activeCycleId } = useAuth();
-  const [activeSidebar, setActiveSidebar] = useState<"metrics" | "comparisor">("metrics");
+  const [activeSidebar, setActiveSidebar] = useState<"metrics" | "comparisor">(() =>
+    focusComparisorControlKey ? "comparisor" : "metrics"
+  );
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
   const [compareMeta, setCompareMeta] = useState<{ runs: CompareCell[] } | null>(null);
   const [domainComparisons, setDomainComparisons] = useState<DomainComparison[]>([]);
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set(["A", "B", "C"]));
-  const [expandedControls, setExpandedControls] = useState<Set<string>>(new Set());
+  /** `${domain}::${itemCode}` → selected controlKey for Run Comparisor table. */
+  const [itemControlSelection, setItemControlSelection] = useState<Map<string, string>>(new Map());
   const [hasPreloadedComparisor, setHasPreloadedComparisor] = useState(false);
+  /** Collapsed = children hidden. Empty set = all parent groups expanded by default. */
+  const [collapsedFeatureParents, setCollapsedFeatureParents] = useState<Set<string>>(new Set());
+
+  const toggleFeatureParent = (controlKey: string, parent: string) => {
+    const key = `${controlKey}::${parent}`;
+    setCollapsedFeatureParents((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const isFeatureParentExpanded = (controlKey: string, parent: string) =>
+    !collapsedFeatureParents.has(`${controlKey}::${parent}`);
 
   if (!runs.length) {
     return (
@@ -144,10 +255,35 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
   const monthlyRuns = new Map<string, number>();
   for (const row of timeline) {
     const d = row.time ? new Date(row.time) : null;
-    const key = d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "Unknown";
+    if (!d || Number.isNaN(d.getTime())) continue;
+    const key = monthLabelFromDate(d);
     monthlyRuns.set(key, (monthlyRuns.get(key) ?? 0) + 1);
   }
-  const monthWiseData = Array.from(monthlyRuns.entries()).map(([month, count]) => ({ month, count }));
+
+  const runDates = timeline
+    .map((r) => r.time)
+    .filter((t): t is string => Boolean(t))
+    .map((t) => new Date(t))
+    .filter((d) => !Number.isNaN(d.getTime()));
+  const latestRunMs = runDates.length ? Math.max(...runDates.map((d) => d.getTime())) : Date.now();
+  const nowMs = Date.now();
+  const endMs = Math.max(latestRunMs, nowMs);
+  /** Calendar year for Jan–Dec month-wise chart (latest activity or today). */
+  const monthWiseYear = new Date(endMs).getFullYear();
+
+  const monthWiseData: { month: string; count: number; hoverLabel: string }[] = [];
+  for (let month = 0; month < 12; month++) {
+    const d = new Date(monthWiseYear, month, 1);
+    const monthKey = monthLabelFromDate(d);
+    const shortMonth = d.toLocaleDateString(undefined, { month: "short" });
+    monthWiseData.push({
+      month: shortMonth,
+      hoverLabel: monthKey,
+      count: monthlyRuns.get(monthKey) ?? 0,
+    });
+  }
+
+  const monthWiseMaxCount = Math.max(0, ...monthWiseData.map((d) => d.count));
 
   const totalEvidence = timeline.reduce((acc, row) => acc + row.evidence, 0);
   const avgEvidence = Math.round(totalEvidence / Math.max(1, timeline.length));
@@ -262,10 +398,16 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
       setDomainComparisons(domains);
       setCompareMeta({ runs: sharedRunsMeta ?? [] });
       setExpandedDomains(new Set(domains.map((d) => d.domain)));
-      if (domains.length) {
-        const firstPerDomain = new Set(domains.map((d) => d.controls[0]?.controlKey).filter(Boolean) as string[]);
-        setExpandedControls(firstPerDomain);
-      }
+      setItemControlSelection((prev) => {
+        const next = new Map(prev);
+        for (const d of domains) {
+          for (const [itemCode, ctrls] of groupControlsByItemCode(d.controls)) {
+            const k = `${d.domain}::${itemCode}`;
+            if (!next.has(k) && ctrls[0]) next.set(k, ctrls[0].controlKey);
+          }
+        }
+        return next;
+      });
       setHasPreloadedComparisor(true);
     } catch (e) {
       setCompareError(e instanceof Error ? e.message : "Failed to build domain-wise comparison.");
@@ -281,10 +423,25 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
   }, [hasPreloadedComparisor, controlOptions.length, compareLoading, compareRuns]);
 
   useEffect(() => {
-    if (activeSidebar === "comparisor" && !hasPreloadedComparisor) {
-      compareRuns();
-    }
-  }, [activeSidebar, hasPreloadedComparisor, compareRuns]);
+    if (focusComparisorControlKey) setActiveSidebar("comparisor");
+  }, [focusComparisorControlKey]);
+
+  useEffect(() => {
+    if (!focusComparisorControlKey || !domainComparisons.length) return;
+    const sep = focusComparisorControlKey.indexOf("::");
+    if (sep === -1) return;
+    const itemCode = focusComparisorControlKey.slice(sep + 2);
+    const domain = (itemCode || "").trim().charAt(0).toUpperCase();
+    if (!/[A-H]/.test(domain)) return;
+    const exists = domainComparisons.some(
+      (d) =>
+        d.domain === domain && d.controls.some((c) => c.controlKey === focusComparisorControlKey)
+    );
+    if (!exists) return;
+    setItemControlSelection((prev) => new Map(prev).set(`${domain}::${itemCode}`, focusComparisorControlKey));
+    setExpandedDomains((prev) => new Set(prev).add(domain));
+    setActiveSidebar("comparisor");
+  }, [focusComparisorControlKey, domainComparisons]);
 
   const toggleDomain = (domain: string) => {
     setExpandedDomains((prev) => {
@@ -295,47 +452,92 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
     });
   };
 
-  const toggleControl = (controlKey: string) => {
-    setExpandedControls((prev) => {
-      const next = new Set(prev);
-      if (next.has(controlKey)) next.delete(controlKey);
-      else next.add(controlKey);
-      return next;
-    });
+  const selectControlForItem = (domain: string, itemCode: string, controlKey: string) => {
+    setItemControlSelection((prev) => new Map(prev).set(`${domain}::${itemCode}`, controlKey));
+  };
+
+  const getSelectedControlKey = (domain: string, itemCode: string, ctrls: ControlComparison[]) => {
+    const k = `${domain}::${itemCode}`;
+    const sel = itemControlSelection.get(k);
+    if (sel && ctrls.some((c) => c.controlKey === sel)) return sel;
+    return ctrls[0]?.controlKey ?? "";
   };
 
   return (
     <div className="space-y-4">
-      <div className="card rounded-xl border p-2" style={{ borderColor: "var(--border)" }}>
+      <div className="card rounded-xl border px-3 py-3 sm:px-4" style={{ borderColor: "var(--border)" }}>
+        <div className="flex justify-center">
+          <div className={awsPillTabListClass} role="tablist" aria-label="Run history view">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeSidebar === "metrics"}
+              onClick={() => setActiveSidebar("metrics")}
+              title="Run History Metrics — charts and KPIs per run"
+              className={`${awsPillTabButtonClass} ${
+                activeSidebar === "metrics" ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+              }`}
+              style={
+                activeSidebar === "metrics"
+                  ? { background: "var(--card)", boxShadow: "0 1px 4px rgba(15, 23, 42, 0.1)" }
+                  : undefined
+              }
+            >
+              <span className="truncate">Metrics</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeSidebar === "comparisor"}
+              onClick={() => setActiveSidebar("comparisor")}
+              title="Run Comparisor — domain-wise comparison across runs"
+              className={`${awsPillTabButtonClass} ${
+                activeSidebar === "comparisor" ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+              }`}
+              style={
+                activeSidebar === "comparisor"
+                  ? { background: "var(--card)", boxShadow: "0 1px 4px rgba(15, 23, 42, 0.1)" }
+                  : undefined
+              }
+            >
+              <span className="truncate">Comparisor</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveSidebar("metrics")}
-            className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
-              activeSidebar === "metrics"
-                ? "border-[var(--primary)] bg-[var(--primary-muted)] text-[var(--primary)]"
-                : "hover:bg-[var(--muted)]/40"
-            }`}
-            style={activeSidebar === "metrics" ? undefined : { borderColor: "var(--border)", color: "var(--foreground)" }}
+          <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+            Run history insights
+          </span>
+          <span
+            className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+            style={{ background: "var(--muted)", color: "var(--foreground-muted)" }}
           >
-            Run History Metrics
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSidebar("comparisor")}
-            className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
-              activeSidebar === "comparisor"
-                ? "border-[var(--primary)] bg-[var(--primary-muted)] text-[var(--primary)]"
-                : "hover:bg-[var(--muted)]/40"
-            }`}
-            style={activeSidebar === "comparisor" ? undefined : { borderColor: "var(--border)", color: "var(--foreground)" }}
-          >
-            Run Comparisor
-          </button>
+            {runs.length} run{runs.length !== 1 ? "s" : ""}
+          </span>
         </div>
       </div>
 
       {activeSidebar === "metrics" ? (
+        deferredCharts ? (
+          <div
+            className="card rounded-xl border p-6 text-sm"
+            style={{ borderColor: "var(--border)", color: "var(--foreground-muted)" }}
+          >
+            <p style={{ color: "var(--foreground)" }}>
+              Charts and timeline appear when you open <strong>Run Details</strong> above.
+            </p>
+            <p className="mt-2 text-xs">
+              {compareLoading
+                ? "Run Comparisor is preparing…"
+                : hasPreloadedComparisor
+                  ? "Run Comparisor is ready — open Run Details and switch to the Comparisor tab."
+                  : "Run Comparisor will load when comparable evidence is available."}
+            </p>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
           <div className="card rounded-xl border p-5 xl:col-span-3" style={{ borderColor: "var(--border)" }}>
         <h3 className="text-base font-semibold mb-3" style={{ color: "var(--foreground)" }}>Status split</h3>
@@ -415,23 +617,58 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
         </div>
           </div>
 
-          <div className="card rounded-xl border p-5 xl:col-span-4" style={{ borderColor: "var(--border)" }}>
-        <h3 className="text-base font-semibold mb-3" style={{ color: "var(--foreground)" }}>Month-wise runs</h3>
+          <div className="card rounded-xl border p-5 xl:col-span-6" style={{ borderColor: "var(--border)" }}>
+        <h3 className="text-base font-semibold mb-1" style={{ color: "var(--foreground)" }}>Month-wise runs</h3>
+        <p className="text-xs mb-3" style={{ color: "var(--foreground-muted)" }}>
+          Jan–Dec {monthWiseYear}
+        </p>
         <Plot
           data={[
             {
               type: "bar",
               x: monthWiseData.map((d) => d.month),
               y: monthWiseData.map((d) => d.count),
+              text: monthWiseData.map((d) => d.hoverLabel),
               marker: { color: "#0ea5e9" },
-              hovertemplate: "%{x}: %{y} run(s)<extra></extra>",
+              hovertemplate: "%{text}<br>%{y} run(s)<extra></extra>",
             },
           ]}
           layout={{
             height: 300,
-            margin: { l: 50, r: 20, t: 10, b: 50 },
-            xaxis: { title: { text: "Month" }, automargin: true },
-            yaxis: { title: { text: "Runs" }, rangemode: "tozero" },
+            margin: { l: 50, r: 20, t: 10, b: 55 },
+            xaxis: {
+              title: { text: "Month" },
+              automargin: true,
+              tickangle: 0,
+              categoryorder: "array",
+              categoryarray: monthWiseData.map((d) => d.month),
+            },
+            yaxis:
+              monthWiseMaxCount === 0
+                ? {
+                    title: { text: "Runs" },
+                    rangemode: "tozero",
+                    range: [0, 1],
+                    tickmode: "linear",
+                    tick0: 0,
+                    dtick: 1,
+                    tickformat: "d",
+                  }
+                : monthWiseMaxCount <= 30
+                  ? {
+                      title: { text: "Runs" },
+                      rangemode: "tozero",
+                      tickmode: "linear",
+                      tick0: 1,
+                      dtick: 1,
+                      tickformat: "d",
+                    }
+                  : {
+                      title: { text: "Runs" },
+                      rangemode: "tozero",
+                      tickformat: "d",
+                      nticks: 8,
+                    },
             paper_bgcolor: "transparent",
             plot_bgcolor: "transparent",
             font: { color: "#0f172a", size: 12 },
@@ -441,7 +678,7 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
         />
           </div>
 
-          <div className="card rounded-xl border p-5 xl:col-span-8" style={{ borderColor: "var(--border)" }}>
+          <div className="card rounded-xl border p-5 xl:col-span-6" style={{ borderColor: "var(--border)" }}>
         <h3 className="text-base font-semibold mb-4" style={{ color: "var(--foreground)" }}>Run timeline</h3>
         <div className="space-y-3 max-h-[420px] overflow-auto pr-1">
           {[...runs].map((run, idx) => {
@@ -474,50 +711,33 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
         </div>
           </div>
         </div>
+        )
       ) : (
-        <div className="card rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
-          <h3 className="text-base font-semibold mb-3" style={{ color: "var(--foreground)" }}>Run Comparisor</h3>
-          <p className="text-sm mb-3" style={{ color: "var(--foreground-muted)" }}>
-            Domain-wise comparison is shown by default across available runs.
-          </p>
-          <div className="flex justify-end mb-3">
-            <button
-              type="button"
-              onClick={compareRuns}
-              disabled={compareLoading}
-              className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
-              style={{ background: "var(--primary)", color: "var(--primary-foreground, #fff)" }}
-            >
-              {compareLoading ? "Comparing..." : "Compare"}
-            </button>
-          </div>
-          <div className="overflow-auto">
-            {compareError ? (
-              <p className="text-sm" style={{ color: "var(--danger)" }}>{compareError}</p>
-            ) : domainComparisons.length === 0 ? (
-              <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-                Loading comparison...
-              </p>
-            ) : (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>Feature set</p>
-                    <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                      {domainComparisons.reduce((acc, d) => acc + d.controls.reduce((n, c) => n + c.rows.length, 0), 0)} comparable fields
-                    </p>
-                  </div>
-                  <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>Compared runs</p>
-                    <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{compareMeta?.runs?.length ?? 0}</p>
-                  </div>
-                </div>
-                {domainComparisons.map((domainBlock) => (
+        <>
+          {compareError ? (
+            <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)" }}>
+              <p className="text-sm mb-2" style={{ color: "var(--danger)" }}>{compareError}</p>
+              <button
+                type="button"
+                onClick={compareRuns}
+                disabled={compareLoading}
+                className={awsButtonSecondarySmClass}
+              >
+                {compareLoading ? "Retrying…" : "Retry"}
+              </button>
+            </div>
+          ) : domainComparisons.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
+              {compareLoading ? "Comparing…" : "Loading comparison…"}
+            </p>
+          ) : (
+            <div className="space-y-3 overflow-auto">
+              {domainComparisons.map((domainBlock) => (
                   <div key={domainBlock.domain} className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
                     <button
                       type="button"
                       onClick={() => toggleDomain(domainBlock.domain)}
-                      className="w-full px-3 py-2.5 flex items-center justify-between text-left"
+                      className={awsAccordionTriggerClass}
                       style={{ background: "var(--muted)" }}
                     >
                       <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{`Domain ${domainBlock.domain}`}</span>
@@ -526,22 +746,51 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
                       </span>
                     </button>
                     {expandedDomains.has(domainBlock.domain) && (
-                      <div className="p-2 space-y-2">
-                        {domainBlock.controls.map((ctrl) => (
-                          <div key={ctrl.controlKey} className="rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                            <button
-                              type="button"
-                              onClick={() => toggleControl(ctrl.controlKey)}
-                              className="w-full px-3 py-2 flex items-center justify-between text-left"
-                              style={{ background: "var(--card)" }}
-                            >
-                              <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{ctrl.label}</span>
-                              <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>
-                                {expandedControls.has(ctrl.controlKey) ? "▾" : "▸"}
-                              </span>
-                            </button>
-                            {expandedControls.has(ctrl.controlKey) && (
-                              <div className="overflow-auto">
+                      <div className="p-2 space-y-3">
+                        {groupControlsByItemCode(domainBlock.controls).map(([itemCode, ctrls]) => {
+                          const selectedKey = getSelectedControlKey(domainBlock.domain, itemCode, ctrls);
+                          const ctrl = ctrls.find((c) => c.controlKey === selectedKey) ?? ctrls[0];
+                          if (!ctrl) return null;
+                          return (
+                            <div key={`${domainBlock.domain}-${itemCode}`} className="rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+                              <div
+                                className="flex flex-wrap items-center gap-2 px-3 py-2.5"
+                                style={{ background: "var(--card)" }}
+                              >
+                                <span
+                                  className="inline-flex min-w-[2.25rem] shrink-0 items-center justify-center rounded-md px-2 py-1 text-sm font-bold tabular-nums"
+                                  style={{ background: "var(--muted)", color: "var(--foreground)" }}
+                                  title="Item code"
+                                >
+                                  {itemCode}
+                                </span>
+                                <div className="flex min-w-0 flex-1 flex-wrap gap-2">
+                                  {ctrls.map((c, idx) => {
+                                    const cid = getControlIdFromKey(c.controlKey);
+                                    const color = CONTROL_BUTTON_COLORS[idx % CONTROL_BUTTON_COLORS.length];
+                                    const selected = c.controlKey === selectedKey;
+                                    return (
+                                      <button
+                                        key={c.controlKey}
+                                        type="button"
+                                        onClick={() => selectControlForItem(domainBlock.domain, itemCode, c.controlKey)}
+                                        className="inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                                        style={{
+                                          background: color,
+                                          color: "#fff",
+                                          opacity: selected ? 1 : 0.55,
+                                          boxShadow: selected ? `0 0 0 2px ${color}` : undefined,
+                                          filter: selected ? "none" : "brightness(0.95)",
+                                        }}
+                                        title={c.label}
+                                      >
+                                        Control {cid}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              <div className="overflow-auto border-t" style={{ borderColor: "var(--border)" }}>
                                 <table className="w-full border-collapse text-sm">
                                   <thead style={{ background: "var(--muted)" }}>
                                     <tr className="border-b" style={{ borderColor: "var(--border)" }}>
@@ -554,30 +803,88 @@ export function RunHistoryVisualsPlotly({ runs, evidenceRows }: { runs: AwsRun[]
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {ctrl.rows.map((row) => (
-                                      <tr key={`${ctrl.controlKey}-${row.feature}`} className="border-b last:border-0" style={{ borderColor: "var(--border)", background: row.diff ? "rgba(245, 158, 11, 0.08)" : "transparent" }}>
-                                        <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{cleanFeatureLabel(row.feature)}</td>
-                                        {(compareMeta?.runs ?? []).map((r) => (
-                                          <td key={`${ctrl.controlKey}-${row.feature}-${r.runId}`} className="px-3 py-2" style={{ color: "var(--foreground)" }}>
-                                            {row.valuesByRun[r.runId] ?? "—"}
-                                          </td>
-                                        ))}
-                                      </tr>
-                                    ))}
+                                    {(() => {
+                                      const { flat, groups } = partitionFeatureRows(ctrl.rows);
+                                      return (
+                                        <>
+                                          {flat.map((row) => (
+                                            <tr
+                                              key={`${ctrl.controlKey}-${row.feature}`}
+                                              className="border-b last:border-0"
+                                              style={{ borderColor: "var(--border)", background: row.diff ? "rgba(245, 158, 11, 0.08)" : "transparent" }}
+                                            >
+                                              <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>
+                                                {cleanFeatureLabel(row.feature)}
+                                              </td>
+                                              {(compareMeta?.runs ?? []).map((r) => (
+                                                <td key={`${ctrl.controlKey}-${row.feature}-${r.runId}`} className="px-3 py-2" style={{ color: "var(--foreground)" }}>
+                                                  {row.valuesByRun[r.runId] ?? "—"}
+                                                </td>
+                                              ))}
+                                            </tr>
+                                          ))}
+                                          {groups.map(({ parent, children }) => {
+                                            const expanded = isFeatureParentExpanded(ctrl.controlKey, parent);
+                                            const runCount = compareMeta?.runs?.length ?? 0;
+                                            return (
+                                              <Fragment key={`${ctrl.controlKey}-grp-${parent}`}>
+                                                <tr
+                                                  className="border-b"
+                                                  style={{ borderColor: "var(--border)", background: "var(--muted)" }}
+                                                >
+                                                  <td className="px-3 py-2" colSpan={1 + runCount}>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => toggleFeatureParent(ctrl.controlKey, parent)}
+                                                      className={awsRowExpandButtonClass}
+                                                      style={{ color: "var(--foreground)" }}
+                                                    >
+                                                      <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>
+                                                        {expanded ? "▾" : "▸"}
+                                                      </span>
+                                                      <span>{parent}</span>
+                                                    </button>
+                                                  </td>
+                                                </tr>
+                                                {expanded &&
+                                                  children.map(({ row, childLabel }) => (
+                                                    <tr
+                                                      key={`${ctrl.controlKey}-${row.feature}`}
+                                                      className="border-b last:border-0"
+                                                      style={{
+                                                        borderColor: "var(--border)",
+                                                        background: row.diff ? "rgba(245, 158, 11, 0.08)" : "transparent",
+                                                      }}
+                                                    >
+                                                      <td className="px-3 py-2 pl-8 text-sm" style={{ color: "var(--foreground)" }}>
+                                                        {childLabel}
+                                                      </td>
+                                                      {(compareMeta?.runs ?? []).map((r) => (
+                                                        <td key={`${ctrl.controlKey}-${row.feature}-${r.runId}`} className="px-3 py-2 text-sm" style={{ color: "var(--foreground)" }}>
+                                                          {row.valuesByRun[r.runId] ?? "—"}
+                                                        </td>
+                                                      ))}
+                                                    </tr>
+                                                  ))}
+                                              </Fragment>
+                                            );
+                                          })}
+                                        </>
+                                      );
+                                    })()}
                                   </tbody>
                                 </table>
                               </div>
-                            )}
-                          </div>
-                        ))}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 ))}
-              </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

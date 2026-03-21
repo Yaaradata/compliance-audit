@@ -29,7 +29,7 @@ export default function AwsLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="p-4 md:p-6 w-full">
+    <div className="w-full px-4 md:px-6 pb-4 md:pb-6 pt-0">
       <AwsPageShell>{children}</AwsPageShell>
     </div>
   );

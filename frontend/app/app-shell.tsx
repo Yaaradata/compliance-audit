@@ -47,7 +47,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         <header className={`shrink-0 border-b border-(--border) bg-(--surface) ${CONTENT_PX}`}>
           <AppHeader />
         </header>
-        <main className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${CONTENT_PX} py-4 sm:py-6`}>
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${CONTENT_PX} pt-2 pb-4 sm:pt-3 sm:pb-6`}>
           {children}
         </main>
       </div>

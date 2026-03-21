@@ -2,23 +2,22 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { RotateCw, FileCheck, Activity, Target, Layers } from "lucide-react";
-import { getEvidence, getEvidenceContent, getRuns, getControlsCoverage } from "@/lib/aws-api";
+import { getEvidence, getRuns, getControlsCoverage } from "@/lib/aws-api";
 import { AwsEvidenceTable } from "@/components/aws/aws-evidence-table";
-import { AwsEvidenceContentModal } from "@/components/aws/aws-evidence-content-modal";
 import { AwsKpiCard } from "@/components/aws/aws-kpi-cards";
 import { AwsPageHeader, AwsSectionTitle, awsButtonSecondaryClass } from "@/components/aws/aws-page-header";
 import type { AwsEvidenceRow, AwsRun } from "@/lib/aws-api";
 import { useAuth } from "@/lib/auth-context";
 
 export default function AwsEvidencePage() {
+  const router = useRouter();
   const { activeCycleId } = useAuth();
   const [data, setData] = useState<AwsEvidenceRow[]>([]);
   const [runs, setRuns] = useState<AwsRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modal, setModal] = useState<{ content?: unknown; error?: string } | null>(null);
-  const [contentLoading, setContentLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [controlsWithEvidenceCount, setControlsWithEvidenceCount] = useState(0);
 
@@ -77,14 +76,16 @@ export default function AwsEvidencePage() {
     };
   }, [load, activeCycleId]);
 
-  const onViewContent = useCallback((row: AwsEvidenceRow) => {
-    setContentLoading(true);
-    setModal(null);
-    getEvidenceContent(row.evidence_id, activeCycleId)
-      .then((content) => setModal({ content }))
-      .catch((err) => setModal({ error: err instanceof Error ? err.message : "Failed to load content" }))
-      .finally(() => setContentLoading(false));
-  }, [activeCycleId]);
+  const onOpenRunComparisor = useCallback(
+    (row: AwsEvidenceRow) => {
+      const params = new URLSearchParams({
+        runHistory: "1",
+        controlKey: `${row.control_id}::${row.item_code ?? ""}`,
+      });
+      router.push(`/aws/dashboard?${params.toString()}`);
+    },
+    [router]
+  );
 
   const uniqueSources = new Set(data.map((e) => e.source_system)).size;
 
@@ -168,26 +169,13 @@ export default function AwsEvidencePage() {
               <AwsEvidenceTable
                 data={data}
                 runs={runs}
-                onViewContent={onViewContent}
+                onOpenRunComparisor={onOpenRunComparisor}
               />
             )}
           </section>
         </>
       )}
 
-      {contentLoading && !modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <p className="rounded-lg bg-[var(--card)] px-4 py-2 text-sm text-[var(--foreground)]">Loading content…</p>
-        </div>
-      )}
-
-      {modal && (
-        <AwsEvidenceContentModal
-          content={modal.content}
-          error={modal.error}
-          onClose={() => setModal(null)}
-        />
-      )}
     </>
   );
 }

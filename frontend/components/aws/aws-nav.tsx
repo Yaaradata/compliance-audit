@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { awsNavLinkClass, awsNavShellClass } from "@/components/aws/aws-ui";
 
 const NAV_LINKS = [
   { href: "/aws", label: "Connect" },
@@ -12,21 +13,17 @@ const NAV_LINKS = [
 export function AwsNav() {
   const pathname = usePathname();
   return (
-    <nav
-      className="flex gap-1 rounded-xl border p-1.5 w-full max-w-fit"
-      style={{ borderColor: "var(--border)", background: "var(--card)" }}
-      aria-label="AWS section"
-    >
+    <nav className={awsNavShellClass} aria-label="AWS section">
       {NAV_LINKS.map(({ href, label }) => {
         const isActive = href === "/aws" ? pathname === "/aws" || pathname === "/aws/" : pathname?.startsWith(href);
         return (
           <Link
             key={href}
             href={href}
-            className="rounded-lg px-5 py-2.5 text-sm font-medium transition-colors min-h-[40px] flex items-center justify-center"
+            className={`${awsNavLinkClass} ${!isActive ? "hover:bg-[var(--muted)] hover:text-[var(--foreground)]" : ""}`}
             style={
               isActive
-                ? { background: "var(--primary)", color: "var(--primary-foreground, white)" }
+                ? { background: "var(--primary)", color: "var(--primary-foreground, white)", boxShadow: "0 1px 3px rgba(15, 23, 42, 0.12)" }
                 : { color: "var(--foreground-muted)" }
             }
           >

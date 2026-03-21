@@ -2,6 +2,7 @@
 
 import { useState, Fragment } from "react";
 import { getRunDetail, deleteRun, type AwsRun, type RunDetail } from "@/lib/aws-api";
+import { awsButtonDangerGhostClass, awsIconButtonClass } from "@/components/aws/aws-ui";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -115,8 +116,7 @@ export function AwsRunHistory({ runs, onRunDeleted }: AwsRunHistoryProps) {
                 <td className="px-4 py-2">
                   <button
                     type="button"
-                    className="rounded p-1 transition-colors hover:opacity-80"
-                    style={{ color: "var(--foreground-muted)" }}
+                    className={awsIconButtonClass}
                     onClick={() => toggleRun(r.run_id)}
                     aria-label={expandedRunId === r.run_id ? "Collapse" : "Show details"}
                   >
@@ -148,8 +148,7 @@ export function AwsRunHistory({ runs, onRunDeleted }: AwsRunHistoryProps) {
                     type="button"
                     disabled={deletingRunId === r.run_id}
                     onClick={() => handleDeleteRun(r.run_id)}
-                    className="rounded px-2 py-1 text-xs font-medium transition opacity-80 hover:opacity-100 disabled:opacity-50"
-                    style={{ color: "var(--danger)" }}
+                    className={awsButtonDangerGhostClass}
                     title="Delete run and its evidence"
                   >
                     {deletingRunId === r.run_id ? "Deleting…" : "Delete"}

@@ -1,20 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
   getRuns,
   getEvidence,
   getControlsCoverage,
   getControlsCoverageItems,
-  getEvidenceContent,
   fetchAwsEvidence,
   getRunDetail,
   isAwsConnectionVisibleForCycle,
 } from "@/lib/aws-api";
 import { AwsDashboard } from "@/components/aws/aws-dashboard";
 import { AwsDashboardSkeleton } from "@/components/aws/aws-dashboard-skeleton";
-import { AwsEvidenceContentModal } from "@/components/aws/aws-evidence-content-modal";
 import type { AwsRun, AwsEvidenceRow, AwsControlItemWithEvidence } from "@/lib/aws-api";
 
 const POLL_INTERVAL_MS = 4000;
@@ -22,8 +21,13 @@ const TIMEOUT_POLL_INTERVAL_MS = 6000;
 const TIMEOUT_POLL_MAX_MS = 3 * 60 * 1000; // 3 minutes
 const RUN_TERMINAL_STATUSES = ["success", "partial", "failed"];
 
-export default function AwsDashboardPage() {
+function AwsDashboardPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { activeCycleId } = useAuth();
+  const focusKey = searchParams.get("controlKey");
+  const openRunHistory = searchParams.get("runHistory") === "1";
+  const focusComparisorControlKey = openRunHistory && focusKey ? focusKey : null;
   const [runs, setRuns] = useState<AwsRun[]>([]);
   const [evidenceRows, setEvidenceRows] = useState<AwsEvidenceRow[]>([]);
   const [evidenceCount, setEvidenceCount] = useState(0);
@@ -32,28 +36,6 @@ export default function AwsDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [contentModal, setContentModal] = useState<{
-    content?: unknown;
-    error?: string;
-    comparison?: {
-      controlId: string;
-      itemCode: string;
-      selectedEvidenceId: string;
-      entries: Array<{
-        evidenceId: string;
-        runId?: string;
-        runLabel: string;
-        runStatus: string;
-        sourceSystem: string;
-        evidenceType: string;
-        collectedAt: string | null;
-        isCurrent: boolean;
-        content?: unknown;
-        error?: string;
-      }>;
-    };
-  } | null>(null);
-  const [contentLoading, setContentLoading] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutPollStartRef = useRef<number>(0);
@@ -211,79 +193,16 @@ export default function AwsDashboardPage() {
       });
   }, [load, activeCycleId]);
 
-  const onViewContent = useCallback((row: AwsEvidenceRow) => {
-    setContentLoading(true);
-    setContentModal(null);
-    const runIndexById = new Map(runs.map((r, idx) => [r.run_id, idx]));
-    const relatedRows = evidenceRows.filter((r) => r.item_code === row.item_code && r.control_id === row.control_id);
-    const bestRowByRun = new Map<string, AwsEvidenceRow>();
-    for (const r of relatedRows) {
-      const key = r.run_id || `no-run-${r.evidence_id}`;
-      const existing = bestRowByRun.get(key);
-      if (!existing) {
-        bestRowByRun.set(key, r);
-        continue;
-      }
-      const existingTs = existing.collected_at ? new Date(existing.collected_at).getTime() : 0;
-      const currentTs = r.collected_at ? new Date(r.collected_at).getTime() : 0;
-      if (currentTs > existingTs) bestRowByRun.set(key, r);
-    }
-    const rowsForComparison = Array.from(bestRowByRun.values())
-      .sort((a, b) => {
-        const ai = a.run_id ? (runIndexById.get(a.run_id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
-        const bi = b.run_id ? (runIndexById.get(b.run_id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
-        if (ai !== bi) return ai - bi;
-        const at = a.collected_at ? new Date(a.collected_at).getTime() : 0;
-        const bt = b.collected_at ? new Date(b.collected_at).getTime() : 0;
-        return bt - at;
-      })
-      .slice(0, 8);
-
-    const labelByRunId = new Map(runs.map((r, idx) => [r.run_id, `Run ${idx + 1}`]));
-
-    Promise.all(
-      rowsForComparison.map(async (r) => {
-        try {
-          const content = await getEvidenceContent(r.evidence_id, activeCycleId);
-          return {
-            evidenceId: r.evidence_id,
-            runId: r.run_id,
-            runLabel: r.run_id ? labelByRunId.get(r.run_id) || "Run —" : "Run —",
-            runStatus: r.run_id ? runs.find((x) => x.run_id === r.run_id)?.status ?? "unknown" : "unknown",
-            sourceSystem: r.source_system,
-            evidenceType: r.evidence_type,
-            collectedAt: r.collected_at,
-            isCurrent: r.evidence_id === row.evidence_id,
-            content,
-          };
-        } catch (err) {
-          return {
-            evidenceId: r.evidence_id,
-            runId: r.run_id,
-            runLabel: r.run_id ? labelByRunId.get(r.run_id) || "Run —" : "Run —",
-            runStatus: r.run_id ? runs.find((x) => x.run_id === r.run_id)?.status ?? "unknown" : "unknown",
-            sourceSystem: r.source_system,
-            evidenceType: r.evidence_type,
-            collectedAt: r.collected_at,
-            isCurrent: r.evidence_id === row.evidence_id,
-            error: err instanceof Error ? err.message : "Failed to load content",
-          };
-        }
-      })
-    )
-      .then((entries) =>
-        setContentModal({
-          comparison: {
-            controlId: row.control_id,
-            itemCode: row.item_code,
-            selectedEvidenceId: row.evidence_id,
-            entries,
-          },
-        })
-      )
-      .catch((err) => setContentModal({ error: err instanceof Error ? err.message : "Failed to load content" }))
-      .finally(() => setContentLoading(false));
-  }, [runs, evidenceRows, activeCycleId]);
+  const onOpenRunComparisor = useCallback(
+    (row: AwsEvidenceRow) => {
+      const params = new URLSearchParams({
+        runHistory: "1",
+        controlKey: `${row.control_id}::${row.item_code ?? ""}`,
+      });
+      router.push(`/aws/dashboard?${params.toString()}`);
+    },
+    [router]
+  );
 
   if (loading) {
     return (
@@ -301,24 +220,19 @@ export default function AwsDashboardPage() {
         evidenceCount={evidenceCount}
         controlIdsWithEvidence={controlIdsWithEvidence}
         onFetchEvidence={onFetchEvidence}
-        onRefresh={load}
-        onViewEvidenceContent={onViewContent}
+        onOpenRunComparisor={onOpenRunComparisor}
+        focusComparisorControlKey={focusComparisorControlKey}
         fetching={fetching}
         fetchError={fetchError}
       />
-      {contentLoading && !contentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <p className="rounded-lg bg-[var(--card)] px-4 py-2 text-sm text-[var(--foreground)]">Loading content…</p>
-        </div>
-      )}
-      {contentModal && (
-        <AwsEvidenceContentModal
-          content={contentModal.content}
-          error={contentModal.error}
-          comparison={contentModal.comparison}
-          onClose={() => setContentModal(null)}
-        />
-      )}
     </>
+  );
+}
+
+export default function AwsDashboardPage() {
+  return (
+    <Suspense fallback={<AwsDashboardSkeleton />}>
+      <AwsDashboardPageContent />
+    </Suspense>
   );
 }

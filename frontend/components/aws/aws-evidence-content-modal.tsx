@@ -1,5 +1,7 @@
 "use client";
 
+import { awsIconButtonClass } from "@/components/aws/aws-ui";
+
 type ComparisonEntry = {
   evidenceId: string;
   runId?: string;
@@ -82,8 +84,7 @@ export function AwsEvidenceContentModal({ content, error, comparison, onClose }:
           </h3>
           <button
             type="button"
-            className="rounded p-1 transition-colors hover:opacity-80"
-            style={{ color: "var(--foreground-muted)" }}
+            className={awsIconButtonClass}
             onClick={onClose}
             aria-label="Close"
           >

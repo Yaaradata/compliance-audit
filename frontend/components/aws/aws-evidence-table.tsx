@@ -1,12 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Play } from "lucide-react";
 import type { AwsEvidenceRow, AwsRun } from "@/lib/aws-api";
+import {
+  awsButtonAccentOutlineClass,
+  awsButtonPaginationClass,
+  awsButtonPrimarySmClass,
+  awsFieldClass,
+} from "@/components/aws/aws-ui";
 
 interface AwsEvidenceTableProps {
   data: AwsEvidenceRow[];
   runs?: AwsRun[];
-  onViewContent: (row: AwsEvidenceRow) => void;
+  /** Opens Run Comparisor on the dashboard for this control (no inline modal). */
+  onOpenRunComparisor: (row: AwsEvidenceRow) => void;
+  /** When set, shows Fetch in the table card header (e.g. dashboard). */
+  onFetchEvidence?: () => void;
+  fetching?: boolean;
 }
 
 const ITEM_DESCRIPTION_MAP: Record<string, string> = {
@@ -54,13 +65,26 @@ function shortItemDescription(itemCode: string): string {
   return ITEM_DESCRIPTION_MAP[itemCode] ?? "Security evidence item";
 }
 
-function domainFromItemCode(itemCode: string): string {
+/** Single letter A–H from item code, or "" if unknown / out of range. */
+function domainLetterFromItemCode(itemCode: string): string {
   const letter = (itemCode || "").trim().charAt(0).toUpperCase();
-  return /[A-H]/.test(letter) ? `Domain ${letter}` : "Domain —";
+  return /[A-H]/.test(letter) ? letter : "";
 }
 
-export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidenceTableProps) {
+function domainFromItemCode(itemCode: string): string {
+  const letter = domainLetterFromItemCode(itemCode);
+  return letter ? `Domain ${letter}` : "Domain —";
+}
+
+export function AwsEvidenceTable({
+  data,
+  runs = [],
+  onOpenRunComparisor,
+  onFetchEvidence,
+  fetching = false,
+}: AwsEvidenceTableProps) {
   const [query, setQuery] = useState("");
+  const [domainFilter, setDomainFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [runFilter, setRunFilter] = useState("all");
@@ -80,6 +104,24 @@ export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidence
     };
   }), [data, runs]);
 
+  const domainLetters = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) {
+      const d = domainLetterFromItemCode(r.item_code);
+      if (d) set.add(d);
+    }
+    return Array.from(set).sort();
+  }, [rows]);
+
+  const hasUnmappedDomainRows = useMemo(
+    () => rows.some((r) => !domainLetterFromItemCode(r.item_code)),
+    [rows]
+  );
+
+  useEffect(() => {
+    if (domainFilter === "other" && !hasUnmappedDomainRows) setDomainFilter("all");
+  }, [domainFilter, hasUnmappedDomainRows]);
+
   const sources = useMemo(() => Array.from(new Set(rows.map((r) => r.source_system))).sort(), [rows]);
   const types = useMemo(() => Array.from(new Set(rows.map((r) => r.evidence_type))).sort(), [rows]);
   const runLabels = useMemo(() => Array.from(new Set(rows.map((r) => r.runLabel))).filter((r) => r !== "—"), [rows]);
@@ -94,10 +136,14 @@ export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidence
         r.source_system.toLowerCase().includes(q) ||
         (r.evidence_type || "").toLowerCase().includes(q) ||
         r.runLabel.toLowerCase().includes(q);
+      const letter = domainLetterFromItemCode(r.item_code);
+      const domainOk =
+        domainFilter === "all" ||
+        (domainFilter === "other" ? !letter : letter === domainFilter);
       const sourceOk = sourceFilter === "all" || r.source_system === sourceFilter;
       const typeOk = typeFilter === "all" || r.evidence_type === typeFilter;
       const runOk = runFilter === "all" || r.runLabel === runFilter;
-      return queryOk && sourceOk && typeOk && runOk;
+      return queryOk && domainOk && sourceOk && typeOk && runOk;
     });
 
     out = out.sort((a, b) => {
@@ -110,7 +156,7 @@ export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidence
       return String(a[sortKey]).localeCompare(String(b[sortKey])) * dir;
     });
     return out;
-  }, [rows, query, sourceFilter, typeFilter, runFilter, sortKey, sortDir]);
+  }, [rows, query, domainFilter, sourceFilter, typeFilter, runFilter, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -126,7 +172,7 @@ export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidence
     { key: "runLabel", label: "Run" },
     { key: "status", label: "Status" },
     { key: "collected_at", label: "Collected At" },
-    { key: "actions", label: "", className: "text-right w-24" },
+    { key: "actions", label: "", className: "text-right w-[7.5rem]" },
   ] as const;
   type ColumnKey = (typeof columns)[number]["key"];
   type ColumnDef = (typeof columns)[number];
@@ -232,11 +278,11 @@ export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidence
       <td key={key} className="px-4 py-3 text-right">
         <button
           type="button"
-          className="rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:opacity-90"
-          style={{ borderColor: "var(--border)", color: "var(--primary)" }}
-          onClick={() => onViewContent(e)}
+          className={awsButtonAccentOutlineClass}
+          onClick={() => onOpenRunComparisor(e)}
+          title="Open Run Comparisor for this control on the dashboard"
         >
-          View
+          Compare
         </button>
       </td>
     );
@@ -244,31 +290,67 @@ export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidence
 
   return (
     <div className="card rounded-xl overflow-hidden border flex flex-col min-h-0" style={{ borderColor: "var(--border)" }}>
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b shrink-0" style={{ borderColor: "var(--border)", background: "var(--muted)" }}>
-        <h2 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-          Evidence table
-        </h2>
-        <span className="text-xs font-medium" style={{ color: "var(--foreground-muted)" }}>
-          {filteredRows.length} row{filteredRows.length !== 1 ? "s" : ""}
-        </span>
+      <div
+        className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b shrink-0"
+        style={{ borderColor: "var(--border)", background: "var(--muted)" }}
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
+          <h2 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+            Evidence table
+          </h2>
+          <span className="text-xs font-medium" style={{ color: "var(--foreground-muted)" }}>
+            {filteredRows.length} row{filteredRows.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        {onFetchEvidence && (
+          <button
+            type="button"
+            onClick={onFetchEvidence}
+            disabled={fetching}
+            className={`${awsButtonPrimarySmClass} shrink-0`}
+          >
+            {fetching ? (
+              <>
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white sm:h-4 sm:w-4" />
+                Collecting…
+              </>
+            ) : (
+              <>
+                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                Fetch AWS evidence
+              </>
+            )}
+          </button>
+        )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 border-b" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-2 p-3 border-b" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
         <input
           value={query}
           onChange={(e) => { setQuery(e.target.value); setPage(1); }}
           placeholder="Search item/control/source/type/run"
-          className="md:col-span-2 rounded-lg border px-3 py-2 text-sm"
-          style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+          className={`md:col-span-2 w-full min-w-0 ${awsFieldClass}`}
         />
-        <select value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }} className="rounded-lg border px-2 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}>
+        <select
+          value={domainFilter}
+          onChange={(e) => { setDomainFilter(e.target.value); setPage(1); }}
+          className={`w-full min-w-0 font-medium ${awsFieldClass}`}
+          aria-label="Filter by domain"
+        >
+          <option value="all">All domains</option>
+          {domainLetters.map((d) => (
+            <option key={d} value={d}>{`Domain ${d}`}</option>
+          ))}
+          {hasUnmappedDomainRows ? <option value="other">Other / unmapped</option> : null}
+        </select>
+        <select value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }} className={`w-full min-w-0 ${awsFieldClass}`}>
           <option value="all">All sources</option>
           {sources.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }} className="rounded-lg border px-2 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}>
+        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }} className={`w-full min-w-0 ${awsFieldClass}`}>
           <option value="all">All types</option>
           {types.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <select value={runFilter} onChange={(e) => { setRunFilter(e.target.value); setPage(1); }} className="rounded-lg border px-2 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}>
+        <select value={runFilter} onChange={(e) => { setRunFilter(e.target.value); setPage(1); }} className={`w-full min-w-0 ${awsFieldClass}`}>
           <option value="all">All runs</option>
           {runLabels.map((label) => <option key={label} value={label}>{label}</option>)}
         </select>
@@ -331,8 +413,7 @@ export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidence
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="rounded border px-2 py-1 disabled:opacity-50"
-            style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+            className={awsButtonPaginationClass}
             disabled={safePage <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
@@ -340,8 +421,7 @@ export function AwsEvidenceTable({ data, runs = [], onViewContent }: AwsEvidence
           </button>
           <button
             type="button"
-            className="rounded border px-2 py-1 disabled:opacity-50"
-            style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+            className={awsButtonPaginationClass}
             disabled={safePage >= totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           >
