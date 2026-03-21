@@ -276,11 +276,17 @@ def delete_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: Use
     """
     Delete an assessment cycle and all data tied to it.
 
-    - Deletes all evidence files from GCS (or local storage) for submissions in this cycle.
-    - Removes evidence attachments, submissions, review assignments/comments,
-      sufficiency scores/evaluations, reports, and vendors for this cycle.
-    - Clears previous_cycle_id on other cycles, then deletes the cycle (with cascaded
-      control applicability and approval gates).
+    - Deletes submission evidence files from GCS (prefix evidence/{submission_id}/).
+    - Deletes AWS collector JSON under GCS aws_evidence/cycles/{cycle_id}/ (cycle-scoped uploads).
+    - Removes swift_2026 Evidence + CollectorRun rows for this cycle.
+    - Removes phase deadlines in swift_2025 and swift_2026; evidence attachments, submissions,
+      reviews, sufficiency scores/evaluations, reports, vendors.
+    - core.cycle_user_aws_config rows CASCADE when the cycle is removed.
+    - Clears previous_cycle_id on other cycles, then deletes the cycle (control applicability
+      and approval gates cascade).
+
+    Legacy AWS blobs stored under aws_evidence/aws/... (no cycle id in path) are not removed
+    automatically; DB rows for those runs are still deleted.
     """
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user, db)

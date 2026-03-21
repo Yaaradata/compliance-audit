@@ -626,20 +626,29 @@ def generate_report_section(snapshot: dict, section_key: str) -> str:
     return cleaned.strip()
 
 
+_DEFAULT_SUGGESTION_GAP = (
+    "The AWS snapshots for this cycle do not contain a clear signal for this field, or the relevant "
+    "collector has not been run yet. Run AWS collection for this CSCF item or answer manually."
+)
+
+
 def suggest_answers_from_aws_evidence(
     *,
     evidence_item_id: str,
     questions: list[dict],
     aws_evidence_bundle: list[dict],
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """
     Use Vertex AI to map AWS collector JSON into form question_key -> string answers.
     `questions`: list of {question_key, label, question_type, options, guide}.
+
+    Returns a dict: ``{"suggestions": {question_key: str, ...}, "gaps": {question_key: str, ...}}``.
+    ``gaps`` explains empty answers (missing or unmappable evidence).
     """
     if not questions:
-        return {}
+        return {"suggestions": {}, "gaps": {}}
     if not aws_evidence_bundle:
-        return {}
+        return {"suggestions": {}, "gaps": {}}
 
     try:
         model = _get_model()
@@ -663,17 +672,19 @@ Each field lists: question_key, label, question_type, options (if select/multise
 {q_json}
 
 ## Rules
-1. Output **only** a single JSON object: keys must be exactly the question_key values listed above, values must be strings.
-2. For question_type "select", the value must be **exactly** one of the listed options strings (character-for-character), or "" if unknown.
-3. For "multiselect", use a single string: option values separated by comma, or "" if unknown.
-4. For "date" use YYYY-MM-DD only when clearly supported by evidence; otherwise "".
-5. For "checkbox" use "true" or "false" (lowercase) or "".
-6. For "text" / "textarea", give concise factual answers grounded **only** in the AWS evidence JSON. If the evidence does not contain the information, use "".
-7. For "spreadsheet", options contains column definitions (array of objects with key, label, type, options). Return a JSON-encoded string of an array of row objects, e.g. "[{{\\"hostname\\":\\"web01\\",\\"ip_address\\":\\"10.0.0.1\\"}}]". Each row must only use the column keys defined in options. For select columns, use one of the listed options. Populate rows from the AWS evidence; if no data is available, return "[]".
-8. Do not invent ARNs, account IDs, resource names, or dates not present in the evidence.
-9. Do not add keys that were not listed.
+1. Output **only** a single JSON object with exactly two keys: **"answers"** and **"gaps"** (both objects).
+2. **answers**: keys must be exactly the question_key values listed above; values must be strings.
+3. **gaps**: for every question_key where **answers** is "" or missing, include the same key with a **one-sentence** plain-English reason (e.g. which IAM/Secrets/collector data is missing, or that evidence is unrelated to the question). If answers[key] is non-empty, omit key from gaps or use "".
+4. For question_type "select", the value must be **exactly** one of the listed options strings (character-for-character), or "" if unknown.
+5. For "multiselect", use a single string: option values separated by comma, or "" if unknown.
+6. For "date" use YYYY-MM-DD only when clearly supported by evidence; otherwise "".
+7. For "checkbox" use "true" or "false" (lowercase) or "".
+8. For "text" / "textarea", give concise factual answers grounded **only** in the AWS evidence JSON. If the evidence does not contain the information, use "".
+9. For "spreadsheet", options contains column definitions (array of objects with key, label, type, options). Return a JSON-encoded string of an array of row objects. Populate rows from the AWS evidence; if no data is available, return "[]".
+10. Do not invent ARNs, account IDs, resource names, or dates not present in the evidence.
+11. Do not add answer keys that were not listed.
 
-Return JSON only, no markdown fences."""
+Return JSON only, no markdown fences. Example shape: {{"answers": {{"q1": "yes"}}, "gaps": {{"q2": "No credential report in evidence."}}}}"""
 
     response = model.generate_content([Part.from_text(prompt)])
     text = _get_response_text(response)
@@ -688,12 +699,30 @@ Return JSON only, no markdown fences."""
         raise ValueError("Model response was not a JSON object.")
 
     allowed = {q["question_key"] for q in questions if q.get("question_key")}
+    gaps_raw: dict[str, str] = {}
+    answers_block: dict[str, Any] = {}
+    if "answers" in parsed and isinstance(parsed.get("answers"), dict):
+        answers_block = dict(parsed["answers"])
+        g = parsed.get("gaps")
+        if isinstance(g, dict):
+            gaps_raw = {str(k): str(v).strip() for k, v in g.items() if v is not None and str(v).strip()}
+    else:
+        # Legacy: flat question_key -> value
+        answers_block = {k: v for k, v in parsed.items() if k in allowed}
+
     out: dict[str, str] = {}
-    for k, v in parsed.items():
-        if k not in allowed:
-            continue
+    for k in allowed:
+        v = answers_block.get(k)
         out[str(k)] = "" if v is None else str(v).strip()
-    return out
+
+    gaps: dict[str, str] = {}
+    for k in allowed:
+        if out.get(k):
+            continue
+        reason = gaps_raw.get(k) or gaps_raw.get(str(k))
+        gaps[str(k)] = (reason.strip() if reason else _DEFAULT_SUGGESTION_GAP)
+
+    return {"suggestions": out, "gaps": gaps}
 
 
 def _static_glossary() -> str:

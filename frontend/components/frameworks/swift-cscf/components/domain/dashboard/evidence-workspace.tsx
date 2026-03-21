@@ -10,6 +10,22 @@ import type { EvidenceItem, DomainConfig } from "@/lib/types";
 import type { AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 import type { EvaluationEditsMap } from "../../../../../domain/ai-evaluation-result";
 
+/** Submission is locked for IT SME editing after submit/approve. */
+function isSubmissionAwsLocked(status: string | undefined): boolean {
+  const s = (status ?? "").toLowerCase();
+  return s === "submitted" || s === "approved" || s === "in_review";
+}
+
+/** User already has saved AWS/LLM snapshot in form_data — do not auto-call suggest again. */
+function itemHasPersistedAwsSnapshot(fd: Record<string, string>): boolean {
+  for (const [k, v] of Object.entries(fd)) {
+    if (!(v ?? "").trim()) continue;
+    if (k.endsWith("__ai_origin")) return true;
+    if (k.endsWith("__ai") && !k.endsWith("__ai_origin")) return true;
+  }
+  return false;
+}
+
 function A5ArchitecturePreview({ formData }: { formData: Record<string, string> }) {
   const archType = formData[A5_ARCHITECTURE_KEYS.architecture_type];
   const diagramFile = formData[A5_ARCHITECTURE_KEYS.selected_diagram];
@@ -101,7 +117,9 @@ export function EvidenceWorkspace({
   const [awsSuggestLoading, setAwsSuggestLoading] = useState(false);
   const [awsSuggestMessage, setAwsSuggestMessage] = useState<string | null>(null);
   const [awsSuggestError, setAwsSuggestError] = useState<string | null>(null);
+  const [awsSuggestRoundDone, setAwsSuggestRoundDone] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, string>>({});
+  const [awsSuggestionGaps, setAwsSuggestionGaps] = useState<Record<string, string>>({});
   const [questionSources, setQuestionSources] = useState<Record<string, string>>({});
   const autoFilledItemsRef = useRef<Set<string>>(new Set());
   const evidenceScrollRef = useRef<HTMLDivElement>(null);
@@ -186,6 +204,8 @@ export function EvidenceWorkspace({
         setAwsSuggestMessage(null);
         setAwsSuggestError(null);
         setAiSuggestions({});
+        setAwsSuggestionGaps({});
+        setAwsSuggestRoundDone(false);
         setQuestionSources({});
       }
     } else {
@@ -193,22 +213,21 @@ export function EvidenceWorkspace({
     }
   }, [currentItem?.id]);
 
-  useEffect(() => {
-    if (!cycleId || !currentItem) return;
-    if (autoFilledItemsRef.current.has(currentItem.id)) return;
-    handleSuggestFromAws(currentItem.id);
-  }, [cycleId, currentItem?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const evidenceFormLocked = isSubmissionAwsLocked(submissionStatus);
 
   const handleSuggestFromAws = useCallback(async (itemId?: string) => {
     const targetItem = itemId ?? currentItem?.id;
     if (!cycleId || !targetItem) return;
+    if (isSubmissionAwsLocked(submissionStatus)) return;
     setAwsSuggestLoading(true);
     setAwsSuggestError(null);
     setAwsSuggestMessage(null);
     setAiSuggestions({});
+    setAwsSuggestionGaps({});
     try {
       const res = await api.postViaProxy<{
         suggestions: Record<string, string>;
+        suggestion_gaps?: Record<string, string>;
         question_keys_attempted: string[];
         question_sources: Record<string, string>;
         aws_evidence_bundle_count: number;
@@ -217,19 +236,23 @@ export function EvidenceWorkspace({
       }>(`/assessments/${cycleId}/evidence-items/${targetItem}/suggest-from-aws`, {}, 180_000);
       const sugg = res.suggestions ?? {};
       const sources = res.question_sources ?? {};
+      const gaps = res.suggestion_gaps ?? {};
       setQuestionSources(sources);
       setAiSuggestions(sugg);
+      setAwsSuggestionGaps(gaps);
       autoFilledItemsRef.current.add(targetItem);
 
       const keys = Object.keys(sugg).filter((k) => (sugg[k] ?? "").trim().length > 0);
       keys.forEach((k) => {
+        const val = sugg[k]!;
+        onItemFormChange(`${k}__ai_origin`, val);
         const src = (sources[k] ?? "").trim().toLowerCase();
         const isAwsPlusHuman = src.startsWith("aws") && src.includes("human");
         if (isAwsPlusHuman) {
-          onItemFormChange(`${k}__ai`, sugg[k]!);
+          onItemFormChange(`${k}__ai`, val);
         } else {
-          onItemFormChange(k, sugg[k]!);
-          onItemFormChange(`${k}__ai`, sugg[k]!);
+          onItemFormChange(k, val);
+          onItemFormChange(`${k}__ai`, val);
         }
       });
       if (keys.length > 0) {
@@ -247,8 +270,28 @@ export function EvidenceWorkspace({
       setAwsSuggestError(msg);
     } finally {
       setAwsSuggestLoading(false);
+      setAwsSuggestRoundDone(true);
     }
-  }, [cycleId, currentItem?.id, onItemFormChange, onEnsureSubmission, onItemFormBlur]);
+  }, [cycleId, currentItem?.id, submissionStatus, onItemFormChange, onEnsureSubmission, onItemFormBlur]);
+
+  useEffect(() => {
+    if (!cycleId || !currentItem) return;
+
+    if (evidenceFormLocked) {
+      autoFilledItemsRef.current.add(currentItem.id);
+      return;
+    }
+
+    if (itemHasPersistedAwsSnapshot(itemFormData)) {
+      autoFilledItemsRef.current.add(currentItem.id);
+      setAwsSuggestRoundDone(true);
+      return;
+    }
+
+    if (autoFilledItemsRef.current.has(currentItem.id)) return;
+
+    handleSuggestFromAws(currentItem.id);
+  }, [cycleId, currentItem?.id, submissionStatus, itemFormData, evidenceFormLocked, handleSuggestFromAws]);
 
   if (!currentItem) {
     return (
@@ -288,7 +331,7 @@ export function EvidenceWorkspace({
                 autoFilledItemsRef.current.delete(currentItem.id);
                 handleSuggestFromAws(currentItem.id);
               }}
-              disabled={awsSuggestLoading}
+              disabled={awsSuggestLoading || evidenceFormLocked}
               className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg border border-(--border) bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-(--muted)/40 disabled:opacity-50"
             >
               {awsSuggestLoading ? "Generating…" : "Re-generate AWS suggestions"}
@@ -314,6 +357,10 @@ export function EvidenceWorkspace({
             aiSuggestLoading={awsSuggestLoading}
             aiSuggestions={aiSuggestions}
             questionSources={questionSources}
+            disabled={evidenceFormLocked}
+            awsSuggestionGaps={awsSuggestionGaps}
+            awsSuggestRoundDone={awsSuggestRoundDone}
+            visualVariant="swiftReview"
           />
           {!aiEvaluationResult && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-2xl border border-(--border) bg-gradient-to-br from-background to-background/80 shadow-md hover:shadow-lg transition-shadow duration-200">
@@ -418,6 +465,8 @@ export function EvidenceWorkspace({
                       aiEvaluationLoading={aiEvaluationLoading}
                       configColor={config.color}
                       currentItemId={currentItem.id}
+                      visualVariant="swiftReview"
+                      hideAiHint={false}
                     />
                   </div>
                 ) : (

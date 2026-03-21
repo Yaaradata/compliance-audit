@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
+import type { CSSProperties, ReactNode } from "react";
+import { stripCriteriaPrefix, shouldShowCriterion, cn } from "@/lib/utils";
+import "@/components/review/swift-review-template/swift-review-template.css";
 import { api } from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { NoteList } from "@/components/notes/note-list";
@@ -26,6 +28,8 @@ interface AiEvaluationResultProps {
   onNoteAdded?: () => void;
   /** When true (e.g. reviewer view), hide AI explanatory text per criterion and "AI: x/y" badge. */
   hideAiHint?: boolean;
+  /** Review queue: match Swift review template (cards, tokens under .swift-review-tpl). */
+  visualVariant?: "default" | "swiftReview";
   /** IT SME only: render Re-evaluate and Submit buttons inside the Sufficiency & criteria box. */
   onReEvaluate?: () => void;
   onSubmitForReview?: () => void;
@@ -38,6 +42,36 @@ interface AiEvaluationResultProps {
 }
 
 type CriterionWithSection = AiCriterionResult & { section: "sufficiency_results" | "criteria" };
+
+/** Design tokens from swift-review-template.css; required for swiftReview variant when not under ReviewPageShell. */
+function SwiftEvalScope({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn("swift-review-tpl swift-review-embed flex min-h-0 w-full flex-col", className)}>{children}</div>;
+}
+
+function EvalTabCount({ n }: { n: number }) {
+  return (
+    <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[var(--eval-tab-count-bg)] px-1.5 text-[10px] font-bold tabular-nums text-[var(--eval-tab-count-text)]">
+      {n}
+    </span>
+  );
+}
+
+/** Gap / rationale copy. Swift: pale pink panel + slate body text. */
+function notMetRationaleClassName(met: boolean, swiftReview?: boolean): string {
+  if (met) return "text-(--foreground-muted)";
+  if (swiftReview) {
+    return "text-[var(--eval-gap-box-text)] text-xs leading-relaxed rounded-lg border px-3.5 py-3";
+  }
+  return "text-slate-700 dark:text-rose-100/95 rounded-md border border-amber-200/90 bg-amber-50/80 px-3 py-2 leading-relaxed dark:border-rose-900/45 dark:bg-rose-950/35";
+}
+
+function notMetRationaleStyle(swiftReview: boolean): CSSProperties | undefined {
+  if (!swiftReview) return undefined;
+  return {
+    backgroundColor: "var(--eval-gap-box-bg)",
+    borderColor: "var(--eval-gap-box-border)",
+  };
+}
 
 /** Donut ring: score/total with color by ratio (same as Control & AI Evaluation). Exported for use in Evaluation result panel header. */
 export function EvaluationScoreRing({ score, total, size = 40 }: { score: number; total: number; size?: number }) {
@@ -171,6 +205,7 @@ function EditableCriterion({
   onMarkAsMetCallback,
   onClearCriterionEdit,
   hideAiHint,
+  swiftReview,
 }: {
   criterion: AiCriterionResult;
   section: "sufficiency_results" | "criteria";
@@ -187,6 +222,7 @@ function EditableCriterion({
   onMarkAsMetCallback?: () => void;
   onClearCriterionEdit?: () => void;
   hideAiHint?: boolean;
+  swiftReview?: boolean;
 }) {
   const [editingNote, setEditingNote] = useState(false);
   const [noteDraft, setNoteDraft] = useState(userNote ?? "");
@@ -220,6 +256,154 @@ function EditableCriterion({
     onToggle();
   };
 
+  if (swiftReview && isNotMet) {
+    const xDisabled = !criterion.met && !canToggleToMet;
+    return (
+      <article className="mb-4 last:mb-0 rounded-[var(--radius-lg)] border border-[var(--border)] border-t-4 border-t-[var(--red)] bg-[var(--surface)] p-4 shadow-[var(--shadow-xs)]">
+        <div className="flex gap-3 items-start">
+          <button
+            type="button"
+            onClick={handleToggleClick}
+            disabled={(!criterion.met && !canToggleToMet) || (criterion.met && !canToggleToNotMet)}
+            className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white transition-[transform,opacity,filter] active:scale-[0.97] ${
+              xDisabled ? "cursor-not-allowed bg-[var(--red)] opacity-80" : "cursor-pointer bg-[var(--red)] hover:brightness-110"
+            }`}
+            title={
+              !criterion.met && !canToggleToMet
+                ? "Add a note first to mark as met"
+                : criterion.met
+                  ? canToggleToNotMet
+                    ? "Met — click to mark as not met"
+                    : "Edited — cannot change back to not met"
+                  : "Not met — add a note then click to mark as met"
+            }
+          >
+            ✗
+          </button>
+          <div className="flex-1 min-w-0 space-y-3">
+            <h3 className="text-sm font-bold text-[var(--text-primary)] leading-snug">{stripCriteriaPrefix(criterion.label)}</h3>
+            {!hideAiHint && aiDescription && aiDescription.trim() && (
+              <div className="flex flex-col gap-2">
+                <p
+                  className={notMetRationaleClassName(criterion.met, true)}
+                  style={notMetRationaleStyle(true)}
+                >
+                  {aiDescription.trim()}
+                </p>
+                {showAddComment && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setShowNoteBox((v) => !v)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setShowNoteBox((v) => !v);
+                      }
+                    }}
+                    className="text-left text-xs font-semibold text-[var(--blue)] hover:underline cursor-pointer w-fit"
+                  >
+                    + Add comment
+                  </span>
+                )}
+              </div>
+            )}
+            {showAddComment && !aiDescription?.trim() && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowNoteBox((v) => !v)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setShowNoteBox((v) => !v);
+                  }
+                }}
+                className="text-xs font-semibold text-[var(--blue)] hover:underline cursor-pointer"
+              >
+                + Add comment
+              </span>
+            )}
+            {showThreadInline ? (
+              <CriterionNoteThread
+                submissionId={submissionId!}
+                criterionId={criterion.id}
+                refreshTrigger={notesRefreshTrigger ?? 0}
+                onNoteAdded={onNoteAdded}
+                onNoteDeleted={onClearCriterionEdit}
+                onNotesCountChange={setThreadNotesCount}
+                showRemoveFromEdited={defaultExpandNote}
+                onMarkAsMet={onMarkAsMetCallback ?? (showMarkAsMetButton ? onToggle : undefined)}
+              />
+            ) : (
+              !hasThread && (
+                <>
+                  {!editingNote && isNotMet && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setEditingNote(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setEditingNote(true);
+                        }
+                      }}
+                      className="text-xs font-semibold text-[var(--blue)] hover:underline cursor-pointer block"
+                    >
+                      + Add comment
+                    </span>
+                  )}
+                  {editingNote ? (
+                    <div className="flex flex-col gap-2 mt-1.5">
+                      <textarea
+                        value={noteDraft}
+                        onChange={(e) => setNoteDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") setEditingNote(false);
+                        }}
+                        placeholder="Add a note for the reviewer…"
+                        rows={2}
+                        className="w-full text-[11px] px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 resize-y"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSaveNote}
+                          className="text-[11px] font-semibold px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingNote(false);
+                            setNoteDraft(userNote ?? "");
+                          }}
+                          className="text-[11px] font-medium px-2.5 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    userNote != null &&
+                    userNote.trim() !== "" && (
+                      <p className="text-xs text-[var(--text-secondary)] border-l-2 border-[var(--blue)]/25 pl-2 py-0.5 bg-[var(--blue-lt)]/40 rounded">
+                        {userNote.trim()}
+                      </p>
+                    )
+                  )}
+                </>
+              )
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <div className="grid grid-cols-[1.5rem_1fr] gap-3 items-start py-3 px-0 border-b border-(--border)/50 last:border-b-0 hover:bg-(--primary-muted)/5 transition-colors group">
       <button
@@ -233,7 +417,7 @@ function EditableCriterion({
               ? canToggleToNotMet
                 ? "text-emerald-600 hover:text-emerald-700 cursor-pointer"
                 : "text-emerald-600 cursor-not-allowed"
-              : "text-rose-600 hover:text-rose-700 cursor-pointer"
+              : "text-rose-500 hover:text-rose-600 cursor-pointer dark:text-rose-400"
         }`}
         title={
           !criterion.met && !canToggleToMet
@@ -251,7 +435,7 @@ function EditableCriterion({
         <span className="text-sm text-foreground font-medium leading-snug">{stripCriteriaPrefix(criterion.label)}</span>
         {!hideAiHint && aiDescription && aiDescription.trim() && (
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <p className={`text-xs ${criterion.met ? "text-(--foreground-muted)" : "text-rose-600/90"}`}>{aiDescription.trim()}</p>
+            <p className={`text-xs ${notMetRationaleClassName(criterion.met)}`}>{aiDescription.trim()}</p>
             {showAddComment && (
               <span
                 role="button"
@@ -361,6 +545,7 @@ function CriterionRow({
   hideAiHint,
   /** When provided (e.g. Not met tab), used for "Mark as Manually met" so we can also switch tab to Manually met. */
   onMarkAsMetOverride,
+  visualVariant = "default",
 }: {
   criterion: CriterionWithSection;
   editable: boolean;
@@ -376,12 +561,14 @@ function CriterionRow({
   onClearCriterionEdit?: () => void;
   hideAiHint?: boolean;
   onMarkAsMetOverride?: () => void;
+  visualVariant?: "default" | "swiftReview";
 }) {
   const edit = evaluationEdits[criterion.id];
   const userNote = edit?.userNote ?? null;
   const aiDescription = criterion.description ?? null;
   const [showNoteBox, setShowNoteBox] = useState(!!defaultExpandNote);
   const markAsMetCallback = showMarkAsMetButton ? (onMarkAsMetOverride ?? onToggle) : undefined;
+  const swift = visualVariant === "swiftReview";
 
   if (editable) {
     return (
@@ -400,6 +587,7 @@ function CriterionRow({
         onMarkAsMetCallback={markAsMetCallback}
         onClearCriterionEdit={onClearCriterionEdit}
         hideAiHint={hideAiHint}
+        swiftReview={swift}
       />
     );
   }
@@ -408,11 +596,86 @@ function CriterionRow({
   const isEditedRow = !!defaultExpandNote;
   const showAddComment = (isNotMet && hasThread) || (isEditedRow && hasThread);
   const showThreadInline = hasThread && showNoteBox && (isNotMet || isEditedRow);
+
+  if (swift && isNotMet) {
+    return (
+      <article className="mb-4 last:mb-0 rounded-[var(--radius-lg)] border border-[var(--border)] border-t-4 border-t-[var(--red)] bg-[var(--surface)] p-4 shadow-[var(--shadow-xs)]">
+        <div className="flex gap-3 items-start">
+          <span
+            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--red)] text-sm font-bold leading-none text-white"
+            title="Not met"
+            aria-hidden
+          >
+            ✗
+          </span>
+          <div className="flex-1 min-w-0 space-y-3">
+            <h3 className="text-sm font-bold text-[var(--text-primary)] leading-snug">
+              {stripCriteriaPrefix(criterion.label)}
+            </h3>
+            {!hideAiHint && aiDescription && aiDescription.trim() && (
+              <>
+                <p
+                  className={notMetRationaleClassName(criterion.met, true)}
+                  style={notMetRationaleStyle(true)}
+                >
+                  {aiDescription.trim()}
+                </p>
+                {showAddComment && (
+                  <button
+                    type="button"
+                    onClick={() => setShowNoteBox((v) => !v)}
+                    className="text-left text-xs font-semibold text-[var(--blue)] hover:underline cursor-pointer"
+                  >
+                    + Add comment
+                  </button>
+                )}
+              </>
+            )}
+            {showAddComment && !aiDescription?.trim() && (
+              <button
+                type="button"
+                onClick={() => setShowNoteBox((v) => !v)}
+                className="text-left text-xs font-semibold text-[var(--blue)] hover:underline cursor-pointer"
+              >
+                + Add comment
+              </button>
+            )}
+            {showThreadInline ? (
+              <CriterionNoteThread
+                submissionId={submissionId!}
+                criterionId={criterion.id}
+                refreshTrigger={notesRefreshTrigger ?? 0}
+                onNoteAdded={onNoteAdded}
+                onNoteDeleted={onClearCriterionEdit}
+                showRemoveFromEdited={defaultExpandNote}
+                onMarkAsMet={markAsMetCallback}
+              />
+            ) : (
+              !hasThread &&
+              userNote &&
+              userNote.trim() && (
+                <p className="text-xs text-[var(--text-secondary)] border-l-2 border-[var(--blue)]/25 pl-2 py-0.5 bg-[var(--blue-lt)]/40 rounded">
+                  {userNote.trim()}
+                </p>
+              )
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-[1.5rem_1fr] gap-3 items-start py-3 px-0 border-b border-(--border)/50 last:border-b-0 hover:bg-(--primary-muted)/5 transition-colors">
+    <div
+      className={
+        swift
+          ? "grid grid-cols-[1.5rem_1fr] gap-3 items-start py-3 px-3 mb-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)] last:mb-0"
+          : "grid grid-cols-[1.5rem_1fr] gap-3 items-start py-3 px-0 border-b border-(--border)/50 last:border-b-0 hover:bg-(--primary-muted)/5 transition-colors"
+      }
+    >
       <span
         className={`w-6 h-6 flex shrink-0 items-center justify-center rounded text-base font-bold mt-0.5 ${
-          criterion.met ? "text-emerald-600" : "text-rose-600"
+          criterion.met ? "text-emerald-600" : "text-rose-500 dark:text-rose-400"
         }`}
         title={criterion.met ? "Met" : "Not met"}
       >
@@ -422,13 +685,18 @@ function CriterionRow({
         <span className="text-sm text-foreground font-medium leading-snug">{stripCriteriaPrefix(criterion.label)}</span>
         {!hideAiHint && aiDescription && aiDescription.trim() && (
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <p className={`text-xs ${criterion.met ? "text-(--foreground-muted)" : "text-rose-600/90"}`}>{aiDescription.trim()}</p>
+            <p className={`text-xs ${notMetRationaleClassName(criterion.met, swift)}`}>{aiDescription.trim()}</p>
             {showAddComment && (
               <span
                 role="button"
                 tabIndex={0}
                 onClick={() => setShowNoteBox((v) => !v)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowNoteBox((v) => !v); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setShowNoteBox((v) => !v);
+                  }
+                }}
                 className="text-xs text-(--primary) hover:underline cursor-pointer font-medium"
               >
                 +Add comment
@@ -441,7 +709,12 @@ function CriterionRow({
             role="button"
             tabIndex={0}
             onClick={() => setShowNoteBox((v) => !v)}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowNoteBox((v) => !v); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setShowNoteBox((v) => !v);
+              }
+            }}
             className="text-xs text-(--primary) hover:underline cursor-pointer font-medium block"
           >
             +Add comment
@@ -488,6 +761,7 @@ function AiEvaluationResultTabs({
   aiEvaluationLoading,
   configColor,
   currentItemId,
+  visualVariant = "default",
 }: {
   result: AiEvaluationResultType;
   onEdit: (updated: AiEvaluationResultType, edits: EvaluationEditsMap) => void;
@@ -505,7 +779,9 @@ function AiEvaluationResultTabs({
   aiEvaluationLoading?: boolean;
   configColor?: string;
   currentItemId?: string;
+  visualVariant?: "default" | "swiftReview";
 }) {
+  const swift = visualVariant === "swiftReview";
   const [activeTab, setActiveTab] = useState<"x" | "tick" | "edited" | "notes">("x");
   const prevResultRef = useRef<AiEvaluationResultType | null>(null);
   useEffect(() => {
@@ -525,9 +801,6 @@ function AiEvaluationResultTabs({
   const failed = allCriteria.filter((c) => !getEffectiveMet(c));
   const passed = allCriteria.filter((c) => getEffectiveMet(c) && !(c.id in evaluationEdits));
   const edited = allCriteria.filter((c) => c.id in evaluationEdits);
-  const metCount = allCriteria.filter((c) => getEffectiveMet(c)).length;
-  const totalCount = allCriteria.length;
-
   const handleToggle = useCallback(
     (section: "sufficiency_results" | "criteria", id: string) => {
       if (!onEdit || !result) return;
@@ -675,44 +948,141 @@ function AiEvaluationResultTabs({
             onMarkAsMetOverride={options?.getMarkAsMetCallback?.(c)}
             onClearCriterionEdit={options?.onClearCriterionEdit ? () => options!.onClearCriterionEdit!(c.id) : undefined}
             hideAiHint={options?.hideAiHint}
+            visualVariant={visualVariant}
           />
         ))
       )}
     </div>
   );
 
+  const swiftTabBase =
+    "group inline-flex items-center gap-2 rounded-lg border-2 border-transparent px-3 py-2 text-xs font-semibold shadow-none transition-colors data-[state=inactive]:bg-transparent data-[state=inactive]:text-[var(--eval-tab-inactive-text)] data-[state=inactive]:shadow-none data-[state=inactive]:hover:bg-[var(--surface)]";
+
   return (
-    <div className="bg-white dark:bg-(--surface) rounded-2xl border border-slate-200 dark:border-(--border) overflow-hidden shadow-sm flex flex-col min-h-0 h-full">
+    <div
+      className={
+        swift
+          ? "flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]"
+          : "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-(--border) dark:bg-(--surface)"
+      }
+    >
+      {swift && (
+        <div className="shrink-0 px-4 pt-4 pb-2">
+          <h3 className="mb-2 text-base font-bold tracking-tight text-[var(--text-primary)]">AI evaluation results</h3>
+        </div>
+      )}
       <Tabs value={activeTab} onChange={(v) => setActiveTab(v as "x" | "tick" | "edited" | "notes")} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <TabsList className="shrink-0 mx-4 mt-3 mb-0 rounded-xl p-1 bg-slate-100/80 dark:bg-(--surface) border border-slate-200 dark:border-(--border) gap-0.5">
-          <TabsTrigger value="x" className="text-xs data-[state=active]:bg-rose-100 data-[state=active]:text-rose-800 dark:data-[state=active]:bg-rose-900/30 dark:data-[state=active]:text-rose-200 rounded-lg">
-            ✗ Not met ({failed.length})
+        <TabsList
+          className={
+            swift
+              ? "shrink-0 mx-4 mt-2 mb-1 flex flex-wrap gap-2 rounded-none border-0 bg-transparent p-0 shadow-none"
+              : "shrink-0 mx-4 mt-3 mb-0 rounded-xl p-1 bg-slate-100/80 dark:bg-(--surface) border border-slate-200 dark:border-(--border) gap-0.5"
+          }
+        >
+          <TabsTrigger
+            value="x"
+            className={
+              swift
+                ? cn(
+                    swiftTabBase,
+                    "data-[state=active]:border-[var(--eval-tab-active-notmet-border)] data-[state=active]:bg-[var(--eval-tab-active-notmet-bg)] data-[state=active]:text-[var(--eval-tab-active-notmet-text)] data-[state=active]:shadow-sm"
+                  )
+                : "text-xs data-[state=active]:bg-rose-100 data-[state=active]:text-rose-800 dark:data-[state=active]:bg-rose-900/30 dark:data-[state=active]:text-rose-200 rounded-lg"
+            }
+          >
+            {swift ? (
+              <>
+                <span className="text-[var(--text-muted)] group-data-[state=active]:text-[var(--red)]" aria-hidden>
+                  ✗
+                </span>
+                <span>Not met</span>
+                <EvalTabCount n={failed.length} />
+              </>
+            ) : (
+              <>✗ Not met ({failed.length})</>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="tick" className="text-xs data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-800 dark:data-[state=active]:bg-emerald-900/30 dark:data-[state=active]:text-emerald-200 rounded-lg">
-            ✓ Met ({passed.length})
+          <TabsTrigger
+            value="tick"
+            className={
+              swift
+                ? cn(
+                    swiftTabBase,
+                    "data-[state=active]:border-[var(--eval-tab-active-met-border)] data-[state=active]:bg-[var(--eval-tab-active-met-bg)] data-[state=active]:text-[var(--eval-tab-active-met-text)] data-[state=active]:shadow-sm"
+                  )
+                : "text-xs data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-800 dark:data-[state=active]:bg-emerald-900/30 dark:data-[state=active]:text-emerald-200 rounded-lg"
+            }
+          >
+            {swift ? (
+              <>
+                <span className="text-[var(--text-muted)] group-data-[state=active]:text-[var(--green)]" aria-hidden>
+                  ✓
+                </span>
+                <span>Met</span>
+                <EvalTabCount n={passed.length} />
+              </>
+            ) : (
+              <>Met ({passed.length})</>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="edited" className="text-xs data-[state=active]:bg-amber-100 data-[state=active]:text-amber-800 dark:data-[state=active]:bg-amber-900/30 dark:data-[state=active]:text-amber-200 rounded-lg">
-            Manually met ({edited.length})
+          <TabsTrigger
+            value="edited"
+            className={
+              swift
+                ? cn(
+                    swiftTabBase,
+                    "data-[state=active]:border-[var(--eval-tab-active-manual-border)] data-[state=active]:bg-[var(--eval-tab-active-manual-bg)] data-[state=active]:text-[var(--eval-tab-active-manual-text)] data-[state=active]:shadow-sm"
+                  )
+                : "text-xs data-[state=active]:bg-amber-100 data-[state=active]:text-amber-800 dark:data-[state=active]:bg-amber-900/30 dark:data-[state=active]:text-amber-200 rounded-lg"
+            }
+          >
+            {swift ? (
+              <>
+                <span className="text-[var(--text-muted)] group-data-[state=active]:text-[var(--amber)]" aria-hidden>
+                  ○
+                </span>
+                <span>Manually met</span>
+                <EvalTabCount n={edited.length} />
+              </>
+            ) : (
+              <>Manually met ({edited.length})</>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="notes" className="text-xs data-[state=active]:bg-sky-100 data-[state=active]:text-sky-800 dark:data-[state=active]:bg-sky-900/30 dark:data-[state=active]:text-sky-200 rounded-lg">
+          <TabsTrigger
+            value="notes"
+            className={
+              swift
+                ? cn(
+                    swiftTabBase,
+                    "data-[state=active]:border-[var(--eval-tab-active-notes-border)] data-[state=active]:bg-[var(--eval-tab-active-notes-bg)] data-[state=active]:text-[var(--eval-tab-active-notes-text)] data-[state=active]:shadow-sm"
+                  )
+                : "text-xs data-[state=active]:bg-sky-100 data-[state=active]:text-sky-800 dark:data-[state=active]:bg-sky-900/30 dark:data-[state=active]:text-sky-200 rounded-lg"
+            }
+          >
             Notes
           </TabsTrigger>
         </TabsList>
 
-        <div className="px-4 py-3 flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto scroll-smooth pr-4 bg-white dark:bg-transparent">
+        <div
+          className={
+            swift
+              ? "flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto scroll-smooth bg-[var(--eval-scroll-bg)] px-4 py-3 pr-4"
+              : "flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto scroll-smooth bg-slate-50/50 px-4 py-3 pr-4 dark:bg-transparent"
+          }
+        >
           <TabsContent value="x" className="mt-0 block">
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
-                Not met
-              </h4>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded shrink-0 bg-amber-100 text-amber-800">
-                Gaps identified
-              </span>
-            </div>
+            {!swift && (
+              <div className="mb-2 flex items-center gap-2">
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-(--foreground-muted)">Not met</h4>
+                <span className="shrink-0 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                  Gaps identified
+                </span>
+              </div>
+            )}
             {renderList(failed, {
               showMarkAsMetButton: true,
               onClearCriterionEdit: handleClearCriterionEdit,
-              hideAiHint: false,
+              hideAiHint,
               getMarkAsMetCallback: (c) => () => {
                 handleToggle(c.section, c.id);
                 setActiveTab("edited");
@@ -721,8 +1091,14 @@ function AiEvaluationResultTabs({
             {renderActionButtons()}
           </TabsContent>
           <TabsContent value="tick" className="mt-0 block">
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
+            <div className={swift ? "mb-3" : "flex items-center gap-2 mb-2"}>
+              <h4
+                className={
+                  swift
+                    ? "text-sm font-bold text-[var(--text-primary)]"
+                    : "text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider"
+                }
+              >
                 Met
               </h4>
             </div>
@@ -730,17 +1106,29 @@ function AiEvaluationResultTabs({
             {renderActionButtons()}
           </TabsContent>
           <TabsContent value="edited" className="mt-0 block">
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
-                Manually met (note or x→✓)
+            <div className={swift ? "mb-3" : "flex items-center gap-2 mb-2"}>
+              <h4
+                className={
+                  swift
+                    ? "text-sm font-bold text-[var(--text-primary)]"
+                    : "text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider"
+                }
+              >
+                {swift ? "Manually met" : "Manually met (note or x→✓)"}
               </h4>
             </div>
             {renderList(edited, { defaultExpandNote: true, onClearCriterionEdit: handleClearCriterionEdit, hideAiHint: false })}
             {renderActionButtons()}
           </TabsContent>
           <TabsContent value="notes" className="mt-0 block">
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider">
+            <div className={swift ? "mb-3" : "flex items-center gap-2 mb-2"}>
+              <h4
+                className={
+                  swift
+                    ? "text-sm font-bold text-[var(--text-primary)]"
+                    : "text-[11px] font-bold text-(--foreground-muted) uppercase tracking-wider"
+                }
+              >
                 Notes
               </h4>
             </div>
@@ -780,6 +1168,7 @@ export function AiEvaluationResult({
   notesRefreshTrigger = 0,
   onNoteAdded,
   hideAiHint = false,
+  visualVariant = "default",
   onReEvaluate,
   onSubmitForReview,
   evaluationState,
@@ -789,7 +1178,28 @@ export function AiEvaluationResult({
   configColor,
   currentItemId,
 }: AiEvaluationResultProps) {
+  const swift = visualVariant === "swiftReview";
+
   if (loading) {
+    if (swift) {
+      return (
+        <SwiftEvalScope>
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow-sm)]">
+            <div className="mb-3 flex items-center gap-3">
+              <span
+                className="inline-block size-8 animate-spin rounded-full border-2 border-[var(--border-2)] border-t-[var(--blue)]"
+                aria-hidden
+              />
+              <span className="text-sm font-bold text-[var(--text-primary)]">AI evaluation</span>
+            </div>
+            <p className="text-sm font-medium leading-relaxed text-[var(--text-secondary)]">
+              Reading evidence, sufficiency definition, evaluation criteria and submitted answers…
+            </p>
+            <p className="mt-2 text-xs text-[var(--text-muted)]">Evaluating criteria and generating gap descriptions.</p>
+          </div>
+        </SwiftEvalScope>
+      );
+    }
     return (
       <div className="rounded-2xl border-2 border-sky-200 dark:border-sky-700 bg-white dark:bg-slate-900/60 shadow-md p-6">
         <div className="flex items-center gap-3 mb-3">
@@ -806,6 +1216,15 @@ export function AiEvaluationResult({
     );
   }
   if (placeholder) {
+    if (swift) {
+      return (
+        <SwiftEvalScope>
+          <p className="py-6 text-center text-sm text-[var(--text-secondary)]">
+            Fill in evidence and upload files, then run evaluation. Results will appear here.
+          </p>
+        </SwiftEvalScope>
+      );
+    }
     return (
       <p className="text-sm text-(--foreground-muted) py-4 text-center">
         Fill in evidence and upload files, then click <strong>+ Run AI Evaluation</strong> above. Results will appear
@@ -814,7 +1233,7 @@ export function AiEvaluationResult({
     );
   }
   if (!result) return null;
-  return (
+  const tabs = (
     <AiEvaluationResultTabs
       result={result}
       onEdit={onEdit ?? (() => {})}
@@ -824,6 +1243,7 @@ export function AiEvaluationResult({
       notesRefreshTrigger={notesRefreshTrigger}
       onNoteAdded={onNoteAdded}
       hideAiHint={hideAiHint}
+      visualVariant={visualVariant}
       onReEvaluate={onReEvaluate}
       onSubmitForReview={onSubmitForReview}
       evaluationState={evaluationState}
@@ -834,4 +1254,8 @@ export function AiEvaluationResult({
       currentItemId={currentItemId}
     />
   );
+  if (swift) {
+    return <SwiftEvalScope className="min-h-[min(420px,70vh)] flex-1">{tabs}</SwiftEvalScope>;
+  }
+  return tabs;
 }

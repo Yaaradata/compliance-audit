@@ -103,7 +103,7 @@ function CriteriaBlock({ title, items, plainFallback, state, results, controlId,
                   <span className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs">✓</span>
                 )}
                 {showResult && res && !res.met && (
-                  <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs" title="Not met">✗</span>
+                  <span className="flex size-5 items-center justify-center rounded-full bg-rose-100 text-rose-600 text-xs dark:bg-rose-950/50 dark:text-rose-400" title="Not met">✗</span>
                 )}
                 {state === "done" && !showResult && (
                   <span className="w-4 h-4 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-[9px]">—</span>
@@ -112,7 +112,9 @@ function CriteriaBlock({ title, items, plainFallback, state, results, controlId,
               <div className="flex-1 min-w-0">
                 <span className="text-xs text-gray-700">{displayLabel}</span>
                 {showResult && res && !res.met && res.description && (
-                  <p className="text-[11px] text-red-600/90 mt-1">{res.description}</p>
+                  <p className="mt-1 rounded-md border border-amber-200/90 bg-amber-50/80 px-2.5 py-1.5 text-[11px] leading-relaxed text-slate-700 dark:border-rose-900/45 dark:bg-rose-950/35 dark:text-rose-100">
+                    {res.description}
+                  </p>
                 )}
               </div>
             </li>

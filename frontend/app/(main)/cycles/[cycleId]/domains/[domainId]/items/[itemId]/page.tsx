@@ -12,6 +12,7 @@ import { SufficiencyPanel } from "@/components/domain/sufficiency-panel";
 import { PerControlPanel } from "@/components/domain/per-control-panel";
 import { EvidenceCriteriaSections } from "@/components/domain/evidence-criteria-sections";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
+import "@/components/review/swift-review-template/swift-review-template.css";
 import { PerControlEvidence } from "@/components/domain/per-control-evidence";
 import { getStatusColor, getStatusIcon } from "@/lib/utils";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -112,6 +113,7 @@ export default function CycleItemIntakePage() {
   const [aiEvaluationLoading, setAiEvaluationLoading] = useState(false);
   const [aiEvaluationResult, setAiEvaluationResult] = useState<AiEvalResultType | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [notesRefreshTrigger, setNotesRefreshTrigger] = useState(0);
 
   const ensureSubmission = useCallback(async (): Promise<string> => {
     if (submissionId) return submissionId;
@@ -432,6 +434,7 @@ export default function CycleItemIntakePage() {
                   return null;
                 }
               }}
+              visualVariant="swiftReview"
             />
           </div>
           <button onClick={handleEvaluateEvidence}
@@ -440,13 +443,33 @@ export default function CycleItemIntakePage() {
             Evaluate Evidence Sufficiency
           </button>
           {evaluated && (
-            <>
-              <AiEvaluationResult
-                result={aiEvaluationResult}
-                loading={aiEvaluationLoading}
-                placeholder={!aiEvaluationLoading && !aiEvaluationResult}
-              />
-            </>
+            <div className="swift-review-tpl swift-review-embed w-full">
+              <div className="flex min-h-[min(70vh,780px)] flex-col overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
+                <div className="flex min-h-[48px] shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5">
+                  <h2 className="text-sm font-bold text-[var(--text-primary)]">AI evaluation results</h2>
+                  <PriorityBadge priority={item.priority} />
+                </div>
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--surface-2)]/40 p-4 md:p-5">
+                  <AiEvaluationResult
+                    result={aiEvaluationResult}
+                    loading={aiEvaluationLoading}
+                    placeholder={!aiEvaluationLoading && !aiEvaluationResult}
+                    visualVariant="swiftReview"
+                    submissionId={submissionId}
+                    notesRefreshTrigger={notesRefreshTrigger}
+                    onNoteAdded={() => setNotesRefreshTrigger((n: number) => n + 1)}
+                    hideAiHint={false}
+                    onReEvaluate={handleEvaluateEvidence}
+                    aiEvaluationLoading={aiEvaluationLoading}
+                    evaluationState={
+                      aiEvaluationLoading ? "loading" : aiEvaluationResult ? "done" : "idle"
+                    }
+                    currentItemId={item.id}
+                    configColor={domainStyle.color}
+                  />
+                </div>
+              </div>
+            </div>
           )}
         </div>
         <div className="space-y-3">

@@ -184,17 +184,17 @@ function SelectArchitectureInner() {
     try {
       await api.put(`/assessments/${cycleId}`, { architecture_type: selectedArch.id });
       await api.patch(`/assessments/${cycleId}/control-scoping`, { decisions });
-      const cycle = await api.get<{
-        id: string;
-        label: string;
-        cycle_year: number;
-        display_id: string;
-      }>(`/assessments/${cycleId}`);
-      setActiveCycleId(cycleId, {
-        label: cycle.label,
-        cycle_year: cycle.cycle_year,
-        display_id: cycle.display_id,
-      });
+        const cycle = await api.get<{
+          id: string;
+          label: string;
+          cycle_year: number;
+          display_id: string;
+        }>(`/assessments/${cycleId}`);
+        setActiveCycleId(cycleId, {
+          label: cycle.label,
+          cycle_year: cycle.cycle_year,
+          display_id: cycle.display_id,
+        });
       setArchitecture(selectedArch.id);
       router.replace(`/cycles/${cycleId}/dashboard`);
     } catch {
@@ -384,7 +384,7 @@ function SelectArchitectureInner() {
                 </div>
               );
             })}
-          </div>
+                      </div>
 
           {/* Step 1 */}
           {step === "select-arch" && (
@@ -423,7 +423,7 @@ function SelectArchitectureInner() {
                         </div>
                         <span className="text-slate-400 shrink-0" aria-hidden>
                           →
-                        </span>
+                          </span>
                       </div>
                       <p className="text-[11px] text-slate-500 italic mb-2">{pres.tagline}</p>
                       <p className="text-xs text-slate-600 leading-relaxed mb-4">{a.description}</p>
@@ -506,16 +506,16 @@ function SelectArchitectureInner() {
                 </button>
                 {expandedComponents && (
                   <div className="mt-2 p-3 rounded-lg border border-slate-200 bg-slate-50">
-                    <div className="flex flex-wrap gap-1.5">
-                      {arch.components.map((c) => (
-                        <span
-                          key={c}
+                            <div className="flex flex-wrap gap-1.5">
+                              {arch.components.map((c) => (
+                                <span
+                                  key={c}
                           className="text-[11px] px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700"
-                        >
-                          {c}
-                        </span>
-                      ))}
-                    </div>
+                                >
+                                  {c}
+                                </span>
+                              ))}
+                            </div>
                     <div className="mt-3 flex flex-wrap items-center gap-1.5">
                       <span className="text-[11px] text-slate-500">Domains:</span>
                       {arch.domainIds.map((d) => (
@@ -631,13 +631,13 @@ function SelectArchitectureInner() {
                       <div className="text-[11px] font-semibold text-slate-600">Domains in scope</div>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {arch.domainIds.map((d) => (
-                          <span
+                                <span
                             key={d}
                             className="w-6 h-6 rounded text-[10px] font-bold bg-slate-800 text-white flex items-center justify-center font-mono"
-                          >
+                                >
                             {d}
-                          </span>
-                        ))}
+                                </span>
+                              ))}
                       </div>
                     </div>
                   </div>
@@ -746,8 +746,8 @@ function SelectArchitectureInner() {
                                         e.target.value = "";
                                       }}
                                     />
-                                    <button
-                                      type="button"
+                        <button
+                          type="button"
                                       onClick={() => fileInputRefs.current[row.control_id]?.click()}
                                       disabled={uploadingControlId === row.control_id}
                                       className="text-xs font-medium text-blue-700 hover:underline disabled:opacity-60"
@@ -757,34 +757,34 @@ function SelectArchitectureInner() {
                                         : state.fileName
                                           ? "Replace file"
                                           : "Upload file"}
-                                    </button>
+                        </button>
                                     {state.fileName && (
                                       <div className="text-[11px] text-slate-500 break-all">
                                         {state.fileName}
-                                      </div>
+                      </div>
                                     )}
-                                  </div>
+                    </div>
                                 ) : (
                                   <span className="text-slate-400 text-xs">—</span>
                                 )}
                               </td>
                             </tr>
-                          );
-                        })}
+                );
+              })}
                       </tbody>
                     </table>
                   </div>
                 )}
-              </div>
+            </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
                 <div className="flex flex-wrap justify-end gap-2">
-                  <button
-                    type="button"
+              <button
+                type="button"
                     onClick={handleBack}
                     className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   >
                     ← Change variant
-                  </button>
+              </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -796,16 +796,16 @@ function SelectArchitectureInner() {
                   >
                     Change architecture
                   </button>
-                  <button
-                    type="button"
+              <button
+                type="button"
                     onClick={handleConfirm}
                     disabled={selecting || !cycleId || scopingLoading}
                     className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-40"
                   >
                     {selecting ? "Saving…" : "Save & continue"}
-                  </button>
-                </div>
-              </div>
+              </button>
+            </div>
+          </div>
             </div>
           )}
 
@@ -815,7 +815,7 @@ function SelectArchitectureInner() {
             </Link>
           </p>
         </div>
-      </div>
+    </div>
     </AppShell>
   );
 }

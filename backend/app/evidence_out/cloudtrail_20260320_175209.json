@@ -1,7 +1,0 @@
-{
-  "collector": "cloudtrail",
-  "account_id": "405466951861",
-  "region": "eu-north-1",
-  "collected_at": "2026-03-20T17:52:09.762887",
-  "trails": []
-}

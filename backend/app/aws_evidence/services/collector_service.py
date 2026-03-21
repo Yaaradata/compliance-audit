@@ -78,7 +78,8 @@ def run_all_collectors(
                 path_to_hash: dict[Path, str] = {}
                 path_to_json: dict[Path, dict] = {}
                 date_str = ts.strftime("%Y-%m-%d")
-                gcs_prefix = f"aws_evidence/aws/{account_id or 'local'}/{name}/{date_str}"
+                # Cycle-scoped prefix so delete_cycle can remove all AWS JSON blobs for this cycle from GCS.
+                gcs_prefix = f"aws_evidence/cycles/{cycle_id}/aws/{account_id or 'local'}/{name}/{date_str}"
                 for local_path, item_code, control_id, evidence_type, source_system in results:
                     if local_path not in path_to_hash and local_path.exists():
                         file_hash = sha256_file(local_path)

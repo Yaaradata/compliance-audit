@@ -103,6 +103,8 @@ class EvaluateEvidenceResponse(BaseModel):
 class AwsEvidenceSuggestResponse(BaseModel):
     """LLM-suggested form field values from scoped AWS collector evidence (swift_2026.evidence)."""
     suggestions: dict[str, str] = {}
+    """Per-question short reason when the model returned an empty answer (missing/mappable AWS data)."""
+    suggestion_gaps: dict[str, str] = {}
     question_keys_attempted: list[str] = []
     question_sources: dict[str, str] = {}
     aws_evidence_bundle_count: int = 0

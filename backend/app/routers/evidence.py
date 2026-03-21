@@ -795,6 +795,7 @@ def suggest_evidence_fields_from_aws(
     if not eligible_payload:
         return AwsEvidenceSuggestResponse(
             suggestions={},
+            suggestion_gaps={},
             question_keys_attempted=[],
             question_sources={},
             aws_evidence_bundle_count=0,
@@ -815,6 +816,7 @@ def suggest_evidence_fields_from_aws(
     if not bundle:
         return AwsEvidenceSuggestResponse(
             suggestions={},
+            suggestion_gaps={},
             question_keys_attempted=[p["question_key"] for p in eligible_payload],
             question_sources=question_sources,
             aws_evidence_bundle_count=0,
@@ -823,11 +825,13 @@ def suggest_evidence_fields_from_aws(
         )
 
     try:
-        suggestions = ai_service.suggest_answers_from_aws_evidence(
+        llm_out = ai_service.suggest_answers_from_aws_evidence(
             evidence_item_id=item_upper,
             questions=eligible_payload,
             aws_evidence_bundle=bundle,
         )
+        suggestions = llm_out.get("suggestions") or {}
+        suggestion_gaps = llm_out.get("gaps") or {}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
@@ -836,6 +840,7 @@ def suggest_evidence_fields_from_aws(
 
     return AwsEvidenceSuggestResponse(
         suggestions=suggestions,
+        suggestion_gaps=suggestion_gaps if isinstance(suggestion_gaps, dict) else {},
         question_keys_attempted=[p["question_key"] for p in eligible_payload],
         question_sources=question_sources,
         aws_evidence_bundle_count=len(bundle),

@@ -1,5 +1,6 @@
 """Get/set per-tenant AWS credentials (encrypted at rest)."""
 import logging
+import re
 import secrets
 from datetime import datetime, timezone
 from uuid import UUID
@@ -20,11 +21,54 @@ def get_platform_external_id() -> str:
     return (getattr(settings, "AWS_ASSUME_ROLE_EXTERNAL_ID", None) or "Swift-Audit").strip() or "Swift-Audit"
 
 
+# IAM role ARN: partition may be aws, aws-cn, aws-us-gov, aws-iso*, etc.
+_IAM_ROLE_ARN_RE = re.compile(
+    r"^arn:(?P<partition>[\w-]+):iam::(?P<account>\d{12}):role/(?P<rest>.+)$"
+)
+
+
+def _assume_role_arn_precheck(role_arn: str) -> str | None:
+    """
+    Return a user-facing error if this ARN cannot be used with sts:AssumeRole.
+    AWS rejects service-linked roles (path aws-service-role/...) with ValidationError.
+    """
+    arn = (role_arn or "").strip()
+    # Strip BOM / zero-width space from sloppy copy-paste
+    arn = arn.replace("\ufeff", "").replace("\u200b", "").strip()
+    if not arn:
+        return "Role ARN is required."
+    if ":user/" in arn:
+        return (
+            "That looks like an IAM user ARN (contains :user/). "
+            "Use an IAM role ARN ending with :role/YourRoleName."
+        )
+    if not _IAM_ROLE_ARN_RE.match(arn):
+        return (
+            "Role ARN must be a full IAM role ARN, e.g. "
+            "arn:aws:iam::123456789012:role/MyAuditRole "
+            "(GovCloud: arn:aws-us-gov:iam::123456789012:role/MyRole; "
+            "China: arn:aws-cn:iam::123456789012:role/MyRole). "
+            "Paste only the ARN, no quotes or extra text."
+        )
+    if ":role/aws-service-role/" in arn:
+        return (
+            "This is an AWS service-linked role (path contains aws-service-role/). "
+            "Those roles cannot be assumed by your app. Create a normal IAM role in the "
+            "customer account (e.g. ComplianceAuditReadOnly), attach read-only policies, "
+            "and set its trust policy to allow sts:AssumeRole from this platform's IAM "
+            "principal using the External ID from the connect UI."
+        )
+    return None
+
+
 def validate_aws_connection(role_arn: str, external_id: str) -> tuple[bool, str | None]:
     """
     Validate by calling STS AssumeRole. Uses app-level AWS credentials from env.
     Returns (True, None) on success, (False, error_message) on failure.
     """
+    pre = _assume_role_arn_precheck(role_arn)
+    if pre:
+        return False, pre
     import boto3
     app_creds = _get_app_aws_credentials()
     if not app_creds:
@@ -55,6 +99,9 @@ def get_aws_session(role_arn: str, external_id: str, region: str = "us-east-1"):
     app_creds = _get_app_aws_credentials()
     if not app_creds:
         raise ValueError("Backend AWS credentials are not set.")
+    pre = _assume_role_arn_precheck(role_arn)
+    if pre:
+        raise ValueError(pre)
     sts = boto3.client(
         "sts",
         aws_access_key_id=app_creds["access_key_id"],

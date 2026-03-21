@@ -1,8 +1,0 @@
-{
-  "collector": "guardduty",
-  "account_id": "543927035090",
-  "region": "ap-south-1",
-  "collected_at": "2026-03-16T12:32:02.547191",
-  "detector_configs": [],
-  "findings_statistics": []
-}

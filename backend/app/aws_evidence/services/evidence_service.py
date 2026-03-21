@@ -435,6 +435,19 @@ def delete_all_evidence_and_runs_for_tenant(
     return {"deleted_evidence": deleted_evidence, "deleted_runs": deleted_runs}
 
 
+def delete_all_evidence_and_runs_for_cycle(db: Session, cycle_id: UUID) -> dict[str, int]:
+    """
+    Delete all swift_2026 Evidence and CollectorRun rows for an assessment cycle (all users).
+    Evidence rows must be removed first (FK to collector_runs). Caller commits the session.
+
+    Used when deleting an assessment cycle so AWS collector DB state does not outlive the cycle.
+    """
+    ensure_schema()
+    deleted_evidence = db.query(Evidence).filter(Evidence.cycle_id == cycle_id).delete(synchronize_session=False)
+    deleted_runs = db.query(CollectorRun).filter(CollectorRun.cycle_id == cycle_id).delete(synchronize_session=False)
+    return {"evidence_deleted": deleted_evidence, "collector_runs_deleted": deleted_runs}
+
+
 def create_manual_evidence(
     db: Session,
     control_id: str,
@@ -465,7 +478,10 @@ def create_manual_evidence(
     db.add(run)
     db.flush()
     body = json.dumps(content, indent=2).encode("utf-8")
-    key = f"aws_evidence/manual/{control_id}/{item_code}/{evidence_id}.json"
+    if cycle_id:
+        key = f"aws_evidence/cycles/{cycle_id}/manual/{control_id}/{item_code}/{evidence_id}.json"
+    else:
+        key = f"aws_evidence/manual/{control_id}/{item_code}/{evidence_id}.json"
     try:
         storage_upload(key, body, content_type="application/json")
     except Exception:

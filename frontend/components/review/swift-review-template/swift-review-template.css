@@ -1,0 +1,155 @@
+/* Scoped design system — only applies inside .swift-review-tpl */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+.swift-review-tpl,
+.swift-review-tpl * {
+  box-sizing: border-box;
+}
+
+.swift-review-tpl {
+  --bg: #eff1f7;
+  --surface: #ffffff;
+  --surface-2: #f8f9fc;
+  --border: #e3e7f0;
+  --border-2: #cdd3e2;
+
+  --text-primary: #0d1526;
+  --text-secondary: #4b5675;
+  --text-muted: #8c95ae;
+
+  --blue: #1554f0;
+  --blue-lt: #ebf0fe;
+  --blue-mid: #ddeaff;
+
+  --red: #d92d20;
+  --red-lt: #fef3f2;
+  --red-mid: #fecdca;
+
+  --green: #027a48;
+  --green-lt: #ecfdf3;
+  --green-mid: #a9efc5;
+
+  --amber: #b54708;
+  --amber-lt: #fffaeb;
+  --amber-mid: #fedf89;
+
+  --purple: #6941c6;
+  --purple-lt: #f4f3ff;
+
+  /* AI evaluation panel — light dashboard (summary + tabs + cards) */
+  --eval-tab-inactive-text: var(--text-secondary);
+  --eval-tab-active-notmet-bg: #fef2f2;
+  --eval-tab-active-notmet-text: #b42318;
+  --eval-tab-active-notmet-border: #fecdca;
+  --eval-tab-active-met-bg: #ecfdf3;
+  --eval-tab-active-met-text: #027a48;
+  --eval-tab-active-met-border: #a9efc5;
+  --eval-tab-active-manual-bg: #fffaeb;
+  --eval-tab-active-manual-text: #b54708;
+  --eval-tab-active-manual-border: #fedf89;
+  --eval-tab-active-notes-bg: #ebf0fe;
+  --eval-tab-active-notes-text: #1554f0;
+  --eval-tab-active-notes-border: #ddeaff;
+  --eval-tab-count-bg: #e8ecf4;
+  --eval-tab-count-text: #4b5675;
+  --eval-gap-box-bg: #fdf2f2;
+  --eval-gap-box-border: #fce4e4;
+  --eval-gap-box-text: #5c6b8a;
+  --eval-scroll-bg: #eef1f9;
+
+  --navy: #0a1f44;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow-xs: 0 1px 2px rgba(13, 21, 38, 0.06);
+  --shadow-sm: 0 1px 4px rgba(13, 21, 38, 0.08), 0 2px 8px rgba(13, 21, 38, 0.04);
+  --shadow-md: 0 4px 16px rgba(13, 21, 38, 0.1), 0 2px 6px rgba(13, 21, 38, 0.06);
+  --font: "Plus Jakarta Sans", sans-serif;
+  --mono: "JetBrains Mono", monospace;
+
+  /* Map app Tailwind semantic tokens used by shared components */
+  --foreground: var(--text-primary);
+  --foreground-muted: var(--text-secondary);
+  --foreground-subtle: var(--text-muted);
+  --background: var(--surface-2);
+  --primary: var(--blue);
+  --primary-muted: var(--blue-lt);
+
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.swift-review-tpl .fade-up {
+  animation: swift-review-fade-up 0.35s cubic-bezier(0.22, 0.68, 0, 1.2) both;
+}
+
+.swift-review-tpl .slide-in {
+  animation: swift-review-slide-in 0.3s ease both;
+}
+
+@keyframes swift-review-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes swift-review-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes swift-review-pop-in {
+  0% {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.swift-review-tpl .pop-in {
+  animation: swift-review-pop-in 0.25s ease;
+}
+
+.swift-review-tpl textarea:focus,
+.swift-review-tpl input:focus {
+  outline: none;
+  border-color: var(--blue) !important;
+  box-shadow: 0 0 0 3px rgba(21, 84, 240, 0.12);
+}
+
+.swift-review-tpl button {
+  font-family: var(--font);
+}
+
+.swift-review-tpl ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.swift-review-tpl ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.swift-review-tpl ::-webkit-scrollbar-thumb {
+  background: var(--border-2);
+  border-radius: 99px;
+}
+
+/* Evidence workspace form: Swift tokens without painting the whole panel gray */
+.swift-review-tpl.swift-review-embed {
+  background: transparent;
+}

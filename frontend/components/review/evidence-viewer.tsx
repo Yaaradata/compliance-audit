@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
+import "./swift-review-template/swift-review-template.css";
 import { api } from "@/lib/api";
 import { stripCriteriaPrefix, shouldShowCriterion } from "@/lib/utils";
 import { EvidenceDisplayReadOnly } from "@/components/domain/evidence-display-readonly";
@@ -693,6 +694,15 @@ function EvidenceEditsHistorySection({ cycleId, submissionId }: { cycleId: strin
   );
 }
 
+/** Full-bleed Swift review palette inside the app shell (counters main `px-*` padding). */
+function ReviewPageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="swift-review-tpl -mx-2 sm:-mx-4 px-2 sm:px-4 -mt-2 sm:-mt-3 -mb-4 sm:-mb-6 pt-2 pb-4 sm:pt-3 sm:pb-6 min-h-[calc(100dvh-7.5rem)] w-auto">
+      {children}
+    </div>
+  );
+}
+
 /**
  * Full-screen popup or inline page showing Checklist, Evidence, AI Evaluation, Comments, and History.
  * When inline=true, renders as a full-page view (no overlay); use for Review Queue detail.
@@ -904,7 +914,20 @@ export function EvidenceDetailModal({
 
   if (loading) {
     if (inline) {
-      return <div className="w-full">{loadingContent}</div>;
+      return (
+        <ReviewPageShell>
+          <div className="bg-[var(--surface)] rounded-[var(--radius-lg)] border border-[var(--border)] shadow-[var(--shadow-sm)] flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-[var(--border)]">
+              <h1 id="evidence-modal-title" className="text-xl font-bold text-[var(--text-primary)]">
+                {evidenceItemId ?? "Review"} — Loading…
+              </h1>
+            </div>
+            <div className="flex-1 flex items-center justify-center p-12">
+              <p className="text-[var(--text-secondary)]">Loading details…</p>
+            </div>
+          </div>
+        </ReviewPageShell>
+      );
     }
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="evidence-modal-title">
@@ -935,7 +958,28 @@ export function EvidenceDetailModal({
 
   if (!data) {
     if (inline) {
-      return <div className="w-full">{errorContent}</div>;
+      return (
+        <ReviewPageShell>
+          <div className="bg-[var(--surface)] rounded-[var(--radius-lg)] border border-[var(--border)] shadow-[var(--shadow-sm)] flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between">
+              <h1 id="evidence-modal-title" className="text-xl font-bold text-[var(--text-primary)]">
+                {evidenceItemId ?? "Review"}
+              </h1>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-sm font-semibold text-[var(--blue)] hover:underline"
+                aria-label="Back to Review Queue"
+              >
+                Back to Review Queue
+              </button>
+            </div>
+            <div className="flex-1 flex items-center justify-center p-12">
+              <p className="text-[var(--text-secondary)]">Could not load details.</p>
+            </div>
+          </div>
+        </ReviewPageShell>
+      );
     }
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
@@ -964,25 +1008,77 @@ export function EvidenceDetailModal({
   const levelDisplay = `${normalizeLevel(review.level)} — ${levelLabel}`;
 
   const controlId = evidenceItemId ?? submission.evidence_item_id ?? "—";
+  const evidenceCodeForHeader = matrix[0]?.item_code ?? controlId;
+
+  const statusDotClass =
+    review.status === "approved"
+      ? "bg-[var(--green)]"
+      : review.status === "returned"
+        ? "bg-[var(--red)]"
+        : review.status === "hold"
+          ? "bg-[var(--text-muted)]"
+          : "bg-[var(--amber)]";
+
+  const statusBadgeClass = inline
+    ? `shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold capitalize border ${
+        review.status === "approved"
+          ? "bg-[var(--green-lt)] text-[var(--green)] border-[var(--green-mid)]"
+          : review.status === "returned"
+            ? "bg-[var(--red-lt)] text-[var(--red)] border-[var(--red-mid)]"
+            : review.status === "hold"
+              ? "bg-[var(--surface-2)] text-[var(--text-secondary)] border-[var(--border)]"
+              : "bg-[var(--amber-lt)] text-[var(--amber)] border-[var(--amber-mid)]"
+      }`
+    : `shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize ${
+        review.status === "approved"
+          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"
+          : review.status === "returned"
+            ? "bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300"
+            : review.status === "hold"
+              ? "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-300"
+              : "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300"
+      }`;
 
   const header = (
-    <div className="shrink-0 flex items-center justify-between gap-6 px-6 sm:px-8 py-4 border-b border-(--border) bg-background">
+    <div
+      className={
+        inline
+          ? "shrink-0 flex items-center justify-between gap-6 px-6 sm:px-8 py-4 border-b border-[var(--border)] bg-[var(--surface)]"
+          : "shrink-0 flex items-center justify-between gap-6 px-6 sm:px-8 py-4 border-b border-(--border) bg-background"
+      }
+    >
       <div className="flex items-center gap-4 min-w-0">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold shrink-0 border-2 bg-(--primary-muted)/30 border-(--primary)/30 text-(--primary)">
-          {controlId}
+        <div
+          className={
+            inline
+              ? "w-12 h-12 rounded-[var(--radius)] flex items-center justify-center text-base font-bold shrink-0 border-2 border-[var(--blue)]/40 bg-[var(--blue-lt)] text-[var(--blue)]"
+              : "w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold shrink-0 border-2 bg-(--primary-muted)/30 border-(--primary)/30 text-(--primary)"
+          }
+        >
+          {evidenceCodeForHeader}
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded border border-(--border) bg-(--surface) text-(--foreground-muted)">
+            <span
+              className={
+                inline
+                  ? "text-base font-bold text-[var(--text-primary)] truncate"
+                  : "text-base font-bold text-foreground truncate"
+              }
+            >
               {levelDisplay}
             </span>
-            <span className="text-base font-bold text-foreground truncate">{levelDisplay}</span>
-            <span className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize ${review.status === "approved" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300" : review.status === "returned" ? "bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300" : review.status === "hold" ? "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-300" : "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300"}`}>
+            <span className={statusBadgeClass}>
+              {inline && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotClass}`} aria-hidden />}
               {review.status}
             </span>
           </div>
           {submission.submitted_at && (
-            <p className="text-xs text-(--foreground-muted) mt-0.5">
+            <p
+              className={
+                inline ? "text-xs text-[var(--text-muted)] mt-0.5" : "text-xs text-(--foreground-muted) mt-0.5"
+              }
+            >
               Submitted · {new Date(submission.submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
             </p>
           )}
@@ -992,10 +1088,10 @@ export function EvidenceDetailModal({
         <button
           type="button"
           onClick={onClose}
-          className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-all ${
+          className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-[var(--radius)] transition-all ${
             inline
-              ? "bg-(--primary) text-white hover:opacity-90 shadow-md hover:shadow-lg"
-              : "border border-(--border) bg-(--surface) text-foreground hover:bg-(--primary-muted)/30 hover:border-(--primary)/40 hover:text-(--primary)"
+              ? "bg-[var(--text-primary)] text-white hover:opacity-90 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
+              : "border border-(--border) bg-(--surface) text-foreground hover:bg-(--primary-muted)/30 hover:border-(--primary)/40 hover:text-(--primary) rounded-xl"
           }`}
           aria-label={inline ? "Back to Review Queue" : "Close"}
         >
@@ -1042,31 +1138,44 @@ export function EvidenceDetailModal({
               });
               const activeControlMet = selectedControlId ? (perControlStats[selectedControlId]?.met ?? 0) : 0;
               const activeControlTotal = selectedControlId ? (perControlStats[selectedControlId]?.total ?? 0) : 0;
+              const evidencePillRow = selectedControlId
+                ? matrix.find((r) => r.control_id === selectedControlId)
+                : matrix[0];
+              const evidencePillLabel =
+                evidencePillRow?.item_code && evidencePillRow?.evidence_item_name
+                  ? `${evidencePillRow.item_code} — ${evidencePillRow.evidence_item_name}`
+                  : evidencePillRow?.evidence_item_name ?? null;
 
               if (inline) {
                 return (
-                  <div className="flex min-h-0 max-h-[85vh] w-full min-w-0 gap-0">
-                    {/* Left panel: Evidence — card-style container to match Evaluation result */}
-                    <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-l-xl border border-(--border) border-r-0 bg-white dark:bg-(--surface) shadow-sm overflow-hidden">
-                      <div className="shrink-0 px-6 sm:px-8 py-4 border-b border-(--border) bg-slate-50/80 dark:bg-background/50">
-                        <h2 className="text-sm font-bold text-foreground">Evidence</h2>
+                  <div className="flex min-h-0 max-h-[85vh] w-full min-w-0 gap-4 px-1 sm:px-0">
+                    {/* Left: Evidence */}
+                    <div className="flex-1 flex flex-col min-w-0 min-h-0 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)] overflow-hidden">
+                      <div className="shrink-0 px-6 sm:px-8 py-3.5 border-b border-[var(--border)] bg-[var(--surface-2)] flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-sm font-bold text-[var(--text-primary)]">Evidence</h2>
+                        {evidencePillLabel ? (
+                          <span className="inline-flex max-w-[min(100%,20rem)] items-center truncate rounded-full border border-[var(--blue)]/25 bg-[var(--blue-lt)] px-2.5 py-1 text-xs font-semibold text-[var(--blue)]">
+                            {evidencePillLabel}
+                          </span>
+                        ) : null}
                       </div>
-                      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto p-6 bg-slate-50/30 dark:bg-transparent">
+                      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-auto p-6 bg-[var(--surface-2)]/60">
                         <EvidenceDisplayReadOnly
                           evidenceItemId={submission.evidence_item_id}
                           cycleId={submission.cycle_id ?? cycleId}
                           formData={formData}
                           attachments={attachments}
                           onAttachmentClick={(att) => setPreviewAttachment(att)}
+                          visualVariant="swiftReview"
                         />
                       </div>
                     </div>
-                    {/* Right panel: Evaluation result — card-style container */}
-                    <div className="w-full min-w-0 flex flex-col min-h-0 md:flex-[0_0_55%] rounded-r-xl border border-(--border) border-l-0 md:border-l bg-white dark:bg-(--surface) shadow-sm overflow-hidden">
-                      <div className="shrink-0 px-6 sm:px-8 py-4 border-b border-(--border) bg-slate-50/80 dark:bg-background/50">
-                        <h2 className="text-sm font-bold text-foreground">AI evaluation results</h2>
+                    {/* Right: AI evaluation */}
+                    <div className="w-full min-w-0 flex flex-col min-h-0 md:flex-[0_0_52%] rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)] overflow-hidden">
+                      <div className="shrink-0 px-6 sm:px-8 py-3.5 border-b border-[var(--border)] bg-[var(--surface-2)]">
+                        <h2 className="text-sm font-bold text-[var(--text-primary)]">AI evaluation results</h2>
                       </div>
-                      <div className="flex-1 min-h-0 overflow-hidden p-5 flex flex-col">
+                      <div className="flex-1 min-h-0 overflow-hidden p-4 sm:p-5 flex flex-col bg-[var(--surface-2)]/40">
                         <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
                           <AiEvaluationResult
                             result={evalResult ? { ...evalResult, evidence_item_id: submission.evidence_item_id, criteria: evalResult.criteria ?? [], overall_met: evalResult.overall_met ?? false } : null}
@@ -1077,7 +1186,8 @@ export function EvidenceDetailModal({
                             submissionId={submission.id}
                             notesRefreshTrigger={notesRefresh}
                             onNoteAdded={() => setNotesRefresh((r) => r + 1)}
-                            hideAiHint={true}
+                            hideAiHint={false}
+                            visualVariant="swiftReview"
                           />
                         </div>
                       </div>
@@ -1126,7 +1236,13 @@ export function EvidenceDetailModal({
             })()}
 
             {/* ——— Comments from reviewers (e.g. L1 comment for L2) + Review history ——— */}
-            <div className={`pt-8 ${inline ? "px-6 pb-8" : ""}`}>
+            <div
+              className={
+                inline
+                  ? "pt-8 px-4 sm:px-6 pb-8 mx-1 sm:mx-0 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)] mt-6"
+                  : "pt-8"
+              }
+            >
               {comments.length > 0 && (
                 <section className="mb-8">
                   <div className="pb-3 border-b border-(--border)/80">
@@ -1319,7 +1435,7 @@ export function EvidenceDetailModal({
   );
 
   if (inline) {
-    return <div className="w-full min-h-0 flex flex-col">{inner}</div>;
+    return <ReviewPageShell>{inner}</ReviewPageShell>;
   }
   return (
     <div

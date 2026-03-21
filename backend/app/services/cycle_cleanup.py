@@ -1,8 +1,15 @@
 """
 Delete all evidence and related data for an assessment cycle.
 When a cycle is deleted, this ensures:
-- All evidence files are removed from GCS (or local storage)
+- All evidence files are removed from GCS (or local storage) for submissions
+- All swift_2026 AWS collector evidence (DB + cycle-scoped GCS under aws_evidence/cycles/{cycle_id}/)
+- Phase deadline rows in both swift_2025 and swift_2026 (FK to core.assessment_cycles)
 - All DB rows that reference the cycle or its submissions are removed in the correct order
+
+core.cycle_user_aws_config rows CASCADE when the cycle row is deleted (no extra step here).
+
+Legacy: AWS JSON objects uploaded before cycle-scoped paths (aws_evidence/aws/... without cycles/{id})
+may remain in GCS until removed manually or by a separate cleanup job; DB rows for those runs are still deleted.
 """
 
 from __future__ import annotations
@@ -10,6 +17,7 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..models.assessment import EvidenceSubmission, EvidenceAttachment
@@ -21,6 +29,60 @@ from . import storage_service
 
 logger = logging.getLogger(__name__)
 
+_FRAMEWORK_SCHEMAS = ("swift_2025", "swift_2026")
+
+
+def _delete_cycle_phase_deadlines_all_schemas(db: Session, cycle_id: UUID) -> None:
+    """Remove timeline rows in every framework schema so FK to core.assessment_cycles does not block delete."""
+    for schema in _FRAMEWORK_SCHEMAS:
+        try:
+            db.execute(
+                text(f'DELETE FROM "{schema}"."cycle_phase_deadlines" WHERE cycle_id = :cid'),
+                {"cid": cycle_id},
+            )
+        except Exception as e:
+            logger.warning(
+                "Could not delete cycle_phase_deadlines in %s for cycle %s: %s",
+                schema,
+                cycle_id,
+                e,
+            )
+    db.flush()
+
+
+def _delete_cycle_swift_aws_collector_data(cycle_id: UUID) -> dict[str, int]:
+    """
+    Remove GCS objects under aws_evidence/cycles/{cycle_id}/ and matching swift_2026 Evidence + CollectorRun rows.
+    Uses a dedicated Session on the AWS evidence engine (may differ from main request DB).
+    """
+    stats = {"aws_gcs_objects_deleted": 0, "aws_evidence_rows": 0, "aws_collector_run_rows": 0}
+    rel_prefix = f"aws_evidence/cycles/{cycle_id}/"
+    try:
+        stats["aws_gcs_objects_deleted"] = storage_service.delete_prefix(rel_prefix)
+    except Exception as e:
+        logger.warning("Failed to delete AWS evidence GCS prefix %s: %s", rel_prefix, e, exc_info=True)
+
+    try:
+        from ..aws_evidence.core.db import SessionLocal as AwsEvidenceSessionLocal
+        from ..aws_evidence.services.evidence_service import delete_all_evidence_and_runs_for_cycle
+    except Exception as e:
+        logger.warning("AWS evidence cleanup imports failed: %s", e)
+        return stats
+
+    aws_db = AwsEvidenceSessionLocal()
+    try:
+        deleted = delete_all_evidence_and_runs_for_cycle(aws_db, cycle_id)
+        aws_db.commit()
+        stats["aws_evidence_rows"] = int(deleted.get("evidence_deleted", 0))
+        stats["aws_collector_run_rows"] = int(deleted.get("collector_runs_deleted", 0))
+    except Exception:
+        aws_db.rollback()
+        logger.exception("Failed to delete swift_2026 evidence/runs for cycle %s", cycle_id)
+    finally:
+        aws_db.close()
+
+    return stats
+
 
 def delete_cycle_evidence_and_related(db: Session, cycle_id: UUID) -> dict[str, int]:
     """
@@ -30,13 +92,25 @@ def delete_cycle_evidence_and_related(db: Session, cycle_id: UUID) -> dict[str, 
     Order: review comments -> review assignments -> attachment files + attachment rows
            -> submissions -> sufficiency_scores -> reports -> vendors.
 
-    Returns a small summary dict, e.g. {"files_deleted": 5, "attachments": 5, "submissions": 3}.
+    Returns a small summary dict (includes AWS cleanup counts when applicable).
     """
-    stats = {"files_deleted": 0, "files_failed": 0, "attachments": 0, "submissions": 0}
+    stats: dict[str, int] = {
+        "files_deleted": 0,
+        "files_failed": 0,
+        "attachments": 0,
+        "submissions": 0,
+        "aws_gcs_objects_deleted": 0,
+        "aws_evidence_rows": 0,
+        "aws_collector_run_rows": 0,
+    }
+
+    _delete_cycle_phase_deadlines_all_schemas(db, cycle_id)
 
     submissions = db.query(EvidenceSubmission).filter(EvidenceSubmission.cycle_id == cycle_id).all()
     if not submissions:
         _delete_cycle_related_only(db, cycle_id, stats)
+        aws_stats = _delete_cycle_swift_aws_collector_data(cycle_id)
+        stats.update(aws_stats)
         return stats
 
     submission_ids = [s.id for s in submissions]
@@ -95,6 +169,10 @@ def delete_cycle_evidence_and_related(db: Session, cycle_id: UUID) -> dict[str, 
 
     # 6. Cycle-scoped data (no submission dependency)
     _delete_cycle_related_only(db, cycle_id, stats)
+
+    # 7. AWS collector evidence (swift_2026 DB + GCS under aws_evidence/cycles/{cycle_id}/)
+    aws_stats = _delete_cycle_swift_aws_collector_data(cycle_id)
+    stats.update(aws_stats)
 
     return stats
 
