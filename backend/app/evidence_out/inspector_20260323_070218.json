@@ -1,0 +1,16 @@
+{
+  "collector": "inspector",
+  "account_id": "405466951861",
+  "region": "eu-north-1",
+  "collected_at": "2026-03-23T07:02:18.497906",
+  "finding_report_status": [
+    {
+      "error": "An error occurred (SubscriptionRequiredException) when calling the ListFindingAggregations operation: The AWS Access Key Id needs a subscription for the service"
+    }
+  ],
+  "findings_sample": [
+    {
+      "error": "An error occurred (SubscriptionRequiredException) when calling the ListFindings operation: The AWS Access Key Id needs a subscription for the service"
+    }
+  ]
+}

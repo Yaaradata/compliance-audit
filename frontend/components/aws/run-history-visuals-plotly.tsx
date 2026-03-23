@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   awsAccordionTriggerClass,
   awsButtonSecondarySmClass,
+  awsFieldClass,
   awsPillTabButtonClass,
   awsPillTabListClass,
   awsRowExpandButtonClass,
@@ -148,6 +149,20 @@ function partitionFeatureRows(
   return { flat, groups };
 }
 
+function filterRowsByComparisorSearch(
+  rows: ControlComparison["rows"],
+  runIds: string[],
+  keyword: string
+): ControlComparison["rows"] {
+  const kw = keyword.trim().toLowerCase();
+  if (!kw) return rows;
+  return rows.filter((row) => {
+    if (cleanFeatureLabel(row.feature).toLowerCase().includes(kw)) return true;
+    if (runIds.some((id) => (row.valuesByRun[id] ?? "").toLowerCase().includes(kw))) return true;
+    return false;
+  });
+}
+
 /** Distinct pill colors for control buttons within an item-code row. */
 const CONTROL_BUTTON_COLORS = [
   "#2563eb",
@@ -213,6 +228,8 @@ export function RunHistoryVisualsPlotly({
   const [hasPreloadedComparisor, setHasPreloadedComparisor] = useState(false);
   /** Collapsed = children hidden. Empty set = all parent groups expanded by default. */
   const [collapsedFeatureParents, setCollapsedFeatureParents] = useState<Set<string>>(new Set());
+  /** `${domain}::${itemCode}` → Run Comparisor search text. */
+  const [comparisorSearchByTable, setComparisorSearchByTable] = useState<Record<string, string>>({});
 
   const toggleFeatureParent = (controlKey: string, parent: string) => {
     const key = `${controlKey}::${parent}`;
@@ -790,91 +807,172 @@ export function RunHistoryVisualsPlotly({
                                   })}
                                 </div>
                               </div>
-                              <div className="overflow-auto border-t" style={{ borderColor: "var(--border)" }}>
-                                <table className="w-full border-collapse text-sm">
-                                  <thead style={{ background: "var(--muted)" }}>
-                                    <tr className="border-b" style={{ borderColor: "var(--border)" }}>
-                                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--foreground-muted)" }}>Feature</th>
-                                      {(compareMeta?.runs ?? []).map((r) => (
-                                        <th key={r.runId} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--foreground-muted)" }}>
-                                          {r.runLabel}
-                                        </th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {(() => {
-                                      const { flat, groups } = partitionFeatureRows(ctrl.rows);
-                                      return (
-                                        <>
-                                          {flat.map((row) => (
-                                            <tr
-                                              key={`${ctrl.controlKey}-${row.feature}`}
-                                              className="border-b last:border-0"
-                                              style={{ borderColor: "var(--border)", background: row.diff ? "rgba(245, 158, 11, 0.08)" : "transparent" }}
+                              {(() => {
+                                const tableKey = `${domainBlock.domain}::${itemCode}`;
+                                const keyword = comparisorSearchByTable[tableKey] ?? "";
+                                const metaRuns = compareMeta?.runs ?? [];
+                                const runIds = metaRuns.map((r) => r.runId);
+                                const filteredRows = filterRowsByComparisorSearch(ctrl.rows, runIds, keyword);
+                                const runCount = metaRuns.length;
+
+                                return (
+                                  <>
+                                    <div
+                                      className="border-t px-3 py-2.5"
+                                      style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+                                    >
+                                      <label className="flex max-w-xl flex-col gap-1">
+                                        <span className="text-xs font-medium" style={{ color: "var(--foreground-muted)" }}>
+                                          Search
+                                        </span>
+                                        <input
+                                          type="search"
+                                          value={keyword}
+                                          onChange={(e) =>
+                                            setComparisorSearchByTable((prev) => ({
+                                              ...prev,
+                                              [tableKey]: e.target.value,
+                                            }))
+                                          }
+                                          placeholder="Filter by feature or cell value…"
+                                          className={awsFieldClass}
+                                          autoComplete="off"
+                                        />
+                                      </label>
+                                    </div>
+                                    <div className="overflow-auto border-t" style={{ borderColor: "var(--border)" }}>
+                                      <table className="w-full border-collapse text-sm">
+                                        <thead style={{ background: "var(--muted)" }}>
+                                          <tr className="border-b" style={{ borderColor: "var(--border)" }}>
+                                            <th
+                                              className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider"
+                                              style={{ color: "var(--foreground-muted)" }}
                                             >
-                                              <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>
-                                                {cleanFeatureLabel(row.feature)}
-                                              </td>
-                                              {(compareMeta?.runs ?? []).map((r) => (
-                                                <td key={`${ctrl.controlKey}-${row.feature}-${r.runId}`} className="px-3 py-2" style={{ color: "var(--foreground)" }}>
-                                                  {row.valuesByRun[r.runId] ?? "—"}
-                                                </td>
-                                              ))}
-                                            </tr>
-                                          ))}
-                                          {groups.map(({ parent, children }) => {
-                                            const expanded = isFeatureParentExpanded(ctrl.controlKey, parent);
-                                            const runCount = compareMeta?.runs?.length ?? 0;
-                                            return (
-                                              <Fragment key={`${ctrl.controlKey}-grp-${parent}`}>
-                                                <tr
-                                                  className="border-b"
-                                                  style={{ borderColor: "var(--border)", background: "var(--muted)" }}
-                                                >
-                                                  <td className="px-3 py-2" colSpan={1 + runCount}>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => toggleFeatureParent(ctrl.controlKey, parent)}
-                                                      className={awsRowExpandButtonClass}
-                                                      style={{ color: "var(--foreground)" }}
-                                                    >
-                                                      <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>
-                                                        {expanded ? "▾" : "▸"}
-                                                      </span>
-                                                      <span>{parent}</span>
-                                                    </button>
+                                              Feature
+                                            </th>
+                                            {metaRuns.map((r) => (
+                                              <th
+                                                key={r.runId}
+                                                className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider"
+                                                style={{ color: "var(--foreground-muted)" }}
+                                              >
+                                                {r.runLabel}
+                                              </th>
+                                            ))}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {(() => {
+                                            const { flat, groups } = partitionFeatureRows(filteredRows);
+                                            const noRows = flat.length === 0 && groups.length === 0;
+                                            if (noRows) {
+                                              return (
+                                                <tr>
+                                                  <td
+                                                    className="px-3 py-6 text-sm"
+                                                    colSpan={1 + runCount}
+                                                    style={{ color: "var(--foreground-muted)" }}
+                                                  >
+                                                    {keyword.trim()
+                                                      ? "No rows match your search."
+                                                      : "No rows to show."}
                                                   </td>
                                                 </tr>
-                                                {expanded &&
-                                                  children.map(({ row, childLabel }) => (
-                                                    <tr
-                                                      key={`${ctrl.controlKey}-${row.feature}`}
-                                                      className="border-b last:border-0"
-                                                      style={{
-                                                        borderColor: "var(--border)",
-                                                        background: row.diff ? "rgba(245, 158, 11, 0.08)" : "transparent",
-                                                      }}
-                                                    >
-                                                      <td className="px-3 py-2 pl-8 text-sm" style={{ color: "var(--foreground)" }}>
-                                                        {childLabel}
+                                              );
+                                            }
+                                            return (
+                                              <>
+                                                {flat.map((row) => (
+                                                  <tr
+                                                    key={`${ctrl.controlKey}-${row.feature}`}
+                                                    className="border-b last:border-0"
+                                                    style={{
+                                                      borderColor: "var(--border)",
+                                                      background: row.diff
+                                                        ? "rgba(245, 158, 11, 0.08)"
+                                                        : "transparent",
+                                                    }}
+                                                  >
+                                                    <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>
+                                                      {cleanFeatureLabel(row.feature)}
+                                                    </td>
+                                                    {metaRuns.map((r) => (
+                                                      <td
+                                                        key={`${ctrl.controlKey}-${row.feature}-${r.runId}`}
+                                                        className="px-3 py-2"
+                                                        style={{ color: "var(--foreground)" }}
+                                                      >
+                                                        {row.valuesByRun[r.runId] ?? "—"}
                                                       </td>
-                                                      {(compareMeta?.runs ?? []).map((r) => (
-                                                        <td key={`${ctrl.controlKey}-${row.feature}-${r.runId}`} className="px-3 py-2 text-sm" style={{ color: "var(--foreground)" }}>
-                                                          {row.valuesByRun[r.runId] ?? "—"}
+                                                    ))}
+                                                  </tr>
+                                                ))}
+                                                {groups.map(({ parent, children }) => {
+                                                  const expanded = isFeatureParentExpanded(ctrl.controlKey, parent);
+                                                  return (
+                                                    <Fragment key={`${ctrl.controlKey}-grp-${parent}`}>
+                                                      <tr
+                                                        className="border-b"
+                                                        style={{ borderColor: "var(--border)", background: "var(--muted)" }}
+                                                      >
+                                                        <td className="px-3 py-2" colSpan={1 + runCount}>
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => toggleFeatureParent(ctrl.controlKey, parent)}
+                                                            className={awsRowExpandButtonClass}
+                                                            style={{ color: "var(--foreground)" }}
+                                                          >
+                                                            <span
+                                                              className="text-xs"
+                                                              style={{ color: "var(--foreground-muted)" }}
+                                                            >
+                                                              {expanded ? "▾" : "▸"}
+                                                            </span>
+                                                            <span>{parent}</span>
+                                                          </button>
                                                         </td>
-                                                      ))}
-                                                    </tr>
-                                                  ))}
-                                              </Fragment>
+                                                      </tr>
+                                                      {expanded &&
+                                                        children.map(({ row, childLabel }) => (
+                                                          <tr
+                                                            key={`${ctrl.controlKey}-${row.feature}`}
+                                                            className="border-b last:border-0"
+                                                            style={{
+                                                              borderColor: "var(--border)",
+                                                              background: row.diff
+                                                                ? "rgba(245, 158, 11, 0.08)"
+                                                                : "transparent",
+                                                            }}
+                                                          >
+                                                            <td
+                                                              className="px-3 py-2 pl-8 text-sm"
+                                                              style={{ color: "var(--foreground)" }}
+                                                            >
+                                                              {childLabel}
+                                                            </td>
+                                                            {metaRuns.map((r) => (
+                                                              <td
+                                                                key={`${ctrl.controlKey}-${row.feature}-${r.runId}`}
+                                                                className="px-3 py-2 text-sm"
+                                                                style={{ color: "var(--foreground)" }}
+                                                              >
+                                                                {row.valuesByRun[r.runId] ?? "—"}
+                                                              </td>
+                                                            ))}
+                                                          </tr>
+                                                        ))}
+                                                    </Fragment>
+                                                  );
+                                                })}
+                                              </>
                                             );
-                                          })}
-                                        </>
-                                      );
-                                    })()}
-                                  </tbody>
-                                </table>
-                              </div>
+                                          })()}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </>
+                                );
+                              })()}
                             </div>
                           );
                         })}
