@@ -39,4 +39,6 @@ export interface EvidenceWorkspaceProps {
   evaluationEdits?: EvaluationEditsMap;
   notesRefreshTrigger?: number;
   onNoteAdded?: () => void;
+  /** CSCF version derived from schemaName (e.g. "v2025", "v2026"). Used by artifact reuse. */
+  cscfVersion?: string;
 }

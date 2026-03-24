@@ -30,6 +30,7 @@ from .database import (
     ensure_user_role_nullable,
     ensure_cycle_role_assignments,
     ensure_cycle_evidence_assignments,
+    ensure_artifact_registry_schema,
 )
 from .aws_evidence.core.db import ensure_schema as ensure_aws_evidence_schema
 from .routers import (
@@ -52,6 +53,7 @@ from .routers import (
     notifications,
     aws,
     compliance,
+    artifact_registry,
 )
 
 
@@ -69,6 +71,7 @@ def _run_startup_migrations_sync() -> None:
         ensure_user_role_nullable()
         ensure_cycle_role_assignments()
         ensure_cycle_evidence_assignments()
+        ensure_artifact_registry_schema()
         ensure_aws_evidence_schema()  # swift_2026 schema + migrations (collector_runs, evidence, etc.)
         logger.info("Startup migrations completed successfully.")
     except Exception:
@@ -141,6 +144,7 @@ app.include_router(reference.diagrams_content_router, prefix=PREFIX)
 app.include_router(reference.router, prefix=PREFIX)
 app.include_router(audit_log.router,    prefix=PREFIX, tags=["audit-log"])
 app.include_router(aws.router,          prefix=PREFIX, tags=["aws"])
+app.include_router(artifact_registry.router, prefix=PREFIX, tags=["artifact-registry"])
 
 
 @app.get("/health")

@@ -284,3 +284,96 @@ export interface ControlMatrixEntry {
   t: "M" | "A";
   items: string[];
 }
+
+/* ────────────────────────────────────────────────────────
+ *  Artifact Registry types (mirrors backend Pydantic models)
+ * ──────────────────────────────────────────────────────── */
+
+export interface ArtifactOut {
+  artifact_id: string;
+  artifact_type: string;
+  evidence_item_id: string;
+  framework_schema: string;
+  cscf_version: string;
+  title: string;
+  description: string | null;
+  file_path: string | null;
+  form_data_json: Record<string, unknown> | null;
+  submission_id: string | null;
+  cycle_id: string;
+  tenant_id: string;
+  created_by: string;
+  status: string;
+  version: number;
+  parent_artifact_id: string | null;
+  reuse_source_id: string | null;
+  aws_metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ArtifactControlLinkOut {
+  link_id: string;
+  artifact_id: string;
+  control_id: string;
+  evidence_item_id: string;
+  cycle_id: string;
+  tenant_id: string;
+  framework_schema: string;
+  link_type: string;
+  sufficiency_status: string;
+  ai_score: number | null;
+  ai_evaluation_json: Record<string, unknown> | null;
+  reviewer_status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrossCheckOut {
+  cross_check_id: string;
+  source_link_id: string;
+  source_artifact_id: string;
+  source_evidence_item: string;
+  source_control_id: string;
+  target_evidence_item: string;
+  check_description: string;
+  target_artifact_id: string | null;
+  status: string;
+  resolution_detail: string | null;
+  cycle_id: string;
+  tenant_id: string;
+  framework_schema: string;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface AuditTrailOut {
+  trail_id: string;
+  artifact_id: string;
+  control_id: string | null;
+  cycle_id: string;
+  tenant_id: string;
+  action: string;
+  from_status: string | null;
+  to_status: string | null;
+  performed_by: string;
+  comment: string | null;
+  action_metadata: Record<string, unknown> | null;
+  performed_at: string;
+}
+
+export interface ReuseCandidateOut {
+  artifact_id: string;
+  title: string;
+  evidence_item_id: string;
+  cscf_version: string;
+  cycle_id: string;
+  status: string;
+  version: number;
+  age_days: number;
+  eligible: boolean;
+  requires_reconfirmation: boolean;
+  warnings: string[];
+  prior_scores: Record<string, number>;
+  form_data_json: Record<string, unknown> | null;
+}

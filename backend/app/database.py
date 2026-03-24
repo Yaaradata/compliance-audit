@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
@@ -442,3 +443,27 @@ def ensure_cycle_evidence_assignments():
         logger.info("cycle_evidence_assignments table ensured.")
     except Exception as e:
         logger.warning("Could not ensure cycle_evidence_assignments: %s", e)
+
+
+def ensure_artifact_registry_schema():
+    """
+    Create/upgrade artifact_registry schema from SQL migration script.
+    Idempotent: script uses IF NOT EXISTS and duplicate-safe enum creation.
+    """
+    sql_path = Path(__file__).resolve().parents[1] / "sql" / "39_artifact_registry_schema.sql"
+    if not sql_path.exists():
+        logger.warning("Artifact registry SQL file not found: %s", sql_path)
+        return
+    try:
+        script = sql_path.read_text(encoding="utf-8")
+        raw_conn = engine.raw_connection()
+        try:
+            cur = raw_conn.cursor()
+            cur.execute(script)
+            cur.close()
+            raw_conn.commit()
+        finally:
+            raw_conn.close()
+        logger.info("artifact_registry schema ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure artifact_registry schema: %s", e)

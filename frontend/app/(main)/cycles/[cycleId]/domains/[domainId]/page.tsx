@@ -151,6 +151,11 @@ export default function CycleDomainPage() {
   const [evaluationEditsByItem, setEvaluationEditsByItem] = useState<Record<string, EvaluationEditsMap>>({});
   const [schemaName, setSchemaName] = useState<string | null>(null);
 
+  /** Derive CSCF version from schemaName: swift_2026 → v2026, swift_2025 → v2025. */
+  const cscfVersion = schemaName
+    ? `v${schemaName.replace(/^swift_/, "")}`
+    : undefined;
+
   useEffect(() => {
     if (!cycleId) return;
     api
@@ -574,6 +579,7 @@ export default function CycleDomainPage() {
     <div className="h-[calc(100vh-64px)] min-h-[360px] flex flex-col overflow-hidden -m-5">
       <DomainWorkspaceLayout
         schemaName={schemaName}
+        cscfVersion={cscfVersion}
         cycleId={cycleId}
         domainId={domainId}
         config={config}

@@ -11,6 +11,8 @@ type EvaluationState = "idle" | "loading" | "done";
 export interface DomainWorkspaceLayoutProps {
   /** Backend schema_name (e.g. swift_2025, swift_2026, soc2) to load the correct framework UI. */
   schemaName?: string | null;
+  /** CSCF version derived from schemaName (e.g. "v2025", "v2026"). Used by artifact reuse. */
+  cscfVersion?: string;
   cycleId: string | null;
   domainId: string;
   config: DomainConfig;
@@ -44,6 +46,7 @@ export interface DomainWorkspaceLayoutProps {
 
 export function DomainWorkspaceLayout({
   schemaName,
+  cscfVersion,
   cycleId,
   domainId,
   config,
@@ -118,6 +121,7 @@ export function DomainWorkspaceLayout({
         <div className="min-h-0 min-w-0 flex flex-col overflow-hidden">
           <EvidenceWorkspace
             schemaName={schemaName}
+            cscfVersion={cscfVersion}
             cycleId={cycleId}
             domainId={domainId}
             config={config}

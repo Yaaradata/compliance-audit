@@ -16,9 +16,10 @@ import { LoadingState } from "@/components/ui/loading-state";
 export type { EvidenceWorkspaceProps };
 
 export function EvidenceWorkspace(
-  props: EvidenceWorkspaceProps & { schemaName?: string | null }
+  props: EvidenceWorkspaceProps & { schemaName?: string | null; cscfVersion?: string }
 ) {
-  const { schemaName, ...workspaceProps } = props;
+  const { schemaName, cscfVersion, ...rest } = props;
+  const workspaceProps = { ...rest, cscfVersion };
   const [Component, setComponent] = useState<ComponentType<EvidenceWorkspaceProps> | null>(null);
 
   useEffect(() => {

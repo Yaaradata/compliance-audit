@@ -18,158 +18,106 @@ function isSwift2026Schema(schemaName: CycleSchemaName | string | null | undefin
 
 /**
  * CSCF v2026 — mandatory vs advisory split follows SWIFT naming (suffix **A** = advisory).
- * Applicability matrix (official table summary):
- * - **A1, A2, A3:** 31 controls each — all rows except **1.5** (1.5 is A4-only).
- * - **A4:** 29 controls — excludes **1.1**, **2.1**, **2.10**; includes **1.5**.
- * - **B:** 23 controls — **19 mandatory + 4 advisory** (2.11A, 5.3A, 7.3A, 7.4A).
+ * Applicability matrix (official table — sourced from the SWIFT CSCF v2026 control table image):
+ *
+ * - **A1, A2, A3:** 31 controls each (25 mandatory + 6 advisory).
+ *     Mandatory: 1.1–1.4, 2.1–2.4, 2.6–2.10, 3.1, 4.1–4.2, 5.1–5.2, 5.4, 6.1–6.4, 7.1–7.2
+ *     Advisory:  2.5A, 2.11A, 5.3A, 6.5A, 7.3A, 7.4A
+ *     (1.5 is NOT applicable to A1/A2/A3)
+ *
+ * - **A4:** 26 controls (20 mandatory + 6 advisory).
+ *     Excludes vs A1: 1.1, 2.1, 2.4, 2.10, 6.2, 6.3 — but adds 1.5.
+ *     Mandatory: 1.2–1.5, 2.2–2.3, 2.6–2.9, 3.1, 4.1–4.2, 5.1–5.2, 5.4, 6.1, 6.4, 7.1–7.2
+ *     Advisory:  2.5A, 2.11A, 5.3A, 6.5A, 7.3A, 7.4A
+ *
+ * - **B:** 23 controls (19 mandatory + 4 advisory).
+ *     Mandatory: 1.2–1.4, 2.2–2.3, 2.6–2.9, 3.1, 4.1–4.2, 5.1–5.2, 5.4, 6.1, 6.4, 7.1–7.2
+ *     Advisory:  2.11A, 5.3A, 7.3A, 7.4A
+ *     (1.1, 1.5, 2.1, 2.4, 2.5A, 2.10, 6.2, 6.3, 6.5A are NOT applicable to B)
  */
 export const CSCF_V2026_CONTROLS: Record<
   ArchitectureId,
   { mandatoryControls: string[]; advisoryControls: string[]; domainIds: string[] }
 > = {
+  // ─── A1 ─────────────────────────────────────────────────────────────────────
+  // 31 controls: 25 mandatory + 6 advisory. All controls except 1.5.
   A1: {
     mandatoryControls: [
-      "1.1",
-      "1.2",
-      "1.3",
-      "1.4",
-      "2.1",
-      "2.2",
-      "2.3",
-      "2.4",
-      "2.6",
-      "2.7",
-      "2.8",
-      "2.9",
-      "2.10",
+      "1.1", "1.2", "1.3", "1.4",
+      "2.1", "2.2", "2.3", "2.4", "2.6", "2.7", "2.8", "2.9", "2.10",
       "3.1",
-      "4.1",
-      "4.2",
-      "5.1",
-      "5.2",
-      "5.4",
-      "6.1",
-      "6.2",
-      "6.3",
-      "6.4",
-      "7.1",
-      "7.2",
+      "4.1", "4.2",
+      "5.1", "5.2", "5.4",
+      "6.1", "6.2", "6.3", "6.4",
+      "7.1", "7.2",
     ],
     advisoryControls: ["2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A"],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
   },
+
+  // ─── A2 ─────────────────────────────────────────────────────────────────────
+  // 31 controls: 25 mandatory + 6 advisory. Identical applicability to A1.
   A2: {
     mandatoryControls: [
-      "1.1",
-      "1.2",
-      "1.3",
-      "1.4",
-      "2.1",
-      "2.2",
-      "2.3",
-      "2.4",
-      "2.6",
-      "2.7",
-      "2.8",
-      "2.9",
-      "2.10",
+      "1.1", "1.2", "1.3", "1.4",
+      "2.1", "2.2", "2.3", "2.4", "2.6", "2.7", "2.8", "2.9", "2.10",
       "3.1",
-      "4.1",
-      "4.2",
-      "5.1",
-      "5.2",
-      "5.4",
-      "6.1",
-      "6.2",
-      "6.3",
-      "6.4",
-      "7.1",
-      "7.2",
+      "4.1", "4.2",
+      "5.1", "5.2", "5.4",
+      "6.1", "6.2", "6.3", "6.4",
+      "7.1", "7.2",
     ],
     advisoryControls: ["2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A"],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
   },
+
+  // ─── A3 ─────────────────────────────────────────────────────────────────────
+  // 31 controls: 25 mandatory + 6 advisory. Identical applicability to A1/A2.
   A3: {
     mandatoryControls: [
-      "1.1",
-      "1.2",
-      "1.3",
-      "1.4",
-      "2.1",
-      "2.2",
-      "2.3",
-      "2.4",
-      "2.6",
-      "2.7",
-      "2.8",
-      "2.9",
-      "2.10",
+      "1.1", "1.2", "1.3", "1.4",
+      "2.1", "2.2", "2.3", "2.4", "2.6", "2.7", "2.8", "2.9", "2.10",
       "3.1",
-      "4.1",
-      "4.2",
-      "5.1",
-      "5.2",
-      "5.4",
-      "6.1",
-      "6.2",
-      "6.3",
-      "6.4",
-      "7.1",
-      "7.2",
+      "4.1", "4.2",
+      "5.1", "5.2", "5.4",
+      "6.1", "6.2", "6.3", "6.4",
+      "7.1", "7.2",
     ],
     advisoryControls: ["2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A"],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
   },
+
+  // ─── A4 ─────────────────────────────────────────────────────────────────────
+  // 26 controls: 20 mandatory + 6 advisory.
+  // Compared to A1: removes 1.1, 2.1, 2.4, 2.10, 6.2, 6.3 — adds 1.5.
+  // Note: 2.4, 6.2, 6.3 are NOT applicable to A4 (confirmed from CSCF v2026 table).
   A4: {
     mandatoryControls: [
-      "1.2",
-      "1.3",
-      "1.4",
-      "1.5",
-      "2.2",
-      "2.3",
-      "2.4",
-      "2.6",
-      "2.7",
-      "2.8",
-      "2.9",
+      "1.2", "1.3", "1.4", "1.5",
+      "2.2", "2.3", "2.6", "2.7", "2.8", "2.9",
       "3.1",
-      "4.1",
-      "4.2",
-      "5.1",
-      "5.2",
-      "5.4",
-      "6.1",
-      "6.2",
-      "6.3",
-      "6.4",
-      "7.1",
-      "7.2",
+      "4.1", "4.2",
+      "5.1", "5.2", "5.4",
+      "6.1", "6.4",
+      "7.1", "7.2",
     ],
     advisoryControls: ["2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A"],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
   },
+
+  // ─── B ──────────────────────────────────────────────────────────────────────
+  // 23 controls: 19 mandatory + 4 advisory.
+  // No local SWIFT footprint; GUI/browser access only.
+  // Not applicable: 1.1, 1.5, 2.1, 2.4, 2.5A, 2.10, 6.2, 6.3, 6.5A.
   B: {
     mandatoryControls: [
-      "1.2",
-      "1.3",
-      "1.4",
-      "2.2",
-      "2.3",
-      "2.6",
-      "2.7",
-      "2.8",
-      "2.9",
+      "1.2", "1.3", "1.4",
+      "2.2", "2.3", "2.6", "2.7", "2.8", "2.9",
       "3.1",
-      "4.1",
-      "4.2",
-      "5.1",
-      "5.2",
-      "5.4",
-      "6.1",
-      "6.4",
-      "7.1",
-      "7.2",
+      "4.1", "4.2",
+      "5.1", "5.2", "5.4",
+      "6.1", "6.4",
+      "7.1", "7.2",
     ],
     advisoryControls: ["2.11A", "5.3A", "7.3A", "7.4A"],
     /** Include F: control 2.8 (outsourcing) is in scope for B but mapped to domain F in `domains.ts`. */
@@ -178,13 +126,13 @@ export const CSCF_V2026_CONTROLS: Record<
 };
 
 const ALL_MANDATORY = [
-  "1.1","1.2","1.3","1.4","1.5",
-  "2.1","2.2","2.3","2.6","2.7","2.8","2.9","2.10",
-  "3.1","4.1","4.2","5.1","5.2","5.4",
-  "6.1","6.2","6.3","6.4",
-  "7.1","7.2",
+  "1.1", "1.2", "1.3", "1.4", "1.5",
+  "2.1", "2.2", "2.3", "2.6", "2.7", "2.8", "2.9", "2.10",
+  "3.1", "4.1", "4.2", "5.1", "5.2", "5.4",
+  "6.1", "6.2", "6.3", "6.4",
+  "7.1", "7.2",
 ];
-const ALL_ADVISORY = ["2.4A","2.5A","2.11A","5.3A","6.5A","7.3A","7.4A"];
+const ALL_ADVISORY = ["2.4A", "2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A"];
 
 export const ARCHITECTURES: Architecture[] = [
   {
@@ -232,13 +180,13 @@ export const ARCHITECTURES: Architecture[] = [
     description:
       "User connects to SWIFT using an application-level connector such as Alliance Lite2 within their secure zone. No local messaging or communication interface — the connector handles both roles. Lighter footprint than A1/A2 but still requires a secure zone.",
     mandatoryControls: [
-      "1.1","1.2","1.3","1.4","1.5",
-      "2.1","2.2","2.3","2.6","2.7","2.8","2.9",
-      "3.1","4.1","4.2","5.1","5.2","5.4",
-      "6.1","6.4",
-      "7.1","7.2",
+      "1.1", "1.2", "1.3", "1.4", "1.5",
+      "2.1", "2.2", "2.3", "2.6", "2.7", "2.8", "2.9",
+      "3.1", "4.1", "4.2", "5.1", "5.2", "5.4",
+      "6.1", "6.4",
+      "7.1", "7.2",
     ],
-    advisoryControls: ["2.4A","2.5A","2.11A","5.3A","6.2","6.3","6.5A","7.3A","7.4A"],
+    advisoryControls: ["2.4A", "2.5A", "2.11A", "5.3A", "6.2", "6.3", "6.5A", "7.3A", "7.4A"],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
     cscfVersion: "2025",
     components: [
@@ -255,13 +203,13 @@ export const ARCHITECTURES: Architecture[] = [
     description:
       "User operates a customer connector — middleware, API consumer, or file-transfer client — that connects to SWIFT directly or via a service bureau. No local messaging/communication interface. Under CSCF v2025 many former Type B users with A2A flows are reclassified to A4. Control 1.5 (Customer Environment Protection) is newly mandatory; several controls become advisory pending v2026.",
     mandatoryControls: [
-      "1.1","1.2","1.3","1.4","1.5",
-      "2.1","2.2","2.3","2.6","2.7",
-      "3.1","4.1","4.2","5.1","5.4",
-      "6.1","6.4",
-      "7.1","7.2",
+      "1.1", "1.2", "1.3", "1.4", "1.5",
+      "2.1", "2.2", "2.3", "2.6", "2.7",
+      "3.1", "4.1", "4.2", "5.1", "5.4",
+      "6.1", "6.4",
+      "7.1", "7.2",
     ],
-    advisoryControls: ["2.4A","2.5A","2.8","2.9","5.2","5.3A","6.2","6.3","6.5A","7.3A","7.4A"],
+    advisoryControls: ["2.4A", "2.5A", "2.8", "2.9", "5.2", "5.3A", "6.2", "6.3", "6.5A", "7.3A", "7.4A"],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
     cscfVersion: "2025",
     components: [
@@ -279,12 +227,12 @@ export const ARCHITECTURES: Architecture[] = [
       "User has no local SWIFT infrastructure. Access is exclusively via a service bureau's graphical user interface (browser-based GUI) with no application-to-application flows. Minimal control scope — focused on operator PC security, access management, and governance. Under CSCF v2025, organisations with A2A flows must reclassify to A4.",
     mandatoryControls: [
       "1.2",
-      "2.2","2.3","2.6","2.8","2.9",
-      "3.1","4.1","4.2","5.1","5.2","5.4",
-      "6.1","6.4",
-      "7.1","7.2",
+      "2.2", "2.3", "2.6", "2.8", "2.9",
+      "3.1", "4.1", "4.2", "5.1", "5.2", "5.4",
+      "6.1", "6.4",
+      "7.1", "7.2",
     ],
-    advisoryControls: ["2.11A","5.3A","7.3A","7.4A"],
+    advisoryControls: ["2.11A", "5.3A", "7.3A", "7.4A"],
     /** Include F: mandatory 2.8 maps to Third-Party & Outsourcing in `domains.ts`. */
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
     cscfVersion: "2025",
@@ -344,46 +292,31 @@ export function getArchitecture(
   };
 }
 
-export const ARCHITECTURE_DIAGRAMS: Record<string, string[]> = {
-  A1: ["A1-1.png", "A1-2.png"],
-  A2: ["A2-1.png"],
-  A3: ["A3-1.png"],
-  A4: ["A4-1.png", "A4-2.png", "A4-3.png"],
-  B: ["B-1.png", "B-2.png"],
-};
+/**
+ * Diagram/image references intentionally removed.
+ * Keep these exports as no-op placeholders so existing imports do not break.
+ */
+export const ARCHITECTURE_DIAGRAMS: Record<string, string[]> = {};
 
-export function getDiagramFolder(version?: string | null): "swift_2025" | "swift_2026" | "" {
-  if (!version) return "";
-  const v = String(version).trim().toLowerCase();
-  return v === "2026" || v === "swift_2026" ? "swift_2026" : "swift_2025";
+export function getDiagramFolder(_version?: string | null): "" {
+  return "";
 }
 
 export async function getArchitectureDiagramUrlAsync(
-  diagramFilename: string,
-  version?: string | null
+  _diagramFilename: string,
+  _version?: string | null
 ): Promise<string> {
-  try {
-    const { api } = await import("@/lib/api");
-    const params = version ? `?version=${encodeURIComponent(version)}` : "";
-    const resp = await api.get<{ url: string | null }>(`/ref/diagrams/${encodeURIComponent(diagramFilename)}${params}`);
-    if (resp.url) return resp.url;
-    const ver = version ? encodeURIComponent(version) : "swift_2025";
-    return `/api/v1/ref/diagrams/${encodeURIComponent(diagramFilename)}/content?version=${ver}`;
-  } catch {
-    return `/architecture-diagrams/${diagramFilename}`;
-  }
+  return "";
 }
 
-export function getArchitectureDiagramUrl(diagramFilename: string, _version?: string | null): string {
-  return `/architecture-diagrams/${diagramFilename}`;
+export function getArchitectureDiagramUrl(_diagramFilename: string, _version?: string | null): string {
+  return "";
 }
 
 export function getArchitectureDiagramPath(
-  architectureId: string,
+  _architectureId: string,
   _extension?: "png" | "jpg" | "svg" | "webp",
   _version?: string | null
 ): string {
-  const list = ARCHITECTURE_DIAGRAMS[architectureId];
-  const filename = list?.[0];
-  return filename ? `/architecture-diagrams/${filename}` : `/architecture-diagrams/${architectureId}.png`;
+  return "";
 }

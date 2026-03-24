@@ -26,6 +26,7 @@ from ..schemas.evidence import (
 from app.aws_evidence.core.db import get_db as get_aws_db, ensure_schema as ensure_aws_schema
 from app.aws_evidence.services import evidence_service as aws_evidence_service
 from ..services import ai_service
+from ..services import artifact_registry_service
 from ..services.assignment_constraints import get_user_cycle_ids, get_user_cycle_role, get_user_assigned_evidence_items
 from ..services.ai_service import _eval_criteria_pass_if_only, _parse_numbered_criteria as _parse_criteria_ai
 from ..services import evidence_status as evidence_status_svc
@@ -219,6 +220,18 @@ def create_evidence(cycle_id: UUID, req: CreateSubmissionRequest, db: Session = 
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == submission_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=500, detail="Submission not found after create")
+    try:
+        schema_name = _resolve_schema_for_cycle(db, cycle_id)
+        artifact_registry_service.get_or_create_from_submission(
+            db=db,
+            cycle=cycle,
+            submission=sub,
+            created_by=user.id,
+            framework_schema=schema_name,
+            cscf_version=(cycle.cscf_version or "v2025").replace("2025v", "v2025").replace("2026v", "v2026"),
+        )
+    except Exception as e:
+        logger.warning("artifact_registry hook create_evidence skipped: %s", e)
     return _submission_to_out(sub, db)
 
 
@@ -343,6 +356,18 @@ def update_evidence(cycle_id: UUID, sub_id: UUID, req: UpdateSubmissionRequest, 
     sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == sub_id, EvidenceSubmission.cycle_id == cycle_id).first()
     if not sub:
         raise HTTPException(status_code=500, detail="Submission not found after update")
+    try:
+        schema_name = _resolve_schema_for_cycle(db, cycle_id)
+        artifact_registry_service.get_or_create_from_submission(
+            db=db,
+            cycle=cycle,
+            submission=sub,
+            created_by=user.id,
+            framework_schema=schema_name,
+            cscf_version=(cycle.cscf_version or "v2025").replace("2025v", "v2025").replace("2026v", "v2026"),
+        )
+    except Exception as e:
+        logger.warning("artifact_registry hook update_evidence skipped: %s", e)
     return _submission_to_out(sub, db)
 
 
@@ -838,6 +863,31 @@ def suggest_evidence_fields_from_aws(
         logger.exception("suggest-from-aws failed")
         raise HTTPException(status_code=502, detail=f"LLM error: {e}") from e
 
+    try:
+        latest_sub = (
+            db.query(EvidenceSubmission)
+            .filter(
+                EvidenceSubmission.cycle_id == cycle_id,
+                EvidenceSubmission.tenant_id == user.tenant_id,
+                EvidenceSubmission.evidence_item_id == item_upper,
+            )
+            .order_by(EvidenceSubmission.updated_at.desc())
+            .first()
+        )
+        if latest_sub:
+            artifact_registry_service.update_aws_metadata_for_submission(
+                db=db,
+                submission_id=latest_sub.id,
+                performed_by=user.id,
+                aws_metadata={
+                    "auto_filled_fields": list(suggestions.keys()),
+                    "aws_evidence_row_count": len(aws_rows),
+                    "suggestion_gaps": suggestion_gaps if isinstance(suggestion_gaps, dict) else {},
+                },
+            )
+    except Exception as e:
+        logger.warning("artifact_registry hook suggest-from-aws skipped: %s", e)
+
     return AwsEvidenceSuggestResponse(
         suggestions=suggestions,
         suggestion_gaps=suggestion_gaps if isinstance(suggestion_gaps, dict) else {},
@@ -847,6 +897,7 @@ def suggest_evidence_fields_from_aws(
         aws_evidence_row_count=len(aws_rows),
         message=None,
     )
+
 
 
 @router.post("/assessments/{cycle_id}/evidence/evaluate", response_model=EvaluateEvidenceResponse)
@@ -1037,6 +1088,35 @@ def evaluate_evidence(
             )
             _recalculate_control_sufficiency(db, cycle_id, req.evidence_item_id)
             db.commit()
+            try:
+                schema_name = _resolve_schema_for_cycle(db, cycle_id)
+                artifact = artifact_registry_service.get_or_create_from_submission(
+                    db=db,
+                    cycle=cycle,
+                    submission=submission,
+                    created_by=user.id,
+                    framework_schema=schema_name,
+                    cscf_version=(cycle.cscf_version or "v2025").replace("2025v", "v2025").replace("2026v", "v2026"),
+                )
+                per_control = {}
+                for c in result.get("controls", []):
+                    cid = c.get("control_id")
+                    if cid:
+                        per_control[cid] = {"score": float(c.get("score", 0) or 0), **c}
+                artifact_registry_service.write_per_control_evaluations(
+                    db=db,
+                    artifact_id=artifact.artifact_id,
+                    evaluation_results=per_control,
+                    performed_by=user.id,
+                )
+                artifact_registry_service.transition_status(
+                    db=db,
+                    artifact=artifact,
+                    to_status="ai_evaluated",
+                    performed_by=user.id,
+                )
+            except Exception as e:
+                logger.warning("artifact_registry hook evaluate_evidence skipped: %s", e)
 
         field_feedback = result.get("field_feedback") or {}
 

@@ -9,6 +9,15 @@ from .vendor import VendorRegistry
 from .sufficiency import SufficiencyScore, SufficiencyEvaluation
 from .audit import AuditLog
 from .notes import Note, Notification
+from .artifact_registry import (
+    Artifact,
+    ArtifactControlLink,
+    CrossCheck,
+    ReuseRule,
+    ReuseRecord,
+    ArtifactAuditTrail,
+    ArtifactComment,
+)
 
 __all__ = [
     "Tenant", "User", "TenantAwsConfig", "CycleUserAwsConfig",
@@ -20,4 +29,5 @@ __all__ = [
     "SufficiencyScore", "SufficiencyEvaluation",
     "AuditLog",
     "Note", "Notification",
+    "Artifact", "ArtifactControlLink", "CrossCheck", "ReuseRule", "ReuseRecord", "ArtifactAuditTrail", "ArtifactComment",
 ]

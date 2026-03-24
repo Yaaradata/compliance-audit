@@ -4,11 +4,16 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
+import { ArtifactReusePanel } from "@/components/domain/artifact-reuse-panel";
+import { ArtifactControlScores } from "@/components/domain/artifact-control-scores";
+import { ArtifactCrossChecks } from "@/components/domain/artifact-cross-checks";
+import { ArtifactHistoryBar } from "@/components/domain/artifact-history-bar";
 import { api } from "@/lib/api";
 import { getAwsCredentialsForCycle } from "@/lib/aws-api";
+import { getArtifactForSubmission } from "@/lib/artifact-registry-api";
 import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
 import { A5_EVIDENCE_ITEM_ID, A5_ARCHITECTURE_KEYS } from "@/lib/frameworks/swift-cscf/constants";
-import type { EvidenceItem, DomainConfig } from "@/lib/types";
+import type { EvidenceItem, DomainConfig, ArtifactOut } from "@/lib/types";
 import type { AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 import type { EvaluationEditsMap } from "../../../../../domain/ai-evaluation-result";
 
@@ -82,6 +87,7 @@ export function EvidenceWorkspace({
   evaluationEdits,
   notesRefreshTrigger = 0,
   onNoteAdded,
+  cscfVersion,
 }: {
   cycleId: string | null;
   domainId: string;
@@ -108,9 +114,12 @@ export function EvidenceWorkspace({
   evaluationEdits?: EvaluationEditsMap;
   notesRefreshTrigger?: number;
   onNoteAdded?: () => void;
+  cscfVersion?: string;
 }) {
   const router = useRouter();
   const [notesRefresh, setNotesRefresh] = useState(0);
+  const [currentArtifact, setCurrentArtifact] = useState<ArtifactOut | null>(null);
+  const [reuseApplied, setReuseApplied] = useState(false);
   const effectiveNotesRefresh = (notesRefreshTrigger ?? 0) + notesRefresh;
 
   const [focusedQuestionGuide, setFocusedQuestionGuide] = useState<string | null>(null);
@@ -217,6 +226,16 @@ export function EvidenceWorkspace({
       prevItemIdRef.current = null;
     }
   }, [currentItem?.id]);
+
+  useEffect(() => {
+    if (!cycleId || !currentItem) {
+      setCurrentArtifact(null);
+      return;
+    }
+    getArtifactForSubmission(cycleId, currentItem.id)
+      .then((a) => setCurrentArtifact(a))
+      .catch(() => setCurrentArtifact(null));
+  }, [cycleId, currentItem?.id]);
 
   const evidenceFormLocked = isSubmissionAwsLocked(submissionStatus);
 
@@ -331,10 +350,62 @@ export function EvidenceWorkspace({
     );
   }
 
+  const frameworkSchema = cscfVersion
+    ? `swift_${cscfVersion.replace(/^v/, "")}`
+    : null;
+
   const renderCommonEvidence = () => {
     if (cycleId) {
       return (
         <>
+          <div className="rounded-lg border border-(--border) bg-(--surface) px-3 py-2.5 mb-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="text-[11px] font-semibold text-foreground">
+                Artifact Registry
+              </div>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border border-(--border) bg-background text-foreground">
+                {frameworkSchema && cscfVersion ? "Active" : "Pending"}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-(--foreground-muted)">
+              {frameworkSchema && cscfVersion
+                ? `Enabled for ${frameworkSchema} (${cscfVersion})`
+                : "Waiting for cycle framework metadata"}
+            </p>
+          </div>
+
+          {currentArtifact ? (
+            <ArtifactHistoryBar artifactId={currentArtifact.artifact_id} />
+          ) : (
+            <div className="rounded-lg border border-(--border) bg-(--surface) px-3 py-2.5 mb-3">
+              <div className="text-[11px] text-(--foreground-muted)">
+                <span className="font-semibold text-foreground">Artifact History</span>
+                {" — "}
+                No artifact versions yet. Submit evidence to start tracking.
+              </div>
+            </div>
+          )}
+
+          {cycleId && currentItem && frameworkSchema && cscfVersion && !evidenceFormLocked && (
+            <ArtifactReusePanel
+              cycleId={cycleId}
+              evidenceItemId={currentItem.id}
+              frameworkSchema={frameworkSchema}
+              cscfVersion={cscfVersion}
+              onApplyReuse={(fd) => {
+                Object.entries(fd).forEach(([k, v]) => onItemFormChange(k, v));
+                onItemFormBlur();
+                setReuseApplied(true);
+              }}
+              onClearReuse={() => {
+                Object.keys(itemFormData).forEach((k) => onItemFormChange(k, ""));
+                onItemFormBlur();
+                setReuseApplied(false);
+              }}
+              disabled={evidenceFormLocked}
+            />
+          )}
+
           {currentItem.id === A5_EVIDENCE_ITEM_ID && itemFormData[A5_ARCHITECTURE_KEYS.architecture_type] && (
             <div className="mb-4">
               <A5ArchitecturePreview formData={itemFormData} />
@@ -407,6 +478,21 @@ export function EvidenceWorkspace({
             awsSuggestRoundDone={awsSuggestRoundDone}
             visualVariant="swiftReview"
           />
+
+          <div className="mt-3">
+            {currentArtifact ? (
+              <ArtifactCrossChecks artifactId={currentArtifact.artifact_id} />
+            ) : (
+              <div className="rounded-lg border border-(--border) bg-(--surface) px-3 py-2.5">
+                <div className="text-[11px] text-(--foreground-muted)">
+                  <span className="font-semibold text-foreground">Cross-Checks</span>
+                  {" — "}
+                  Submit evidence to enable cross-check validation.
+                </div>
+              </div>
+            )}
+          </div>
+
           {!aiEvaluationResult && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-2xl border border-(--border) bg-gradient-to-br from-background to-background/80 shadow-md hover:shadow-lg transition-shadow duration-200">
               <div className="min-w-0 flex-1">
@@ -513,6 +599,17 @@ export function EvidenceWorkspace({
                       visualVariant="swiftReview"
                       hideAiHint={false}
                     />
+                    {currentArtifact ? (
+                      <div className="mt-4">
+                        <ArtifactControlScores artifactId={currentArtifact.artifact_id} />
+                      </div>
+                    ) : aiEvaluationResult ? (
+                      <div className="mt-4 rounded-lg border border-(--border) bg-(--surface) px-3 py-2">
+                        <div className="text-[11px] text-(--foreground-muted)">
+                          <span className="font-semibold text-foreground">Per-Control AI Scores</span> — Artifact not linked yet. Scores will appear after evidence is saved.
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <div ref={guidanceContentRef} className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
