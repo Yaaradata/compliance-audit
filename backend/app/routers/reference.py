@@ -14,6 +14,7 @@ from ..services.batch_loaders import (
     load_mappings_by_item_ids,
     load_matrix_by_item_ids,
 )
+from ..services.assignment_constraints import get_user_cycle_role, get_user_assigned_evidence_items
 
 logger = logging.getLogger(__name__)
 from ..models.framework import (
@@ -128,6 +129,17 @@ def get_domain(
         ).order_by(CanonicalEvidenceItem.sort_order).all()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error loading evidence items: {str(e)}")
+
+    # IT SME visibility: when explicit evidence assignments exist, only expose assigned items.
+    if cycle_id is not None:
+        effective_role = get_user_cycle_role(db, user.id, cycle_id) or user.role
+        if (effective_role or "").strip().lower() == "it_sme":
+            assigned_items = get_user_assigned_evidence_items(db, cycle_id, user.id)
+            if assigned_items is not None:
+                assigned_items_upper = {i.strip().upper() for i in assigned_items if i}
+                items = [i for i in items if (i.id or "").strip().upper() in assigned_items_upper]
+                if not items:
+                    return {"domain": None, "evidence_items": []}
 
     item_ids = [i.id for i in items]
 

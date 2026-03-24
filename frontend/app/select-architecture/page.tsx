@@ -339,11 +339,6 @@ function SelectArchitectureInner() {
               </>
             )}
           </p>
-          <p className="text-xs text-slate-500 mb-6">
-            Choose an architecture, then a deployment variant. Diagrams are not shown here — upload architecture
-            evidence under control A5 in the evidence workspace when required.
-          </p>
-
           {/* Stepper */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-8">
             {(
@@ -592,28 +587,35 @@ function SelectArchitectureInner() {
             <div className="w-full space-y-5">
               <div className="rounded-2xl border-2 border-slate-200 bg-white overflow-hidden shadow-sm">
                 <div
-                  className="p-6 text-white"
+                  className="px-5 py-5 sm:px-6 sm:py-6 text-white"
                   style={{
                     background: `linear-gradient(135deg, ${TYPE_PRESENTATION[arch.id]?.badge ?? "#0f172a"}, ${TYPE_PRESENTATION[arch.id]?.border ?? "#334155"})`,
                   }}
                 >
-                  <div className="text-[10px] font-semibold uppercase tracking-wider opacity-90 mb-1">
-                    Selected architecture
-                  </div>
-                  <div className="text-xl font-bold flex items-center gap-2">
-                    <span>{TYPE_PRESENTATION[arch.id]?.icon}</span>
-                    <span>
-                      {arch.id} — {arch.subtitle}
-                    </span>
-                  </div>
-                </div>
-                <div className="p-6 space-y-5">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Variant</div>
-                    <div className="font-bold text-slate-900 text-sm mb-2">{selectedVariant.label}</div>
-                    <p className="text-xs text-slate-600 leading-relaxed">{selectedVariant.description}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/80">Selected architecture</p>
+                  <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <span className="text-2xl leading-none shrink-0" aria-hidden>
+                        {TYPE_PRESENTATION[arch.id]?.icon}
+                      </span>
+                      <h2 className="text-lg sm:text-xl font-bold leading-snug">
+                        {arch.id} — {arch.subtitle}
+                      </h2>
+                    </div>
+
+                    <div className="rounded-lg bg-white/10 ring-1 ring-white/20 px-3 py-2 lg:min-w-[320px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-white/75">Variant</span>
+                        <span className="rounded-md bg-white/15 px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums ring-1 ring-white/20">
+                          {selectedVariant.id}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm font-semibold leading-snug text-white">{selectedVariant.label}</p>
+                    </div>
                   </div>
 
+                </div>
+                <div className="p-5 sm:p-6 space-y-5 border-t border-slate-100">
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                     <div className="rounded-lg border border-red-100 bg-red-50 p-3">
                       <div className="text-[11px] font-semibold text-red-700">Mandatory controls</div>
@@ -631,13 +633,13 @@ function SelectArchitectureInner() {
                       <div className="text-[11px] font-semibold text-slate-600">Domains in scope</div>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {arch.domainIds.map((d) => (
-                                <span
+                          <span
                             key={d}
                             className="w-6 h-6 rounded text-[10px] font-bold bg-slate-800 text-white flex items-center justify-center font-mono"
-                                >
+                          >
                             {d}
-                                </span>
-                              ))}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -785,17 +787,6 @@ function SelectArchitectureInner() {
                   >
                     ← Change variant
               </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep("select-arch");
-                      setSelectedArch(null);
-                      setSelectedVariant(null);
-                    }}
-                    className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    Change architecture
-                  </button>
               <button
                 type="button"
                     onClick={handleConfirm}

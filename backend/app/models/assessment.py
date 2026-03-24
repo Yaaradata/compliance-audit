@@ -39,6 +39,8 @@ class CycleRoleAssignment(Base):
     assignment_type: Mapped[str] = mapped_column(String(10), nullable=False)
     group_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey(User.__table__.c.id, ondelete="CASCADE"), nullable=True)
+    role_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    role_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class CycleEvidenceAssignment(Base):
@@ -52,6 +54,8 @@ class CycleEvidenceAssignment(Base):
     assignment_type: Mapped[str] = mapped_column(String(10), nullable=False)
     group_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey(User.__table__.c.id, ondelete="CASCADE"), nullable=True)
+    evidence_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    evidence_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class AssessmentCycle(Base):

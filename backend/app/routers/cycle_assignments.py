@@ -67,6 +67,8 @@ def get_role_assignments(
             "assignment_type": r.assignment_type,
             "group_name": r.group_name,
             "user_id": str(r.user_id) if r.user_id else None,
+            "role_start_date": r.role_start_date.isoformat() if r.role_start_date else None,
+            "role_end_date": r.role_end_date.isoformat() if r.role_end_date else None,
         }
         for r in rows
     ]
@@ -102,6 +104,8 @@ def put_role_assignments(
             "assignment_type": a.assignment_type,
             "group_name": a.group_name,
             "user_id": a.user_id,
+            "role_start_date": a.role_start_date,
+            "role_end_date": a.role_end_date,
         }
         for a in req.assignments
     ]
@@ -118,6 +122,11 @@ def put_role_assignments(
     # Replace
     db.query(CycleRoleAssignment).filter(CycleRoleAssignment.cycle_id == cycle_id).delete()
     for a in req.assignments:
+        effective_start_date = a.role_start_date
+        effective_end_date = a.role_end_date
+        if req.apply_cycle_dates_if_missing and (effective_start_date is None or effective_end_date is None):
+            effective_start_date = cycle.start_date
+            effective_end_date = cycle.end_date
         if a.assignment_type == "group" and a.group_name:
             db.add(
                 CycleRoleAssignment(
@@ -126,6 +135,8 @@ def put_role_assignments(
                     assignment_type="group",
                     group_name=a.group_name,
                     user_id=None,
+                    role_start_date=effective_start_date,
+                    role_end_date=effective_end_date,
                 )
             )
         elif a.assignment_type == "user" and a.user_id:
@@ -136,6 +147,8 @@ def put_role_assignments(
                     assignment_type="user",
                     group_name=None,
                     user_id=a.user_id,
+                    role_start_date=effective_start_date,
+                    role_end_date=effective_end_date,
                 )
             )
     db.commit()
@@ -194,6 +207,8 @@ def get_evidence_assignments(
             "assignment_type": r.assignment_type,
             "group_name": r.group_name,
             "user_id": str(r.user_id) if r.user_id else None,
+            "evidence_start_date": r.evidence_start_date.isoformat() if r.evidence_start_date else None,
+            "evidence_end_date": r.evidence_end_date.isoformat() if r.evidence_end_date else None,
         }
         for r in rows
     ]
@@ -236,8 +251,27 @@ def put_evidence_assignments(
                     detail=f"{name} is not assigned as IT Expert for this cycle. Assign roles first.",
                 )
 
+    it_sme_start_date = None
+    it_sme_end_date = None
+    if req.apply_it_expert_dates_if_missing:
+        it_sme_rows = (
+            db.query(CycleRoleAssignment)
+            .filter(
+                CycleRoleAssignment.cycle_id == cycle_id,
+                CycleRoleAssignment.role == "it_sme",
+            )
+            .all()
+        )
+        it_sme_start_date = next((r.role_start_date for r in it_sme_rows if r.role_start_date is not None), None)
+        it_sme_end_date = next((r.role_end_date for r in it_sme_rows if r.role_end_date is not None), None)
+
     db.query(CycleEvidenceAssignment).filter(CycleEvidenceAssignment.cycle_id == cycle_id).delete()
     for a in req.assignments:
+        effective_start_date = a.evidence_start_date
+        effective_end_date = a.evidence_end_date
+        if req.apply_it_expert_dates_if_missing and (effective_start_date is None or effective_end_date is None):
+            effective_start_date = it_sme_start_date
+            effective_end_date = it_sme_end_date
         if a.assignment_type == "group" and a.group_name:
             db.add(
                 CycleEvidenceAssignment(
@@ -246,6 +280,8 @@ def put_evidence_assignments(
                     assignment_type="group",
                     group_name=a.group_name,
                     user_id=None,
+                    evidence_start_date=effective_start_date,
+                    evidence_end_date=effective_end_date,
                 )
             )
         elif a.assignment_type == "user" and a.user_id:
@@ -256,6 +292,8 @@ def put_evidence_assignments(
                     assignment_type="user",
                     group_name=None,
                     user_id=a.user_id,
+                    evidence_start_date=effective_start_date,
+                    evidence_end_date=effective_end_date,
                 )
             )
     db.commit()

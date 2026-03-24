@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
 import { api } from "@/lib/api";
+import { getAwsCredentialsForCycle } from "@/lib/aws-api";
 import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
 import { A5_EVIDENCE_ITEM_ID, A5_ARCHITECTURE_KEYS } from "@/lib/frameworks/swift-cscf/constants";
 import type { EvidenceItem, DomainConfig } from "@/lib/types";
@@ -107,6 +109,7 @@ export function EvidenceWorkspace({
   notesRefreshTrigger?: number;
   onNoteAdded?: () => void;
 }) {
+  const router = useRouter();
   const [notesRefresh, setNotesRefresh] = useState(0);
   const effectiveNotesRefresh = (notesRefreshTrigger ?? 0) + notesRefresh;
 
@@ -121,6 +124,8 @@ export function EvidenceWorkspace({
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, string>>({});
   const [awsSuggestionGaps, setAwsSuggestionGaps] = useState<Record<string, string>>({});
   const [questionSources, setQuestionSources] = useState<Record<string, string>>({});
+  const [awsConnectionChecked, setAwsConnectionChecked] = useState(false);
+  const [awsConnected, setAwsConnected] = useState(false);
   const autoFilledItemsRef = useRef<Set<string>>(new Set());
   const evidenceScrollRef = useRef<HTMLDivElement>(null);
   const guidanceContentRef = useRef<HTMLDivElement>(null);
@@ -215,10 +220,29 @@ export function EvidenceWorkspace({
 
   const evidenceFormLocked = isSubmissionAwsLocked(submissionStatus);
 
+  useEffect(() => {
+    if (!cycleId) {
+      setAwsConnected(false);
+      setAwsConnectionChecked(true);
+      return;
+    }
+    setAwsConnectionChecked(false);
+    getAwsCredentialsForCycle(cycleId)
+      .then((cfg) => setAwsConnected(Boolean(cfg?.has_config)))
+      .catch(() => setAwsConnected(false))
+      .finally(() => setAwsConnectionChecked(true));
+  }, [cycleId]);
+
   const handleSuggestFromAws = useCallback(async (itemId?: string) => {
     const targetItem = itemId ?? currentItem?.id;
     if (!cycleId || !targetItem) return;
     if (isSubmissionAwsLocked(submissionStatus)) return;
+    if (!awsConnected) {
+      setAwsSuggestError(null);
+      setAwsSuggestMessage("AWS is not connected for this cycle. Connect to AWS first.");
+      setAwsSuggestRoundDone(false);
+      return;
+    }
     setAwsSuggestLoading(true);
     setAwsSuggestError(null);
     setAwsSuggestMessage(null);
@@ -272,10 +296,16 @@ export function EvidenceWorkspace({
       setAwsSuggestLoading(false);
       setAwsSuggestRoundDone(true);
     }
-  }, [cycleId, currentItem?.id, submissionStatus, onItemFormChange, onEnsureSubmission, onItemFormBlur]);
+  }, [cycleId, currentItem?.id, submissionStatus, onItemFormChange, onEnsureSubmission, onItemFormBlur, awsConnected]);
 
   useEffect(() => {
     if (!cycleId || !currentItem) return;
+
+    if (!awsConnected) {
+      setAwsSuggestLoading(false);
+      setAwsSuggestRoundDone(false);
+      return;
+    }
 
     if (evidenceFormLocked) {
       autoFilledItemsRef.current.add(currentItem.id);
@@ -291,7 +321,7 @@ export function EvidenceWorkspace({
     if (autoFilledItemsRef.current.has(currentItem.id)) return;
 
     handleSuggestFromAws(currentItem.id);
-  }, [cycleId, currentItem?.id, submissionStatus, itemFormData, evidenceFormLocked, handleSuggestFromAws]);
+  }, [cycleId, currentItem?.id, submissionStatus, itemFormData, evidenceFormLocked, handleSuggestFromAws, awsConnected]);
 
   if (!currentItem) {
     return (
@@ -312,7 +342,18 @@ export function EvidenceWorkspace({
           )}
           <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between rounded-lg border border-(--border) bg-(--surface) px-3 py-2.5">
             <div className="text-[11px] text-(--foreground-muted) min-w-0">
-              {awsSuggestLoading ? (
+              {!awsConnectionChecked ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block size-3.5 border-2 border-slate-300 border-t-sky-600 rounded-full animate-spin" />
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Checking AWS connection…</span>
+                </span>
+              ) : !awsConnected ? (
+                <>
+                  <span className="font-semibold text-foreground">AWS-assisted answers</span>
+                  {" — "}
+                  Connect to AWS for this cycle to enable auto-fill suggestions.
+                </>
+              ) : awsSuggestLoading ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="inline-block size-3.5 border-2 border-sky-300 border-t-sky-600 rounded-full animate-spin" />
                   <span className="font-semibold text-sky-700 dark:text-sky-300">Auto-filling from AWS evidence…</span>
@@ -328,13 +369,17 @@ export function EvidenceWorkspace({
             <button
               type="button"
               onClick={() => {
+                if (!awsConnected) {
+                  router.push("/aws");
+                  return;
+                }
                 autoFilledItemsRef.current.delete(currentItem.id);
                 handleSuggestFromAws(currentItem.id);
               }}
-              disabled={awsSuggestLoading || evidenceFormLocked}
+              disabled={awsSuggestLoading || evidenceFormLocked || !awsConnectionChecked}
               className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg border border-(--border) bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-(--muted)/40 disabled:opacity-50"
             >
-              {awsSuggestLoading ? "Generating…" : "Re-generate AWS suggestions"}
+              {!awsConnected ? "Connect to AWS" : awsSuggestLoading ? "Generating…" : "Re-generate AWS suggestions"}
             </button>
             {awsSuggestError && (
               <p className="text-[11px] text-red-600 w-full">{awsSuggestError}</p>

@@ -15,7 +15,7 @@ from ..middleware.auth import hash_password
 from ..models.tenant import User
 from ..models.assessment import AssessmentCycle, CyclePhaseDeadline, ControlApplicability, EvidenceSubmission, CycleUserAssignment
 from ..models.approval import ApprovalGate
-from ..models.framework import Control, EvidenceDomain, CanonicalEvidenceItem, AuditFramework
+from ..models.framework import Control, EvidenceDomain, CanonicalEvidenceItem, AuditFramework, ItemControlMapping
 from ..models.sufficiency import SufficiencyScore
 from ..schemas.assessment import (
     CreateCycleRequest, UpdateCycleRequest, CycleOut,
@@ -27,7 +27,11 @@ from ..schemas.assessment import (
     TIMELINE_PHASES,
 )
 from ..services.cycle_cleanup import delete_cycle_evidence_and_related
-from ..services.assignment_constraints import get_user_cycle_ids, get_user_cycle_role
+from ..services.assignment_constraints import (
+    get_user_cycle_ids,
+    get_user_cycle_role,
+    get_user_assigned_evidence_items,
+)
 from ..services.batch_loaders import load_controls_by_ids
 from ..services import storage_service
 from . import controls as controls_router
@@ -478,6 +482,47 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
     cas = db.query(ControlApplicability).filter(ControlApplicability.cycle_id == cycle_id).all()
     submissions = db.query(EvidenceSubmission).filter(EvidenceSubmission.cycle_id == cycle_id).all()
 
+    # IT SME visibility: when explicit evidence assignments exist, scope dashboard to assigned evidence only.
+    effective_role = get_user_cycle_role(db, user.id, cycle_id) or user.role
+    assigned_items = None
+    assigned_domain_item_counts: dict[str, int] | None = None
+    if (effective_role or "").strip().lower() == "it_sme":
+        assigned_items = get_user_assigned_evidence_items(db, cycle_id, user.id)
+        if assigned_items is not None:
+            assigned_items = {i.strip().upper() for i in assigned_items if i}
+            if not assigned_items:
+                domains = []
+                cas = []
+                submissions = []
+            else:
+                assigned_item_rows = (
+                    db.query(CanonicalEvidenceItem)
+                    .filter(CanonicalEvidenceItem.id.in_(assigned_items))
+                    .all()
+                )
+                allowed_domains = {r.domain_id for r in assigned_item_rows if r.domain_id}
+                assigned_domain_item_counts = {}
+                for r in assigned_item_rows:
+                    if not r.domain_id:
+                        continue
+                    assigned_domain_item_counts[r.domain_id] = assigned_domain_item_counts.get(r.domain_id, 0) + 1
+
+                domains = [d for d in domains if (d.id or "") in allowed_domains]
+                submissions = [
+                    s
+                    for s in submissions
+                    if (s.evidence_item_id or "").strip().upper() in assigned_items
+                ]
+
+                mapped_control_ids = {
+                    m.control_id
+                    for m in db.query(ItemControlMapping).filter(
+                        ItemControlMapping.evidence_item_id.in_(assigned_items)
+                    ).all()
+                    if m.control_id
+                }
+                cas = [ca for ca in cas if (ca.control_id or "") in mapped_control_ids]
+
     sub_by_domain: dict[str, int] = {}
     for s in submissions:
         domain_id = s.evidence_item_id[0] if s.evidence_item_id else ""
@@ -487,7 +532,10 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
     domain_scores = []
     for d in domains:
         completed = sub_by_domain.get(d.id, 0)
-        total = d.item_count if d.item_count is not None else 0
+        if assigned_domain_item_counts is not None:
+            total = assigned_domain_item_counts.get(d.id or "", 0)
+        else:
+            total = d.item_count if d.item_count is not None else 0
         score = round((completed / total * 100) if total > 0 else 0, 1)
         domain_scores.append(DomainScore(id=d.id or "", name=d.name or "", completed=completed, total=total, score=score))
 
@@ -519,7 +567,10 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
         if score_val < 50 and applicability == "mandatory":
             gaps.append({"control_id": ca.control_id, "name": cname, "score": score_val})
 
-    total_evidence = sum((d.item_count or 0) for d in domains)
+    if assigned_domain_item_counts is not None:
+        total_evidence = sum(assigned_domain_item_counts.values())
+    else:
+        total_evidence = sum((d.item_count or 0) for d in domains)
     completed_evidence = sum(1 for s in submissions if s.status in ("approved", "submitted", "in_review"))
     overall = round(
         (sum(cs.score for cs in control_scores) / len(control_scores)) if control_scores else 0, 1

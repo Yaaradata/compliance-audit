@@ -44,17 +44,26 @@ export function AppSidebar() {
   const hasCycleInPath = Boolean(cycleIdFromPath && pathname?.startsWith("/cycles/"));
   const [searchQuery, setSearchQuery] = useState("");
   const role = cycleId && effectiveCycleRole !== undefined ? (effectiveCycleRole ?? user?.role) : user?.role;
-  const navItems = getNavForRole(role)?.filter(
-    (item) =>
-      item.href.startsWith("/dashboard") ||
-      item.href.startsWith("/evidence") ||
-      item.href.startsWith("/aws") ||
-      item.href.startsWith("/assessments") ||
-      item.href.startsWith("/users-groups") ||
-      item.href.startsWith("/review") ||
-      item.href.startsWith("/approval") ||
-      item.href.startsWith("/report")
-  );
+  const navItems = getNavForRole(role)
+    ?.filter(
+      (item) =>
+        item.href.startsWith("/dashboard") ||
+        item.href.startsWith("/evidence") ||
+        item.href.startsWith("/aws") ||
+        item.href.startsWith("/assessments") ||
+        item.href.startsWith("/users-groups") ||
+        item.href.startsWith("/review") ||
+        item.href.startsWith("/approval") ||
+        item.href.startsWith("/report")
+    )
+    .filter((item) => {
+      if (role !== "compliance_officer") return true;
+      return (
+        !item.href.startsWith("/review") &&
+        !item.href.startsWith("/approval") &&
+        !item.href.startsWith("/report")
+      );
+    });
   const arch = selectedArchitectureId ? getArchitecture(selectedArchitectureId) : null;
   const staticDomains = getDomainsForArchitecture(arch?.domainIds);
 
@@ -90,6 +99,10 @@ export function AppSidebar() {
     });
     return map;
   }, [domainScores]);
+  const visibleDomainIds = useMemo(
+    () => new Set(domainScores.map((s) => (s.id ?? "").toString().trim().toUpperCase()).filter(Boolean)),
+    [domainScores]
+  );
 
   const base = cycleId ? `/cycles/${cycleId}` : "";
   const q = searchQuery.trim().toLowerCase();
@@ -225,9 +238,13 @@ export function AppSidebar() {
 
         {/* Domains: smart rows — hidden for L1/L2/L3 reviewers (evidence is read-only for them) */}
         {shouldShowDomains && (() => {
+          const sourceDomains =
+            role === "it_sme" && cycleId
+              ? staticDomains.filter((d) => visibleDomainIds.has((d.id ?? "").toString().trim().toUpperCase()))
+              : staticDomains;
           const domainsFiltered = q
-            ? staticDomains.filter((d) => d.name.toLowerCase().includes(q) || d.id.toLowerCase().includes(q))
-            : staticDomains;
+            ? sourceDomains.filter((d) => d.name.toLowerCase().includes(q) || d.id.toLowerCase().includes(q))
+            : sourceDomains;
           return (
           <>
             <div className="px-3 pt-4 pb-2 shrink-0">

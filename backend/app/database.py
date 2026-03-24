@@ -411,9 +411,15 @@ def ensure_cycle_evidence_assignments():
                   assignment_type TEXT NOT NULL,
                   group_name VARCHAR(255),
                   user_id UUID REFERENCES core.users(id) ON DELETE CASCADE,
+                  evidence_start_date DATE,
+                  evidence_end_date DATE,
                   CONSTRAINT chk_evidence_assignment_type CHECK (
                     (assignment_type = 'group' AND group_name IS NOT NULL AND user_id IS NULL) OR
                     (assignment_type = 'user' AND user_id IS NOT NULL AND group_name IS NULL)
+                  ),
+                  CONSTRAINT chk_evidence_assignment_date_range CHECK (
+                    (evidence_start_date IS NULL AND evidence_end_date IS NULL) OR
+                    (evidence_start_date IS NOT NULL AND evidence_end_date IS NOT NULL AND evidence_end_date >= evidence_start_date)
                   )
                 )
                 """)

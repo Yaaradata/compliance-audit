@@ -22,7 +22,12 @@ interface RoleAssignment {
   assignment_type: string;
   group_name: string | null;
   user_id: string | null;
+  role_start_date?: string | null;
+  role_end_date?: string | null;
 }
+
+type RoleDateRanges = Record<string, { role_start_date: string | null; role_end_date: string | null }>;
+type EvidenceDateRanges = Record<string, { evidence_start_date: string | null; evidence_end_date: string | null }>;
 
 interface EvidenceItem {
   id: string;
@@ -37,6 +42,8 @@ interface EvidenceAssignment {
   assignment_type: string;
   group_name: string | null;
   user_id: string | null;
+  evidence_start_date?: string | null;
+  evidence_end_date?: string | null;
 }
 
 const ROLE_DEFS = [
@@ -83,6 +90,8 @@ export default function RoleEvidenceSetupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [roleDateRanges, setRoleDateRanges] = useState<RoleDateRanges>({});
+  const [evidenceDateRanges, setEvidenceDateRanges] = useState<EvidenceDateRanges>({});
 
   const canAccess = user?.role === "compliance_officer" || user?.role === "tenant_admin";
 
@@ -149,9 +158,9 @@ export default function RoleEvidenceSetupPage() {
   const nonL3Users = useMemo(() => selectableUsers.filter((u) => !u.is_external), [selectableUsers]);
 
   const assignmentsByRole = useMemo(() => {
-    const m: Record<string, { groups: string[]; users: string[] }> = {};
+    const m: Record<string, { groups: string[]; users: string[]; role_start_date: string | null; role_end_date: string | null }> = {};
     for (const r of ROLE_DEFS) {
-      m[r.id] = { groups: [], users: [] };
+      m[r.id] = { groups: [], users: [], role_start_date: null, role_end_date: null };
     }
     for (const a of roleAssignments) {
       if (a.assignment_type === "group" && a.group_name) {
@@ -159,9 +168,44 @@ export default function RoleEvidenceSetupPage() {
       } else if (a.assignment_type === "user" && a.user_id) {
         m[a.role]?.users.push(a.user_id);
       }
+      if (m[a.role] && !m[a.role].role_start_date && a.role_start_date) {
+        m[a.role].role_start_date = a.role_start_date;
+      }
+      if (m[a.role] && !m[a.role].role_end_date && a.role_end_date) {
+        m[a.role].role_end_date = a.role_end_date;
+      }
     }
     return m;
   }, [roleAssignments]);
+
+  useEffect(() => {
+    const next: RoleDateRanges = {};
+    for (const r of ROLE_DEFS) {
+      const roleBucket = assignmentsByRole[r.id] || {
+        groups: [],
+        users: [],
+        role_start_date: null,
+        role_end_date: null,
+      };
+      next[r.id] = {
+        role_start_date: roleBucket.role_start_date,
+        role_end_date: roleBucket.role_end_date,
+      };
+    }
+    setRoleDateRanges(next);
+  }, [assignmentsByRole]);
+
+  useEffect(() => {
+    const next: EvidenceDateRanges = {};
+    for (const item of evidenceItems) {
+      const firstForItem = evidenceAssignments.find((a) => a.evidence_item_id === item.id);
+      next[item.id] = {
+        evidence_start_date: firstForItem?.evidence_start_date ?? null,
+        evidence_end_date: firstForItem?.evidence_end_date ?? null,
+      };
+    }
+    setEvidenceDateRanges(next);
+  }, [evidenceAssignments, evidenceItems]);
 
   /** True when every role (IT Expert, L1, L2, Approver) has at least one person or group assigned. */
   const allRolesFilled = useMemo(() => {
@@ -190,28 +234,80 @@ export default function RoleEvidenceSetupPage() {
   }, [loading, cycle, allRolesFilled, conflicts.length]);
 
   const addRoleAssignment = async (role: string, type: "group" | "user", id: string) => {
+    const roleWindow = roleDateRanges[role] || { role_start_date: null, role_end_date: null };
     const current = [...roleAssignments];
     if (type === "group") {
-      current.push({ id: "", role, assignment_type: "group", group_name: id, user_id: null });
+      current.push({
+        id: "",
+        role,
+        assignment_type: "group",
+        group_name: id,
+        user_id: null,
+        role_start_date: roleWindow.role_start_date,
+        role_end_date: roleWindow.role_end_date,
+      });
     } else {
-      current.push({ id: "", role, assignment_type: "user", group_name: null, user_id: id });
+      current.push({
+        id: "",
+        role,
+        assignment_type: "user",
+        group_name: null,
+        user_id: id,
+        role_start_date: roleWindow.role_start_date,
+        role_end_date: roleWindow.role_end_date,
+      });
     }
-    await saveRoleAssignments(current);
+    await saveRoleAssignments(withRoleDates(current));
   };
 
   const removeRoleAssignment = async (role: string, type: "group" | "user", id: string) => {
     const current = roleAssignments.filter(
       (a) => !(a.role === role && a.assignment_type === type && (type === "group" ? a.group_name === id : a.user_id === id))
     );
-    await saveRoleAssignments(current);
+    await saveRoleAssignments(withRoleDates(current));
   };
 
-  const saveRoleAssignments = async (assignments: RoleAssignment[]) => {
+  const updateRoleDateRange = async (role: string, field: "role_start_date" | "role_end_date", value: string) => {
+    const normalized = value || null;
+    setRoleDateRanges((prev) => {
+      const current = prev[role] || { role_start_date: null, role_end_date: null };
+      return {
+        ...prev,
+        [role]: {
+          ...current,
+          [field]: normalized,
+        },
+      };
+    });
+  };
+
+  const withRoleDates = (assignments: RoleAssignment[]) => {
+    return assignments.map((a) => {
+      const roleWindow = roleDateRanges[a.role] || { role_start_date: null, role_end_date: null };
+      return {
+        ...a,
+        role_start_date: roleWindow.role_start_date,
+        role_end_date: roleWindow.role_end_date,
+      };
+    });
+  };
+
+  const saveRoleAssignments = async (
+    assignments: RoleAssignment[],
+    options?: { applyCycleDatesIfMissing?: boolean }
+  ) => {
     setError("");
     setSubmitting(true);
     try {
       const payload = assignments.map((a) => {
-        const item: { role: string; assignment_type: string; group_name?: string; user_id?: string } = {
+        const item: {
+          role: string;
+          assignment_type: string;
+          group_name?: string;
+          user_id?: string;
+          role_start_date?: string;
+          role_end_date?: string;
+        } = {
           role: a.role,
           assignment_type: a.assignment_type,
         };
@@ -220,9 +316,14 @@ export default function RoleEvidenceSetupPage() {
         } else if (a.assignment_type === "user" && a.user_id) {
           item.user_id = a.user_id;
         }
+        if (a.role_start_date) item.role_start_date = a.role_start_date;
+        if (a.role_end_date) item.role_end_date = a.role_end_date;
         return item;
       });
-      await api.put(`/assessments/${cycleId}/role-assignments`, { assignments: payload });
+      await api.put(`/assessments/${cycleId}/role-assignments`, {
+        assignments: payload,
+        apply_cycle_dates_if_missing: options?.applyCycleDatesIfMissing ?? false,
+      });
       await fetchData();
       setToast("Role assignments saved.");
     } catch (e: unknown) {
@@ -248,12 +349,15 @@ export default function RoleEvidenceSetupPage() {
     const existing = evidenceAssignments.filter((e) => e.evidence_item_id === itemId && e.assignment_type === type && (type === "group" ? e.group_name === id : e.user_id === id));
     if (existing.length > 0) return;
     const next = [...evidenceAssignments];
+    const evidenceWindow = evidenceDateRanges[itemId] || { evidence_start_date: null, evidence_end_date: null };
     next.push({
       id: "",
       evidence_item_id: itemId,
       assignment_type: type,
       group_name: type === "group" ? id : null,
       user_id: type === "user" ? id : null,
+      evidence_start_date: evidenceWindow.evidence_start_date,
+      evidence_end_date: evidenceWindow.evidence_end_date,
     });
     setEvidenceAssignments(next);
   };
@@ -264,17 +368,54 @@ export default function RoleEvidenceSetupPage() {
     );
   };
 
-  const handleSaveEvidence = async (): Promise<boolean> => {
+  const updateEvidenceDateRange = (
+    itemId: string,
+    field: "evidence_start_date" | "evidence_end_date",
+    value: string
+  ) => {
+    const normalized = value || null;
+    setEvidenceDateRanges((prev) => {
+      const current = prev[itemId] || { evidence_start_date: null, evidence_end_date: null };
+      return {
+        ...prev,
+        [itemId]: {
+          ...current,
+          [field]: normalized,
+        },
+      };
+    });
+  };
+
+  const withEvidenceDates = (assignments: EvidenceAssignment[]) => {
+    return assignments.map((a) => {
+      const evidenceWindow = evidenceDateRanges[a.evidence_item_id] || {
+        evidence_start_date: null,
+        evidence_end_date: null,
+      };
+      return {
+        ...a,
+        evidence_start_date: evidenceWindow.evidence_start_date,
+        evidence_end_date: evidenceWindow.evidence_end_date,
+      };
+    });
+  };
+
+  const handleSaveEvidence = async (options?: { applyItExpertDatesIfMissing?: boolean }): Promise<boolean> => {
     setError("");
     setSubmitting(true);
     try {
-      const payload = evidenceAssignments.map((a) => ({
+      const payload = withEvidenceDates(evidenceAssignments).map((a) => ({
         evidence_item_id: a.evidence_item_id,
         assignment_type: a.assignment_type,
         group_name: a.group_name || undefined,
         user_id: a.user_id || undefined,
+        evidence_start_date: a.evidence_start_date || undefined,
+        evidence_end_date: a.evidence_end_date || undefined,
       }));
-      await api.put(`/assessments/${cycleId}/evidence-assignments`, { assignments: payload });
+      await api.put(`/assessments/${cycleId}/evidence-assignments`, {
+        assignments: payload,
+        apply_it_expert_dates_if_missing: options?.applyItExpertDatesIfMissing ?? false,
+      });
       await fetchData();
       setToast("Evidence assignments saved.");
       return true;
@@ -287,7 +428,7 @@ export default function RoleEvidenceSetupPage() {
   };
 
   const handleContinueToArchitecture = async () => {
-    const saved = await handleSaveEvidence();
+    const saved = await handleSaveEvidence({ applyItExpertDatesIfMissing: true });
     if (!saved) return;
     router.push(`/select-architecture?cycleId=${cycleId}`);
   };
@@ -297,6 +438,28 @@ export default function RoleEvidenceSetupPage() {
     const next = [...evidenceAssignments];
     for (const item of itemsInDomain) {
       const existing = next.some((e) => e.evidence_item_id === item.id && e.assignment_type === type && (type === "group" ? e.group_name === id : e.user_id === id));
+      if (!existing) {
+        next.push({
+          id: "",
+          evidence_item_id: item.id,
+          assignment_type: type,
+          group_name: type === "group" ? id : null,
+          user_id: type === "user" ? id : null,
+        });
+      }
+    }
+    setEvidenceAssignments(next);
+  };
+
+  const handleBulkAssignAllEvidence = (type: "group" | "user", id: string) => {
+    const next = [...evidenceAssignments];
+    for (const item of evidenceItems) {
+      const existing = next.some(
+        (e) =>
+          e.evidence_item_id === item.id &&
+          e.assignment_type === type &&
+          (type === "group" ? e.group_name === id : e.user_id === id)
+      );
       if (!existing) {
         next.push({
           id: "",
@@ -419,7 +582,8 @@ export default function RoleEvidenceSetupPage() {
 
             <div className="grid w-full min-w-0 gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               {ROLE_DEFS.map((r) => {
-                const a = assignmentsByRole[r.id] || { groups: [], users: [] };
+                const a = assignmentsByRole[r.id] || { groups: [], users: [], role_start_date: null, role_end_date: null };
+                const d = roleDateRanges[r.id] || { role_start_date: null, role_end_date: null };
                 const isL3 = r.id === "external_assessor";
                 const assignedGroupsInOtherRoles = new Set(
                   ROLE_DEFS.filter((def) => def.id !== r.id)
@@ -458,6 +622,29 @@ export default function RoleEvidenceSetupPage() {
                     <div className="mb-3">
                       <div className="text-lg font-bold text-slate-900">{r.label}</div>
                       <div className="text-sm text-slate-600 mt-0.5">{r.desc}</div>
+                    </div>
+                    <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <label className="text-xs text-slate-700">
+                        <span className="mb-1 block font-medium">Start date</span>
+                        <input
+                          type="date"
+                          value={d.role_start_date || ""}
+                          onChange={(e) => updateRoleDateRange(r.id, "role_start_date", e.target.value)}
+                          disabled={submitting}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-[#1f4e79] focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 disabled:cursor-not-allowed disabled:bg-slate-100"
+                        />
+                      </label>
+                      <label className="text-xs text-slate-700">
+                        <span className="mb-1 block font-medium">End date</span>
+                        <input
+                          type="date"
+                          value={d.role_end_date || ""}
+                          onChange={(e) => updateRoleDateRange(r.id, "role_end_date", e.target.value)}
+                          disabled={submitting}
+                          min={d.role_start_date || undefined}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-[#1f4e79] focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 disabled:cursor-not-allowed disabled:bg-slate-100"
+                        />
+                      </label>
                     </div>
                     <div className="flex flex-wrap gap-2 mb-3">
                       {a.groups.map((g) => (
@@ -511,7 +698,12 @@ export default function RoleEvidenceSetupPage() {
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => allRolesFilled && setStep("evidence")}
+                onClick={async () => {
+                  if (!allRolesFilled || conflicts.length > 0) return;
+                  const toSave = withRoleDates(roleAssignments);
+                  await saveRoleAssignments(toSave, { applyCycleDatesIfMissing: true });
+                  setStep("evidence");
+                }}
                 disabled={conflicts.length > 0 || !allRolesFilled}
                 title={!allRolesFilled ? "Assign at least one person or group to each role first" : undefined}
                 className="rounded-xl bg-[#1f4e79] px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-[#173a5c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -537,6 +729,13 @@ export default function RoleEvidenceSetupPage() {
               </div>
             )}
             <div className="mb-4 flex flex-wrap gap-2">
+              <BulkAssignAllEvidenceButton
+                smeOptions={smeOptions}
+                groups={groups}
+                users={users}
+                onAssign={handleBulkAssignAllEvidence}
+                disabled={smeOptions.groups.length === 0 && smeOptions.users.length === 0}
+              />
               {Object.entries(DOMAIN_NAMES).map(([domainId, domainName]) => {
                 const count = evidenceItems.filter((e) => e.domain_id === domainId).length;
                 if (count === 0) return null;
@@ -554,26 +753,48 @@ export default function RoleEvidenceSetupPage() {
                 );
               })}
             </div>
-            <div className="rounded-xl bg-white shadow-md overflow-hidden w-full min-w-0">
-              <div className="overflow-x-auto w-full min-w-0">
+            <div className="rounded-xl bg-white shadow-md overflow-visible w-full min-w-0">
+              <div className="overflow-x-auto overflow-y-visible w-full min-w-0">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-100">
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Code</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Evidence Item</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Domain</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">IT SME Assigned</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Start date</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">End date</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">IT Expert assigned</th>
                     </tr>
                   </thead>
                   <tbody>
                     {evidenceItems.map((ev) => {
                       const ea = evidenceAssignments.filter((e) => e.evidence_item_id === ev.id);
+                      const d = evidenceDateRanges[ev.id] || { evidence_start_date: null, evidence_end_date: null };
                       return (
                         <tr key={ev.id} className="border-t border-slate-200">
                           <td className="px-4 py-3 font-mono font-semibold text-[#1f4e79]">{ev.id}</td>
                           <td className="px-4 py-3 text-slate-900">{ev.name}</td>
                           <td className="px-4 py-3 text-slate-600">
                             {ev.domain_id}: {DOMAIN_NAMES[ev.domain_id] || ev.domain_id}
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="date"
+                              value={d.evidence_start_date || ""}
+                              onChange={(e) => updateEvidenceDateRange(ev.id, "evidence_start_date", e.target.value)}
+                              disabled={submitting}
+                              className="w-[150px] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-[#1f4e79] focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 disabled:cursor-not-allowed disabled:bg-slate-100"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="date"
+                              value={d.evidence_end_date || ""}
+                              onChange={(e) => updateEvidenceDateRange(ev.id, "evidence_end_date", e.target.value)}
+                              disabled={submitting}
+                              min={d.evidence_start_date || undefined}
+                              className="w-[150px] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-[#1f4e79] focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 disabled:cursor-not-allowed disabled:bg-slate-100"
+                            />
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap items-center gap-2">
@@ -630,6 +851,160 @@ export default function RoleEvidenceSetupPage() {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function BulkAssignAllEvidenceButton({
+  smeOptions,
+  groups,
+  users,
+  onAssign,
+  disabled,
+}: {
+  smeOptions: { groups: string[]; users: string[] };
+  groups: string[];
+  users: ComplianceUser[];
+  onAssign: (type: "group" | "user", id: string) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"groups" | "users">("groups");
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [popupPos, setPopupPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const recalc = () => {
+      if (!triggerRef.current) return;
+      const r = triggerRef.current.getBoundingClientRect();
+      const popupWidth = 288; // w-72
+      const popupHeightEstimate = 320;
+      const margin = 8;
+      const spaceBelow = window.innerHeight - r.bottom;
+      const placeAbove = spaceBelow < popupHeightEstimate && r.top > popupHeightEstimate;
+
+      const top = placeAbove
+        ? Math.max(margin, r.top - popupHeightEstimate - 4)
+        : Math.min(window.innerHeight - popupHeightEstimate - margin, r.bottom + 4);
+      const left = Math.max(margin, Math.min(r.left, window.innerWidth - popupWidth - margin));
+      setPopupPos({ top, left });
+    };
+
+    recalc();
+    window.addEventListener("resize", recalc);
+    window.addEventListener("scroll", recalc, true);
+    return () => {
+      window.removeEventListener("resize", recalc);
+      window.removeEventListener("scroll", recalc, true);
+    };
+  }, [open]);
+
+  const filteredGroups = groups.filter((g) => smeOptions.groups.includes(g) && g.toLowerCase().includes(q.toLowerCase()));
+  const smeUserIds = new Set<string>([
+    ...smeOptions.users,
+    ...users
+      .filter((u) => u.group_name && smeOptions.groups.includes(u.group_name))
+      .map((u) => u.id),
+  ]);
+  const filteredUsers = users.filter(
+    (u) =>
+      smeUserIds.has(u.id) &&
+      ((u.name || "").toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase()))
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        className="rounded-lg bg-[#1f4e79] px-3 py-2 text-xs font-semibold text-white hover:bg-[#173a5c] disabled:opacity-50 transition-colors shadow"
+      >
+        Assign one for all evidence
+      </button>
+      {open && (
+        <div
+          className="fixed z-120 w-72 rounded-xl bg-white shadow-xl overflow-hidden ring-1 ring-slate-300"
+          style={{ top: popupPos.top, left: popupPos.left }}
+        >
+          <div className="px-3 py-2 text-xs font-medium text-slate-600 border-b border-slate-200 bg-slate-100">
+            Assign one IT Expert to all evidence items
+          </div>
+          <div className="flex border-b border-slate-200 bg-slate-50">
+            <button
+              type="button"
+              onClick={() => { setView("groups"); setQ(""); }}
+              className={`flex-1 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors ${view === "groups" ? "bg-[#1f4e79] text-white" : "text-slate-600 hover:bg-slate-200"}`}
+            >
+              Groups
+            </button>
+            <button
+              type="button"
+              onClick={() => { setView("users"); setQ(""); }}
+              className={`flex-1 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors ${view === "users" ? "bg-[#1f4e79] text-white" : "text-slate-600 hover:bg-slate-200"}`}
+            >
+              Individuals
+            </button>
+          </div>
+          <div className="p-2 border-b border-slate-200 bg-white">
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Type to search..."
+              className="w-full rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-[#1f4e79]/40 focus:bg-white border border-slate-300"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1">
+            {view === "groups" &&
+              (filteredGroups.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-500">No IT Expert groups</p>
+              ) : (
+                filteredGroups.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => { onAssign("group", g); setOpen(false); }}
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 transition-colors"
+                  >
+                    <span className="font-medium">{g}</span>
+                  </button>
+                ))
+              ))}
+            {view === "users" &&
+              (filteredUsers.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-500">No IT Expert users</p>
+              ) : (
+                filteredUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => { onAssign("user", u.id); setOpen(false); }}
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 transition-colors"
+                  >
+                    <span className="w-6 h-6 rounded-full bg-[#1f4e79] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                      {getInitials(u.name || u.email)}
+                    </span>
+                    <span className="truncate font-medium text-slate-900">{u.name || u.email}</span>
+                  </button>
+                ))
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -783,6 +1158,8 @@ function EvidencePicker({
   const [view, setView] = useState<"groups" | "users">("groups");
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [popupPos, setPopupPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!open) return;
@@ -791,6 +1168,34 @@ function EvidencePicker({
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const recalc = () => {
+      if (!triggerRef.current) return;
+      const r = triggerRef.current.getBoundingClientRect();
+      const popupWidth = 288; // w-72
+      const popupHeightEstimate = 300;
+      const margin = 8;
+      const spaceBelow = window.innerHeight - r.bottom;
+      const placeAbove = spaceBelow < popupHeightEstimate && r.top > popupHeightEstimate;
+
+      const top = placeAbove
+        ? Math.max(margin, r.top - popupHeightEstimate - 4)
+        : Math.min(window.innerHeight - popupHeightEstimate - margin, r.bottom + 4);
+      const left = Math.max(margin, Math.min(r.left, window.innerWidth - popupWidth - margin));
+      setPopupPos({ top, left });
+    };
+
+    recalc();
+    window.addEventListener("resize", recalc);
+    window.addEventListener("scroll", recalc, true);
+    return () => {
+      window.removeEventListener("resize", recalc);
+      window.removeEventListener("scroll", recalc, true);
+    };
   }, [open]);
 
   const assignedGroups = assignments.filter((a) => a.assignment_type === "group" && a.group_name).map((a) => a.group_name!);
@@ -816,6 +1221,7 @@ function EvidencePicker({
   return (
     <div ref={ref} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(!open)}
         disabled={disabled}
@@ -824,7 +1230,10 @@ function EvidencePicker({
         + Add
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-xl bg-white shadow-xl overflow-hidden ring-1 ring-slate-300">
+        <div
+          className="fixed z-120 w-72 rounded-xl bg-white shadow-xl overflow-hidden ring-1 ring-slate-300"
+          style={{ top: popupPos.top, left: popupPos.left }}
+        >
           <div className="flex border-b border-slate-200 bg-slate-100">
             <button
               type="button"

@@ -1,6 +1,7 @@
 """Schemas for cycle role and evidence assignments."""
 
 from uuid import UUID
+from datetime import date
 from pydantic import BaseModel, field_validator
 
 CYCLE_ROLES = ("it_sme", "internal_reviewer_l1", "internal_reviewer_l2", "external_assessor")
@@ -12,6 +13,8 @@ class RoleAssignmentItem(BaseModel):
     assignment_type: str
     group_name: str | None = None
     user_id: UUID | None = None
+    role_start_date: date | None = None
+    role_end_date: date | None = None
 
     @field_validator("role")
     @classmethod
@@ -27,9 +30,20 @@ class RoleAssignmentItem(BaseModel):
             raise ValueError(f"assignment_type must be one of: {ASSIGNMENT_TYPES}")
         return v
 
+    @field_validator("role_end_date")
+    @classmethod
+    def role_date_range_valid(cls, v: date | None, info) -> date | None:
+        start = info.data.get("role_start_date")
+        if (start and not v) or (v and not start):
+            raise ValueError("Both role_start_date and role_end_date must be provided together")
+        if start and v and v < start:
+            raise ValueError("role_end_date must be on or after role_start_date")
+        return v
+
 
 class RoleAssignmentsPut(BaseModel):
     assignments: list[RoleAssignmentItem]
+    apply_cycle_dates_if_missing: bool = False
 
 
 class EvidenceAssignmentItem(BaseModel):
@@ -37,6 +51,8 @@ class EvidenceAssignmentItem(BaseModel):
     assignment_type: str
     group_name: str | None = None
     user_id: UUID | None = None
+    evidence_start_date: date | None = None
+    evidence_end_date: date | None = None
 
     @field_validator("assignment_type")
     @classmethod
@@ -45,9 +61,20 @@ class EvidenceAssignmentItem(BaseModel):
             raise ValueError(f"assignment_type must be one of: {ASSIGNMENT_TYPES}")
         return v
 
+    @field_validator("evidence_end_date")
+    @classmethod
+    def evidence_date_range_valid(cls, v: date | None, info) -> date | None:
+        start = info.data.get("evidence_start_date")
+        if (start and not v) or (v and not start):
+            raise ValueError("Both evidence_start_date and evidence_end_date must be provided together")
+        if start and v and v < start:
+            raise ValueError("evidence_end_date must be on or after evidence_start_date")
+        return v
+
 
 class EvidenceAssignmentsPut(BaseModel):
     assignments: list[EvidenceAssignmentItem]
+    apply_it_expert_dates_if_missing: bool = False
 
 
 class ConflictOut(BaseModel):
