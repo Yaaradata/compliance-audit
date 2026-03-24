@@ -12,6 +12,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const { user, activeCycleId, setActiveCycleId, setArchitecture, selectedArchitectureId, isPlatformAdmin, loading, effectiveCycleRole } = useAuth();
 
   const isCycleRoute = pathname?.startsWith("/cycles/");
+  const isHomeDashboard = pathname === "/dashboard";
 
   const urlCycleId = pathname?.match(/^\/cycles\/([^/]+)/)?.[1];
 
@@ -56,7 +57,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const isUsersGroupsPage = pathname?.startsWith("/users-groups");
     const canAccessUsersGroups = (effectiveRole === "compliance_officer" || effectiveRole === "tenant_admin") && isUsersGroupsPage;
     const isAssessmentsPage = pathname?.startsWith("/assessments");
-    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage && !canAccessUsersGroups && !isAssessmentsPage) {
+    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage && !canAccessUsersGroups && !isAssessmentsPage && !isHomeDashboard) {
       router.replace("/assessments/new");
       return;
     }
@@ -65,10 +66,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       return;
     }
     if (activeCycleId && !isCycleRoute && pathname && !isAwsPage) {
-      if (pathname === "/dashboard") {
-        router.replace(`/cycles/${activeCycleId}/dashboard`);
-        return;
-      }
       if (pathname.startsWith("/domains/")) {
         const rest = pathname.slice("/domains/".length);
         router.replace(`/cycles/${activeCycleId}/domains/${rest}`);
@@ -96,7 +93,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const allowAwsWithoutCycle = pathname?.startsWith("/aws") && renderRole === "it_sme";
   const allowUsersGroups = pathname?.startsWith("/users-groups") && (renderRole === "compliance_officer" || renderRole === "tenant_admin");
   const allowAssessmentsPage = pathname?.startsWith("/assessments");
-  if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute && !allowAwsWithoutCycle && !allowUsersGroups && !allowAssessmentsPage) return null;
+  const allowHomeDashboard = pathname === "/dashboard";
+  if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute && !allowAwsWithoutCycle && !allowUsersGroups && !allowAssessmentsPage && !allowHomeDashboard) return null;
 
   // Team setup: standalone page without sidebar or main header
   if (pathname?.includes("/team-setup")) {
@@ -161,5 +159,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return null; // useEffect above will redirect
   }
 
-  return <AppShell>{children}</AppShell>;
+  const showSidebar = !isHomeDashboard || role === "compliance_officer";
+  return <AppShell showSidebar={showSidebar}>{children}</AppShell>;
 }
