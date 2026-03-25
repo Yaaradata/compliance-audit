@@ -1,6 +1,4 @@
 """B8 — Backup: AWS Backup plans, RDS backup, EBS snapshots, S3 versioning."""
-import json
-from pathlib import Path
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
@@ -11,7 +9,7 @@ SOURCE_SYSTEM = "aws-backup"
 CONTROL_MAPPINGS = [("B8", "7.1")]
 
 
-def collect(region: str, account_id: str, output_dir: Path, session=None) -> list:
+def collect(region: str, account_id: str, session=None) -> list:
     now = datetime.utcnow()
     results = []
     try:
@@ -64,17 +62,10 @@ def collect(region: str, account_id: str, output_dir: Path, session=None) -> lis
             "ebs_snapshot_count_owner": snapshot_count,
         }
 
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, default=str)
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     except Exception as e:
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "backup_plans": [], "rds_backup_config": [], "ebs_snapshot_count_owner": 0}, f, indent=2, default=str)
+        payload = {"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "backup_plans": [], "rds_backup_config": [], "ebs_snapshot_count_owner": 0}
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     return results

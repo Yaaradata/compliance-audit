@@ -167,14 +167,8 @@ export default function DashboardHomePage() {
       };
     }
 
-    const needsInsights =
-      user.role === "compliance_officer" ||
-      user.role === "it_sme" ||
-      (user.role && (REVIEWER_HOME_ROLES as readonly string[]).includes(user.role)) ||
-      (user.role === null && derivedCycleRole === "it_sme") ||
-      (user.role === null &&
-        derivedCycleRole != null &&
-        (REVIEWER_HOME_ROLES as readonly string[]).includes(derivedCycleRole));
+    // Only Compliance Officer home needs full cross-cycle insights (users + role assignments).
+    const needsInsights = user.role === "compliance_officer";
 
     if (!needsInsights) {
       if (user.role === null && derivedCycleRole === undefined) {
@@ -237,10 +231,7 @@ export default function DashboardHomePage() {
         authLoading ||
           cyclesLoading ||
           probingPerCycleRole ||
-          ((effectiveRole === "compliance_officer" ||
-            effectiveRole === "it_sme" ||
-            (effectiveRole != null && (REVIEWER_HOME_ROLES as readonly string[]).includes(effectiveRole))) &&
-            insightsLoading)
+          (effectiveRole === "compliance_officer" && insightsLoading)
       ),
     [authLoading, cyclesLoading, probingPerCycleRole, insightsLoading, effectiveRole]
   );

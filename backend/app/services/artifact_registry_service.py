@@ -427,6 +427,7 @@ def get_or_create_from_submission(
     framework_schema: str,
     cscf_version: str,
     aws_metadata: dict | None = None,
+    force_new_version: bool = False,
 ) -> Artifact:
     existing = (
         db.query(Artifact)
@@ -435,6 +436,70 @@ def get_or_create_from_submission(
         .first()
     )
     if existing:
+        if force_new_version:
+            new_artifact = Artifact(
+                artifact_type=existing.artifact_type,
+                evidence_item_id=existing.evidence_item_id,
+                framework_schema=existing.framework_schema,
+                cscf_version=existing.cscf_version,
+                title=existing.title,
+                description=existing.description,
+                file_path=existing.file_path,
+                file_hash_sha256=existing.file_hash_sha256,
+                file_size_bytes=existing.file_size_bytes,
+                mime_type=existing.mime_type,
+                original_filename=existing.original_filename,
+                form_data_json=submission.form_data or {},
+                submission_id=submission.id,
+                cycle_id=existing.cycle_id,
+                tenant_id=existing.tenant_id,
+                created_by=created_by,
+                status="draft",
+                version=existing.version + 1,
+                parent_artifact_id=existing.artifact_id,
+                aws_metadata=aws_metadata if aws_metadata is not None else existing.aws_metadata,
+                tags=existing.tags,
+                metadata_=existing.metadata_,
+                is_active=True,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+            db.add(new_artifact)
+            db.flush()
+
+            src_links = db.query(ArtifactControlLink).filter(ArtifactControlLink.artifact_id == existing.artifact_id).all()
+            for l in src_links:
+                db.add(
+                    ArtifactControlLink(
+                        artifact_id=new_artifact.artifact_id,
+                        control_id=l.control_id,
+                        evidence_item_id=l.evidence_item_id,
+                        cycle_id=l.cycle_id,
+                        tenant_id=l.tenant_id,
+                        framework_schema=l.framework_schema,
+                        link_type=l.link_type,
+                        sufficiency_status="pending",
+                        reviewer_status="not_started",
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
+                    )
+                )
+
+            _log(
+                db,
+                new_artifact.artifact_id,
+                new_artifact.cycle_id,
+                new_artifact.tenant_id,
+                action="version_created",
+                performed_by=created_by,
+                from_status=existing.status,
+                to_status="draft",
+                action_metadata={"parent_artifact_id": str(existing.artifact_id), "submission_id": str(submission.id)},
+            )
+            db.commit()
+            db.refresh(new_artifact)
+            return new_artifact
+
         if existing.status not in IMMUTABLE_STATUSES:
             existing.form_data_json = submission.form_data or {}
             if aws_metadata:

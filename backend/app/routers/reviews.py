@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
-from ..dependencies import get_db, get_db_scoped, get_db_for_review, get_current_user
+from ..dependencies import get_db, get_db_scoped, get_db_for_review, get_current_user, _resolve_schema_for_cycle
 from ..constants import CYCLE_SCOPED_ROLES, PLATFORM_ADMIN_ROLES, is_cycle_scoped
 from ..models.tenant import User
 from ..models.assessment import AssessmentCycle, EvidenceSubmission, EvidenceAttachment
@@ -26,6 +26,7 @@ from ..schemas.review import (
 from ..services import storage_service
 from ..services.assignment_constraints import get_user_cycle_ids, get_user_cycle_role
 from ..services import evidence_status as evidence_status_svc
+from ..services import artifact_registry_service
 from ..services.batch_loaders import (
     load_submissions_by_ids,
     load_users_by_ids,
@@ -239,6 +240,29 @@ def submit_for_review(
     review_id = review.id if review else None
     level_out = "L1" if review else None
     db.commit()
+
+    # Persist to Artifact Registry only at explicit submit time.
+    try:
+        schema_name = _resolve_schema_for_cycle(db, cycle_id)
+        artifact = artifact_registry_service.get_or_create_from_submission(
+            db=db,
+            cycle=cycle,
+            submission=submission,
+            created_by=user.id,
+            framework_schema=schema_name,
+            cscf_version=(cycle.cscf_version or "v2025").replace("2025v", "v2025").replace("2026v", "v2026"),
+            # Keep previous artifact versions when user resubmits after return.
+            force_new_version=True,
+        )
+        artifact_registry_service.transition_status(
+            db=db,
+            artifact=artifact,
+            to_status="submitted",
+            performed_by=user.id,
+        )
+    except Exception as e:
+        db.rollback()
+        logger.warning("artifact_registry hook submit_for_review skipped: %s", e)
 
     return SubmitForReviewResponse(
         submission_id=sub_id,

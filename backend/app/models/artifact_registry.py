@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import String, Text, Boolean, DateTime, Integer, Float, ForeignKey
+from sqlalchemy import String, Text, Boolean, DateTime, Integer, Float, ForeignKey, text
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,7 +12,11 @@ class Artifact(Base):
     __tablename__ = "artifacts"
     __table_args__ = {"schema": "artifact_registry"}
 
-    artifact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    artifact_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
     artifact_type: Mapped[str] = mapped_column(String(30), nullable=False)
     evidence_item_id: Mapped[str] = mapped_column(String(10), nullable=False)
     framework_schema: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -38,15 +42,27 @@ class Artifact(Base):
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
 
 
 class ArtifactControlLink(Base):
     __tablename__ = "artifact_control_links"
     __table_args__ = {"schema": "artifact_registry"}
 
-    link_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    link_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
     artifact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("artifact_registry.artifacts.artifact_id", ondelete="CASCADE"), nullable=False)
     control_id: Mapped[str] = mapped_column(String(10), nullable=False)
     evidence_item_id: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -76,7 +92,11 @@ class CrossCheck(Base):
     __tablename__ = "cross_checks"
     __table_args__ = {"schema": "artifact_registry"}
 
-    cross_check_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    cross_check_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
     source_link_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("artifact_registry.artifact_control_links.link_id", ondelete="CASCADE"), nullable=False)
     source_artifact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("artifact_registry.artifacts.artifact_id"), nullable=False)
     source_evidence_item: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -98,7 +118,11 @@ class ReuseRule(Base):
     __tablename__ = "reuse_rules"
     __table_args__ = {"schema": "artifact_registry"}
 
-    rule_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    rule_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
     evidence_item_id: Mapped[str] = mapped_column(String(10), nullable=False)
     framework_schema: Mapped[str] = mapped_column(String(50), nullable=False)
     cscf_version: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -116,7 +140,11 @@ class ReuseRecord(Base):
     __tablename__ = "reuse_records"
     __table_args__ = {"schema": "artifact_registry"}
 
-    reuse_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    reuse_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
     target_artifact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("artifact_registry.artifacts.artifact_id"), nullable=False)
     target_cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("core.assessment_cycles.id", ondelete="CASCADE"), nullable=False)
     source_artifact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("artifact_registry.artifacts.artifact_id"), nullable=False)
@@ -133,7 +161,11 @@ class ArtifactAuditTrail(Base):
     __tablename__ = "audit_trail"
     __table_args__ = {"schema": "artifact_registry"}
 
-    trail_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    trail_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
     artifact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("artifact_registry.artifacts.artifact_id"), nullable=False)
     control_id: Mapped[str | None] = mapped_column(String(10))
     cycle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("core.assessment_cycles.id", ondelete="CASCADE"), nullable=False)
@@ -153,7 +185,11 @@ class ArtifactComment(Base):
     __tablename__ = "comments"
     __table_args__ = {"schema": "artifact_registry"}
 
-    comment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    comment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
     artifact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("artifact_registry.artifacts.artifact_id"), nullable=False)
     control_id: Mapped[str | None] = mapped_column(String(10))
     parent_comment_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("artifact_registry.comments.comment_id"))

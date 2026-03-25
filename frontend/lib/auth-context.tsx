@@ -98,26 +98,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const archId = loadArchitectureId();
       setState({ user: cachedUser, tenant: null, selectedArchitectureId: archId, activeCycleId: cycleId, activeCycleMeta: loadActiveCycleMeta() });
       api.get<{ id: string; email: string; name: string; role: UserRole | null; tenant_id: string | null }>("/auth/me")
-        .then((u) => {
+        .then(async (u) => {
           const user: User = { id: u.id, email: u.email, name: u.name, role: u.role, tenantId: u.tenant_id };
           localStorage.setItem(USER_KEY, JSON.stringify(user));
-          setState((s) => ({ ...s, user }));
-          // Restore architecture from active cycle if we have cycle but no saved architecture (e.g. return visit)
-          if (cycleId && !archId) {
-            api.get<{ architecture_type: string | null; label: string; cycle_year: number; display_id: string }>(`/assessments/${cycleId}`)
-              .then((cycle) => {
+
+          let nextCycleId: string | null = cycleId;
+          let nextMeta: ActiveCycleMeta | null = loadActiveCycleMeta();
+          let nextArch: string | null = archId;
+
+          // Drop stale localStorage cycle if it no longer exists (avoids 404 spam on /my-role and sidebar /dashboard).
+          if (cycleId) {
+            try {
+              const cycle = await api.get<{
+                architecture_type: string | null;
+                label: string;
+                cycle_year: number;
+                display_id: string;
+              }>(`/assessments/${cycleId}`);
+              if (!archId) {
                 if (cycle.architecture_type) {
                   localStorage.setItem(ARCHITECTURE_KEY, cycle.architecture_type);
-                  setState((s) => ({ ...s, selectedArchitectureId: cycle.architecture_type }));
+                  nextArch = cycle.architecture_type;
                 }
                 if (cycle.label && cycle.display_id) {
-                  const meta: ActiveCycleMeta = { label: cycle.label, cycle_year: cycle.cycle_year, display_id: cycle.display_id };
-                  localStorage.setItem(CYCLE_META_KEY, JSON.stringify(meta));
-                  setState((s) => ({ ...s, activeCycleMeta: meta }));
+                  nextMeta = { label: cycle.label, cycle_year: cycle.cycle_year, display_id: cycle.display_id };
+                  localStorage.setItem(CYCLE_META_KEY, JSON.stringify(nextMeta));
                 }
-              })
-              .catch(() => {});
+              }
+            } catch (e) {
+              const status = (e as Error & { status?: number }).status;
+              if (status === 404) {
+                localStorage.removeItem(CYCLE_KEY);
+                localStorage.removeItem(CYCLE_META_KEY);
+                localStorage.removeItem(ARCHITECTURE_KEY);
+                nextCycleId = null;
+                nextMeta = null;
+                nextArch = null;
+              }
+            }
           }
+
+          setState({
+            user,
+            tenant: null,
+            selectedArchitectureId: nextArch,
+            activeCycleId: nextCycleId,
+            activeCycleMeta: nextMeta,
+          });
         })
         .catch(() => {
           api.clearToken();
@@ -228,9 +255,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch((err) => {
         if (cancelled) return;
-        console.warn("[auth] my-role failed:", err);
+        const status = (err as Error & { status?: number }).status;
+        if (status === 404) {
+          localStorage.removeItem(CYCLE_KEY);
+          localStorage.removeItem(CYCLE_META_KEY);
+          localStorage.removeItem(ARCHITECTURE_KEY);
+          setState((s) => ({
+            ...s,
+            activeCycleId: null,
+            activeCycleMeta: null,
+            selectedArchitectureId: null,
+          }));
+          lastResolvedCycleRef.current = null;
+        } else {
+          console.warn("[auth] my-role failed:", err);
+          lastResolvedCycleRef.current = cycleId;
+        }
         setEffectiveCycleRole(null);
-        lastResolvedCycleRef.current = cycleId;
       });
 
     return () => { cancelled = true; };

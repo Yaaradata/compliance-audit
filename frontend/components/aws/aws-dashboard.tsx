@@ -49,8 +49,20 @@ export function AwsDashboard({
   }, [focusComparisorControlKey, activeSection]);
   const [evidenceSectionLoading, setEvidenceSectionLoading] = useState(false);
   const [runHistorySectionLoading, setRunHistorySectionLoading] = useState(false);
-  const successRuns = runs.filter((r) => r.status === "success").length;
-  const successRate = runs.length ? Math.round((successRuns / runs.length) * 100) : 0;
+  /** Terminal runs that finished (success, partial, or failed) — excludes running. */
+  const terminalRuns = runs.filter((r) => ["success", "partial", "failed"].includes((r.status ?? "").toLowerCase()));
+  const terminalCount = terminalRuns.length;
+  /** Runs where every collector succeeded (strict). */
+  const fullSuccessRuns = terminalRuns.filter((r) => r.status === "success").length;
+  /** Runs that produced at least some evidence (success or partial; not failed). */
+  const finishedRuns = terminalRuns.filter((r) => r.status === "success" || r.status === "partial").length;
+  const fullSuccessRate = terminalCount ? Math.round((fullSuccessRuns / terminalCount) * 100) : 0;
+  const finishedRunRate = terminalCount ? Math.round((finishedRuns / terminalCount) * 100) : 0;
+  const latestRun = runs[0];
+  const partialHint =
+    latestRun && (latestRun.status === "partial" || latestRun.status === "failed") && latestRun.error_message
+      ? latestRun.error_message
+      : null;
 
   const openEvidenceSection = () => {
     if (activeSection === "evidence") return;
@@ -138,6 +150,27 @@ export function AwsDashboard({
             <span>{fetchError}</span>
           </div>
         )}
+        {partialHint && !fetchError && (
+          <div
+            className="mt-4 flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm"
+            style={{
+              borderColor: "var(--warning)",
+              background: "var(--warning-bg, rgba(234, 179, 8, 0.08))",
+              color: "var(--foreground)",
+            }}
+          >
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "var(--warning)" }} />
+            <div className="min-w-0">
+              <p className="font-medium" style={{ color: "var(--foreground)" }}>
+                Latest run did not complete with all collectors ({latestRun?.status === "failed" ? "failed" : "partial"}).
+              </p>
+              <p className="mt-1 break-words text-xs leading-snug" style={{ color: "var(--foreground-muted)" }}>
+                Evidence rows are still saved for collectors that succeeded. Each row maps one control to one snapshot — similar
+                sources (e.g. aws-iam) can appear multiple times from different collectors. Details: {partialHint}
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* KPIs */}
@@ -146,7 +179,8 @@ export function AwsDashboard({
         <AwsKpiCards
           runsCount={runs.length}
           evidenceCount={evidenceCount}
-          successRate={successRate}
+          finishedRunRate={finishedRunRate}
+          fullSuccessRate={fullSuccessRate}
           controlsWithEvidence={controlIdsWithEvidence.length}
         />
       </section>

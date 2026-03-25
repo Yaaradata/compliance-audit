@@ -1,9 +1,0 @@
-{
-  "collector": "logging",
-  "account_id": "405466951861",
-  "region": "eu-north-1",
-  "collected_at": "2026-03-23T06:59:58.071721",
-  "cloudtrail_trails": [],
-  "log_groups_retention": [],
-  "flow_logs": []
-}

@@ -28,3 +28,13 @@ COLLECTORS = [
     ("access_credential", access_credential_collector),
 ]
 
+
+def expected_total_evidence_rows() -> int:
+    """Rows per full run if every collector emits one row per CONTROL_MAPPINGS entry (currently 41)."""
+    total = 0
+    for _name, mod in COLLECTORS:
+        cm = getattr(mod, "CONTROL_MAPPINGS", None)
+        if cm is not None:
+            total += len(cm)
+    return total
+

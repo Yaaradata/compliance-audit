@@ -17,6 +17,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     activeCycleId && effectiveCycleRole !== undefined ? (effectiveCycleRole ?? globalRole) : globalRole;
 
   const isCycleRoute = pathname?.startsWith("/cycles/");
+  const isAwsRoute = pathname?.startsWith("/aws");
   const isHomeDashboard = pathname === "/dashboard";
 
   const urlCycleId = pathname?.match(/^\/cycles\/([^/]+)/)?.[1];
@@ -115,13 +116,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   // Role-based route protection: cycle role when active; else global JWT role or home-derived IT SME
   const role = effectiveTenantRole;
-  /** Inside cycle routes, always show the sidebar for consistent in-cycle navigation. */
+  /** Outside cycle/AWS, some roles use a minimal shell (e.g. home dashboard without nav). */
   const hideSidebarOutsideCycleForRole =
     role === "it_sme" ||
     role === "internal_reviewer_l1" ||
     role === "internal_reviewer_l2" ||
     role === "external_assessor";
-  const showSidebar = isCycleRoute
+  /** Cycle and AWS workspaces keep the sidebar for consistent navigation (same as /cycles/...). */
+  const showSidebar = isCycleRoute || isAwsRoute
     ? true
     : !hideSidebarOutsideCycleForRole && (!isHomeDashboard || role === "compliance_officer");
 

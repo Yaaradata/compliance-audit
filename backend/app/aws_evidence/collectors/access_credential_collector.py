@@ -1,11 +1,10 @@
 """C2, C3, C7, C8 — Privileged inventory, credential report, tokens/certs, credential storage (Secrets Manager, SSM)."""
 import base64
-import json
 import re
-from pathlib import Path
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
+from app.aws_evidence.core.json_utils import sanitize_for_jsonb
 
 COLLECTOR_NAME = "access_credential"
 EVIDENCE_TYPE = "config"
@@ -13,7 +12,7 @@ SOURCE_SYSTEM = "aws-iam"
 CONTROL_MAPPINGS = [("C2", "1.2"), ("C2", "5.1"), ("C3", "5.1"), ("C7", "5.2"), ("C8", "5.4")]
 
 
-def collect(region: str, account_id: str, output_dir: Path, session=None) -> list:
+def collect(region: str, account_id: str, session=None) -> list:
     now = datetime.utcnow()
     results = []
     try:
@@ -87,7 +86,7 @@ def collect(region: str, account_id: str, output_dir: Path, session=None) -> lis
         except ClientError as e:
             secrets_list = [{"error": str(e)}]
 
-        payload = {
+        payload = sanitize_for_jsonb({
             "collector": COLLECTOR_NAME,
             "account_id": account_id,
             "region": region,
@@ -98,19 +97,24 @@ def collect(region: str, account_id: str, output_dir: Path, session=None) -> lis
             "acm_certificates": acm_certs,
             "access_keys_last_used": access_keys_summary,
             "secrets_manager_list": secrets_list,
-        }
+        })
 
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, default=str)
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     except Exception as e:
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "users_with_policies": [], "credential_report_preview": {}, "roles_summary": [], "acm_certificates": [], "access_keys_last_used": [], "secrets_manager_list": []}, f, indent=2, default=str)
+        payload = sanitize_for_jsonb({
+            "collector": COLLECTOR_NAME,
+            "account_id": account_id,
+            "region": region,
+            "collected_at": now.isoformat(),
+            "error": str(e),
+            "users_with_policies": [],
+            "credential_report_preview": {},
+            "roles_summary": [],
+            "acm_certificates": [],
+            "access_keys_last_used": [],
+            "secrets_manager_list": [],
+        })
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     return results

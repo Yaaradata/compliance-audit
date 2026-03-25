@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useGlobalRoleForRouting } from "@/lib/home-dashboard-role-context";
 import { getArchitecture, getDomainsForArchitecture } from "@/lib/frameworks/swift-cscf";
@@ -38,8 +38,9 @@ interface DomainScore {
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { open, toggle, setOpen } = useSidebar();
-  const { user, selectedArchitectureId, activeCycleId, effectiveCycleRole } = useAuth();
+  const { user, selectedArchitectureId, activeCycleId, effectiveCycleRole, setActiveCycleId } = useAuth();
   const globalRole = useGlobalRoleForRouting(user?.role);
   const cycleIdFromPath = useCycleIdFromPath();
   const cycleId = cycleIdFromPath ?? activeCycleId;
@@ -78,8 +79,18 @@ export function AppSidebar() {
     api
       .get<{ domain_scores: DomainScore[] }>(`/assessments/${cycleId}/dashboard`)
       .then((data) => setDomainScores(data.domain_scores ?? []))
-      .catch(() => setDomainScores([]));
-  }, [cycleId]);
+      .catch((err) => {
+        setDomainScores([]);
+        const status = (err as Error & { status?: number }).status;
+        if (status !== 404) return;
+        // Stale activeCycleId in localStorage, or bookmarked /cycles/{id}/... for a deleted cycle.
+        if (cycleIdFromPath && cycleId === cycleIdFromPath) {
+          router.replace("/assessments/new");
+        } else if (!cycleIdFromPath && activeCycleId) {
+          setActiveCycleId(null);
+        }
+      });
+  }, [cycleId, cycleIdFromPath, activeCycleId, router, setActiveCycleId]);
 
   useEffect(() => {
     fetchDomainScores();

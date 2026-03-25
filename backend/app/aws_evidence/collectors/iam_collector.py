@@ -1,6 +1,4 @@
 """Collect IAM users, roles, and policies for SWIFT CEI A2 / Control 1.1, 1.2."""
-import json
-from pathlib import Path
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
@@ -13,8 +11,8 @@ SOURCE_SYSTEM = "aws-iam"
 CONTROL_MAPPINGS = [("A2", "1.1"), ("A2", "1.2"), ("A2", "4.1"), ("A2", "5.1")]
 
 
-def collect(region: str, account_id: str, output_dir: Path, session=None) -> list[tuple[Path, str, str, str, str]]:
-    """Collect IAM data, write JSON, return list of (path, item_code, control_id, evidence_type, source_system)."""
+def collect(region: str, account_id: str, session=None) -> list[tuple[dict, str, str, str, str]]:
+    """Collect IAM data and return in-memory rows for DB persistence."""
     results = []
     now = datetime.utcnow()
     try:
@@ -56,18 +54,18 @@ def collect(region: str, account_id: str, output_dir: Path, session=None) -> lis
             "users": users,
             "roles": roles,
         }
-
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, default=str)
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     except Exception as e:
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "users": [], "roles": []}, f, indent=2, default=str)
+        payload = {
+            "collector": COLLECTOR_NAME,
+            "account_id": account_id,
+            "region": region,
+            "collected_at": now.isoformat(),
+            "error": str(e),
+            "users": [],
+            "roles": [],
+        }
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     return results

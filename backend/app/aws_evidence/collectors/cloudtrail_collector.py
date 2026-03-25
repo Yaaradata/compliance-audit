@@ -1,6 +1,4 @@
 """Collect CloudTrail configuration for SWIFT CEI C1 / Control 3.1."""
-import json
-from pathlib import Path
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
@@ -12,23 +10,20 @@ SOURCE_SYSTEM = "aws-cloudtrail"
 CONTROL_MAPPINGS = [("C1", "3.1"), ("C1", "6.4")]  # Logging and monitoring
 
 
-def collect(region: str, account_id: str, output_dir: Path, session=None) -> list[tuple[Path, str, str, str, str]]:
-    """Collect CloudTrail trails and status, write JSON."""
+def collect(region: str, account_id: str, session=None) -> list[tuple[dict, str, str, str, str]]:
+    """Collect CloudTrail trails and status in memory."""
     results = []
     now = datetime.utcnow()
     try:
-        return _collect(region, account_id, output_dir, now, results, session)
+        return _collect(region, account_id, now, results, session)
     except Exception as e:
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "trails": []}, f, indent=2, default=str)
+        payload = {"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "trails": []}
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
         return results
 
 
-def _collect(region: str, account_id: str, output_dir: Path, now: datetime, results: list, session=None) -> list:
+def _collect(region: str, account_id: str, now: datetime, results: list, session=None) -> list:
     client = session.client("cloudtrail", region_name=region) if session else boto3.client("cloudtrail", region_name=region)
     trails = []
     try:
@@ -55,10 +50,6 @@ def _collect(region: str, account_id: str, output_dir: Path, now: datetime, resu
         "trails": trails,
     }
 
-    path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, default=str)
     for item_code, control_id in CONTROL_MAPPINGS:
-        results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+        results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     return results

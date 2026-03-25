@@ -1,6 +1,4 @@
 """Collect EC2 instances and security groups for SWIFT CEI B1/B2."""
-import json
-from pathlib import Path
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
@@ -13,8 +11,8 @@ SOURCE_SYSTEM = "aws-ec2"
 CONTROL_MAPPINGS = [("B1", "2.1"), ("B2", "2.2"), ("B2", "2.3")]
 
 
-def collect(region: str, account_id: str, output_dir: Path, session=None) -> list[tuple[Path, str, str, str, str]]:
-    """Collect EC2 data, write JSON, return list of (path, item_code, control_id, evidence_type, source_system)."""
+def collect(region: str, account_id: str, session=None) -> list[tuple[dict, str, str, str, str]]:
+    """Collect EC2 data and return in-memory rows for DB persistence."""
     results = []
     now = datetime.utcnow()
     try:
@@ -57,17 +55,18 @@ def collect(region: str, account_id: str, output_dir: Path, session=None) -> lis
             "security_groups": security_groups,
         }
 
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, default=str)
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     except Exception as e:
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "instances": [], "security_groups": []}, f, indent=2, default=str)
+        payload = {
+            "collector": COLLECTOR_NAME,
+            "account_id": account_id,
+            "region": region,
+            "collected_at": now.isoformat(),
+            "error": str(e),
+            "instances": [],
+            "security_groups": [],
+        }
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     return results

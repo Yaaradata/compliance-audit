@@ -248,7 +248,7 @@ def get_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
 
 
 @router.get("/{cycle_id}/my-role")
-def get_my_role(cycle_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_my_role(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     """Return the effective role for this user in this cycle.
 
     Priority: cycle_role_assignments > cycle_user_assignments (legacy) > user.role (global).

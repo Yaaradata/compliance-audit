@@ -1,23 +1,58 @@
-"""Shared JSON utilities for AWS evidence (PostgreSQL JSONB-safe strings)."""
+"""Shared JSON utilities for AWS evidence (PostgreSQL JSONB-safe serialization)."""
 import re
+from datetime import datetime, date
+from decimal import Decimal
 
 
 def sanitize_for_jsonb(obj):
     """
-    Recursively remove null bytes and other control characters from strings
-    so PostgreSQL JSONB accepts them (it rejects \\u0000 and some other chars).
+    Recursively coerce every value in an AWS SDK response to a PostgreSQL
+    JSONB-compatible Python primitive so SQLAlchemy never sees a datetime,
+    Decimal, bytes, or set that the JSONB driver cannot serialize.
+
+    Conversions applied:
+      datetime / date  → ISO-8601 string
+      Decimal          → int if whole number, else float
+      bytes            → hex string
+      set / frozenset  → sorted list (for determinism)
+      str              → control-char-stripped string (NULL bytes etc.)
+      anything else unknown → str(value) so the INSERT never fails
     """
     if obj is None:
         return None
+
     if isinstance(obj, dict):
         return {k: sanitize_for_jsonb(v) for k, v in obj.items()}
+
     if isinstance(obj, list):
         return [sanitize_for_jsonb(v) for v in obj]
+
+    if isinstance(obj, (set, frozenset)):
+        return sorted(sanitize_for_jsonb(v) for v in obj)
+
+    # datetime before date because datetime IS-A date
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+
+    if isinstance(obj, date):
+        return obj.isoformat()
+
+    if isinstance(obj, Decimal):
+        return int(obj) if obj == obj.to_integral_value() else float(obj)
+
+    if isinstance(obj, bytes):
+        return obj.hex()
+
     if isinstance(obj, str):
-        # Remove NULL and C0/C1 control chars (0x00-0x1F, 0x7F-0x9F); replace \ufffd with ?
+        # Remove NULL bytes (0x00) and C0/C1 control chars that PostgreSQL JSONB rejects
         return re.sub(
             r"[\x00-\x1f\x7f-\x9f\ufffd]",
             lambda m: "?" if m.group(0) == "\ufffd" else "",
             obj,
         )
-    return obj
+
+    if isinstance(obj, (int, float, bool)):
+        return obj
+
+    # Fallback: stringify anything else (e.g. botocore StreamingBody, Enum)
+    return str(obj)

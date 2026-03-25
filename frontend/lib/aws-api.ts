@@ -21,6 +21,8 @@ export interface AwsRun {
   status: string;
   trigger_type: string | null;
   evidence_count: number;
+  /** Present when status is partial or failed; lists which collectors failed and why. */
+  error_message?: string | null;
 }
 
 export interface AwsEvidenceRow {

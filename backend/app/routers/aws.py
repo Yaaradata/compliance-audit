@@ -340,6 +340,7 @@ def list_runs(
             "status": r.status,
             "trigger_type": r.trigger_type,
             "evidence_count": counts.get(str(r.run_id), 0),
+            "error_message": getattr(r, "error_message", None),
         }
         for r in runs
     ]

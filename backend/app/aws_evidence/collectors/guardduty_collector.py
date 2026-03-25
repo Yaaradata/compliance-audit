@@ -1,6 +1,4 @@
 """E1, E6, E7 — GuardDuty detector, malware protection, findings (IDS/IPS, admin monitoring)."""
-import json
-from pathlib import Path
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
@@ -11,33 +9,26 @@ SOURCE_SYSTEM = "aws-guardduty"
 CONTROL_MAPPINGS = [("E1", "6.1"), ("E6", "6.5A"), ("E7", "6.4")]
 
 
-def collect(region: str, account_id: str, output_dir: Path, session=None) -> list:
+def collect(region: str, account_id: str, session=None) -> list:
     now = datetime.utcnow()
     results = []
     try:
-        _collect(region, account_id, output_dir, now, results, session)
+        _collect(region, account_id, now, results, session)
     except Exception as e:
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "detector_configs": [], "findings_statistics": []}, f, indent=2, default=str)
+        payload = {"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "detector_configs": [], "findings_statistics": []}
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     return results
 
 
-def _collect(region: str, account_id: str, output_dir: Path, now: datetime, results: list, session=None) -> None:
+def _collect(region: str, account_id: str, now: datetime, results: list, session=None) -> None:
     try:
         gd = session.client("guardduty", region_name=region) if session else boto3.client("guardduty", region_name=region)
         detectors = gd.list_detectors().get("DetectorIds", [])
     except ClientError as e:
         payload = {"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "detectors": []}
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, default=str)
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
         return
 
     detector_configs = []
@@ -63,9 +54,5 @@ def _collect(region: str, account_id: str, output_dir: Path, now: datetime, resu
         "findings_statistics": findings_summary,
     }
 
-    path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, default=str)
     for item_code, control_id in CONTROL_MAPPINGS:
-        results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+        results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))

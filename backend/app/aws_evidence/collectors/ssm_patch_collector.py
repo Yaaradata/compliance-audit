@@ -1,6 +1,4 @@
 """Collect SSM Patch Manager compliance for SWIFT CEI E1 / Control 5.1."""
-import json
-from pathlib import Path
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
@@ -12,8 +10,8 @@ SOURCE_SYSTEM = "aws-ssm"
 CONTROL_MAPPINGS = [("E1", "5.1"), ("E1", "2.2")]  # Patch management, security updates
 
 
-def collect(region: str, account_id: str, output_dir: Path, session=None) -> list[tuple[Path, str, str, str, str]]:
-    """Collect SSM patch compliance summary, write JSON. Requires instance IDs from EC2."""
+def collect(region: str, account_id: str, session=None) -> list[tuple[dict, str, str, str, str]]:
+    """Collect SSM patch compliance summary in memory."""
     results = []
     now = datetime.utcnow()
     try:
@@ -68,17 +66,10 @@ def collect(region: str, account_id: str, output_dir: Path, session=None) -> lis
             "patch_baselines": baselines,
         }
 
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, default=str)
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     except Exception as e:
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "instance_patch_states": [], "patch_baselines": []}, f, indent=2, default=str)
+        payload = {"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "instance_patch_states": [], "patch_baselines": []}
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     return results

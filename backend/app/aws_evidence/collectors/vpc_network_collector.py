@@ -1,6 +1,4 @@
 """A1, A3, A4, A6, A7 — VPC, subnets, flow logs, security groups, NACLs, peering, TGW, endpoints."""
-import json
-from pathlib import Path
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
@@ -18,7 +16,7 @@ CONTROL_MAPPINGS = [
 ]
 
 
-def collect(region: str, account_id: str, output_dir: Path, session=None) -> list:
+def collect(region: str, account_id: str, session=None) -> list:
     now = datetime.utcnow()
     results = []
     try:
@@ -118,17 +116,10 @@ def collect(region: str, account_id: str, output_dir: Path, session=None) -> lis
             "vpc_endpoints": endpoints,
         }
 
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, default=str)
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     except Exception as e:
-        path = output_dir / f"{COLLECTOR_NAME}_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "vpcs": [], "subnets": [], "route_tables": [], "internet_gateways": [], "nat_gateways": [], "flow_logs": [], "security_groups": [], "network_acls": [], "vpc_peering_connections": [], "vpn_connections": [], "vpc_endpoints": []}, f, indent=2, default=str)
+        payload = {"collector": COLLECTOR_NAME, "account_id": account_id, "region": region, "collected_at": now.isoformat(), "error": str(e), "vpcs": [], "subnets": [], "route_tables": [], "internet_gateways": [], "nat_gateways": [], "flow_logs": [], "security_groups": [], "network_acls": [], "vpc_peering_connections": [], "vpn_connections": [], "vpc_endpoints": []}
         for item_code, control_id in CONTROL_MAPPINGS:
-            results.append((path, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
+            results.append((payload, item_code, control_id, EVIDENCE_TYPE, SOURCE_SYSTEM))
     return results
