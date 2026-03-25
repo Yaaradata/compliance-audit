@@ -92,6 +92,9 @@ export function normalizeRoleForCycle(role?: string | null): string | null {
   const v = (role ?? "").trim().toLowerCase();
   if (!v) return null;
   if (v === "itexpert" || v === "it_expert" || v === "it-sme") return "it_sme";
+  if (v === "internal reviewer l1" || v === "l1_reviewer" || v === "reviewer_l1") return "internal_reviewer_l1";
+  if (v === "internal reviewer l2" || v === "l2_reviewer" || v === "reviewer_l2") return "internal_reviewer_l2";
+  if (v === "external_assessor" || v === "l3" || v === "l3_assessor") return "external_assessor";
   return v;
 }
 

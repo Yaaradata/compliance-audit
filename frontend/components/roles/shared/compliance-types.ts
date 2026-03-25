@@ -66,7 +66,7 @@ export type EvidenceReviewApiRow = {
 
 export type StatKpiArticle = {
   label: string;
-  value: string;
+  value: string | number;
   sub: string;
   tone: string;
   meter: number;

@@ -208,12 +208,19 @@ export function UserHomeDashboard({
       if (!matchesQuery) return false;
 
       if (showItExpertVisualization) {
-        if (r.role !== "it_sme") return false;
+        // Home JWT may be IT Expert while other cycles use reviewer roles — list filters must not drop those rows.
+        if (!r.role) return false;
         if (itExpertListFilter === "due_soon") return (r.dueIn ?? 999) <= 7;
         if (itExpertListFilter === "needs_upload") {
-          const done = r.dashboard?.evidence_items ?? 0;
-          const total = r.dashboard?.total_evidence_items ?? 0;
-          return total > 0 && done < total;
+          if (r.role === "it_sme") {
+            const done = r.dashboard?.evidence_items ?? 0;
+            const total = r.dashboard?.total_evidence_items ?? 0;
+            return total > 0 && done < total;
+          }
+          if (isReviewerRole(r.role)) {
+            return (r.review?.inReview ?? 0) > 0;
+          }
+          return false;
         }
         return true;
       }
@@ -225,22 +232,28 @@ export function UserHomeDashboard({
     });
     const pendingUpload = (x: CycleCardRow) =>
       Math.max(0, (x.dashboard?.total_evidence_items ?? 0) - (x.dashboard?.evidence_items ?? 0));
+    const mixedHomeQueueScore = (x: CycleCardRow) => {
+      if (x.role === "it_sme") return pendingUpload(x);
+      if (isReviewerRole(x.role)) return x.review?.inReview ?? 0;
+      return 0;
+    };
 
     return filtered.sort((a, b) => {
       if (sortMode === "name") return a.label.localeCompare(b.label);
       if (sortMode === "queue") {
-        if (showItExpertVisualization) return pendingUpload(b) - pendingUpload(a);
+        if (showItExpertVisualization) return mixedHomeQueueScore(b) - mixedHomeQueueScore(a);
         return (b.review?.inReview ?? 0) - (a.review?.inReview ?? 0);
       }
       const aDue = a.dueIn ?? Number.POSITIVE_INFINITY;
       const bDue = b.dueIn ?? Number.POSITIVE_INFINITY;
       if (aDue !== bDue) return aDue - bDue;
-      if (showItExpertVisualization) return pendingUpload(b) - pendingUpload(a);
+      if (showItExpertVisualization) return mixedHomeQueueScore(b) - mixedHomeQueueScore(a);
       return (b.review?.inReview ?? 0) - (a.review?.inReview ?? 0);
     });
   }, [rows, cycleQuery, reviewerFilter, itExpertListFilter, sortMode, showItExpertVisualization]);
 
-  const accessible = rows.filter((r) => Boolean(r.role)).length;
+  const assignmentCount = rows.filter((r) => Boolean(r.role)).length;
+  const accessible = assignmentCount;
   const inProgress = rows.filter((r) => r.role && !["submitted", "archived"].includes((r.phase || "").toLowerCase())).length;
   const evidenceUploaded = rows
     .filter((r) => r.role === "it_sme")
@@ -377,28 +390,28 @@ export function UserHomeDashboard({
         items={[
           {
             label: "Assigned cycles",
-            value: accessible,
+            value: String(accessible),
             sub: showItExpertVisualization ? "Cycles where you have a role" : "Cycles assigned to this user",
             tone: "bg-[var(--primary-muted)] text-[var(--primary)]",
             meter: Math.min(100, accessible * 20),
           },
           {
             label: "In progress",
-            value: inProgress,
+            value: String(inProgress),
             sub: "Active phases (not submitted)",
             tone: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
             meter: accessible ? Math.round((inProgress / Math.max(1, accessible)) * 100) : 0,
           },
           {
             label: "Evidence uploaded",
-            value: evidenceUploaded,
+            value: String(evidenceUploaded),
             sub: showItExpertVisualization ? "Evidence items you have submitted" : "Submissions uploaded by IT Expert",
             tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
             meter: Math.min(100, evidenceUploaded * 6),
           },
           {
             label: "In review",
-            value: aiInReview,
+            value: String(aiInReview),
             sub: showItExpertVisualization ? "Your submissions currently in review" : "Items in the review queue",
             tone: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
             meter: Math.min(100, aiInReview * 10),
@@ -417,15 +430,39 @@ export function UserHomeDashboard({
             <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
               Cycle-wise insights
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700">
                 {visibleRows.length} visible
+                {assignmentCount > 0 ? ` · ${assignmentCount} assigned` : ""}
               </span>
               <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>
-                {showItExpertVisualization ? "Evidence and deadlines by cycle" : "Reviewer-focused cycle health view"}
+                {showItExpertVisualization
+                  ? "Evidence, review work, and deadlines for each assignment"
+                  : "Reviewer-focused cycle health view"}
               </span>
             </div>
           </div>
+          {showItExpertVisualization && assignmentCount > visibleRows.length && (
+            <div
+              className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs"
+              style={{ borderColor: "#bfdbfe", background: "#eff6ff", color: "#1e3a5f" }}
+            >
+              <span>
+                {assignmentCount - visibleRows.length} assignment{assignmentCount - visibleRows.length === 1 ? "" : "s"} hidden by filters or search. Use{" "}
+                <strong>All</strong> to see IT Expert and reviewer cycles together.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setItExpertListFilter("all");
+                  setCycleQuery("");
+                }}
+                className={`${btnSecondarySm} shrink-0`}
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
           <div className="mb-3 flex flex-col gap-2 rounded-xl border p-2.5 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "#cfd8e3", background: "#ffffff" }}>
             <div className="flex flex-wrap items-center gap-2">
               {showItExpertVisualization ? (
@@ -448,8 +485,9 @@ export function UserHomeDashboard({
                     type="button"
                     onClick={() => setItExpertListFilter("needs_upload")}
                     className={itExpertListFilter === "needs_upload" ? activeFilterClass : inactiveFilterClass}
+                    title="IT cycles with evidence still to upload, or reviewer cycles with items in your queue"
                   >
-                    Pending upload
+                    Work backlog
                   </button>
                 </>
               ) : (
@@ -499,7 +537,7 @@ export function UserHomeDashboard({
                 className="h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
               >
                 <option value="urgency">Sort: Urgency</option>
-                <option value="queue">{showItExpertVisualization ? "Sort: Pending upload" : "Sort: Queue load"}</option>
+                <option value="queue">{showItExpertVisualization ? "Sort: Work backlog" : "Sort: Queue load"}</option>
                 <option value="name">Sort: Name</option>
               </select>
             </div>
