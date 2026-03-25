@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { CycleInsight } from "@/components/roles/shared/compliance-types";
-import { daysTo, initials, PHASE_ORDER, phaseLabel, phaseStep } from "@/components/roles/shared/utils";
+import { cycleEntryPath, daysTo, initials, PHASE_ORDER, phaseLabel, phaseStep } from "@/components/roles/shared/utils";
 
 type CyclePerformanceCardProps = {
   row: CycleInsight;
@@ -146,6 +147,13 @@ export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePer
             >
               View visuals
             </button>
+            <Link
+              href={cycleEntryPath(c)}
+              className="inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold"
+              style={{ borderColor: "var(--primary)", color: "var(--primary)" }}
+            >
+              Open cycle
+            </Link>
             <button
               type="button"
               onClick={handleDelete}

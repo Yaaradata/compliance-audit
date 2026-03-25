@@ -5,9 +5,9 @@ import { NewAssessmentCycleModal } from "@/components/assessments/new-assessment
 import {
   ComplianceOverviewPanel,
   CyclePerformanceSection,
-  DashboardKpiGrid,
   DeadlinesCalendarModal,
   RoleDashboardHero,
+  StatKpiArticleGrid,
   UpcomingDeadlinesPanel,
   type CycleInsight,
 } from "@/components/roles/shared";
@@ -104,35 +104,38 @@ export function ComplianceOfficerHomeDashboard({
 
     let evidenceSubmitted = 0;
     let evidenceNotSubmitted = 0;
-    let gapsCurrently = 0;
+    let reviewCompleted = 0;
     let inReview = 0;
 
     sourceInsights.forEach((r) => {
       const evidenceDone = r.dashboard?.evidence_items ?? 0;
       const evidenceTotal = r.dashboard?.total_evidence_items ?? 0;
-      const totalControls = r.dashboard?.total_controls ?? 0;
-      const compliantControls = Math.round((totalControls * (r.dashboard?.overall_score ?? 0)) / 100);
-      const pendingControls = Math.max(0, totalControls - compliantControls);
-      const estimatedInReview = Math.max(0, Math.min(pendingControls, Math.round(totalControls * 0.2)));
+      const statusRows = r.dashboard?.control_scores ?? [];
+      const statusInReview = statusRows.filter((s) => {
+        const status = (s.status ?? "").toLowerCase();
+        return status === "assigned" || status === "in_review" || status === "hold";
+      }).length;
+      const realInReview = evidenceDone > 0 ? Math.min(evidenceDone, statusInReview) : 0;
+      const realReviewCompleted = Math.max(0, evidenceDone - realInReview);
 
       evidenceSubmitted += evidenceDone;
       evidenceNotSubmitted += Math.max(0, evidenceTotal - evidenceDone);
-      gapsCurrently += r.dashboard?.gaps_identified ?? 0;
-      inReview += estimatedInReview;
+      reviewCompleted += realReviewCompleted;
+      inReview += realInReview;
     });
 
-    const total = evidenceSubmitted + evidenceNotSubmitted + gapsCurrently + inReview;
+    const total = evidenceSubmitted + evidenceNotSubmitted + reviewCompleted + inReview;
     const pct = (v: number) => (total > 0 ? Math.round((v / total) * 100) : 0);
 
     const submittedPct = pct(evidenceSubmitted);
     const notSubmittedPct = pct(evidenceNotSubmitted);
-    const gapsPct = pct(gapsCurrently);
+    const reviewCompletedPct = pct(reviewCompleted);
     const inReviewPct = pct(inReview);
 
     const topBucket = [
       { label: "Submitted", value: submittedPct },
       { label: "Not submitted", value: notSubmittedPct },
-      { label: "Gaps", value: gapsPct },
+      { label: "Review Completed", value: reviewCompletedPct },
       { label: "In Review", value: inReviewPct },
     ].sort((a, b) => b.value - a.value)[0];
 
@@ -156,7 +159,7 @@ export function ComplianceOfficerHomeDashboard({
       rows: [
         { label: "Evidence Submitted", value: submittedPct, count: evidenceSubmitted, color: "#14b8a6" },
         { label: "Evidence Not Submitted", value: notSubmittedPct, count: evidenceNotSubmitted, color: "#f59e0b" },
-        { label: "Gaps Currently", value: gapsPct, count: gapsCurrently, color: "#ef4444" },
+        { label: "Review Completed", value: reviewCompletedPct, count: reviewCompleted, color: "#10b981" },
         { label: "In Review", value: inReviewPct, count: inReview, color: "#3b82f6" },
       ],
     };
@@ -170,19 +173,15 @@ export function ComplianceOfficerHomeDashboard({
   const kpiCards = [
     {
       label: "Cycles",
-      value: cycles.length,
+      value: String(cycles.length),
       sub: "Total assessments",
-      href: "/assessments/new",
-      aria: `Open cycles list. ${cycles.length} cycles total`,
       tone: "bg-[var(--primary-muted)] text-[var(--primary)]",
       meter: Math.min(100, cycles.length * 12),
     },
     {
       label: "In Progress",
-      value: inFlight,
+      value: String(inFlight),
       sub: `${urgentCycles} urgent`,
-      href: "/assessments/new",
-      aria: `Open in-progress cycle list. ${inFlight} active cycles and ${urgentCycles} urgent`,
       tone: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
       meter: cycles.length > 0 ? Math.round((inFlight / cycles.length) * 100) : 0,
     },
@@ -190,39 +189,32 @@ export function ComplianceOfficerHomeDashboard({
       label: "Avg Score",
       value: `${avgScore}%`,
       sub: "Compliance health",
-      href: "/report",
-      aria: `Open reporting. Average score is ${avgScore} percent`,
       tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
       meter: avgScore,
     },
     {
       label: "Controls",
-      value: totals.controls,
+      value: String(totals.controls),
       sub: "Across cycles",
-      href: "/assessments/new",
-      aria: `Open cycle controls context. ${totals.controls} controls tracked`,
       tone: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
       meter: totals.controls > 0 ? Math.min(100, Math.round((totals.controls / 400) * 100)) : 0,
     },
     {
       label: "Evidence",
-      value: totals.evidence,
+      value: String(totals.evidence),
       sub: `${evidencePct}% uploaded`,
-      href: "/assessments/new",
-      aria: `Open evidence coverage context. ${totals.evidence} evidence files, ${evidencePct} percent uploaded`,
       tone: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
       meter: evidencePct,
     },
     {
       label: "Risk Gaps",
-      value: totals.gaps,
+      value: String(totals.gaps),
       sub: "Needs attention",
-      href: "/report",
-      aria: `Open risk gaps report. ${totals.gaps} risk gaps`,
       tone: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
       meter: totals.gaps > 0 ? Math.min(100, Math.round((totals.gaps / 40) * 100)) : 0,
     },
   ];
+  const importantKpiCards = [kpiCards[0], kpiCards[1], kpiCards[2], kpiCards[5]];
 
   return (
     <div className="w-full space-y-5 pb-6">
@@ -240,7 +232,12 @@ export function ComplianceOfficerHomeDashboard({
         ]}
       />
 
-      <DashboardKpiGrid items={kpiCards.slice(0, 4)} loading={loading} />
+      <StatKpiArticleGrid
+        items={importantKpiCards}
+        loading={loading}
+        ariaLabel="Compliance Officer KPI cards"
+        columnsClassName="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      />
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <CyclePerformanceSection

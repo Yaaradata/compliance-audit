@@ -2,10 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { AssessmentCycle, User } from "@/lib/types";
+import type { AssessmentCycle, User, UserRole } from "@/lib/types";
 import { api } from "@/lib/api";
-import { RoleDashboardHero, StatKpiArticleGrid } from "@/components/roles/shared";
-import type { CycleDashboard, CycleReviewStats, EvidenceReviewApiRow } from "@/components/roles/shared/compliance-types";
+import { ReviewerQueueOverviewPanel, RoleDashboardHero, StatKpiArticleGrid } from "@/components/roles/shared";
+import type {
+  CycleDashboard,
+  CycleReviewStats,
+  EvidenceReviewApiRow,
+  ReviewerQueueOverviewData,
+} from "@/components/roles/shared/compliance-types";
 import { daysTo, normalizeRoleForCycle, phaseLabel, cycleEntryPath } from "@/components/roles/shared/utils";
 
 type CycleCardRow = {
@@ -37,13 +42,29 @@ function roleHref(cycleId: string, role: string | null, cycle: AssessmentCycle) 
   return cycleEntryPath(cycle);
 }
 
-export function UserHomeDashboard({ user, cycles }: { user: User; cycles: AssessmentCycle[] }) {
+export function UserHomeDashboard({
+  user,
+  cycles,
+  homeRole,
+}: {
+  user: User;
+  cycles: AssessmentCycle[];
+  /** Tenant home role from /dashboard (JWT or derived). Drives IT Expert vs reviewer visualization. */
+  homeRole: UserRole | null;
+}) {
   const firstName = user.name?.split(/\s+/)[0] ?? "there";
+  const isReviewerRole = (role: string | null) =>
+    role === "internal_reviewer_l1" || role === "internal_reviewer_l2" || role === "external_assessor";
   const [rolesByCycleId, setRolesByCycleId] = useState<Record<string, string | null>>({});
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [dashByCycleId, setDashByCycleId] = useState<Record<string, CycleDashboard | null>>({});
   const [reviewByCycleId, setReviewByCycleId] = useState<Record<string, CycleReviewStats | null>>({});
   const [loadingCards, setLoadingCards] = useState(false);
+  const [visualCycleId, setVisualCycleId] = useState<string | null>(null);
+  const [cycleQuery, setCycleQuery] = useState("");
+  const [reviewerFilter, setReviewerFilter] = useState<"all" | "needs_action" | "due_soon" | "queue_clear">("all");
+  const [itExpertListFilter, setItExpertListFilter] = useState<"all" | "due_soon" | "needs_upload">("all");
+  const [sortMode, setSortMode] = useState<"urgency" | "queue" | "name">("urgency");
 
   useEffect(() => {
     let cancelled = false;
@@ -160,9 +181,64 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
             review: role ? (reviewByCycleId[c.id] ?? null) : undefined,
           };
         })
-        .sort((a, b) => a.dueLabel.localeCompare(b.dueLabel)),
+        .sort((a, b) => {
+          const aDue = a.dueIn ?? Number.POSITIVE_INFINITY;
+          const bDue = b.dueIn ?? Number.POSITIVE_INFINITY;
+          if (aDue !== bDue) return aDue - bDue;
+          return a.label.localeCompare(b.label);
+        }),
     [cycles, rolesByCycleId, dashByCycleId, reviewByCycleId]
   );
+  const reviewerRows = useMemo(
+    () => rows.filter((r) => isReviewerRole(r.role)),
+    [rows]
+  );
+  const itExpertRows = useMemo(() => rows.filter((r) => r.role === "it_sme"), [rows]);
+  const showItExpertVisualization = homeRole === "it_sme";
+
+  const visibleRows = useMemo(() => {
+    const query = cycleQuery.trim().toLowerCase();
+    const filtered = rows.filter((r) => {
+      const pending = r.review?.inReview ?? 0;
+      const matchesQuery =
+        !query ||
+        r.label.toLowerCase().includes(query) ||
+        r.displayId.toLowerCase().includes(query) ||
+        (r.role ?? "").toLowerCase().includes(query);
+      if (!matchesQuery) return false;
+
+      if (showItExpertVisualization) {
+        if (r.role !== "it_sme") return false;
+        if (itExpertListFilter === "due_soon") return (r.dueIn ?? 999) <= 7;
+        if (itExpertListFilter === "needs_upload") {
+          const done = r.dashboard?.evidence_items ?? 0;
+          const total = r.dashboard?.total_evidence_items ?? 0;
+          return total > 0 && done < total;
+        }
+        return true;
+      }
+
+      if (reviewerFilter === "needs_action") return pending > 0;
+      if (reviewerFilter === "due_soon") return (r.dueIn ?? 999) <= 7;
+      if (reviewerFilter === "queue_clear") return pending === 0;
+      return true;
+    });
+    const pendingUpload = (x: CycleCardRow) =>
+      Math.max(0, (x.dashboard?.total_evidence_items ?? 0) - (x.dashboard?.evidence_items ?? 0));
+
+    return filtered.sort((a, b) => {
+      if (sortMode === "name") return a.label.localeCompare(b.label);
+      if (sortMode === "queue") {
+        if (showItExpertVisualization) return pendingUpload(b) - pendingUpload(a);
+        return (b.review?.inReview ?? 0) - (a.review?.inReview ?? 0);
+      }
+      const aDue = a.dueIn ?? Number.POSITIVE_INFINITY;
+      const bDue = b.dueIn ?? Number.POSITIVE_INFINITY;
+      if (aDue !== bDue) return aDue - bDue;
+      if (showItExpertVisualization) return pendingUpload(b) - pendingUpload(a);
+      return (b.review?.inReview ?? 0) - (a.review?.inReview ?? 0);
+    });
+  }, [rows, cycleQuery, reviewerFilter, itExpertListFilter, sortMode, showItExpertVisualization]);
 
   const accessible = rows.filter((r) => Boolean(r.role)).length;
   const inProgress = rows.filter((r) => r.role && !["submitted", "archived"].includes((r.phase || "").toLowerCase())).length;
@@ -170,20 +246,104 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
     .filter((r) => r.role === "it_sme")
     .reduce((acc, r) => acc + (r.dashboard?.evidence_items ?? 0), 0);
   const aiInReview = rows
-    .filter((r) => Boolean(r.role))
+    .filter((r) => (showItExpertVisualization ? r.role === "it_sme" : Boolean(r.role)))
     .reduce((acc, r) => acc + (r.review?.inReview ?? 0), 0);
 
   const deadlineRows = useMemo(() => {
-    return rows
+    return visibleRows
       .filter((r) => Boolean(r.role) && r.dueIn !== null)
       .sort((a, b) => (a.dueIn ?? 9999) - (b.dueIn ?? 9999))
       .slice(0, 6);
-  }, [rows]);
+  }, [visibleRows]);
 
   const loading = loadingRoles || loadingCards;
 
-  const isReviewerRole = (role: string | null) =>
-    role === "internal_reviewer_l1" || role === "internal_reviewer_l2" || role === "external_assessor";
+  const roleLabel = (role: string | null) => {
+    if (role === "internal_reviewer_l1") return "L1 Reviewer";
+    if (role === "internal_reviewer_l2") return "L2 Reviewer";
+    if (role === "external_assessor") return "L3 Assessor";
+    return "Reviewer";
+  };
+  const baseControlClass =
+    "inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]";
+  const activeFilterClass = `${baseControlClass} bg-slate-900 text-white border-slate-900`;
+  const inactiveFilterClass = `${baseControlClass} bg-white text-slate-700 border-slate-300 hover:bg-slate-50`;
+  const reviewerOverview = useMemo<ReviewerQueueOverviewData>(() => {
+    const sourceRows = visualCycleId ? reviewerRows.filter((r) => r.id === visualCycleId) : reviewerRows;
+    const totals = sourceRows.reduce(
+      (acc, r) => {
+        acc.inQueue += r.review?.inReview ?? 0;
+        acc.approved += r.review?.approved ?? 0;
+        acc.returned += r.review?.rejected ?? 0;
+        return acc;
+      },
+      { inQueue: 0, approved: 0, returned: 0 }
+    );
+    const totalItems = totals.inQueue + totals.approved + totals.returned;
+    const pct = (value: number) => (totalItems > 0 ? Math.round((value / totalItems) * 100) : 0);
+    const inQueuePct = pct(totals.inQueue);
+    const approvedPct = pct(totals.approved);
+    const returnedPct = pct(totals.returned);
+    const topBucket = [
+      { label: "In Queue", value: inQueuePct },
+      { label: "Approved", value: approvedPct },
+      { label: "Returned", value: returnedPct },
+    ].sort((a, b) => b.value - a.value)[0];
+    return {
+      center: topBucket?.value ?? 0,
+      centerLabel: topBucket?.label ?? "In Queue",
+      totalItems,
+      rows: [
+        { label: "In Queue", value: inQueuePct, count: totals.inQueue, color: "#7c3aed" },
+        { label: "Approved", value: approvedPct, count: totals.approved, color: "#10b981" },
+        { label: "Returned", value: returnedPct, count: totals.returned, color: "#ef4444" },
+      ],
+    };
+  }, [reviewerRows, visualCycleId]);
+
+  const itExpertOverview = useMemo<ReviewerQueueOverviewData>(() => {
+    const sourceRows = visualCycleId ? itExpertRows.filter((r) => r.id === visualCycleId) : itExpertRows;
+    const totals = sourceRows.reduce(
+      (acc, r) => {
+        const done = r.dashboard?.evidence_items ?? 0;
+        const total = r.dashboard?.total_evidence_items ?? 0;
+        acc.pendingUpload += Math.max(0, total - done);
+        acc.inReview += r.review?.inReview ?? 0;
+        acc.approved += r.review?.approved ?? 0;
+        acc.returned += r.review?.rejected ?? 0;
+        return acc;
+      },
+      { pendingUpload: 0, inReview: 0, approved: 0, returned: 0 }
+    );
+    const totalItems = totals.pendingUpload + totals.inReview + totals.approved + totals.returned;
+    const pct = (value: number) => (totalItems > 0 ? Math.round((value / totalItems) * 100) : 0);
+    const pu = pct(totals.pendingUpload);
+    const ir = pct(totals.inReview);
+    const ap = pct(totals.approved);
+    const rt = pct(totals.returned);
+    const topBucket = [
+      { label: "Pending upload", value: pu },
+      { label: "In review", value: ir },
+      { label: "Approved", value: ap },
+      { label: "Returned", value: rt },
+    ].sort((a, b) => b.value - a.value)[0];
+    return {
+      center: topBucket?.value ?? 0,
+      centerLabel: topBucket?.label ?? "Pending upload",
+      totalItems,
+      rows: [
+        { label: "Pending upload", value: pu, count: totals.pendingUpload, color: "#f59e0b" },
+        { label: "In review", value: ir, count: totals.inReview, color: "#7c3aed" },
+        { label: "Approved", value: ap, count: totals.approved, color: "#10b981" },
+        { label: "Returned", value: rt, count: totals.returned, color: "#ef4444" },
+      ],
+    };
+  }, [itExpertRows, visualCycleId]);
+
+  const btnPrimarySm =
+    "inline-flex items-center justify-center rounded-md border border-blue-600 bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1";
+  const btnSecondarySm =
+    "inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 disabled:opacity-60";
 
   const MiniKpi = ({ label, value, tone }: { label: string; value: string | number; tone: string }) => (
     <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
@@ -199,11 +359,15 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
       <RoleDashboardHero
         eyebrow="Your Dashboard"
         greetingName={firstName}
-        description="Your work changes by cycle. Pick a cycle below to jump into the correct workspace for your assigned role."
+        description={
+          showItExpertVisualization
+            ? "Upload and track evidence by cycle. Open a cycle below to continue collection, or switch assessments anytime."
+            : "Your work changes by cycle. Pick a cycle below to jump into the correct workspace for your assigned role."
+        }
         primaryActions={[
           {
             href: "/assessments/new",
-            label: "Switch / view cycles",
+            label: showItExpertVisualization ? "Assessment cycles" : "Switch / view cycles",
             gradient: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
           },
         ]}
@@ -214,28 +378,28 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
           {
             label: "Assigned cycles",
             value: accessible,
-            sub: "Cycles assigned to this user",
+            sub: showItExpertVisualization ? "Cycles where you have a role" : "Cycles assigned to this user",
             tone: "bg-[var(--primary-muted)] text-[var(--primary)]",
             meter: Math.min(100, accessible * 20),
           },
           {
             label: "In progress",
             value: inProgress,
-            sub: "Assigned cycles in active phase",
+            sub: "Active phases (not submitted)",
             tone: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
             meter: accessible ? Math.round((inProgress / Math.max(1, accessible)) * 100) : 0,
           },
           {
             label: "Evidence uploaded",
             value: evidenceUploaded,
-            sub: "Submissions uploaded by IT Expert",
+            sub: showItExpertVisualization ? "Evidence items you have submitted" : "Submissions uploaded by IT Expert",
             tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
             meter: Math.min(100, evidenceUploaded * 6),
           },
           {
-            label: "AI in review",
+            label: "In review",
             value: aiInReview,
-            sub: "AI-evaluated items under review",
+            sub: showItExpertVisualization ? "Your submissions currently in review" : "Items in the review queue",
             tone: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
             meter: Math.min(100, aiInReview * 10),
           },
@@ -247,19 +411,104 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <div
           className="rounded-2xl border p-4 sm:p-5 xl:col-span-2"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+          style={{ borderColor: "#cbd5e1", background: "#ffffff" }}
         >
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
               Cycle-wise insights
             </h2>
-            <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>
-              Role shown at top of each cycle card
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700">
+                {visibleRows.length} visible
+              </span>
+              <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>
+                {showItExpertVisualization ? "Evidence and deadlines by cycle" : "Reviewer-focused cycle health view"}
+              </span>
+            </div>
+          </div>
+          <div className="mb-3 flex flex-col gap-2 rounded-xl border p-2.5 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "#cfd8e3", background: "#ffffff" }}>
+            <div className="flex flex-wrap items-center gap-2">
+              {showItExpertVisualization ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setItExpertListFilter("all")}
+                    className={itExpertListFilter === "all" ? activeFilterClass : inactiveFilterClass}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setItExpertListFilter("due_soon")}
+                    className={itExpertListFilter === "due_soon" ? activeFilterClass : inactiveFilterClass}
+                  >
+                    Due soon
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setItExpertListFilter("needs_upload")}
+                    className={itExpertListFilter === "needs_upload" ? activeFilterClass : inactiveFilterClass}
+                  >
+                    Pending upload
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setReviewerFilter("all")}
+                    className={reviewerFilter === "all" ? activeFilterClass : inactiveFilterClass}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewerFilter("needs_action")}
+                    className={reviewerFilter === "needs_action" ? activeFilterClass : inactiveFilterClass}
+                  >
+                    Needs action
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewerFilter("due_soon")}
+                    className={reviewerFilter === "due_soon" ? activeFilterClass : inactiveFilterClass}
+                  >
+                    Due soon
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewerFilter("queue_clear")}
+                    className={reviewerFilter === "queue_clear" ? activeFilterClass : inactiveFilterClass}
+                  >
+                    Queue clear
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="search"
+                value={cycleQuery}
+                onChange={(e) => setCycleQuery(e.target.value)}
+                placeholder="Search cycle name or id"
+                className="h-9 w-full min-w-[200px] rounded-md border border-slate-300 bg-white px-2.5 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:w-56"
+              />
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as "urgency" | "queue" | "name")}
+                className="h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+              >
+                <option value="urgency">Sort: Urgency</option>
+                <option value="queue">{showItExpertVisualization ? "Sort: Pending upload" : "Sort: Queue load"}</option>
+                <option value="name">Sort: Name</option>
+              </select>
+            </div>
           </div>
 
           <div className="space-y-3">
-          {rows.map((r) => {
+          {visibleRows.map((r) => {
+            const cycle = cycles.find((c) => c.id === r.id);
+            const itExpertOpenHref = cycle ? cycleEntryPath(cycle) : `/cycles/${r.id}/dashboard`;
             const b = roleBadge(r.role);
             const disabled = !r.role;
             const dash = r.dashboard ?? null;
@@ -267,28 +516,84 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
             const evidenceDone = dash?.evidence_items ?? 0;
             const evidenceTotal = dash?.total_evidence_items ?? 0;
             const evidencePct = evidenceTotal > 0 ? Math.round((evidenceDone / evidenceTotal) * 100) : 0;
+            const pending = review?.inReview ?? 0;
+            const approved = review?.approved ?? 0;
+            const returned = review?.rejected ?? 0;
+            const reviewTotal = pending + approved + returned;
+            const decided = approved + returned;
+            const decidedPct = reviewTotal > 0 ? Math.round((decided / reviewTotal) * 100) : 0;
+            const returnedPct = reviewTotal > 0 ? Math.round((returned / reviewTotal) * 100) : 0;
+            const queueStateTone =
+              pending > 0
+                ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
+            const queueStateLabel = pending > 0 ? "Action needed" : "Queue clear";
             return (
               <div
                 key={r.id}
                 className="rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md"
                 style={{
-                  borderColor: "var(--border)",
-                  background: "var(--background)",
+                  borderColor: "#cbd5e1",
+                  background: "#ffffff",
+                  boxShadow: "0 1px 3px rgba(15,23,42,0.08)",
                   opacity: disabled ? 0.6 : 1,
                 }}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-lg font-semibold" style={{ color: "var(--foreground)" }}>
-                      {r.label}
-                    </p>
-                    <p className="mt-0.5 text-xs" style={{ color: "var(--foreground-muted)" }}>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-xl font-semibold leading-tight" style={{ color: "var(--foreground)" }}>
+                        {r.label}
+                      </p>
+                      {!isReviewerRole(r.role) && r.role !== "it_sme" && (
+                        <span className={`shrink-0 rounded-md px-2.5 py-1 text-[10px] font-semibold ${b.cls}`}>
+                          {b.label}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs" style={{ color: "var(--foreground-muted)" }}>
                       {r.displayId} · {r.phase} · {r.dueLabel}
                     </p>
                   </div>
-                  <span className={`shrink-0 rounded-md px-2.5 py-1 text-[10px] font-semibold ${b.cls}`}>
-                    {b.label}
-                  </span>
+                  {r.role === "it_sme" && (
+                    <div className="flex w-full flex-wrap items-center justify-end gap-2 lg:w-auto lg:max-w-[65%]">
+                      <Link href={itExpertOpenHref} className={`${btnPrimarySm} shrink-0`}>
+                        Open cycle
+                      </Link>
+                      {evidenceTotal > 0 && evidenceDone < evidenceTotal ? (
+                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                          Pending upload
+                        </span>
+                      ) : (
+                        <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                          Uploads complete
+                        </span>
+                      )}
+                      <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                        {r.dueIn === null ? "No deadline" : r.dueIn <= 0 ? "Due now" : `${r.dueIn} day(s) left`}
+                      </span>
+                      <span className={`shrink-0 rounded-md px-2.5 py-1 text-[10px] font-semibold ${b.cls}`}>{b.label}</span>
+                    </div>
+                  )}
+                  {isReviewerRole(r.role) && (
+                    <div
+                      className="w-full lg:ml-auto lg:w-fit rounded-xl border p-2.5 flex flex-wrap items-center justify-start gap-2 lg:justify-end"
+                      style={{ borderColor: "#dbe3ee", background: "#f8fafc" }}
+                    >
+                      <Link
+                        href={disabled ? "/assessments/new" : r.href}
+                        className={disabled ? `${btnSecondarySm} opacity-70` : btnPrimarySm}
+                      >
+                        {disabled ? "Request access" : "Choose cycle"}
+                      </Link>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${queueStateTone}`}>
+                        {queueStateLabel}
+                      </span>
+                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                        {r.dueIn === null ? "No deadline" : r.dueIn <= 0 ? "Due now" : `${r.dueIn} day(s) left`}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {r.role === "it_sme" && (
@@ -313,7 +618,7 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
                       <MiniKpi label="Assigned controls" value={dash?.total_controls ?? 0} tone="text-[var(--foreground)]" />
                       <MiniKpi label="Evidence uploaded" value={`${evidenceDone}/${evidenceTotal}`} tone="text-[var(--foreground)]" />
-                      <MiniKpi label="AI evaluated in review" value={review?.inReview ?? 0} tone="text-violet-700 dark:text-violet-300" />
+                      <MiniKpi label="In review" value={review?.inReview ?? 0} tone="text-violet-700 dark:text-violet-300" />
                       <MiniKpi label="Review succeeded" value={review?.approved ?? 0} tone="text-emerald-700 dark:text-emerald-300" />
                       <MiniKpi label="Reviewer rejected" value={review?.rejected ?? 0} tone="text-rose-700 dark:text-rose-300" />
                     </div>
@@ -321,31 +626,78 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
                 )}
 
                 {isReviewerRole(r.role) && (
-                  <div className="mt-3">
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      <MiniKpi label="Awaiting your decision" value={review?.inReview ?? 0} tone="text-violet-700 dark:text-violet-300" />
-                      <MiniKpi label="Approved" value={review?.approved ?? 0} tone="text-emerald-700 dark:text-emerald-300" />
-                      <MiniKpi label="Returned" value={review?.rejected ?? 0} tone="text-rose-700 dark:text-rose-300" />
+                  <div className="mt-3 border-t pt-3" style={{ borderColor: "#dbe3ee" }}>
+                    <div className="mb-2 rounded-lg border px-3 py-2" style={{ borderColor: "#dbe3ee", background: "#f1f5f9" }}>
+                      <div className="mb-1 flex items-center justify-between">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--foreground-muted)" }}>
+                          Decision Progress
+                        </p>
+                        <p className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
+                          {decidedPct}% complete
+                        </p>
+                      </div>
+                      <div className="h-[5px] rounded-full bg-slate-200 dark:bg-slate-700">
+                        <div
+                          className="h-[5px] rounded-full bg-violet-500"
+                          style={{ width: `${Math.max(0, Math.min(100, decidedPct))}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 text-[11px]" style={{ color: "var(--foreground-muted)" }}>
+                        {decided} decided out of {reviewTotal} assigned for this cycle
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="rounded-lg border px-3 py-2" style={{ borderColor: "#dbe3ee", background: "#f8fafc" }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--foreground-muted)" }}>
+                          Awaiting your decision
+                        </p>
+                        <p className="mt-1 text-xl font-bold text-violet-700 dark:text-violet-300">{pending}</p>
+                      </div>
+                      <div className="rounded-lg border px-3 py-2" style={{ borderColor: "#dbe3ee", background: "#f8fafc" }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--foreground-muted)" }}>
+                          Decisions (Approved / Returned)
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <div className="rounded-md border px-2.5 py-2" style={{ borderColor: "#bbf7d0", background: "#ecfdf5" }}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                              Approved
+                            </p>
+                            <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">{approved}</p>
+                          </div>
+                          <div className="rounded-md border px-2.5 py-2" style={{ borderColor: "#fecaca", background: "#fff1f2" }}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+                              Returned
+                            </p>
+                            <p className="text-xl font-bold text-rose-700 dark:text-rose-300">{returned}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="rounded-lg border px-3 py-2" style={{ borderColor: "#dbe3ee", background: "#f8fafc" }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--foreground-muted)" }}>
+                          Decision coverage
+                        </p>
+                        <p className="mt-1 text-xl font-bold text-blue-700 dark:text-blue-300">{decidedPct}%</p>
+                      </div>
+                      <div className="rounded-lg border px-3 py-2" style={{ borderColor: "#dbe3ee", background: "#f8fafc" }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--foreground-muted)" }}>
+                          Return rate
+                        </p>
+                        <p className="mt-1 text-xl font-bold text-amber-700 dark:text-amber-300">{returnedPct}%</p>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <div className="mt-3">
-                  <Link
-                    href={disabled ? "/assessments/new" : r.href}
-                    className="text-xs font-medium hover:underline"
-                    style={{ color: "var(--primary)" }}
-                  >
-                    {disabled ? "Request access / contact Compliance Officer →" : "Open workspace →"}
-                  </Link>
-                </div>
+                <div className="mt-3 border-t pt-3" style={{ borderColor: "#dbe3ee" }} />
               </div>
             );
           })}
 
-          {!loading && rows.length === 0 && (
+          {!loading && visibleRows.length === 0 && (
             <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-              No cycles available yet.
+              No cycles match the current filter/search. Try clearing filters.
             </p>
           )}
           </div>
@@ -353,22 +705,18 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
 
         <div
           className="rounded-2xl border p-4 sm:p-5"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+          style={{ borderColor: "#cbd5e1", background: "#f1f5f9" }}
         >
           <div className="mb-2 flex items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-                Test cycle deadlines
+                {showItExpertVisualization ? "Upcoming deadlines" : "Cycle deadlines"}
               </h2>
               <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>
-                Right-side view
+                {showItExpertVisualization ? "Nearest due dates for your cycles" : "Quick links by due date"}
               </p>
             </div>
-            <Link
-              href="/assessments/new"
-              className="shrink-0 text-xs font-medium hover:underline"
-              style={{ color: "var(--primary)" }}
-            >
+            <Link href="/assessments/new" className={`${btnSecondarySm} shrink-0`}>
               View all
             </Link>
           </div>
@@ -377,8 +725,8 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
               <Link
                 key={r.id}
                 href={r.href}
-                className="block rounded-lg border p-2.5 transition hover:border-[var(--primary)] hover:shadow-sm"
-                style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                className="block rounded-lg border p-2.5 transition hover:-translate-y-0.5 hover:shadow-sm"
+                style={{ borderColor: "#cbd5e1", background: "#ffffff", boxShadow: "0 1px 2px rgba(15,23,42,0.06)" }}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -404,6 +752,31 @@ export function UserHomeDashboard({ user, cycles }: { user: User; cycles: Assess
               <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>
                 No deadlines configured for your assigned cycles.
               </p>
+            )}
+          </div>
+          <div className="mt-4">
+            {showItExpertVisualization ? (
+              <ReviewerQueueOverviewPanel
+                data={itExpertOverview}
+                hasSelectedCycle={visualCycleId !== null}
+                onShowAllCycles={() => setVisualCycleId(null)}
+                title="Evidence overview"
+                distributionCaption={`Evidence mix (${itExpertOverview.totalItems} items across your cycles)`}
+                visualCycleId={visualCycleId}
+                onVisualCycleChange={setVisualCycleId}
+                cycleOptions={itExpertRows.map((r) => ({ id: r.id, display_id: r.displayId }))}
+              />
+            ) : (
+              <ReviewerQueueOverviewPanel
+                data={reviewerOverview}
+                hasSelectedCycle={visualCycleId !== null}
+                onShowAllCycles={() => setVisualCycleId(null)}
+                title="Reviewer Queue Overview"
+                distributionCaption={`Queue distribution (${reviewerOverview.totalItems} reviewer items)`}
+                visualCycleId={visualCycleId}
+                onVisualCycleChange={setVisualCycleId}
+                cycleOptions={reviewerRows.map((r) => ({ id: r.id, display_id: r.displayId }))}
+              />
             )}
           </div>
         </div>

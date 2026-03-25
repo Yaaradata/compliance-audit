@@ -70,7 +70,7 @@ export function StatKpiArticleGrid({
         <article
           key={kpi.label}
           className="rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-md"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+          style={{ borderColor: "#d6dee8", background: "#ffffff" }}
         >
           <div className="flex items-start justify-between gap-2">
             <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--foreground-muted)" }}>
