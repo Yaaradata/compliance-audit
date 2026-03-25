@@ -1,15 +1,17 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
+import { useGlobalRoleForRouting } from "@/lib/home-dashboard-role-context";
 import { AwsPageShell } from "@/components/aws/aws-page-shell";
 
 export default function AwsLayout({ children }: { children: React.ReactNode }) {
   const { user, activeCycleId, effectiveCycleRole } = useAuth();
+  const globalRole = useGlobalRoleForRouting(user?.role);
 
   const role =
     activeCycleId && effectiveCycleRole !== undefined
-      ? effectiveCycleRole ?? user?.role
-      : user?.role;
+      ? effectiveCycleRole ?? globalRole
+      : globalRole;
 
   const canAccess = role === "it_sme";
 

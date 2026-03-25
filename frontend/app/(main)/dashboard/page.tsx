@@ -1,11 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { RoleHomeDashboard, ComplianceOfficerHomeDashboard } from "@/components/roles";
+import {
+  RoleHomeDashboard,
+  ComplianceOfficerHomeDashboard,
+  ItExpertHomeDashboard,
+  L1ReviewerHomeDashboard,
+  L2ReviewerHomeDashboard,
+  L3ReviewerHomeDashboard,
+} from "@/components/roles";
 import { useAuth } from "@/lib/auth-context";
+import { useHomeDashboardRole } from "@/lib/home-dashboard-role-context";
 import { api } from "@/lib/api";
-import type { AssessmentCycle } from "@/lib/types";
+import type { AssessmentCycle, UserRole } from "@/lib/types";
 import type { CycleDashboard, CycleInsight } from "@/components/roles/shared/compliance-types";
+import { normalizeRoleForCycle, pickDerivedRoleFromCycleRoles, REVIEWER_HOME_ROLES } from "@/components/roles/shared/utils";
 
 type ComplianceUser = {
   id: string;
@@ -19,15 +28,42 @@ type RoleAssignment = {
 
 /**
  * Pre-cycle home: role-aware overview, stats, and quick actions.
- * Assessment cycles remain at /assessments/new; sidebar "Dashboard" still opens
+ * New cycles: Compliance Officer dashboard modal; full list at /assessments/new (KPIs / modal link).
  * the per-cycle collection workspace when a cycle is active.
  */
 export default function DashboardHomePage() {
   const { user, activeCycleId, activeCycleMeta, loading: authLoading } = useAuth();
+  const { setHomeDerivedRole } = useHomeDashboardRole();
   const [cycles, setCycles] = useState<AssessmentCycle[]>([]);
   const [cyclesLoading, setCyclesLoading] = useState(true);
   const [insights, setInsights] = useState<CycleInsight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(true);
+  /**
+   * When JWT `user.role` is null, probe /my-role across cycles to derive IT SME or L1/L2/L3 (same as CO-style dashboards).
+   * `undefined` = still probing; `null` = probed, no role; otherwise derived tenant role for home + routing.
+   */
+  const [derivedCycleRole, setDerivedCycleRole] = useState<UserRole | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!user) {
+      setHomeDerivedRole(null);
+      return;
+    }
+    if (user.role === "it_sme" || user.role === "compliance_officer") {
+      setHomeDerivedRole(null);
+      return;
+    }
+    if (user.role === null) {
+      if (derivedCycleRole === undefined) return;
+      if (derivedCycleRole === "it_sme") setHomeDerivedRole("it_sme");
+      else if (derivedCycleRole === "internal_reviewer_l1") setHomeDerivedRole("internal_reviewer_l1");
+      else if (derivedCycleRole === "internal_reviewer_l2") setHomeDerivedRole("internal_reviewer_l2");
+      else if (derivedCycleRole === "external_assessor") setHomeDerivedRole("external_assessor");
+      else setHomeDerivedRole(null);
+      return;
+    }
+    setHomeDerivedRole(null);
+  }, [user, user?.role, derivedCycleRole, setHomeDerivedRole]);
 
   useEffect(() => {
     if (!user) return;
@@ -49,12 +85,77 @@ export default function DashboardHomePage() {
     };
   }, [user]);
 
+  /**
+   * Single effect with a fixed dependency tuple length [user, cycles, cyclesLoading, derivedCycleRole]
+   * for probe + insights load (matches IT SME / reviewer derivation when global role is null).
+   */
   useEffect(() => {
-    if (!user || user.role !== "compliance_officer") {
+    if (!user) {
+      setInsights([]);
+      setInsightsLoading(false);
+      setDerivedCycleRole(undefined);
+      return;
+    }
+
+    if (user.role !== null) {
+      if (derivedCycleRole !== null) setDerivedCycleRole(null);
+    }
+
+    if (user.role === null && cyclesLoading) {
+      return;
+    }
+
+    if (user.role === null && cycles.length === 0) {
+      setDerivedCycleRole(null);
       setInsights([]);
       setInsightsLoading(false);
       return;
     }
+
+    if (user.role === null && cycles.length > 0 && derivedCycleRole === undefined) {
+      let cancelled = false;
+      async function probePerCycleRoles() {
+        try {
+          const roles = await Promise.all(
+            cycles.map(async (c) => {
+              try {
+                const res = await api.get<{ role: string | null }>(`/assessments/${c.id}/my-role`);
+                return normalizeRoleForCycle(res.role);
+              } catch {
+                return null;
+              }
+            })
+          );
+          if (cancelled) return;
+          setDerivedCycleRole(pickDerivedRoleFromCycleRoles(roles));
+        } catch {
+          if (!cancelled) setDerivedCycleRole(null);
+        }
+      }
+      void probePerCycleRoles();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const needsInsights =
+      user.role === "compliance_officer" ||
+      user.role === "it_sme" ||
+      (user.role && (REVIEWER_HOME_ROLES as readonly string[]).includes(user.role)) ||
+      (user.role === null && derivedCycleRole === "it_sme") ||
+      (user.role === null &&
+        derivedCycleRole != null &&
+        (REVIEWER_HOME_ROLES as readonly string[]).includes(derivedCycleRole));
+
+    if (!needsInsights) {
+      if (user.role === null && derivedCycleRole === undefined) {
+        return;
+      }
+      setInsights([]);
+      setInsightsLoading(false);
+      return;
+    }
+
     let cancelled = false;
     async function loadInsights() {
       setInsightsLoading(true);
@@ -93,11 +194,25 @@ export default function DashboardHomePage() {
     return () => {
       cancelled = true;
     };
-  }, [user, cycles]);
+  }, [user, cycles, cyclesLoading, derivedCycleRole]);
+
+  const probingPerCycleRole =
+    user?.role === null && !cyclesLoading && cycles.length > 0 && derivedCycleRole === undefined;
+
+  const effectiveRole = user?.role ?? derivedCycleRole;
 
   const loading = useMemo(
-    () => authLoading || cyclesLoading || (user?.role === "compliance_officer" && insightsLoading),
-    [authLoading, cyclesLoading, insightsLoading, user?.role]
+    () =>
+      Boolean(
+        authLoading ||
+          cyclesLoading ||
+          probingPerCycleRole ||
+          ((effectiveRole === "compliance_officer" ||
+            effectiveRole === "it_sme" ||
+            (effectiveRole != null && (REVIEWER_HOME_ROLES as readonly string[]).includes(effectiveRole))) &&
+            insightsLoading)
+      ),
+    [authLoading, cyclesLoading, probingPerCycleRole, insightsLoading, effectiveRole]
   );
 
   if (authLoading || !user) {
@@ -108,8 +223,30 @@ export default function DashboardHomePage() {
     );
   }
 
-  if (user.role === "compliance_officer") {
+  if (probingPerCycleRole) {
+    return (
+      <div className="flex items-center justify-center py-24 text-sm" style={{ color: "var(--foreground-muted)" }}>
+        Loading…
+      </div>
+    );
+  }
+
+  if (effectiveRole === "compliance_officer") {
     return <ComplianceOfficerHomeDashboard userName={user.name} insights={insights} loading={loading} />;
+  }
+
+  if (effectiveRole === "it_sme") {
+    return <ItExpertHomeDashboard userName={user.name} insights={insights} loading={loading} />;
+  }
+
+  if (effectiveRole === "internal_reviewer_l1") {
+    return <L1ReviewerHomeDashboard userName={user.name} insights={insights} loading={loading} />;
+  }
+  if (effectiveRole === "internal_reviewer_l2") {
+    return <L2ReviewerHomeDashboard userName={user.name} insights={insights} loading={loading} />;
+  }
+  if (effectiveRole === "external_assessor") {
+    return <L3ReviewerHomeDashboard userName={user.name} insights={insights} loading={loading} />;
   }
 
   return (

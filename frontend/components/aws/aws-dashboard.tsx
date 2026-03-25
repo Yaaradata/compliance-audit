@@ -34,13 +34,11 @@ export function AwsDashboard({
   fetching,
   fetchError,
 }: AwsDashboardProps) {
-  const [activeSection, setActiveSection] = useState<"evidence" | "run-history" | null>(() =>
+  const [userSection, setUserSection] = useState<"evidence" | "run-history">(() =>
     focusComparisorControlKey ? "run-history" : "evidence"
   );
-
-  useEffect(() => {
-    if (focusComparisorControlKey) setActiveSection("run-history");
-  }, [focusComparisorControlKey]);
+  /** Deep-link `?controlKey=` forces Run Details until the param is cleared. */
+  const activeSection = focusComparisorControlKey ? "run-history" : userSection;
 
   useEffect(() => {
     if (focusComparisorControlKey && activeSection === "run-history") {
@@ -58,7 +56,7 @@ export function AwsDashboard({
     if (activeSection === "evidence") return;
     setEvidenceSectionLoading(true);
     setTimeout(() => {
-      setActiveSection("evidence");
+      setUserSection("evidence");
       setEvidenceSectionLoading(false);
     }, 450);
   };
@@ -67,7 +65,7 @@ export function AwsDashboard({
     if (activeSection === "run-history") return;
     setRunHistorySectionLoading(true);
     setTimeout(() => {
-      setActiveSection("run-history");
+      setUserSection("run-history");
       setRunHistorySectionLoading(false);
     }, 450);
   };

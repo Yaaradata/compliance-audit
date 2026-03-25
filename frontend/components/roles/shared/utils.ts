@@ -1,4 +1,4 @@
-﻿import type { AssessmentCycle } from "@/lib/types";
+import type { AssessmentCycle, UserRole } from "@/lib/types";
 
 export const PHASE_ORDER = ["setup", "collection", "review", "approval", "reporting", "submitted", "archived"] as const;
 
@@ -64,4 +64,60 @@ export function daysTo(dateLike?: string | null): number | null {
 export function phaseStep(phase: string): number {
   const idx = PHASE_ORDER.findIndex((p) => p === phase);
   return idx >= 0 ? idx : 1;
+}
+
+export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+export function toDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export function monthStart(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+export function monthEnd(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0);
+}
+
+export function addMonths(d: Date, delta: number): Date {
+  return new Date(d.getFullYear(), d.getMonth() + delta, 1);
+}
+
+/** Normalize API role strings for comparison (e.g. IT Expert → it_sme). */
+export function normalizeRoleForCycle(role?: string | null): string | null {
+  const v = (role ?? "").trim().toLowerCase();
+  if (!v) return null;
+  if (v === "itexpert" || v === "it_expert" || v === "it-sme") return "it_sme";
+  return v;
+}
+
+export const REVIEWER_HOME_ROLES = ["internal_reviewer_l1", "internal_reviewer_l2", "external_assessor"] as const;
+
+export type ReviewerHomeTier = "l1" | "l2" | "l3";
+
+/** Cycle / my-role value expected for each reviewer home dashboard tier. */
+export function reviewerTierExpectedRole(tier: ReviewerHomeTier): (typeof REVIEWER_HOME_ROLES)[number] {
+  if (tier === "l1") return "internal_reviewer_l1";
+  if (tier === "l2") return "internal_reviewer_l2";
+  return "external_assessor";
+}
+
+/** When JWT role is null, pick a single tenant role from per-cycle /my-role (IT SME first, then L1 → L2 → L3). */
+const DERIVED_HOME_ROLE_PRIORITY: UserRole[] = [
+  "it_sme",
+  "internal_reviewer_l1",
+  "internal_reviewer_l2",
+  "external_assessor",
+];
+
+export function pickDerivedRoleFromCycleRoles(normalizedRoles: (string | null)[]): UserRole | null {
+  const set = new Set(normalizedRoles.filter((r): r is string => Boolean(r)));
+  for (const r of DERIVED_HOME_ROLE_PRIORITY) {
+    if (set.has(r)) return r;
+  }
+  return null;
 }

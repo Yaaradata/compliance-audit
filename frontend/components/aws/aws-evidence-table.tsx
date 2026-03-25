@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Play } from "lucide-react";
 import type { AwsEvidenceRow, AwsRun } from "@/lib/aws-api";
 import {
@@ -76,6 +76,23 @@ function domainFromItemCode(itemCode: string): string {
   return letter ? `Domain ${letter}` : "Domain —";
 }
 
+const EVIDENCE_TABLE_COLUMNS = [
+  { key: "domain", label: "Domain" },
+  { key: "item_code", label: "Item", className: "font-medium" },
+  { key: "control_id", label: "Control" },
+  { key: "item_desc", label: "Item description" },
+  { key: "source_system", label: "Source" },
+  { key: "evidence_type", label: "Evidence type" },
+  { key: "runLabel", label: "Run" },
+  { key: "status", label: "Status" },
+  { key: "collected_at", label: "Collected At" },
+  { key: "actions", label: "", className: "text-right w-[7.5rem]" },
+] as const;
+
+type EvidenceColumnKey = (typeof EVIDENCE_TABLE_COLUMNS)[number]["key"];
+type EvidenceColumnDef = (typeof EVIDENCE_TABLE_COLUMNS)[number];
+const DEFAULT_EVIDENCE_COLUMN_ORDER: EvidenceColumnKey[] = EVIDENCE_TABLE_COLUMNS.map((c) => c.key);
+
 export function AwsEvidenceTable({
   data,
   runs = [],
@@ -93,16 +110,17 @@ export function AwsEvidenceTable({
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
 
-  const runById = new Map(runs.map((r, i) => [r.run_id, { run: r, index: i }]));
-
-  const rows = useMemo(() => data.map((e) => {
-    const runInfo = e.run_id ? runById.get(e.run_id) : undefined;
-    return {
-      ...e,
-      runLabel: runInfo ? formatRunLabel(runInfo.run, runInfo.index) : "—",
-      runStatus: runInfo?.run?.status ?? "unknown",
-    };
-  }), [data, runs]);
+  const rows = useMemo(() => {
+    const runById = new Map(runs.map((r, i) => [r.run_id, { run: r, index: i }]));
+    return data.map((e) => {
+      const runInfo = e.run_id ? runById.get(e.run_id) : undefined;
+      return {
+        ...e,
+        runLabel: runInfo ? formatRunLabel(runInfo.run, runInfo.index) : "—",
+        runStatus: runInfo?.run?.status ?? "unknown",
+      };
+    });
+  }, [data, runs]);
 
   const domainLetters = useMemo(() => {
     const set = new Set<string>();
@@ -118,9 +136,8 @@ export function AwsEvidenceTable({
     [rows]
   );
 
-  useEffect(() => {
-    if (domainFilter === "other" && !hasUnmappedDomainRows) setDomainFilter("all");
-  }, [domainFilter, hasUnmappedDomainRows]);
+  const domainFilterEffective =
+    domainFilter === "other" && !hasUnmappedDomainRows ? "all" : domainFilter;
 
   const sources = useMemo(() => Array.from(new Set(rows.map((r) => r.source_system))).sort(), [rows]);
   const types = useMemo(() => Array.from(new Set(rows.map((r) => r.evidence_type))).sort(), [rows]);
@@ -138,8 +155,8 @@ export function AwsEvidenceTable({
         r.runLabel.toLowerCase().includes(q);
       const letter = domainLetterFromItemCode(r.item_code);
       const domainOk =
-        domainFilter === "all" ||
-        (domainFilter === "other" ? !letter : letter === domainFilter);
+        domainFilterEffective === "all" ||
+        (domainFilterEffective === "other" ? !letter : letter === domainFilterEffective);
       const sourceOk = sourceFilter === "all" || r.source_system === sourceFilter;
       const typeOk = typeFilter === "all" || r.evidence_type === typeFilter;
       const runOk = runFilter === "all" || r.runLabel === runFilter;
@@ -156,36 +173,23 @@ export function AwsEvidenceTable({
       return String(a[sortKey]).localeCompare(String(b[sortKey])) * dir;
     });
     return out;
-  }, [rows, query, domainFilter, sourceFilter, typeFilter, runFilter, sortKey, sortDir]);
+  }, [rows, query, domainFilterEffective, sourceFilter, typeFilter, runFilter, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pagedRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const columns = [
-    { key: "domain", label: "Domain" },
-    { key: "item_code", label: "Item", className: "font-medium" },
-    { key: "control_id", label: "Control" },
-    { key: "item_desc", label: "Item description" },
-    { key: "source_system", label: "Source" },
-    { key: "evidence_type", label: "Evidence type" },
-    { key: "runLabel", label: "Run" },
-    { key: "status", label: "Status" },
-    { key: "collected_at", label: "Collected At" },
-    { key: "actions", label: "", className: "text-right w-[7.5rem]" },
-  ] as const;
-  type ColumnKey = (typeof columns)[number]["key"];
-  type ColumnDef = (typeof columns)[number];
-  const DEFAULT_COLUMN_ORDER: ColumnKey[] = columns.map((c) => c.key);
-  const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(DEFAULT_COLUMN_ORDER);
-  const [draggingColumn, setDraggingColumn] = useState<ColumnKey | null>(null);
+  const [columnOrder, setColumnOrder] = useState<EvidenceColumnKey[]>(DEFAULT_EVIDENCE_COLUMN_ORDER);
+  const [draggingColumn, setDraggingColumn] = useState<EvidenceColumnKey | null>(null);
 
-  const orderedColumns = useMemo((): ColumnDef[] => {
-    const byKey = new Map<ColumnKey, ColumnDef>(columns.map((c) => [c.key, c]));
-    return columnOrder.map((key) => byKey.get(key)).filter((c): c is ColumnDef => c !== undefined);
+  const orderedColumns = useMemo((): EvidenceColumnDef[] => {
+    const byKey = new Map<EvidenceColumnKey, EvidenceColumnDef>(
+      EVIDENCE_TABLE_COLUMNS.map((c) => [c.key, c])
+    );
+    return columnOrder.map((key) => byKey.get(key)).filter((c): c is EvidenceColumnDef => c !== undefined);
   }, [columnOrder]);
 
-  const moveColumn = (from: ColumnKey, to: ColumnKey) => {
+  const moveColumn = (from: EvidenceColumnKey, to: EvidenceColumnKey) => {
     if (from === to || from === "actions" || to === "actions") return;
     setColumnOrder((prev) => {
       const next = [...prev];
@@ -198,7 +202,7 @@ export function AwsEvidenceTable({
     });
   };
 
-  const renderCell = (e: (typeof pagedRows)[number], key: ColumnKey) => {
+  const renderCell = (e: (typeof pagedRows)[number], key: EvidenceColumnKey) => {
     if (key === "domain") {
       return (
         <td key={key} className="px-4 py-3 font-medium" style={{ color: "var(--foreground)" }}>
@@ -331,7 +335,7 @@ export function AwsEvidenceTable({
           className={`md:col-span-2 w-full min-w-0 ${awsFieldClass}`}
         />
         <select
-          value={domainFilter}
+          value={domainFilterEffective}
           onChange={(e) => { setDomainFilter(e.target.value); setPage(1); }}
           className={`w-full min-w-0 font-medium ${awsFieldClass}`}
           aria-label="Filter by domain"

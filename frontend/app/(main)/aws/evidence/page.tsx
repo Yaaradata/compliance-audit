@@ -41,7 +41,9 @@ export default function AwsEvidencePage() {
   }, [activeCycleId]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => {
+      load();
+    });
   }, [load]);
 
   useEffect(() => {

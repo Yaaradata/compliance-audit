@@ -14,6 +14,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useGlobalRoleForRouting } from "@/lib/home-dashboard-role-context";
 import { getArchitecture, getDomainsForArchitecture } from "@/lib/frameworks/swift-cscf";
 import { useCycleIdFromPath } from "@/lib/hooks/use-cycle-id";
 import { getNavForRole } from "@/lib/data/roles";
@@ -39,18 +40,18 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { open, toggle, setOpen } = useSidebar();
   const { user, selectedArchitectureId, activeCycleId, effectiveCycleRole } = useAuth();
+  const globalRole = useGlobalRoleForRouting(user?.role);
   const cycleIdFromPath = useCycleIdFromPath();
   const cycleId = cycleIdFromPath ?? activeCycleId;
   const hasCycleInPath = Boolean(cycleIdFromPath && pathname?.startsWith("/cycles/"));
   const [searchQuery, setSearchQuery] = useState("");
-  const role = cycleId && effectiveCycleRole !== undefined ? (effectiveCycleRole ?? user?.role) : user?.role;
+  const role = cycleId && effectiveCycleRole !== undefined ? (effectiveCycleRole ?? globalRole) : globalRole;
   const navItems = getNavForRole(role)
     ?.filter(
       (item) =>
         item.href.startsWith("/dashboard") ||
         item.href.startsWith("/evidence") ||
         item.href.startsWith("/aws") ||
-        item.href.startsWith("/assessments") ||
         item.href.startsWith("/users-groups") ||
         item.href.startsWith("/review") ||
         item.href.startsWith("/approval") ||

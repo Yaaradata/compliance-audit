@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { CheckCircle2, ExternalLink, Loader2, Trash2, Cloud, Shield, MapPin } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, Trash2, Shield, MapPin } from "lucide-react";
 import { AwsPageHeader, awsButtonSecondaryClass, awsButtonPrimaryClass } from "@/components/aws/aws-page-header";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -45,7 +45,9 @@ export default function AwsConnectPage() {
   }, [activeCycleId]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => {
+      load();
+    });
   }, [load]);
 
   const onDisconnect = () => {

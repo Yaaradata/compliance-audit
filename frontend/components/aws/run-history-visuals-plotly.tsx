@@ -1,6 +1,14 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+  type CSSProperties,
+} from "react";
 import dynamic from "next/dynamic";
 import { getEvidenceContent, type AwsEvidenceRow, type AwsRun } from "@/lib/aws-api";
 import { useAuth } from "@/lib/auth-context";
@@ -13,7 +21,13 @@ import {
   awsRowExpandButtonClass,
 } from "@/components/aws/aws-ui";
 
-const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
+/** `next/dynamic` widens props to `{}` without assertion; react-plotly passes data/layout/config. */
+const Plot = dynamic(() => import("react-plotly.js"), { ssr: false }) as ComponentType<{
+  data: Record<string, unknown>[];
+  layout?: Record<string, unknown>;
+  config?: Record<string, unknown>;
+  style?: CSSProperties;
+}>;
 
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -215,9 +229,11 @@ export function RunHistoryVisualsPlotly({
   deferredCharts?: boolean;
 }) {
   const { activeCycleId } = useAuth();
-  const [activeSidebar, setActiveSidebar] = useState<"metrics" | "comparisor">(() =>
+  const [sidebarPreference, setSidebarPreference] = useState<"metrics" | "comparisor">(() =>
     focusComparisorControlKey ? "comparisor" : "metrics"
   );
+  /** Deep-link focus forces Comparisor; otherwise follow tab clicks. */
+  const activeSidebar = focusComparisorControlKey ? "comparisor" : sidebarPreference;
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
   const [compareMeta, setCompareMeta] = useState<{ runs: CompareCell[] } | null>(null);
@@ -244,25 +260,20 @@ export function RunHistoryVisualsPlotly({
   const isFeatureParentExpanded = (controlKey: string, parent: string) =>
     !collapsedFeatureParents.has(`${controlKey}::${parent}`);
 
-  if (!runs.length) {
-    return (
-      <div className="card rounded-xl border p-6 text-sm" style={{ borderColor: "var(--border)", color: "var(--foreground-muted)" }}>
-        No run history available yet.
-      </div>
-    );
-  }
-
-  const timeline = [...runs]
-    .slice()
-    .reverse()
-    .map((run, index) => ({
-      index: index + 1,
-      runId: run.run_id,
-      time: run.ended_at ?? run.in_time ?? run.execution_time,
-      evidence: run.evidence_count ?? 0,
-      status: run.status ?? "unknown",
-      trigger: (run.trigger_type ?? "unknown").toLowerCase(),
-    }));
+  const timeline = useMemo(() => {
+    if (!runs.length) return [];
+    return [...runs]
+      .slice()
+      .reverse()
+      .map((run, index) => ({
+        index: index + 1,
+        runId: run.run_id,
+        time: run.ended_at ?? run.in_time ?? run.execution_time,
+        evidence: run.evidence_count ?? 0,
+        status: run.status ?? "unknown",
+        trigger: (run.trigger_type ?? "unknown").toLowerCase(),
+      }));
+  }, [runs]);
 
   const successCount = timeline.filter((r) => r.status === "success").length;
   const partialCount = timeline.filter((r) => r.status === "partial").length;
@@ -440,10 +451,6 @@ export function RunHistoryVisualsPlotly({
   }, [hasPreloadedComparisor, controlOptions.length, compareLoading, compareRuns]);
 
   useEffect(() => {
-    if (focusComparisorControlKey) setActiveSidebar("comparisor");
-  }, [focusComparisorControlKey]);
-
-  useEffect(() => {
     if (!focusComparisorControlKey || !domainComparisons.length) return;
     const sep = focusComparisorControlKey.indexOf("::");
     if (sep === -1) return;
@@ -457,7 +464,6 @@ export function RunHistoryVisualsPlotly({
     if (!exists) return;
     setItemControlSelection((prev) => new Map(prev).set(`${domain}::${itemCode}`, focusComparisorControlKey));
     setExpandedDomains((prev) => new Set(prev).add(domain));
-    setActiveSidebar("comparisor");
   }, [focusComparisorControlKey, domainComparisons]);
 
   const toggleDomain = (domain: string) => {
@@ -480,6 +486,14 @@ export function RunHistoryVisualsPlotly({
     return ctrls[0]?.controlKey ?? "";
   };
 
+  if (!runs.length) {
+    return (
+      <div className="card rounded-xl border p-6 text-sm" style={{ borderColor: "var(--border)", color: "var(--foreground-muted)" }}>
+        No run history available yet.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="card rounded-xl border px-3 py-3 sm:px-4" style={{ borderColor: "var(--border)" }}>
@@ -489,7 +503,7 @@ export function RunHistoryVisualsPlotly({
               type="button"
               role="tab"
               aria-selected={activeSidebar === "metrics"}
-              onClick={() => setActiveSidebar("metrics")}
+              onClick={() => setSidebarPreference("metrics")}
               title="Run History Metrics — charts and KPIs per run"
               className={`${awsPillTabButtonClass} ${
                 activeSidebar === "metrics" ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
@@ -506,7 +520,7 @@ export function RunHistoryVisualsPlotly({
               type="button"
               role="tab"
               aria-selected={activeSidebar === "comparisor"}
-              onClick={() => setActiveSidebar("comparisor")}
+              onClick={() => setSidebarPreference("comparisor")}
               title="Run Comparisor — domain-wise comparison across runs"
               className={`${awsPillTabButtonClass} ${
                 activeSidebar === "comparisor" ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"

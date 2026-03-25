@@ -32,11 +32,13 @@ function LoginForm() {
       const raw = localStorage.getItem(DEMO_STORAGE_KEY);
       if (raw) {
         const { email: e, password: p, role: r } = JSON.parse(raw) as { email: string; password: string; role: UserRole };
-        setEmail(e ?? "");
-        setPassword(p ?? "");
-        setRole(r ?? "compliance_officer");
-        setMode("login");
         localStorage.removeItem(DEMO_STORAGE_KEY);
+        queueMicrotask(() => {
+          setEmail(e ?? "");
+          setPassword(p ?? "");
+          setRole(r ?? "compliance_officer");
+          setMode("login");
+        });
       }
     } catch {
       /* ignore */

@@ -29,10 +29,7 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
 };
 
 /** Minimal nav for users with no global role and no active cycle role. */
-export const UNASSIGNED_NAV: { href: string; label: string; icon?: string }[] = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/assessments/new", label: "Assessment Cycles" },
-];
+export const UNASSIGNED_NAV: { href: string; label: string; icon?: string }[] = [{ href: "/dashboard", label: "Dashboard" }];
 
 /** Resolve nav items for a role, including null (unassigned). */
 export function getNavForRole(role: UserRole | string | null | undefined): { href: string; label: string; icon?: string }[] {
@@ -51,13 +48,11 @@ export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?:
   ],
   tenant_admin: [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/assessments/new", label: "Assessment Cycles" },
     { href: "/users-groups", label: "Users & Groups" },
     { href: "/report", label: "Report" },
   ],
   compliance_officer: [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/assessments/new", label: "Assessment Cycles" },
     { href: "/users-groups", label: "Users & Groups" },
     { href: "/review", label: "Review Queue" },
     { href: "/approval", label: "Approval" },

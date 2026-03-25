@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -245,7 +245,6 @@ function MetricCard({
 
 export default function CycleApprovalPage() {
   const params = useParams();
-  const router = useRouter();
   const cycleId = params.cycleId as string;
   const { user } = useAuth();
   const userRole = user?.role || "compliance_officer";
@@ -321,7 +320,7 @@ export default function CycleApprovalPage() {
     }
   };
 
-  const timeline = summary?.evidence_timeline ?? [];
+  const timeline = useMemo(() => summary?.evidence_timeline ?? [], [summary?.evidence_timeline]);
   /** One entry per evidence item (A1, A2, …): deduplicate by normalized evidence_item_id. */
   const timelineOnePerItem = useMemo(() => {
     const byItem = new Map<string, EvidenceTimelineItem>();
@@ -353,14 +352,14 @@ export default function CycleApprovalPage() {
     return evidenceByDomain.filter(([d]) => d === selectedDomain);
   }, [evidenceByDomain, selectedDomain]);
 
-  const domain_breakdown = summary?.domain_breakdown ?? {};
+  const domainBreakdown = useMemo(() => summary?.domain_breakdown ?? {}, [summary?.domain_breakdown]);
   const domainsAllAtoH = useMemo(() => {
     return DOMAIN_LIST.map((d) => {
-      const bd = domain_breakdown[d.id] ?? { total: 0, approved: 0, submitted: 0, draft: 0 };
+      const bd = domainBreakdown[d.id] ?? { total: 0, approved: 0, submitted: 0, draft: 0 };
       const pct = bd.total > 0 ? Math.round((bd.approved / bd.total) * 100) : 0;
       return { id: d.id, name: d.name, color: d.color, accent: d.accent, ...bd, pct };
     });
-  }, [domain_breakdown]);
+  }, [domainBreakdown]);
 
   if (loading && !summary) {
     return <LoadingState message="Loading approval status…" />;
@@ -395,14 +394,12 @@ export default function CycleApprovalPage() {
   }
 
   const {
-    overall_compliance_pct,
     total_items,
     approved_items,
     review_level_stats,
     all_l_cleared,
     gates,
   } = summary;
-  const domains = Object.entries(domain_breakdown).sort(([a], [b]) => a.localeCompare(b));
   const approvedGateCount = gates.filter((g) => g.status === "approved").length;
   const finalGate = gates.find((g) => g.gate === "final_attestation");
   const preFinalGates = gates.filter((g) => g.gate !== "final_attestation");
@@ -839,7 +836,9 @@ export default function CycleApprovalPage() {
                     : "—"}
                 </p>
                 {finalGate.notes && (
-                  <p className="text-xs text-(--foreground-muted) mt-2 italic">"{finalGate.notes}"</p>
+                  <p className="text-xs text-(--foreground-muted) mt-2 italic">
+                    &ldquo;{finalGate.notes}&rdquo;
+                  </p>
                 )}
                 <div className="mt-6 pt-4 border-t border-(--border)">
                   <Link

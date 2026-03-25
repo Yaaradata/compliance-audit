@@ -7,14 +7,13 @@ import {
   getRuns,
   getEvidence,
   getControlsCoverage,
-  getControlsCoverageItems,
   fetchAwsEvidence,
   getRunDetail,
   isAwsConnectionVisibleForCycle,
 } from "@/lib/aws-api";
 import { AwsDashboard } from "@/components/aws/aws-dashboard";
 import { AwsDashboardSkeleton } from "@/components/aws/aws-dashboard-skeleton";
-import type { AwsRun, AwsEvidenceRow, AwsControlItemWithEvidence } from "@/lib/aws-api";
+import type { AwsRun, AwsEvidenceRow } from "@/lib/aws-api";
 
 const POLL_INTERVAL_MS = 4000;
 const TIMEOUT_POLL_INTERVAL_MS = 6000;
@@ -53,7 +52,6 @@ function AwsDashboardPageContent() {
   const [evidenceRows, setEvidenceRows] = useState<AwsEvidenceRow[]>([]);
   const [evidenceCount, setEvidenceCount] = useState(0);
   const [controlIdsWithEvidence, setControlIdsWithEvidence] = useState<string[]>([]);
-  const [controlItems, setControlItems] = useState<AwsControlItemWithEvidence[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -70,7 +68,6 @@ function AwsDashboardPageContent() {
       setEvidenceRows([]);
       setEvidenceCount(0);
       setControlIdsWithEvidence([]);
-      setControlItems([]);
       setFetchError("No AWS connection for this cycle. Open AWS Connect and configure this cycle.");
       setLoading(false);
       return;
@@ -79,27 +76,26 @@ function AwsDashboardPageContent() {
       getRuns(50, activeCycleId),
       getEvidence(500, activeCycleId),
       getControlsCoverage(activeCycleId).then((d) => d.control_ids_with_evidence || []),
-      getControlsCoverageItems(activeCycleId),
     ])
-      .then(([runsList, evidenceList, ids, itemPairs]) => {
+      .then(([runsList, evidenceList, ids]) => {
         setRuns(runsList);
         setEvidenceRows(evidenceList);
         setEvidenceCount(evidenceList.length);
         setControlIdsWithEvidence(ids);
-        setControlItems(itemPairs);
       })
       .catch(() => {
         setRuns([]);
         setEvidenceRows([]);
         setEvidenceCount(0);
         setControlIdsWithEvidence([]);
-        setControlItems([]);
       })
       .finally(() => setLoading(false));
   }, [activeCycleId]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => {
+      load();
+    });
   }, [load]);
 
   useEffect(() => {
@@ -210,14 +206,12 @@ function AwsDashboardPageContent() {
               getRuns(50, activeCycleId),
               getEvidence(500, activeCycleId),
               getControlsCoverage(activeCycleId).then((d) => d.control_ids_with_evidence || []),
-              getControlsCoverageItems(activeCycleId),
             ])
-              .then(([runsList, evidenceList, ids, itemPairs]) => {
+              .then(([runsList, evidenceList, ids]) => {
                 setRuns(runsList);
                 setEvidenceRows(evidenceList);
                 setEvidenceCount(evidenceList.length);
                 setControlIdsWithEvidence(ids);
-                setControlItems(itemPairs);
                 if (isCollectRecoveryComplete(runsList, evidenceList, baseline, startedAt)) {
                   if (timeoutPollRef.current) {
                     clearInterval(timeoutPollRef.current);

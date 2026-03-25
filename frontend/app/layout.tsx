@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { HomeDashboardRoleProvider } from "@/lib/home-dashboard-role-context";
 import { ThemeProvider } from "@/lib/theme-context";
 
 const geistSans = Geist({
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <HomeDashboardRoleProvider>{children}</HomeDashboardRoleProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

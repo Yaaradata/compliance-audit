@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useHomeDashboardRole } from "@/lib/home-dashboard-role-context";
 import { api } from "@/lib/api";
 import { AppShell } from "@/app/app-shell";
 
@@ -10,6 +11,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const pathname = usePathname();
   const { user, activeCycleId, setActiveCycleId, setArchitecture, selectedArchitectureId, isPlatformAdmin, loading, effectiveCycleRole } = useAuth();
+  const { homeDerivedRole } = useHomeDashboardRole();
+  const globalRole = user?.role ?? homeDerivedRole ?? null;
+  const effectiveTenantRole =
+    activeCycleId && effectiveCycleRole !== undefined ? (effectiveCycleRole ?? globalRole) : globalRole;
 
   const isCycleRoute = pathname?.startsWith("/cycles/");
   const isHomeDashboard = pathname === "/dashboard";
@@ -48,7 +53,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       return;
     }
     // Approver (L3): redirect from Approval page to Dashboard; approval is done via Dashboard Review Queue
-    const effectiveRole = (activeCycleId && effectiveCycleRole !== undefined) ? (effectiveCycleRole ?? user.role) : user.role;
+    const g = user.role ?? homeDerivedRole ?? null;
+    const effectiveRole =
+      activeCycleId && effectiveCycleRole !== undefined ? (effectiveCycleRole ?? g) : g;
     if (effectiveRole === "external_assessor" && pathname?.includes("/approval")) {
       router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/dashboard");
       return;
@@ -84,12 +91,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         return;
       }
     }
-  }, [user, activeCycleId, selectedArchitectureId, isPlatformAdmin, pathname, router, loading, isCycleRoute, effectiveCycleRole]);
+  }, [user, activeCycleId, selectedArchitectureId, isPlatformAdmin, pathname, router, loading, isCycleRoute, effectiveCycleRole, homeDerivedRole, isHomeDashboard]);
 
   if (loading) return null;
   if (!user) return null;
   if (isPlatformAdmin && pathname !== "/admin") return null;
-  const renderRole = (activeCycleId && effectiveCycleRole !== undefined) ? (effectiveCycleRole ?? user?.role) : user?.role;
+  const renderRole = effectiveTenantRole;
   const allowAwsWithoutCycle = pathname?.startsWith("/aws") && renderRole === "it_sme";
   const allowUsersGroups = pathname?.startsWith("/users-groups") && (renderRole === "compliance_officer" || renderRole === "tenant_admin");
   const allowAssessmentsPage = pathname?.startsWith("/assessments");
@@ -106,8 +113,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return <>{children}</>;
   }
 
-  // Role-based route protection: use cycle role when in cycle context
-  const role = (activeCycleId && effectiveCycleRole !== undefined) ? (effectiveCycleRole ?? user?.role) : user?.role;
+  // Role-based route protection: cycle role when active; else global JWT role or home-derived IT SME
+  const role = effectiveTenantRole;
+  /** IT SME + L1/L2/L3 reviewers: full-width workspace — no left nav (Compliance Officer keeps sidebar on dashboard). */
+  const hideSidebarForRole =
+    role === "it_sme" ||
+    role === "internal_reviewer_l1" ||
+    role === "internal_reviewer_l2" ||
+    role === "external_assessor";
+  const showSidebar =
+    !hideSidebarForRole && (!isHomeDashboard || role === "compliance_officer");
+
   if (pathname) {
     const isReviewRoute = pathname.includes("/review");
     const isApprovalRoute = pathname.includes("/approval");
@@ -116,7 +132,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     // Null-role users (unassigned) can only access dashboard and assessments list
     if (!role && (isReviewRoute || isApprovalRoute || isDomainRoute)) {
       return (
-        <AppShell>
+        <AppShell showSidebar={showSidebar}>
           <div className="flex flex-col items-center justify-center h-64 gap-2">
             <p className="text-sm text-gray-500">You have not been assigned to any cycle yet.</p>
             <p className="text-xs text-gray-400">Contact your Compliance Officer for role assignment.</p>
@@ -127,7 +143,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     if (role === "it_sme" && (isReviewRoute || isApprovalRoute)) {
       return (
-        <AppShell>
+        <AppShell showSidebar={showSidebar}>
           <div className="flex items-center justify-center h-64">
             <p className="text-sm text-gray-500">You do not have access to this page.</p>
           </div>
@@ -136,7 +152,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
     if ((role === "internal_reviewer_l1" || role === "internal_reviewer_l2") && (isApprovalRoute || isDomainRoute)) {
       return (
-        <AppShell>
+        <AppShell showSidebar={showSidebar}>
           <div className="flex items-center justify-center h-64">
             <p className="text-sm text-gray-500">You do not have access to this page.</p>
           </div>
@@ -145,7 +161,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
     if (role === "external_assessor" && isDomainRoute) {
       return (
-        <AppShell>
+        <AppShell showSidebar={showSidebar}>
           <div className="flex items-center justify-center h-64">
             <p className="text-sm text-gray-500">You do not have access to this page.</p>
           </div>
@@ -159,6 +175,5 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return null; // useEffect above will redirect
   }
 
-  const showSidebar = !isHomeDashboard || role === "compliance_officer";
   return <AppShell showSidebar={showSidebar}>{children}</AppShell>;
 }

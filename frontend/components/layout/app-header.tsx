@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useGlobalRoleForRouting } from "@/lib/home-dashboard-role-context";
 import { getArchitecture } from "@/lib/frameworks/swift-cscf";
 import { getRoleLabel } from "@/lib/data/roles";
 import { useSidebar } from "@/lib/sidebar-context";
@@ -37,6 +38,7 @@ function getBreadcrumb(pathname: string | null): { label: string; href?: string 
 export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: boolean }) {
   const pathname = usePathname();
   const { user, logout, selectedArchitectureId, activeCycleId, activeCycleMeta, effectiveCycleRole } = useAuth();
+  const globalRole = useGlobalRoleForRouting(user?.role);
   const { toggle: toggleSidebar } = useSidebar();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -48,7 +50,7 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
   const initials = user?.name?.split(/\s+/).map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
   const breadcrumb = getBreadcrumb(pathname);
   const roleForLabel = (
-    activeCycleId ? (effectiveCycleRole ?? user?.role) : user?.role
+    activeCycleId ? (effectiveCycleRole ?? globalRole) : globalRole
   ) as Parameters<typeof getRoleLabel>[0];
   const roleLabel = getRoleLabel(roleForLabel);
 
