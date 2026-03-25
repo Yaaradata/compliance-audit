@@ -115,14 +115,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   // Role-based route protection: cycle role when active; else global JWT role or home-derived IT SME
   const role = effectiveTenantRole;
-  /** IT SME + L1/L2/L3 reviewers: full-width workspace — no left nav (Compliance Officer keeps sidebar on dashboard). */
-  const hideSidebarForRole =
+  /** Inside cycle routes, always show the sidebar for consistent in-cycle navigation. */
+  const hideSidebarOutsideCycleForRole =
     role === "it_sme" ||
     role === "internal_reviewer_l1" ||
     role === "internal_reviewer_l2" ||
     role === "external_assessor";
-  const showSidebar =
-    !hideSidebarForRole && (!isHomeDashboard || role === "compliance_officer");
+  const showSidebar = isCycleRoute
+    ? true
+    : !hideSidebarOutsideCycleForRole && (!isHomeDashboard || role === "compliance_officer");
 
   if (pathname) {
     const isReviewRoute = pathname.includes("/review");

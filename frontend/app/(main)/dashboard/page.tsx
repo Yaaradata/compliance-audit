@@ -4,10 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   RoleHomeDashboard,
   ComplianceOfficerHomeDashboard,
-  ItExpertHomeDashboard,
-  L1ReviewerHomeDashboard,
-  L2ReviewerHomeDashboard,
-  L3ReviewerHomeDashboard,
+  UserHomeDashboard,
 } from "@/components/roles";
 import { useAuth } from "@/lib/auth-context";
 import { useHomeDashboardRole } from "@/lib/home-dashboard-role-context";
@@ -25,6 +22,38 @@ type RoleAssignment = {
   user_id: string | null;
   assignment_type: string;
 };
+
+function DashboardLoadingSkeleton() {
+  return (
+    <div className="w-full space-y-5 pb-6 animate-pulse">
+      <section className="rounded-2xl border p-5 sm:p-6" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+        <div className="h-3 w-24 rounded bg-[var(--background)] mb-4" />
+        <div className="h-8 w-72 rounded bg-[var(--background)] mb-3" />
+        <div className="h-4 w-96 max-w-full rounded bg-[var(--background)]" />
+      </section>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-2xl border p-4"
+            style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+          >
+            <div className="h-3 w-20 rounded bg-[var(--background)] mb-3" />
+            <div className="h-8 w-14 rounded bg-[var(--background)] mb-2" />
+            <div className="h-3 w-28 rounded bg-[var(--background)]" />
+          </div>
+        ))}
+      </div>
+      <section className="rounded-2xl border p-5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+        <div className="h-4 w-36 rounded bg-[var(--background)] mb-4" />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="h-28 rounded-xl bg-[var(--background)]" />
+          <div className="h-28 rounded-xl bg-[var(--background)]" />
+        </div>
+      </section>
+    </div>
+  );
+}
 
 /**
  * Pre-cycle home: role-aware overview, stats, and quick actions.
@@ -198,6 +227,7 @@ export default function DashboardHomePage() {
 
   const probingPerCycleRole =
     user?.role === null && !cyclesLoading && cycles.length > 0 && derivedCycleRole === undefined;
+  const waitingForDerivedRole = user?.role === null && (cyclesLoading || derivedCycleRole === undefined);
 
   const effectiveRole = user?.role ?? derivedCycleRole;
 
@@ -215,38 +245,22 @@ export default function DashboardHomePage() {
     [authLoading, cyclesLoading, probingPerCycleRole, insightsLoading, effectiveRole]
   );
 
-  if (authLoading || !user) {
-    return (
-      <div className="flex items-center justify-center py-24 text-sm" style={{ color: "var(--foreground-muted)" }}>
-        Loading…
-      </div>
-    );
-  }
+  if (authLoading || !user) return <DashboardLoadingSkeleton />;
 
-  if (probingPerCycleRole) {
-    return (
-      <div className="flex items-center justify-center py-24 text-sm" style={{ color: "var(--foreground-muted)" }}>
-        Loading…
-      </div>
-    );
-  }
+  // Prevent fallback-dashboard flash while per-cycle role is still resolving.
+  if (probingPerCycleRole || waitingForDerivedRole) return <DashboardLoadingSkeleton />;
 
   if (effectiveRole === "compliance_officer") {
     return <ComplianceOfficerHomeDashboard userName={user.name} insights={insights} loading={loading} />;
   }
 
-  if (effectiveRole === "it_sme") {
-    return <ItExpertHomeDashboard userName={user.name} insights={insights} loading={loading} />;
-  }
-
-  if (effectiveRole === "internal_reviewer_l1") {
-    return <L1ReviewerHomeDashboard userName={user.name} insights={insights} loading={loading} />;
-  }
-  if (effectiveRole === "internal_reviewer_l2") {
-    return <L2ReviewerHomeDashboard userName={user.name} insights={insights} loading={loading} />;
-  }
-  if (effectiveRole === "external_assessor") {
-    return <L3ReviewerHomeDashboard userName={user.name} insights={insights} loading={loading} />;
+  if (
+    effectiveRole === "it_sme" ||
+    effectiveRole === "internal_reviewer_l1" ||
+    effectiveRole === "internal_reviewer_l2" ||
+    effectiveRole === "external_assessor"
+  ) {
+    return <UserHomeDashboard user={user} cycles={cycles} />;
   }
 
   return (
