@@ -11,7 +11,7 @@ const DEMO_CREDENTIALS: { email: string; password: string; role: UserRole; step:
   { email: "ranjith.bk@yaaralabs.ai", password: "Ranjith154@$#", role: "compliance_officer", step: 1 },
   { email: "itsme@gmail.com",         password: "12345678",       role: "it_sme",              step: 2 },
   { email: "l1@gmail.com",            password: "12345678",       role: "internal_reviewer_l1", step: 3 },
-  { email: "l2@gmail.com",            password: "12345678",       role: "internal_reviewer_l2", step: 4 },
+  { email: "l2_reviewer@gmail.com",    password: "12345678",       role: "internal_reviewer_l2", step: 4 },
   { email: "external_approver@gmail.com", password: "12345678",   role: "external_assessor",    step: 5 },
 ];
 
