@@ -6,7 +6,7 @@
 BEGIN;
 
 SET search_path TO swift_2026, public;
-
+ 
 INSERT INTO swift_2026.evidence_domains (id, name, color, accent_color, item_count, sort_order, cscf_version) VALUES
 ('A', 'Network & Architecture',      '#0F4C75', '#BBE1FA', 6,  1, '2026v'),
 ('B', 'System Hardening & Config',    '#1B5E20', '#C8E6C9', 8,  2, '2026v'),

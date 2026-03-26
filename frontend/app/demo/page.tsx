@@ -6,13 +6,13 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ROLE_LABELS } from "@/lib/data/roles";
 import type { UserRole } from "@/lib/types";
 
-/** Demo credentials for role-based flow: Compliance → Evidence Uploader → L1 → L2 → L3 */
+/** Demo credentials for role-based flow: Compliance → IT Expert → L1 → L2 → Approver */
 const DEMO_CREDENTIALS: { email: string; password: string; role: UserRole; step: number }[] = [
   { email: "ranjith.bk@yaaralabs.ai", password: "Ranjith154@$#", role: "compliance_officer", step: 1 },
-  { email: "125150042@sastra.ac.in", password: "12345678", role: "it_sme", step: 2 },
-  { email: "125150056@sastra.ac.in", password: "12345678", role: "internal_reviewer_l1", step: 3 },
-  { email: "125150051@sastra.ac.in", password: "12345678", role: "internal_reviewer_l2", step: 4 },
-  { email: "125150048@sastra.ac.in", password: "12345678", role: "external_assessor", step: 5 },
+  { email: "itsme@gmail.com",         password: "12345678",       role: "it_sme",              step: 2 },
+  { email: "l1@gmail.com",            password: "12345678",       role: "internal_reviewer_l1", step: 3 },
+  { email: "l2@gmail.com",            password: "12345678",       role: "internal_reviewer_l2", step: 4 },
+  { email: "external_approver@gmail.com", password: "12345678",   role: "external_assessor",    step: 5 },
 ];
 
 const DEMO_STORAGE_KEY = "demo_login_credentials";
