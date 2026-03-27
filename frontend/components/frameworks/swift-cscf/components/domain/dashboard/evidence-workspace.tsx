@@ -579,6 +579,7 @@ export function EvidenceWorkspace({
                       result={aiEvaluationResult}
                       loading={aiEvaluationLoading}
                       placeholder={false}
+                      showTitle={false}
                       editable={submissionStatus !== "submitted" && submissionStatus !== "approved"}
                       onEdit={onEvaluationEdit}
                       evaluationEdits={evaluationEdits}

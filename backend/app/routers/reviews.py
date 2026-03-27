@@ -201,6 +201,46 @@ def _advance_submission_after_approve(
     return None
 
 
+def _sync_artifact_status_on_submission_approved(
+    db: Session,
+    submission: EvidenceSubmission,
+    user: User,
+) -> None:
+    """
+    Keep Artifact Registry status aligned with final review outcome.
+    When a submission becomes approved after L3, promote its artifact to approved
+    so reuse candidates can discover it in later cycles.
+    """
+    if submission.status != evidence_status_svc.evidence_status_to_db("approved"):
+        return
+
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == submission.cycle_id).first()
+    if not cycle:
+        return
+
+    try:
+        schema_name = _resolve_schema_for_cycle(db, submission.cycle_id)
+        artifact = artifact_registry_service.get_or_create_from_submission(
+            db=db,
+            cycle=cycle,
+            submission=submission,
+            created_by=user.id,
+            framework_schema=schema_name,
+            cscf_version=(cycle.cscf_version or "v2025").replace("2025v", "v2025").replace("2026v", "v2026"),
+            force_new_version=False,
+        )
+        if artifact.status != "approved":
+            artifact_registry_service.transition_status(
+                db=db,
+                artifact=artifact,
+                to_status="approved",
+                performed_by=user.id,
+                comment="Auto-promoted after final review approval",
+            )
+    except Exception as e:
+        logger.warning("artifact_registry sync on final approval skipped: %s", e)
+
+
 # ── Submit evidence for review ──────────────────────────────
 
 @router.post("/assessments/{cycle_id}/evidence/{sub_id}/submit")
@@ -700,6 +740,11 @@ def update_review(
     except Exception:
         logger.exception("[REVIEW] Commit failed for review=%s", review_id)
         raise
+
+    # If this approve transitioned submission to approved, sync artifact status too.
+    if req.decision == "approve" and submission:
+        _sync_artifact_status_on_submission_approved(db, submission, user)
+
     out = ReviewOut.model_validate(out_data)
     return UpdateReviewResponse(review=out, next_review_id=next_review_id)
 

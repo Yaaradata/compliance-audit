@@ -299,7 +299,7 @@ def get_reuse_candidates(db: Session, tenant_id: UUID, evidence_item_id: str, cu
             Artifact.evidence_item_id == evidence_item_id.upper(),
             Artifact.tenant_id == tenant_id,
             Artifact.cycle_id != current_cycle_id,
-            Artifact.status.in_(["approved", "archived"]),
+            Artifact.status.in_(["approved", "archived", "submitted"]),
             Artifact.is_active.is_(True),
         )
         .order_by(Artifact.created_at.desc())
@@ -317,6 +317,13 @@ def get_reuse_candidates(db: Session, tenant_id: UUID, evidence_item_id: str, cu
     now = datetime.now(timezone.utc)
     out: list[dict] = []
     for c in candidates:
+        # Allow legacy "submitted" artifacts only when all control links show final approval.
+        # This keeps reuse working for tenants whose artifact status wasn't promoted in older runs.
+        if c.status == "submitted":
+            links = db.query(ArtifactControlLink).filter(ArtifactControlLink.artifact_id == c.artifact_id).all()
+            if not links or any((l.reviewer_status or "").lower() != "approved" for l in links):
+                continue
+
         age_days = (now - c.created_at).days if c.created_at else 0
         warnings: list[str] = []
         eligible = True

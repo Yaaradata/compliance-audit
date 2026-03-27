@@ -30,6 +30,8 @@ interface AiEvaluationResultProps {
   hideAiHint?: boolean;
   /** Review queue: match Swift review template (cards, tokens under .swift-review-tpl). */
   visualVariant?: "default" | "swiftReview";
+  /** Show embedded "AI evaluation results" title in swift variant. */
+  showTitle?: boolean;
   /** IT SME only: render Re-evaluate and Submit buttons inside the Sufficiency & criteria box. */
   onReEvaluate?: () => void;
   onSubmitForReview?: () => void;
@@ -762,6 +764,7 @@ function AiEvaluationResultTabs({
   configColor,
   currentItemId,
   visualVariant = "default",
+  showTitle = true,
 }: {
   result: AiEvaluationResultType;
   onEdit: (updated: AiEvaluationResultType, edits: EvaluationEditsMap) => void;
@@ -780,6 +783,7 @@ function AiEvaluationResultTabs({
   configColor?: string;
   currentItemId?: string;
   visualVariant?: "default" | "swiftReview";
+  showTitle?: boolean;
 }) {
   const swift = visualVariant === "swiftReview";
   const [activeTab, setActiveTab] = useState<"x" | "tick" | "edited" | "notes">("x");
@@ -966,7 +970,7 @@ function AiEvaluationResultTabs({
           : "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-(--border) dark:bg-(--surface)"
       }
     >
-      {swift && (
+      {swift && showTitle && (
         <div className="shrink-0 px-4 pt-4 pb-2">
           <h3 className="mb-2 text-base font-bold tracking-tight text-[var(--text-primary)]">AI evaluation results</h3>
         </div>
@@ -1177,6 +1181,7 @@ export function AiEvaluationResult({
   aiEvaluationLoading,
   configColor,
   currentItemId,
+  showTitle = true,
 }: AiEvaluationResultProps) {
   const swift = visualVariant === "swiftReview";
 
@@ -1252,6 +1257,7 @@ export function AiEvaluationResult({
       aiEvaluationLoading={aiEvaluationLoading}
       configColor={configColor}
       currentItemId={currentItemId}
+      showTitle={showTitle}
     />
   );
   if (swift) {

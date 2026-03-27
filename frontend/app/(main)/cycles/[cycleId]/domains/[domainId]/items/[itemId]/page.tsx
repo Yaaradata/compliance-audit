@@ -455,6 +455,7 @@ export default function CycleItemIntakePage() {
                     loading={aiEvaluationLoading}
                     placeholder={!aiEvaluationLoading && !aiEvaluationResult}
                     visualVariant="swiftReview"
+                    showTitle={false}
                     submissionId={submissionId}
                     notesRefreshTrigger={notesRefreshTrigger}
                     onNoteAdded={() => setNotesRefreshTrigger((n: number) => n + 1)}

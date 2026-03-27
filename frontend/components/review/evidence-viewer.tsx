@@ -1188,6 +1188,7 @@ export function EvidenceDetailModal({
                             onNoteAdded={() => setNotesRefresh((r) => r + 1)}
                             hideAiHint={false}
                             visualVariant="swiftReview"
+                            showTitle={false}
                           />
                         </div>
                       </div>
@@ -1227,6 +1228,7 @@ export function EvidenceDetailModal({
                           notesRefreshTrigger={notesRefresh}
                           onNoteAdded={() => setNotesRefresh((r) => r + 1)}
                           hideAiHint={true}
+                          showTitle={false}
                         />
                       </div>
                     </div>
