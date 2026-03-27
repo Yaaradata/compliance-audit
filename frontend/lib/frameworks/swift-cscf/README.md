@@ -10,7 +10,12 @@ All SWIFT CSCF–specific reference data lives here. Use it from pages and compo
 | File / folder | Purpose |
 |---------------|--------|
 | `domains.ts` | DOMAINS (A–H), DOMAIN_GRADIENTS, getDomainsForArchitecture |
-| `architectures.ts` | ARCHITECTURES, diagram helpers, getArchitecture, getArchitectureDiagramUrl |
+| `architectures.v2025.ts` | v2025 architecture definitions and control applicability |
+| `architectures.v2026.ts` | v2026 control applicability matrix |
+| `architectures.ts` | schema-aware compatibility layer (`getArchitecturesForSchema`, `getArchitecture`) |
+| `architecture-variants.v2025.ts` | v2025 variant catalog |
+| `architecture-variants.v2026.ts` | v2026 variant catalog source |
+| `architecture-variants.ts` | schema-aware compatibility layer for variants |
 | `approval-ideology.ts` | DOMAIN_APPROVAL_ORDER, APPROVAL_IDEOLOGY_DESCRIPTION, re-exports DOMAINS |
 | `evidence-review-labels.ts` | getEvidenceFieldLabel, getOrderedEvidenceKeys, getEvidenceTableColumnLabels (uses evidence/a2-evidence) |
 | `swift-systems.ts` | SWIFT_SYSTEMS, ACCESS_POINTS, SWIFT_ZONES, VENDORS, ARCHITECTURE_TYPES |

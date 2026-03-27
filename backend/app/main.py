@@ -10,12 +10,33 @@ warnings.filterwarnings(
     message=".*end user credentials from Google Cloud SDK without a quota project.*",
     category=UserWarning,
 )
+# Vertex AI SDK deprecation noise (generative_models); remove from CMD until SDK upgrade.
+warnings.filterwarnings(
+    "ignore",
+    message=".*deprecated as of June 24, 2025.*",
+    category=UserWarning,
+)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
+
+
+def _configure_app_logging() -> None:
+    """Ensure app loggers emit INFO to the console (uvicorn may leave root unconfigured)."""
+    fmt = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+    root = logging.getLogger()
+    if not root.handlers:
+        logging.basicConfig(level=logging.INFO, format=fmt, datefmt="%Y-%m-%d %H:%M:%S")
+    else:
+        root.setLevel(logging.INFO)
+    for name in ("app", "app.services", "app.services.ai_service"):
+        logging.getLogger(name).setLevel(logging.INFO)
+
+
+_configure_app_logging()
 
 from .config import settings
 from .database import (

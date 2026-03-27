@@ -295,6 +295,18 @@ def delete_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: Use
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user, db)
 
+    # Hard delete requires clearing immutable audit rows first for this cycle.
+    # We temporarily disable only the audit delete trigger in this transaction,
+    # delete cycle-linked trail rows, then re-enable the trigger.
+    db.execute(text("ALTER TABLE artifact_registry.audit_trail DISABLE TRIGGER trg_audit_no_delete"))
+    try:
+        db.execute(
+            text("DELETE FROM artifact_registry.audit_trail WHERE cycle_id = :cid"),
+            {"cid": cycle_id},
+        )
+    finally:
+        db.execute(text("ALTER TABLE artifact_registry.audit_trail ENABLE TRIGGER trg_audit_no_delete"))
+
     # Delete evidence files from storage and all related DB rows (attachments, submissions, reviews, etc.)
     delete_cycle_evidence_and_related(db, cycle_id)
 

@@ -17,7 +17,13 @@ export {
   getArchitectureDiagramUrlAsync,
 } from "./architectures";
 
-export { ARCHITECTURE_VARIANTS, type ArchitectureVariant } from "./architecture-variants";
+export {
+  ARCHITECTURE_VARIANTS,
+  ARCHITECTURE_VARIANTS_V2025,
+  ARCHITECTURE_VARIANTS_V2026,
+  getArchitectureVariantsForSchema,
+  type ArchitectureVariant,
+} from "./architecture-variants";
 
 export { DOMAINS, DOMAIN_APPROVAL_ORDER, APPROVAL_IDEOLOGY_DESCRIPTION } from "./approval-ideology";
 

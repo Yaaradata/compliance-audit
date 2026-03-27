@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,52 @@ logger = logging.getLogger(__name__)
 _PROMPT_DIR = Path(__file__).resolve().parent.parent / "Prompt"
 _PROMPT_FILE = _PROMPT_DIR / "evidence_evaluation_V1.txt"
 _REPORT_PROMPT_FILE = _PROMPT_DIR / "report_generation_V1.txt"
+_AWS_AUTOFILL_PROMPT_FILE = _PROMPT_DIR / "aws_autofill_V1.txt"
 _loaded_prompt_template: str | None = None
+_AI_LOG_PREVIEW_CHARS = 8000
+# Max chars of raw model text printed to CMD (full JSON can be huge). Override with env AI_LOG_RAW_MAX_CHARS.
+_AI_RAW_MAX_CONSOLE = int(os.getenv("AI_LOG_RAW_MAX_CHARS", "500000"))
+
+_LEVEL_TAG = {
+    "INFO": "INFO ",
+    "WARN": "WARN ",
+    "ERROR": "ERROR",
+}
+
+
+def _ai_emit(level: str, operation: str, message: str, *, exc_info: bool = False) -> None:
+    """
+    Structured AI log line always printed to stdout (visible in uvicorn CMD like [Backend]).
+    Also forwards to Python logging for log collectors / files.
+    """
+    tag = _LEVEL_TAG.get(level.upper(), level[:5].ljust(5))
+    line = f"[AI][{tag}][{operation}] {message}"
+    print(line, flush=True)
+    if level.upper() == "ERROR":
+        logger.error("[%s] %s", operation, message, exc_info=exc_info)
+    elif level.upper() == "WARN":
+        logger.warning("[%s] %s", operation, message)
+    else:
+        logger.info("[%s] %s", operation, message)
+
+
+def _ai_raw_response_console(operation: str, raw_text: str) -> None:
+    """Print full raw model output between markers so CMD shows the exact AI response."""
+    n = len(raw_text)
+    body = raw_text
+    if n > _AI_RAW_MAX_CONSOLE:
+        body = raw_text[:_AI_RAW_MAX_CONSOLE]
+        _ai_emit(
+            "WARN",
+            operation,
+            f"Console raw truncated: {n} chars > AI_LOG_RAW_MAX_CHARS={_AI_RAW_MAX_CONSOLE}",
+        )
+    print(f"[AI][RESPONSE][{operation}] ===== RAW BEGIN ({len(body)} of {n} chars) =====", flush=True)
+    print(body, flush=True)
+    print(f"[AI][RESPONSE][{operation}] ===== RAW END =====", flush=True)
+    cap = 12000
+    tail = "" if n <= cap else f"\n...[truncated {n - cap} chars]"
+    logger.info("[%s] Raw response (%d chars) log preview:%s%s", operation, n, tail, raw_text[:cap])
 
 
 def _load_prompt_template() -> str:
@@ -313,6 +359,24 @@ def _parse_ai_response(text: str) -> dict:
     return json.loads(cleaned.strip())
 
 
+def _preview_text(text: str, max_chars: int = _AI_LOG_PREVIEW_CHARS) -> str:
+    """Return response preview for terminal logs without flooding output."""
+    if len(text) <= max_chars:
+        return text
+    return f"{text[:max_chars]}\n...[truncated {len(text) - max_chars} chars]"
+
+
+def _log_ai_response(label: str, raw_text: str) -> None:
+    """Print raw response to CMD, then optional pretty JSON summary for debugging."""
+    _ai_raw_response_console(label, raw_text)
+    try:
+        parsed = _parse_ai_response(raw_text)
+        pretty = json.dumps(parsed, indent=2, ensure_ascii=False, default=str)
+        _ai_emit("INFO", label, "Parsed JSON (pretty preview):\n" + _preview_text(pretty, _AI_LOG_PREVIEW_CHARS))
+    except Exception:
+        _ai_emit("WARN", label, "Model output is not valid JSON after fence strip; see RAW block above.")
+
+
 def evaluate_evidence(
     file_parts: list[Part],
     evidence_item: Any,
@@ -327,6 +391,7 @@ def evaluate_evidence(
     try:
         model = _get_model()
     except Exception as init_err:
+        _ai_emit("ERROR", "evaluate_evidence", f"Vertex AI init failed: {init_err}")
         logger.exception("Vertex AI init failed")
         raise ValueError(
             "Vertex AI is not available. Check GOOGLE_CLOUD_PROJECT and "
@@ -337,6 +402,14 @@ def evaluate_evidence(
         evidence_item, control_mappings, matrix_rows=matrix_rows,
         submission_context=submission_context, previous_evaluation=previous_evaluation,
     )
+    _ai_emit(
+        "INFO",
+        "evaluate_evidence",
+        "start "
+        f"item={getattr(evidence_item, 'id', 'unknown')} "
+        f"controls={len(control_mappings)} files={len(file_parts)} "
+        f"model={settings.VERTEX_AI_MODEL} prompt_chars={len(prompt_text)}",
+    )
     contents = [Part.from_text(prompt_text)] + file_parts
 
     max_retries = 3
@@ -344,6 +417,11 @@ def evaluate_evidence(
     for attempt in range(max_retries + 1):
         try:
             response = model.generate_content(contents)
+            _ai_emit(
+                "INFO",
+                "evaluate_evidence",
+                f"vertex_ok attempt={attempt + 1}/{max_retries + 1}",
+            )
             break  # success
         except Exception as api_err:
             last_err = api_err
@@ -353,16 +431,23 @@ def evaluate_evidence(
             is_rate_limit = "RESOURCE_EXHAUSTED" in err_type or "ResourceExhausted" in err_type or "429" in err_msg or "Resource exhausted" in err_msg
             if is_rate_limit and attempt < max_retries:
                 wait = 2 ** attempt * 5  # 5s, 10s, 20s
+                _ai_emit(
+                    "WARN",
+                    "evaluate_evidence",
+                    f"rate_limit retry in {wait}s (attempt {attempt + 1}/{max_retries + 1}) err={err_msg[:200]}",
+                )
                 logger.warning("Vertex AI 429 (attempt %d/%d), retrying in %ds…", attempt + 1, max_retries + 1, wait)
                 time.sleep(wait)
                 continue
 
             if is_rate_limit:
+                _ai_emit("WARN", "evaluate_evidence", f"rate_limit exhausted after {attempt + 1} attempts: {err_msg}")
                 logger.warning("Vertex AI rate limit (429) after %d attempts: %s", attempt + 1, err_msg)
                 raise ValueError(
                     "Vertex AI rate limit (429). The AI service is temporarily overloaded. Please try again in a minute."
                 ) from api_err
 
+            _ai_emit("ERROR", "evaluate_evidence", f"generate_content failed: {err_type}: {err_msg}")
             logger.exception("Vertex AI generate_content failed")
             if "PERMISSION_DENIED" in err_msg or "PermissionDenied" in err_type or "403" in err_msg:
                 raise ValueError(
@@ -383,10 +468,14 @@ def evaluate_evidence(
             "Try different evidence files or check model safety settings."
         )
 
+    _log_ai_response("evaluate_evidence", text)
     try:
-        return _parse_ai_response(text)
+        parsed = _parse_ai_response(text)
+        _ai_emit("INFO", "evaluate_evidence", "parse_ok returning dict to caller")
+        return parsed
     except (json.JSONDecodeError, ValueError) as exc:
-        logger.error("AI response parse error: %s\nRaw: %s", exc, text[:500])
+        _ai_emit("ERROR", "evaluate_evidence", f"json_parse_failed: {exc}")
+        logger.error("AI response parse error: %s\nRaw: %s", exc, _preview_text(text, 2000))
         raise ValueError(f"AI returned invalid JSON: {exc}") from exc
 
 
@@ -562,6 +651,12 @@ def _load_report_prompt_template() -> str:
     return _REPORT_PROMPT_FILE.read_text(encoding="utf-8")
 
 
+def _load_aws_autofill_prompt_template() -> str:
+    if not _AWS_AUTOFILL_PROMPT_FILE.is_file():
+        raise FileNotFoundError(f"AWS autofill prompt file not found: {_AWS_AUTOFILL_PROMPT_FILE}")
+    return _AWS_AUTOFILL_PROMPT_FILE.read_text(encoding="utf-8")
+
+
 def generate_report_section(snapshot: dict, section_key: str) -> str:
     """Generate a single report section via Vertex AI.
 
@@ -588,6 +683,11 @@ def generate_report_section(snapshot: dict, section_key: str) -> str:
         section_data=json.dumps(section_data, indent=2, default=str),
         section_name=section_name,
     )
+    _ai_emit(
+        "INFO",
+        "generate_report_section",
+        f"start section={section_key} name={section_name} model={settings.VERTEX_AI_MODEL} prompt_chars={len(prompt)}",
+    )
 
     model = _get_model()
 
@@ -595,27 +695,43 @@ def generate_report_section(snapshot: dict, section_key: str) -> str:
     for attempt in range(max_retries + 1):
         try:
             response = model.generate_content([Part.from_text(prompt)])
+            _ai_emit(
+                "INFO",
+                "generate_report_section",
+                f"vertex_ok section={section_key} attempt={attempt + 1}/{max_retries + 1}",
+            )
             break
         except Exception as api_err:
             err_msg = str(api_err)
             is_rate_limit = "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg
             if is_rate_limit and attempt < max_retries:
                 wait = min(5 * (2 ** attempt), 90)
+                _ai_emit(
+                    "WARN",
+                    "generate_report_section",
+                    f"section={section_key} rate_limit retry in {wait}s attempt={attempt + 1}/{max_retries + 1}",
+                )
                 logger.warning(
                     "Report gen 429 (attempt %d/%d), retrying in %ds…",
                     attempt + 1, max_retries + 1, wait,
                 )
                 time.sleep(wait)
                 continue
-            raise ValueError(
-                f"Vertex AI rate limit (429). Please try again in a few minutes. "
-                f"Section: {section_key}. Error: {api_err}"
-            ) from api_err
+            if is_rate_limit:
+                _ai_emit("ERROR", "generate_report_section", f"section={section_key} rate_limit_gave_up: {err_msg}")
+                raise ValueError(
+                    f"Vertex AI rate limit (429). Please try again in a few minutes. "
+                    f"Section: {section_key}. Error: {api_err}"
+                ) from api_err
+            _ai_emit("ERROR", "generate_report_section", f"section={section_key} vertex_error: {err_msg}")
+            raise ValueError(f"Vertex AI error (section={section_key}): {api_err}") from api_err
 
     text = _get_response_text(response)
     if not text or not text.strip():
+        _ai_emit("WARN", "generate_report_section", f"section={section_key} empty_response")
         return f"*Content generation returned empty for section: {section_name}. Please regenerate.*"
 
+    _ai_raw_response_console(f"generate_report_section:{section_key}", text)
     cleaned = text.strip()
     if cleaned.startswith("```"):
         first_nl = cleaned.index("\n") if "\n" in cleaned else len(cleaned)
@@ -623,7 +739,9 @@ def generate_report_section(snapshot: dict, section_key: str) -> str:
     if cleaned.endswith("```"):
         cleaned = cleaned[:cleaned.rfind("```")]
 
-    return cleaned.strip()
+    out = cleaned.strip()
+    _ai_emit("INFO", "generate_report_section", f"section={section_key} done markdown_chars={len(out)}")
+    return out
 
 
 _DEFAULT_SUGGESTION_GAP = (
@@ -653,6 +771,7 @@ def suggest_answers_from_aws_evidence(
     try:
         model = _get_model()
     except Exception as init_err:
+        _ai_emit("ERROR", "suggest_answers_from_aws_evidence", f"init_failed: {init_err}")
         logger.exception("Vertex AI init failed (suggest-from-aws)")
         raise ValueError(
             "Vertex AI is not available. Set GOOGLE_CLOUD_PROJECT and credentials."
@@ -661,35 +780,26 @@ def suggest_answers_from_aws_evidence(
     q_json = json.dumps(questions, indent=2, default=str)
     ev_json = json.dumps(aws_evidence_bundle, indent=2, default=str)
 
-    prompt = f"""You are a SWIFT CSCF compliance assistant. The user collected read-only AWS configuration snapshots for evidence item {evidence_item_id}.
-
-## AWS evidence (JSON — may include multiple collectors / controls)
-{ev_json}
-
-## Form fields to fill (only these question_key values)
-Each field lists: question_key, label, question_type, options (if select/multiselect), guide (rubric).
-
-{q_json}
-
-## Rules
-1. Output **only** a single JSON object with exactly two keys: **"answers"** and **"gaps"** (both objects).
-2. **answers**: keys must be exactly the question_key values listed above; values must be strings.
-3. **gaps**: for every question_key where **answers** is "" or missing, include the same key with a **one-sentence** plain-English reason (e.g. which IAM/Secrets/collector data is missing, or that evidence is unrelated to the question). If answers[key] is non-empty, omit key from gaps or use "".
-4. For question_type "select", the value must be **exactly** one of the listed options strings (character-for-character), or "" if unknown.
-5. For "multiselect", use a single string: option values separated by comma, or "" if unknown.
-6. For "date" use YYYY-MM-DD only when clearly supported by evidence; otherwise "".
-7. For "checkbox" use "true" or "false" (lowercase) or "".
-8. For "text" / "textarea", give concise factual answers grounded **only** in the AWS evidence JSON. If the evidence does not contain the information, use "".
-9. For "spreadsheet", options contains column definitions (array of objects with key, label, type, options). Return a JSON-encoded string of an array of row objects. Populate rows from the AWS evidence; if no data is available, return "[]".
-10. Do not invent ARNs, account IDs, resource names, or dates not present in the evidence.
-11. Do not add answer keys that were not listed.
-
-Return JSON only, no markdown fences. Example shape: {{"answers": {{"q1": "yes"}}, "gaps": {{"q2": "No credential report in evidence."}}}}"""
+    prompt_template = _load_aws_autofill_prompt_template()
+    prompt = prompt_template.format(
+        evidence_item_id=evidence_item_id,
+        aws_evidence_json=ev_json,
+        questions_json=q_json,
+    )
+    _ai_emit(
+        "INFO",
+        "suggest_answers_from_aws_evidence",
+        f"start item={evidence_item_id} questions={len(questions)} evidence_chunks={len(aws_evidence_bundle)} "
+        f"model={settings.VERTEX_AI_MODEL} prompt_chars={len(prompt)}",
+    )
 
     response = model.generate_content([Part.from_text(prompt)])
+    _ai_emit("INFO", "suggest_answers_from_aws_evidence", "vertex_ok")
     text = _get_response_text(response)
     if not (text and text.strip()):
+        _ai_emit("ERROR", "suggest_answers_from_aws_evidence", "empty_model_text")
         raise ValueError("Vertex AI returned empty text for suggest-from-aws.")
+    _log_ai_response("suggest_answers_from_aws_evidence", text)
 
     try:
         parsed = _parse_ai_response(text)
@@ -722,6 +832,11 @@ Return JSON only, no markdown fences. Example shape: {{"answers": {{"q1": "yes"}
         reason = gaps_raw.get(k) or gaps_raw.get(str(k))
         gaps[str(k)] = (reason.strip() if reason else _DEFAULT_SUGGESTION_GAP)
 
+    _ai_emit(
+        "INFO",
+        "suggest_answers_from_aws_evidence",
+        f"done item={evidence_item_id} answered={sum(1 for v in out.values() if v)} gaps={len(gaps)}",
+    )
     return {"suggestions": out, "gaps": gaps}
 
 

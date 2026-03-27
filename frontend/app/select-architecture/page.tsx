@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import {
-  ARCHITECTURE_VARIANTS,
+  getArchitectureVariantsForSchema,
   getArchitecturesForSchema,
   getArchitecture,
   type ArchitectureVariant,
@@ -102,6 +102,10 @@ function SelectArchitectureInner() {
 
   const architecturesList = useMemo(
     () => getArchitecturesForSchema(schemaName ?? undefined),
+    [schemaName]
+  );
+  const architectureVariants = useMemo(
+    () => getArchitectureVariantsForSchema(schemaName ?? undefined),
     [schemaName]
   );
 
@@ -312,7 +316,7 @@ function SelectArchitectureInner() {
   if (!user) return null;
 
   const arch = selectedArch;
-  const variants = arch ? ARCHITECTURE_VARIANTS[arch.id] ?? [] : [];
+  const variants = arch ? architectureVariants[arch.id] ?? [] : [];
   const mandatoryCount = arch?.mandatoryControls.length ?? 0;
   const advisoryCount = arch?.advisoryControls.length ?? 0;
   const totalControls = mandatoryCount + advisoryCount;
@@ -389,7 +393,7 @@ function SelectArchitectureInner() {
                   const pres = TYPE_PRESENTATION[a.id] ?? TYPE_PRESENTATION.A1;
                   const m = a.mandatoryControls.length;
                   const adv = a.advisoryControls.length;
-                  const vCount = ARCHITECTURE_VARIANTS[a.id]?.length ?? 0;
+                  const vCount = architectureVariants[a.id]?.length ?? 0;
                   return (
                     <button
                       key={a.id}
