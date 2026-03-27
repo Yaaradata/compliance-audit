@@ -1,0 +1,2338 @@
+item_code,control_id,evidence_item_name,control_name,ma,evidence_type,sufficiency_criteria,evaluation_criteria,cscf_version,created_at
+A2,1.1,SWIFT component inventory,SWIFT Environment Protection,M,Spreadsheet,"{
+  ""sufficiency_criteria"": [
+    ""Complete list of ALL systems within secure zone: hostname, IP address, OS version, function/role"",
+    ""Each system tagged with zone membership: Secure Zone, Customer Zone, DMZ, Enterprise"",
+    ""Component type classification per system: messaging interface, communication interface, GUI, SwiftNet Link, HSM, connector, jump server, dedicated PC, general-purpose PC, network device"",
+    ""Test vs production status clearly marked"",
+    ""Co-hosted systems identified (VMs sharing same host)"",
+    ""Live, backup, and DR environment systems all listed"",
+    ""Systems excluded from zone with documented justification""
+  ]
+}","{
+  ""pass_if"": [
+    ""All 7+ SWIFT component types represented in inventory"",
+    ""Every system has hostname, IP, OS, zone membership"",
+    ""Test systems marked as excluded with separation justification""
+  ],
+  ""fail_if"": [
+    ""Fewer systems than expected for declared architecture type"",
+    ""Missing component types (e.g., no HSM listed for A1/A2)"",
+    ""No zone membership indicator""
+  ],
+  ""cross_checks"": [
+    ""Every system must appear on A1 diagram"",
+    ""Count of systems must be consistent with D2 patch levels and B1 hardening configs""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A2,1.5,SWIFT component inventory,Customer Environment Protection,M,Spreadsheet,"{
+  ""sufficiency_criteria"": [
+    ""All customer connectors (SWIFT/customer connector type) listed with hostname, IP, type, zone placement (A1 architecture only)"",
+    ""Dedicated PCs for customer connectivity zone listed"",
+    ""Jump server for customer zone identified"",
+    ""Alliance Connect VPN boxes/instances listed"",
+    ""Customer connector associated HSMs identified where applicable"",
+    ""Note (v2025): Customer client connectors are advisory in-scope \u2014 their inclusion in the inventory is advisory, not mandatory; inclusion earns positive assessor credit""
+  ]
+}","{
+  ""pass_if"": [
+    ""All mandatory customer connectors in inventory with zone placement"",
+    ""Associated equipment (PCs, jump server) listed for customer zone""
+  ],
+  ""fail_if"": [
+    ""Mandatory customer connectors (not client connectors) missing from inventory""
+  ],
+  ""applicability"": [
+    ""Architecture A1 only""
+  ],
+  ""notes"": [
+    ""Customer client connectors are advisory in-scope in v2025 (bracket notation in Control 1.1, 1.2, 2.3 etc)""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A2,2.4A,SWIFT component inventory,Back Office Data Flow Security,A,Spreadsheet,"{
+  ""sufficiency_criteria"": [
+    ""ADVISORY in v2025 (Control 2.4A) \u2014 mandatory from v2026"",
+    ""Bridging servers (middleware/file transfer) explicitly identified in inventory where deployed: hostname, IP, function, zone placement"",
+    ""Dedicated vs shared status per bridging server documented if available"",
+    ""Data exchange role documented: which back-office systems connect through each bridging server"",
+    ""Network placement relative to secure zone boundary indicated"",
+    ""New vs legacy flow association per bridging server noted if applicable"",
+    ""SWIFT recommends starting this inventory now as preparation for v2026""
+  ]
+}","{
+  ""pass_if"": [
+    ""Bridging servers identified with complete details if deployed (advisory \u2014 not required for v2025 pass)"",
+    ""Dedicated/shared status documented where applicable""
+  ],
+  ""fail_if"": [
+    ""No score penalty in v2025 for absence \u2014 this is advisory"",
+    ""If documented: must match bridging servers on A1 and A3 diagrams""
+  ],
+  ""notes"": [
+    ""Advisory control in v2025 \u2014 mandatory from v2026""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A2,2.8,SWIFT component inventory,Outsourced Critical Activity Protection,M,Spreadsheet,"{
+  ""sufficiency_criteria"": [
+    ""Components managed by third parties flagged with: vendor name, service type, access level"",
+    ""Mapping of which vendors have access to which SWIFT components"",
+    ""Remote vs on-site management indicated"",
+    ""Cloud-hosted components identified with provider"",
+    ""Components managed by SWIFT connectivity providers identified separately"",
+    ""Outsourcing agent vs connectivity provider distinction noted""
+  ]
+}","{
+  ""pass_if"": [
+    ""All third-party managed components flagged"",
+    ""Vendor-to-component mapping complete"",
+    ""Cloud-hosted vs on-prem distinction clear""
+  ],
+  ""fail_if"": [
+    ""Components with no management ownership indicated"",
+    ""Third-party access not documented""
+  ],
+  ""cross_checks"": [
+    ""Vendors must match F1 vendor inventory; access must be in C3 user access list""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A3,2.1,Data flow diagrams,Internal Data Flow Security,M,Diagram,"{
+  ""sufficiency_criteria"": [
+    ""All internal data flows between SWIFT components shown with: source, destination, direction, protocol"",
+    ""Specific flows: Local RMA↔messaging, GUI↔messaging, GUI↔communication, messaging↔communication"",
+    ""Protocol per flow: LAU+TLS, two-way TLS, or alternative secure mechanism"",
+    ""Flows crossing zone boundaries highlighted"",
+    ""Cross-environment flows (on-prem to cloud) explicitly marked"",
+    ""Credential/key protection method per flow noted""
+  ]
+}","{
+  ""pass_if"": [
+    ""All expected inter-component flows documented with protocols"",
+    ""Direction and encryption method per flow visible""
+  ],
+  ""fail_if"": [
+    ""Missing flows between known components (compare to A2 inventory)"",
+    ""Flows shown without security mechanism annotation""
+  ],
+  ""cross_checks"": [
+    ""Encryption config details verified in B3""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A3,2.4A,Data flow diagrams,Back Office Data Flow Security,A,Diagram,"{
+  ""sufficiency_criteria"": [
+    ""ADVISORY in v2025 (Control 2.4A) \u2014 mandatory from v2026"",
+    ""Back-office to secure zone flows shown where documented: source back-office system, destination SWIFT component, bridging servers in path"",
+    ""Flow classification: direct (point-to-point) vs indirect (through bridging servers) where applicable"",
+    ""Security method per flow/segment documented where available: end-to-end (LAU, XML DSIG, AES-GCM) or per-leg TLS"",
+    ""New flows (post-2025) vs legacy flows distinguished where applicable"",
+    ""HSM-related flows separately shown if applicable"",
+    ""Risk assessment status for any unprotected legacy flows noted if documented""
+  ]
+}","{
+  ""pass_if"": [
+    ""Back-office flows mapped with complete path where documented (advisory \u2014 not required for v2025 pass)"",
+    ""Flow classification present if documented"",
+    ""Security method noted per flow where documented""
+  ],
+  ""fail_if"": [
+    ""No score penalty in v2025 for absence \u2014 this is advisory"",
+    ""If documented: flows must be consistent with A2 bridging server inventory and B3 encryption config""
+  ],
+  ""notes"": [
+    ""Advisory control in v2025 \u2014 mandatory from v2026; SWIFT recommends early identification per Appendix H phased approach""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A3,2.5A,Data flow diagrams,External Transmission Data Protection,A,Diagram,"{
+  ""sufficiency_criteria"": [
+    ""External transmission paths shown: backup replication, data extraction, offline processing, cross-datacenter transfers"",
+    ""Encryption method annotated per external path: TLS for transit, AES for data at rest"",
+    ""SAN/NAS connectivity paths identified"",
+    ""Cloud storage paths with encryption requirements shown"",
+    ""Paths between secure zones across different environments marked""
+  ]
+}","{
+  ""pass_if"": [
+    ""External paths documented with encryption annotations"",
+    ""Backup and replication paths included""
+  ],
+  ""fail_if"": [
+    ""No external paths despite backups existing""
+  ],
+  ""cross_checks"": [
+    ""Encryption details verified in B3""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A5,ALL,Architecture type declaration,All 32 Controls (Scoping),M,Form / Declaration,"{""1"": ""Formal declaration of architecture type: A1, A2, A3, A4, or B"", ""2"": ""Decision rationale documented: why this architecture type applies"", ""3"": ""Key infrastructure characteristics supporting the declaration (A1: customer connector; A2: owns messaging/communication interface; A3: application at service provider via connector; A4: service provider without dedicated SWIFT component; B: exclusively SWIFT services through back-office applications)"", ""4"": ""SWIFT BIC(s) covered by this assessment listed"", ""5"": ""Changes from previous architecture type noted (if applicable)"", ""6"": ""Multiple architectures per institution flagged if applicable""}","{""1"": ""Architecture type formally declared with rationale"", ""2"": ""BIC(s) listed for scope"", ""3"": ""Declaration matches actual infrastructure in A2"", ""4"": ""No formal declaration"", ""5"": ""Declared type contradicts component inventory (e.g., declared A4 but has messaging interface)"", ""6"": ""SCOPING IMPACT: Drives applicability of all 32 controls — validate before proceeding""}",2025v,2026-03-03T10:08:46.123706Z
+A4,1.1,Firewall rule sets,SWIFT Environment Protection,M,Config Export,"{
+  ""sufficiency_criteria"": [
+    ""Rule sets from EVERY firewall at secure zone boundary exported"",
+    ""Deny-by-default posture confirmed: explicit default-deny rule at end of each ruleset"",
+    ""Only explicitly permitted traffic allowed (allowlisting approach) — no 'allow any' rules"",
+    ""Each rule has: source, destination, port, protocol, action, direction (inbound/outbound)"",
+    ""Rules categorised: back-office connectivity, MV-SIPN/internet, operator PC to jump server, admin/backup outbound"",
+    ""Evidence of annual firewall rule review: signed review record with date, reviewer, findings"",
+    ""Shared firewall status documented: if firewall also protects non-SWIFT zones, management separation confirmed"",
+    ""Admin access to firewalls not using enterprise authentication system""
+  ]
+}","{
+  ""pass_if"": [
+    ""Default-deny at end of every ruleset"",
+    ""No 'allow any' rules present"",
+    ""Every rule has source/dest/port/protocol/action"",
+    ""Annual review evidence with sign-off date within 12 months""
+  ],
+  ""fail_if"": [
+    ""'Allow any' rules found in ruleset"",
+    ""No default-deny posture"",
+    ""Rules permitting direct internet from zone components"",
+    ""No annual review evidence""
+  ],
+  ""cross_checks"": [
+    ""Firewalls match placement on A1 diagram""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A4,1.4,Firewall rule sets,Restriction of Internet Access,M,Config Export,"{
+  ""sufficiency_criteria"": [
+    ""Explicit deny rules for outbound internet from ALL secure zone systems"",
+    ""Jump server internet access explicitly blocked in rules"",
+    ""If allowlisted URL access exists: proxy destination rules with content inspection noted"",
+    ""General-purpose operator PC internet rules: through proxy/web gateway only"",
+    ""Any internet exception rules documented with: justification, approval, review date"",
+    ""Dedicated operator PC internet rules: highly restricted or blocked""
+  ]
+}","{
+  ""pass_if"": [
+    ""Explicit deny for outbound internet from zone"",
+    ""Jump server has no internet-permitting rule"",
+    ""Any exceptions documented with justification""
+  ],
+  ""fail_if"": [
+    ""No deny rules for internet from zone"",
+    ""Broad internet access permitted from zone systems"",
+    ""Jump server has internet-permitting rule""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A4,1.5,Firewall rule sets,Customer Environment Protection,M,Config Export,"{
+  ""sufficiency_criteria"": [
+    ""Segmentation rules between customer connector zone and enterprise network"",
+    ""Deny-by-default for customer zone boundary equivalent to 1.1 protection"",
+    ""Only explicitly permitted traffic between customer zone and enterprise"",
+    ""Segmentation rules between customer zone and main SWIFT secure zone"",
+    ""Annual review evidence for customer zone firewall rules""
+  ]
+}","{
+  ""pass_if"": [
+    ""Customer zone has deny-by-default equivalent to main zone"",
+    ""Explicit rules only for permitted traffic""
+  ],
+  ""fail_if"": [
+    ""No firewall rules for customer zone boundary""
+  ],
+  ""applicability"": [
+    ""Architecture A1""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A6,1.1,Secure zone design rationale,SWIFT Environment Protection,M,Document,"{
+  ""sufficiency_criteria"": [
+    ""Written rationale for WHY specific zone boundaries were drawn at those points"",
+    ""Reference to SWIFT Security Guidance and/or CSCF Appendix B reference architectures"",
+    ""Justification for zone scope: why certain systems are included/excluded"",
+    ""Explanation of segmentation approach chosen (dedicated SWIFT zone vs extended production zone vs payment zone)"",
+    ""Authentication zone separation rationale: why separate AD/LDAP used"",
+    ""Risk assessment for any shared components or services crossing zone boundary"",
+    ""Documentation of co-hosting decisions: non-SWIFT systems in zone with justification""
+  ]
+}","{
+  ""pass_if"": [
+    ""Written rationale exists referencing SWIFT guidance"",
+    ""Zone scope justified with inclusion/exclusion reasoning"",
+    ""Segmentation approach explained""
+  ],
+  ""fail_if"": [
+    ""No written rationale document"",
+    ""Zone design contradicts CSCF guidance without justification""
+  ],
+  ""cross_checks"": [
+    ""Rationale aligns with actual zone shown in A1""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B1,1.2,OS hardening configuration,OS Privileged Account Control,M,Config / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""Privileged account restriction settings per mandatory in-scope system type: sudo configuration, UAC settings, admin group memberships"",
+    ""Built-in administrator account status: disabled for interactive login or restricted to controlled/emergency use only"",
+    ""Individual administrator accounts configured with privilege escalation (sudo/UAC) rather than shared admin accounts"",
+    ""Service account restrictions: minimal privileges, no interactive login where possible"",
+    ""Privilege elevation logging enabled: sudo logs on Linux, Windows security event log for UAC"",
+    ""Admin password storage: stored in zone-local authentication (not enterprise AD)"",
+    ""Network device admin access: not using enterprise authentication system; out-of-band or controlled in-band preferred"",
+    ""Mandatory scope (v2025): OS accounts on SWIFT servers/VMs, dedicated operator PCs, network devices, virtualisation/cloud platform, new HSM"",
+    ""Advisory scope (v2025): customer client connectors, bridging servers, general-purpose operator PCs \u2014 inclusion earns positive assessor credit""
+  ]
+}","{
+  ""pass_if"": [
+    ""Built-in admin accounts disabled for normal interactive login or restricted to controlled/emergency use"",
+    ""Individual admin accounts with sudo/escalation configured \u2014 no shared admin accounts"",
+    ""Privilege elevation events logged on all mandatory in-scope systems"",
+    ""Admin passwords stored in zone-local authentication (not enterprise AD)"",
+    ""Network device administration does not use enterprise authentication system""
+  ],
+  ""fail_if"": [
+    ""Built-in admin account enabled for routine interactive login"",
+    ""Shared admin accounts without individual accountability"",
+    ""No privilege elevation logging on mandatory in-scope systems"",
+    ""Zone system admin passwords stored in enterprise AD""
+  ],
+  ""notes"": [
+    ""One OS config export per SWIFT system type in A2 inventory"",
+    ""Advisory scope items (bridging servers, customer client connectors, general-purpose PCs) noted positively if included""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A6,1.5,Secure zone design rationale,Customer Environment Protection,M,Document,"{
+  ""sufficiency_criteria"": [
+    ""Rationale for customer connector zone design choices"",
+    ""Explanation of why equivalent protection to main secure zone is achieved"",
+    ""Justification for segmentation between customer zone and main SWIFT zone"",
+    ""Risk assessment for customer zone scope decisions""
+  ]
+}","{
+  ""pass_if"": [
+    ""Customer zone rationale documents equivalent protection"",
+    ""Segmentation approach justified""
+  ],
+  ""fail_if"": [
+    ""No rationale for customer zone design""
+  ],
+  ""applicability"": [
+    ""Architecture A1""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B1,2.3,OS hardening configuration,System Hardening,M,Config / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""Hardening baseline applied and identified: CIS benchmark, DISA STIG, NIST, or SWIFT Security Guidance"",
+    ""Default passwords changed on all mandatory in-scope systems"",
+    ""Unnecessary user accounts disabled or removed"",
+    ""Unnecessary services, ports, and protocols disabled or restricted"",
+    ""Unnecessary software removed"",
+    ""Physical ports restricted (USB, serial): disabled where not operationally required"",
+    ""Auto-lock configured: screen saver/lock after \u226415 minutes inactivity"",
+    ""Default vulnerable configurations adjusted per baseline"",
+    ""Deviations from baseline documented with justification and mitigating controls"",
+    ""Hardening checks performed at least twice per year (evidence of last two checks required)"",
+    ""Mandatory scope (v2025): dedicated and general-purpose operator PCs, jump server, systems hosting SWIFT components (interfaces, GUI, Swift/customer connectors), network devices protecting the secure zone, virtualisation/cloud platform"",
+    ""Advisory scope (v2025): customer client connectors, bridging servers (middleware servers) \u2014 inclusion earns positive assessor credit"",
+    ""Note: Swift HSMs are FIPS 140-2 Level 3 compliant and are OUT of scope for this control""
+  ]
+}","{
+  ""pass_if"": [
+    ""Named hardening baseline applied to all mandatory in-scope system types"",
+    ""Default passwords changed on all mandatory in-scope systems"",
+    ""Unnecessary services/ports/software removed or disabled"",
+    ""USB/removable media restricted on secure zone systems"",
+    ""Auto-lock \u226415 minutes configured"",
+    ""Deviations documented with justification and compensating control"",
+    ""Evidence of at least two hardening checks in the past 12 months""
+  ],
+  ""fail_if"": [
+    ""Default passwords still active on mandatory in-scope systems"",
+    ""Unnecessary services running (e.g., FTP, Telnet, print spooler) without justification"",
+    ""No auto-lock or timeout >15 minutes"",
+    ""USB ports unrestricted on secure zone systems"",
+    ""No named hardening baseline identified""
+  ],
+  ""notes"": [
+    ""One config export per SWIFT system type in A2"",
+    ""Advisory scope items noted positively if included""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B2,2.6,SWIFT application security config,Operator Session Confidentiality,M,Config / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""Encrypted session configuration for all operator connections: TLS version (1.2+), SSH version"",
+    ""Cipher suites configured: current accepted algorithms (AES, ECDHE)"",
+    ""GUI access security settings: HTTPS enforced, certificate validation enabled"",
+    ""Session timeout/inactivity lock-out configured at application level"",
+    ""Jump server to application connection protection: TLS or equivalent"",
+    ""Sessions to remote/hosted SWIFT applications also encrypted"",
+    ""Weak/deprecated protocols disabled (SSLv3, TLS 1.0/1.1, RC4, DES)""
+  ]
+}","{
+  ""pass_if"": [
+    ""TLS 1.2+ enforced for all operator sessions"",
+    ""Strong cipher suites only (AES-256, ECDHE)"",
+    ""Session timeout configured"",
+    ""Weak protocols disabled""
+  ],
+  ""fail_if"": [
+    ""TLS 1.0/1.1 still enabled"",
+    ""Weak ciphers present (RC4, DES, 3DES)"",
+    ""No session timeout configured""
+  ],
+  ""cross_checks"": [
+    ""Aligns with B3 transport-level encryption config""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B2,2.10,SWIFT application security config,Application Hardening,M,Config / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""SWIFT application hardened per Alliance Security Guidance or vendor documentation"",
+    ""Default application passwords changed"",
+    ""Unnecessary user accounts disabled or removed"",
+    ""Unnecessary application components, adaptors, or connectivity methods disabled"",
+    ""Adaptors and connectivity methods securely configured"",
+    ""Remote connections securely configured"",
+    ""Unnecessary packages removed"",
+    ""Default vulnerable configurations adjusted"",
+    ""Application deviations from hardening guidance documented with justification"",
+    ""Credential/key protection for application-to-application flows confirmed""
+  ]
+}","{
+  ""pass_if"": [
+    ""Alliance Security Guidance applied"",
+    ""Default passwords changed at application level"",
+    ""Unnecessary adaptors/components disabled"",
+    ""Deviations documented""
+  ],
+  ""fail_if"": [
+    ""Default application passwords still active"",
+    ""Unnecessary connectivity methods enabled"",
+    ""No evidence of vendor guidance application""
+  ],
+  ""cross_checks"": [
+    ""Compare against B6 baseline comparison results""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B3,2.1,Encryption configuration,Internal Data Flow Security,M,Config Export,"{
+  ""sufficiency_criteria"": [
+    ""Encryption configuration for each internal SWIFT-to-SWIFT component flow:"",
+    ""- Local RMA ↔ messaging interface"",
+    ""- GUI ↔ messaging interface"",
+    ""- GUI ↔ communication interface"",
+    ""- Messaging ↔ communication interface"",
+    ""Per-flow detail: TLS version, cipher suite, certificate type (mutual/one-way)"",
+    ""LAU configuration if used (in combination with TLS)"",
+    ""Cross-environment flow encryption (on-prem to cloud)"",
+    ""Cryptographic algorithm validation: AES, ECDHE with current key lengths"",
+    ""Credential/key protection method for flow security""
+  ]
+}","{
+  ""pass_if"": [
+    ""Every inter-component flow has encryption config documented"",
+    ""TLS 1.2+ with strong ciphers for each flow"",
+    ""Cross-environment flows encrypted""
+  ],
+  ""fail_if"": [
+    ""Any flow without encryption configured"",
+    ""Weak TLS versions or cipher suites"",
+    ""Self-signed certificates without justification""
+  ],
+  ""cross_checks"": [
+    ""Flows must match A3 data flow diagrams""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B3,2.4A,Encryption configuration,Back Office Data Flow Security,A,Config Export,"{
+  ""sufficiency_criteria"": [
+    ""ADVISORY in v2025 (Control 2.4A) \u2014 mandatory from v2026"",
+    ""Encryption/protection config for each documented back-office to secure zone flow where available:"",
+    ""\u2014 End-to-end protection options: LAU, XML DSIG, AES-GCM, or authenticated API over TLS"",
+    ""\u2014 Per-leg protection: TLS config per segment for flows through bridging servers"",
+    ""Two-way TLS configuration for direct point-to-point flows (where implemented)"",
+    ""Bridging server TLS config for each leg (back-office \u2192 bridging \u2192 SWIFT) where deployed"",
+    ""Flow-to-HSM encryption config where applicable"",
+    ""For any unprotected legacy flows: risk assessment and migration plan documented (advisory)"",
+    ""Key management approach per flow noted where documented""
+  ]
+}","{
+  ""pass_if"": [
+    ""Encryption config documented per implemented back-office flow (advisory \u2014 not required for v2025 pass)"",
+    ""Current cryptographic algorithms used where implemented"",
+    ""Unprotected legacy flows have risk assessment and migration plan""
+  ],
+  ""fail_if"": [
+    ""No score penalty in v2025 for absence \u2014 this is advisory"",
+    ""If documented: back-office flows with no encryption evidence flagged for remediation""
+  ],
+  ""notes"": [
+    ""Advisory control in v2025 \u2014 mandatory from v2026"",
+    ""Cross-checks: flows match A3 diagrams; bridging servers match A2""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A1,1.5,Network architecture diagram,Customer Environment Protection,M,Diagram + Text,"{
+  ""sufficiency_criteria"": [
+    ""Customer connector zone boundaries drawn with equivalent protection to main secure zone (A1 architecture only)"",
+    ""Firewall or ACL shown at boundary between customer connector zone and enterprise network"",
+    ""Segmentation between customer connector zone and main SWIFT secure zone visible"",
+    ""Customer connector, dedicated PCs, jump server (and HSM if applicable) positioned in the customer zone"",
+    ""Alliance Connect VPN placement shown in a secured environment"",
+    ""General-purpose PCs shown outside the customer zone"",
+    ""Note (v2025): Customer client connectors are advisory in-scope \u2014 their inclusion on the diagram is advisory, not mandatory""
+  ]
+}","{
+  ""pass_if"": [
+    ""Customer connector zone has an explicit boundary with firewall/ACL protection equivalent to main zone"",
+    ""Segmentation between customer zone and main SWIFT zone visible"",
+    ""Customer zone design rationale confirmed in A6""
+  ],
+  ""fail_if"": [
+    ""Customer connector floating outside any zone boundary without justification"",
+    ""No firewall or ACL between customer zone and enterprise network""
+  ],
+  ""applicability"": [
+    ""Architecture A1 only""
+  ],
+  ""cross_checks"": [
+    ""Customer zone firewall rules in A4"",
+    ""Customer zone design rationale in A6""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B3,2.5A,Encryption configuration,External Transmission Data Protection,A,Config Export,"{
+  ""sufficiency_criteria"": [
+    ""ADVISORY in v2025 (Control 2.5A)"",
+    ""Encryption-in-transit config for external transmissions where documented: TLS 1.2+ with strong ciphers"",
+    ""Encryption-at-rest config for SWIFT data stored outside secure zone: AES-256 or equivalent where applicable"",
+    ""Backup encryption configuration: encryption method and key management noted where implemented"",
+    ""Data replication encryption between data centres or to cloud where applicable"",
+    ""SAN/NAS encryption config noted if SWIFT data traverses SAN/NAS"",
+    ""Key management for at-rest encryption documented where implemented""
+  ]
+}","{
+  ""pass_if"": [
+    ""Transit encryption TLS 1.2+ for documented external paths (advisory \u2014 not required for v2025 pass)"",
+    ""At-rest encryption for backups and replicated data where implemented""
+  ],
+  ""fail_if"": [
+    ""No score penalty in v2025 for absence \u2014 this is advisory"",
+    ""If backups exist outside zone: no encryption is a finding worth noting""
+  ],
+  ""notes"": [
+    ""Advisory control in v2025""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B3,2.6,Encryption configuration,Operator Session Confidentiality,M,Config Export,"{
+  ""sufficiency_criteria"": [
+    ""Transport-level encryption config for ALL mandatory operator session types in v2025:"",
+    ""\u2014 Operator PC \u2192 jump server: SSH/TLS version and cipher suite"",
+    ""\u2014 Jump server \u2192 SWIFT applications: TLS version and cipher suite"",
+    ""\u2014 Operator PC \u2192 browser GUI: HTTPS/TLS config"",
+    ""\u2014 Remote VPN encryption config for remote operator access"",
+    ""TLS version and cipher suite per session type (minimum TLS 1.2 with 1.0/1.1 disabled)"",
+    ""Certificate configuration: type, validation enforcement, expiry monitoring process"",
+    ""Weak/deprecated protocols disabled at transport level (SSLv3, TLS 1.0/1.1, Telnet)"",
+    ""Note (v2025): sessions to bridging servers not explicitly named in Control 2.6 scope \u2014 advisory if documented""
+  ]
+}","{
+  ""pass_if"": [
+    ""Every mandatory operator session type has TLS 1.2+ with strong ciphers"",
+    ""Certificate validation enforced"",
+    ""Weak protocols disabled at transport level""
+  ],
+  ""fail_if"": [
+    ""Unencrypted session types in mandatory scope (plain HTTP, Telnet)"",
+    ""TLS 1.0/1.1 still enabled"",
+    ""Weak cipher suites present (RC4, DES, 3DES)""
+  ],
+  ""notes"": [
+    ""B2 = application-level session settings; B3 = transport-level encryption config"",
+    ""Bridging server session encryption is advisory in v2025 \u2014 noted positively if included""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B4,1.3,Virtualisation platform configuration,Virtualisation/Cloud Platform Protection,M,Config Export / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""Hypervisor/cloud platform security configuration showing equivalent protection to physical systems"",
+    ""VM isolation configuration: prevents lateral movement between VMs"",
+    ""Network flow filtering for SWIFT VMs: external to hypervisor or enforced at hypervisor level"",
+    ""Platform located in secure zone or equivalent secure zone"",
+    ""Privileged access restrictions on virtualisation platform"",
+    ""Login and password policies applied to platform admin accounts"",
+    ""Security update status of hypervisor/platform"",
+    ""MFA for interactive VM access (or at platform level if not at VM level)"",
+    ""Physical protection of underlying hardware"",
+    ""Container isolation if containerised applications are present"",
+    ""When third-party hosted: evidence of reasonable comfort from provider""
+  ]
+}","{
+  ""pass_if"": [
+    ""VM isolation configured and verified"",
+    ""Platform in secure zone with equivalent controls"",
+    ""Privileged access restricted on platform"",
+    ""Platform patched and updated""
+  ],
+  ""fail_if"": [
+    ""No VM isolation evidence"",
+    ""Platform outside any secure zone"",
+    ""Default admin credentials on platform"",
+    ""Third-party hosted without comfort evidence""
+  ],
+  ""cross_checks"": [
+    ""VMs match A2 inventory host/guest mapping""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B5,4.1,Password policy configuration,Password Policy,M,Config / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""Password policy settings enforced through technical means (AD Group Policy, application settings):"",
+    ""- Password length (minimum 15+ characters recommended for Windows to prevent LM hash)"",
+    ""- Password complexity requirements"",
+    ""- Password expiration period"",
+    ""- Password history/reuse prevention"",
+    ""- Account lockout after failed attempts (threshold + lockout duration + remedy)"",
+    ""PIN settings for tokens and mobile devices used as second factor"",
+    ""Separate policy considerations for:"",
+    ""- General operator accounts"",
+    ""- Privileged/administrator accounts (stricter)"",
+    ""- Application-to-application accounts"",
+    ""- Local authentication keys"",
+    ""Passwords for zone systems stored only in zone-local authentication (not enterprise AD)"",
+    ""LM hash prevention configured (NoLMHash registry on Windows)"",
+    ""Policy review evidence: reviewed annually""
+  ]
+}","{
+  ""pass_if"": [
+    ""Password length ≥15 chars for Windows systems"",
+    ""Complexity, expiration, history all enforced technically"",
+    ""Account lockout configured with reasonable threshold"",
+    ""NoLMHash enabled on Windows"",
+    ""Zone passwords in zone-local auth only""
+  ],
+  ""fail_if"": [
+    ""Password length <8 characters"",
+    ""No complexity requirement"",
+    ""No account lockout"",
+    ""Passwords stored in enterprise AD for zone systems"",
+    ""LM hash not disabled on Windows""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A1,2.1,Network architecture diagram,Internal Data Flow Security,M,Diagram + Text,"{
+  ""sufficiency_criteria"": [
+    ""All data flow paths between SWIFT components annotated with direction arrows"",
+    ""Flows between: Local RMA↔messaging interface, GUI↔messaging interface, GUI↔communication interface, messaging↔communication interface identified"",
+    ""Each flow annotated with protocol indicator (e.g., LAU+TLS, two-way TLS)"",
+    ""Flows spanning multiple environments (on-prem to cloud) explicitly shown"",
+    ""Boundary crossing points where encryption is required clearly identified""
+  ]
+}","{
+  ""pass_if"": [
+    ""All inter-component data flows shown with direction"",
+    ""Protocol type annotated per flow (even if summary level)"",
+    ""Cross-environment flows highlighted""
+  ],
+  ""fail_if"": [
+    ""Data flows between SWIFT components not shown"",
+    ""No indication of encryption on flows crossing boundaries""
+  ],
+  ""cross_checks"": [
+    ""Encryption details must be confirmed in B3 config exports""
+  ],
+  ""notes"": [
+    ""A1 shows the TOPOLOGY; B3 proves the CONFIGURATION""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B6,2.3,Hardening baseline comparison,System Hardening,M,Scan Report,"{
+  ""sufficiency_criteria"": [
+    ""Comparison results of current system config against selected hardening baseline (CIS/DISA STIG/NIST/vendor)"",
+    ""Baseline name and version identified"",
+    ""Per-system compliance score or pass/fail per hardening rule"",
+    ""Deviations from baseline listed with: deviation description, justification, compensating control"",
+    ""Scan date within last 6 months (checked at least twice per year per CSCF)"",
+    ""All in-scope system types covered: servers, operator PCs, jump servers, network devices, virtualisation platform"",
+    ""Remediation plan for high-risk deviations""
+  ]
+}","{
+  ""pass_if"": [
+    ""Identified baseline applied and compared"",
+    ""Deviations documented with justification"",
+    ""Scan date within 6 months"",
+    ""All system types covered""
+  ],
+  ""fail_if"": [
+    ""No baseline identified"",
+    ""Deviations without justification"",
+    ""Scan older than 6 months"",
+    ""System types missing from comparison""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B6,2.10,Hardening baseline comparison,Application Hardening,M,Scan Report,"{
+  ""sufficiency_criteria"": [
+    ""SWIFT application settings compared to Alliance Security Guidance or vendor documentation"",
+    ""Feature/service minimisation verified: unnecessary components disabled"",
+    ""Default credential changes confirmed at application level"",
+    ""Application-specific hardening rules checked"",
+    ""Deviations from vendor guidance documented with justification""
+  ]
+}","{
+  ""pass_if"": [
+    ""Application config compared against vendor guidance"",
+    ""Unnecessary features disabled"",
+    ""Default credentials changed""
+  ],
+  ""fail_if"": [
+    ""No vendor guidance comparison"",
+    ""Default credentials still active""
+  ],
+  ""notes"": [
+    ""B6→2.10 = comparison; B2→2.10 = actual config settings""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B6,6.2,Hardening baseline comparison,Software Integrity,M,Check Results,"{
+  ""sufficiency_criteria"": [
+    ""Provides the AUTHORIZED SOFTWARE BASELINE against which integrity checks (E4) are compared"",
+    ""List of authorized/approved SWIFT software with: name, version, hash/checksum"",
+    ""Unauthorized or unexpected software flagged"",
+    ""Baseline established and version-controlled"",
+    ""Change history showing authorized updates to baseline""
+  ]
+}","{
+  ""pass_if"": [
+    ""Authorized software list established with hashes"",
+    ""Baseline version-controlled""
+  ],
+  ""fail_if"": [
+    ""No authorized baseline exists""
+  ],
+  ""notes"": [
+    ""B6 provides the BASELINE; E4 provides the ongoing INTEGRITY CHECKS. B6 is supporting evidence for 6.2, not primary.""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B7,4.2,MFA configuration,Multi-Factor Authentication,M,Config / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""MFA implementation evidence per mandatory access point in v2025 (Control 4.2):"",
+    ""1) OS administrators accessing SWIFT hosting systems: at jump server login or dedicated PC login"",
+    ""2) End users accessing SWIFT applications: on messaging interface, communication interface, GUI, Swift/customer connector"",
+    ""3) Remote user access: VPN authentication requiring MFA"",
+    ""4) Access to virtualisation/cloud management console"",
+    ""5) Access to new HSM"",
+    ""6) Service provider application access (where applicable)"",
+    ""Second factor type per access point: TOTP, RSA SecurID, Digipass, USB token, smart card, 3-Skey Digital, mobile app"",
+    ""CRITICAL: Second factor device must be PHYSICALLY SEPARATE from first factor device"",
+    ""MFA system authentication credentials stored within secure zone (not enterprise AD)"",
+    ""Authentication factors individually assigned \u2014 no shared tokens"",
+    ""Advisory scope in v2025: customer client connector GUI/OS access \u2014 not named as mandatory in Control 4.2"",
+    ""Note (v2025): MFA for externally exposed firewalls is NOT a named mandatory requirement \u2014 added explicitly in v2026""
+  ]
+}","{
+  ""pass_if"": [
+    ""MFA configured at all 6 mandatory access points"",
+    ""Second factor is on a physically separate device from the first factor"",
+    ""Factors individually assigned \u2014 no shared tokens"",
+    ""MFA system credentials stored within secure zone""
+  ],
+  ""fail_if"": [
+    ""Any mandatory access point without MFA"",
+    ""Both factors on the same device (app on same PC as password entry \u2014 non-compliant)"",
+    ""Shared tokens or factors assigned to multiple users"",
+    ""SSO configured without requiring a second factor""
+  ],
+  ""notes"": [
+    ""MFA for externally exposed firewalls is not a named mandatory requirement in v2025 (added in v2026)"",
+    ""Customer client connector MFA is advisory in v2025""
+  ],
+  ""cross_checks"": [
+    ""MFA access points must align with C1 access control policy requirements""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+B8,2.6,Operator session configuration,Operator Session Confidentiality,M,Config / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""Session timeout/inactivity lock-out settings per session type:"",
+    ""- Application-level timeouts on SWIFT applications"",
+    ""- OS-level screen lock on operator PCs and jump server"",
+    ""- Remote session timeouts"",
+    ""Timeout value: recommended ≤15 minutes inactivity"",
+    ""Session recording configuration for privileged accounts (optional enhancement but recommended)"",
+    ""Re-authentication requirements after timeout"",
+    ""Concurrent session restrictions if configured""
+  ]
+}","{
+  ""pass_if"": [
+    ""Session timeout configured ≤15 minutes for all session types"",
+    ""Screen lock on all operator PCs"",
+    ""Re-authentication required after timeout""
+  ],
+  ""fail_if"": [
+    ""No session timeout at any level"",
+    ""Timeout >30 minutes"",
+    ""Privileged sessions without recording (acceptable but noted)""
+  ],
+  ""notes"": [
+    ""B8 = session behaviour config; B2 = application security; B3 = transport encryption""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C1,1.2,Access control policy,OS Privileged Account Control,M,Policy Document,"{
+  ""sufficiency_criteria"": [
+    ""Policy governing privileged account allocation and usage on all mandatory in-scope component types (v2025):"",
+    ""\u2014 OS accounts on SWIFT servers and VMs"",
+    ""\u2014 Dedicated operator PCs"",
+    ""\u2014 Network devices protecting the secure zone"",
+    ""\u2014 Virtualisation/cloud platform admin accounts"",
+    ""\u2014 New HSM admin accounts"",
+    ""Conditions for admin access defined: software install, configuration, maintenance, emergency only"",
+    ""Duration limits: admin access limited to the duration of the activity"",
+    ""Built-in/default admin account policy: restricted to emergency or controlled use only"",
+    ""Individual admin accounts required \u2014 no shared admin accounts"",
+    ""Logging requirement: all admin access logged per Control 6.4"",
+    ""Physical control of admin passwords when recorded physically"",
+    ""Note (v2025 advisory scope): customer client connectors, bridging servers, general-purpose operator PCs \u2014 advisory in-scope; policy inclusion is positive but not required for compliance""
+  ]
+}","{
+  ""pass_if"": [
+    ""Policy exists covering all mandatory in-scope component types for v2025"",
+    ""Conditions for admin usage defined (when admin access is permitted)"",
+    ""Built-in admin restricted to emergency/controlled use"",
+    ""Individual accountability requirement stated""
+  ],
+  ""fail_if"": [
+    ""No policy document exists"",
+    ""Policy missing mandatory component types (e.g., network devices or HSM)"",
+    ""No restriction on conditions for admin account usage""
+  ],
+  ""notes"": [
+    ""Advisory scope items (customer client connectors, bridging servers, general-purpose PCs) noted positively if covered""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C1,1.3,Access control policy,Virtualisation/Cloud Platform Protection,M,Policy Document,"{
+  ""sufficiency_criteria"": [
+    ""Policy covering virtualisation/cloud platform access control"",
+    ""Segregation of admin roles for platform management"",
+    ""VM provisioning and decommissioning approval process"",
+    ""Platform access restricted to authorised administrators only"",
+    ""For cloud: shared responsibility delineation per CSCF Appendix G"",
+    ""Cloud provider access governance requirements""
+  ]
+}","{
+  ""pass_if"": [
+    ""Platform access policy exists"",
+    ""Admin role segregation defined"",
+    ""Cloud shared responsibility addressed""
+  ],
+  ""fail_if"": [
+    ""No virtualisation access policy"",
+    ""No cloud shared responsibility model""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C1,2.6,Access control policy,Operator Session Confidentiality,M,Policy Document,"{
+  ""sufficiency_criteria"": [
+    ""Session management rules: encryption requirements for all operator sessions"",
+    ""Session timeout policy: maximum inactivity period defined"",
+    ""Remote access policy: VPN+MFA requirement for off-site access"",
+    ""Session recording policy for privileged accounts"",
+    ""Acceptable session types and protocols defined"",
+    ""Browser-based GUI access rules""
+  ]
+}","{
+  ""pass_if"": [
+    ""Session encryption requirement documented"",
+    ""Timeout period defined"",
+    ""Remote access rules documented""
+  ],
+  ""fail_if"": [
+    ""No session management policy"",
+    ""No remote access policy""
+  ],
+  ""notes"": [
+    ""C1 = policy governance; B2/B3/B8 = technical enforcement""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C1,4.2,Access control policy,Multi-Factor Authentication,M,Policy Document,"{
+  ""sufficiency_criteria"": [
+    ""MFA policy requirements for each mandatory access point per v2025 Control 4.2:"",
+    ""\u2014 Dedicated operator PC login"",
+    ""\u2014 Jump server and new HSM access"",
+    ""\u2014 SWIFT application login (messaging interface, communication interface, GUI, Swift/customer connector)"",
+    ""\u2014 Virtualisation/cloud management console access"",
+    ""\u2014 Remote/VPN access"",
+    ""\u2014 Service provider application access"",
+    ""Approved second factor types listed (TOTP, hardware token, smart card, etc.)"",
+    ""Same-device prohibition explicitly stated: second factor must be on a different physical device"",
+    ""Individual factor assignment requirement stated"",
+    ""Exception process for MFA bypass (if any) with approval workflow"",
+    ""Note (v2025): MFA policy for externally exposed firewalls is NOT a named requirement \u2014 this is added in v2026"",
+    ""Note (v2025): Customer client connector MFA is advisory in-scope""
+  ]
+}","{
+  ""pass_if"": [
+    ""MFA requirements per mandatory v2025 access point documented in policy"",
+    ""Same-device prohibition explicitly stated"",
+    ""Approved factor types listed""
+  ],
+  ""fail_if"": [
+    ""No MFA policy document"",
+    ""Same-device prohibition not addressed in policy"",
+    ""MFA requirements missing for mandatory access points""
+  ],
+  ""cross_checks"": [
+    ""Policy requirements must match B7 MFA technical implementation""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C1,5.1,Access control policy,Logical Access Control,M,Policy Document,"{
+  ""sufficiency_criteria"": [
+    ""Need-to-know principle: only operators with continuing requirement have zone access"",
+    ""Least privilege: privileges tailored to individual needs; additional privileges temporary only"",
+    ""Separation of duties: transaction submission ≠ approval; app admin ≠ security officer; network admin ≠ OS admin"",
+    ""Four-eyes principle for sensitive operations on: messaging interface, communication interface, GUI, connectors, HSM, O2M, Secure Channel"",
+    ""Account review mandate: at least annually (more frequently recommended)"",
+    ""Joiner/mover/leaver (JML) process: prompt revocation when employee changes role or leaves"",
+    ""Emergency access procedure: documented, logged, password changed after use"",
+    ""Provider access: privileges promptly revoked when provider relationship ends""
+  ]
+}","{
+  ""pass_if"": [
+    ""All four principles documented (need-to-know, least privilege, SoD, four-eyes)"",
+    ""Annual review mandate stated"",
+    ""JML process defined"",
+    ""Emergency access procedure documented""
+  ],
+  ""fail_if"": [
+    ""Missing any of the four core principles"",
+    ""No account review mandate"",
+    ""No JML process"",
+    ""No emergency access procedure""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C2,1.2,Privileged account inventory,OS Privileged Account Control,M,Spreadsheet,"{
+  ""sufficiency_criteria"": [
+    ""Complete list of ALL privileged accounts per in-scope SWIFT system:"",
+    ""- Account name, system/hostname, account type (built-in admin, individual admin, service account)"",
+    ""- OS type-specific: Windows (Enterprise Admins, Domain Admins, Local Admins), Linux (root, root group), Network (admin/root/cisco), HSM (admin), VM platform (super admin, root)"",
+    ""Justification for each account: why it exists and requires admin privileges"",
+    ""Last review date per account"",
+    ""Owner/assignee per individual admin account"",
+    ""Built-in admin accounts: marked as break-glass with controlled access documentation"",
+    ""Service accounts: minimal privileges confirmed, no interactive login"",
+    ""Third-party/provider admin accounts flagged""
+  ]
+}","{
+  ""pass_if"": [
+    ""Every in-scope system has its privileged accounts listed"",
+    ""Each account has justification and owner"",
+    ""Built-in admins marked as break-glass"",
+    ""Review date within 12 months""
+  ],
+  ""fail_if"": [
+    ""Systems with no accounts listed (compare to A2)"",
+    ""Accounts without justification"",
+    ""Shared admin accounts without individual accountability"",
+    ""Stale accounts (last review >12 months)""
+  ],
+  ""cross_checks"": [
+    ""Systems match A2 inventory; accounts align with C3 access list""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C3,5.1,User access list,Logical Access Control,M,Spreadsheet / Export,"{
+  ""sufficiency_criteria"": [
+    ""Complete list of ALL user accounts (not just privileged) across all in-scope SWIFT systems:"",
+    ""\u2014 Account name, real name/employee ID, system/application, role assigned, access level"",
+    ""Covers: OS accounts, SWIFT application accounts (messaging interface, GUI, connector), network device accounts, virtualisation platform accounts"",
+    ""SwiftNet Online Operations Manager (O2M on swift.com) accounts included \u2014 named in v2025 Control 5.4 scope"",
+    ""Access justified by job function (need-to-know principle demonstrated)"",
+    ""Account status: active, disabled, locked"",
+    ""Last login date tracked per account (to identify unused/dormant accounts)"",
+    ""Inactive accounts (no login >90 days) addressed with explanation or removal"",
+    ""External/contractor accounts separately identified with engagement end date"",
+    ""Service accounts separately listed with purpose documentation""
+  ]
+}","{
+  ""pass_if"": [
+    ""All mandatory in-scope systems have user lists exported"",
+    ""Every account has an assigned role and access justification"",
+    ""O2M accounts on swift.com included in the access list"",
+    ""External/contractor accounts identified with engagement end dates"",
+    ""Inactive accounts (>90 days) reviewed and addressed""
+  ],
+  ""fail_if"": [
+    ""Mandatory in-scope systems missing from user list"",
+    ""Accounts without role assignment or justification"",
+    ""Inactive accounts without explanation or removal action""
+  ],
+  ""cross_checks"": [
+    ""Must cover all systems in A2 inventory"",
+    ""O2M account management should cross-reference C8 credential storage""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A1,2.4A,Network architecture diagram,Back Office Data Flow Security,A,Diagram + Text,"{
+  ""sufficiency_criteria"": [
+    ""ADVISORY in v2025 (Control 2.4A) \u2014 mandatory from v2026"",
+    ""Back-office to secure zone data flow paths drawn on the diagram where available"",
+    ""Bridging servers (middleware/file transfer) identified with network placement if deployed"",
+    ""Direct flows vs indirect flows (through bridging servers) distinguishable where documented"",
+    ""New flows (post-2025) vs legacy flows marked if applicable"",
+    ""Each flow's boundary crossing point identified"",
+    ""HSM connection flows shown if applicable"",
+    ""SWIFT recommends starting identification of all back-office flows as preparation for v2026""
+  ]
+}","{
+  ""pass_if"": [
+    ""Back-office connectivity paths documented on diagram (advisory \u2014 not required for v2025 pass)"",
+    ""Bridging servers identified with network placement if in use"",
+    ""Direct vs indirect flow paths distinguishable where documented""
+  ],
+  ""fail_if"": [
+    ""No score penalty in v2025 for absence \u2014 this is advisory"",
+    ""If documented: bridging servers shown must match A2 inventory""
+  ],
+  ""notes"": [
+    ""Advisory control in v2025 \u2014 mandatory from CSCF v2026"",
+    ""Early documentation earns positive assessor credit in v2025""
+  ],
+  ""cross_checks"": [
+    ""If bridging servers shown: must appear in A2 inventory"",
+    ""Encryption per flow: confirmed in B3""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C4,5.1,RBAC role definitions,Logical Access Control,M,Document / Config Export,"{
+  ""sufficiency_criteria"": [
+    ""Role definitions for ALL in-scope SWIFT applications and systems:"",
+    ""- Messaging interface roles (operator, security officer, application admin)"",
+    ""- Communication interface roles"",
+    ""- GUI roles"",
+    ""- Connector roles"",
+    ""- OS roles"",
+    ""- Network device roles"",
+    ""- HSM roles"",
+    ""Per role: permissions/privileges, access scope, data access level"",
+    ""Separation of duties enforced in role design: transaction submit ≠ approve; app admin ≠ security officer"",
+    ""Four-eyes principle enforced: sensitive operations require two separate roles"",
+    ""Vendor role separation guidance followed (Alliance Security Guidance)"",
+    ""Conflicting role combinations documented as prohibited""
+  ]
+}","{
+  ""pass_if"": [
+    ""Roles defined for all SWIFT application and system types"",
+    ""SoD enforced in role design"",
+    ""Four-eyes for sensitive operations"",
+    ""Vendor guidance on role separation followed""
+  ],
+  ""fail_if"": [
+    ""No role definitions"",
+    ""Single role with both submit and approve"",
+    ""No separation between admin and security officer""
+  ],
+  ""cross_checks"": [
+    ""Roles must map to accounts in C2 and C3""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C5,5.1,Quarterly access reviews,Logical Access Control,M,Review Records,"{
+  ""sufficiency_criteria"": [
+    ""Evidence of access review conducted at least annually (quarterly recommended):"",
+    ""- Review date, scope (which systems/applications), reviewer name and authority"",
+    ""- Review methodology: comparison of current access against approved roles"",
+    ""Findings documented: accounts to remove, roles to adjust, exceptions to approve"",
+    ""Actions taken after review: account removals, role changes, with completion dates"",
+    ""Privileged account review: extra scrutiny with justification confirmation"",
+    ""Provider account review: aligned with current engagement status"",
+    ""Emergency account usage review: any emergency access reviewed and password changed"",
+    ""Review covers: application accounts, OS accounts, and provider-delegated accounts""
+  ]
+}","{
+  ""pass_if"": [
+    ""Review conducted within last 12 months"",
+    ""Scope covers all in-scope systems"",
+    ""Findings documented with actions taken"",
+    ""Privileged accounts reviewed with extra scrutiny""
+  ],
+  ""fail_if"": [
+    ""No review evidence in last 12 months"",
+    ""Review scope incomplete (missing systems)"",
+    ""Findings identified but no remediation actions"",
+    ""Emergency access not reviewed""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C6,5.1,Joiner/mover/leaver process,Logical Access Control,M,Process Document + Records,"{
+  ""sufficiency_criteria"": [
+    ""Documented JML process covering:"",
+    ""- Joiner: account creation tied to approved role, approval workflow, provisioning timeline"",
+    ""- Mover: access reviewed and adjusted when employee changes role, old access removed"",
+    ""- Leaver: access promptly revoked across ALL SWIFT systems; tokens recalled; passwords changed if shared knowledge"",
+    ""Provider JML: same process for third-party/contractor accounts"",
+    ""Timeline standards: leaver access revoked within X days of departure"",
+    ""Evidence of process execution: sample joiner/mover/leaver tickets with dates and actions"",
+    ""Escalation process: what happens if access is not revoked on time"",
+    ""Token recall process integrated with leaver process""
+  ]
+}","{
+  ""pass_if"": [
+    ""JML process documented for all three stages"",
+    ""Provider accounts included in process"",
+    ""Evidence of actual execution (sample tickets)"",
+    ""Timely revocation (within defined SLA)""
+  ],
+  ""fail_if"": [
+    ""No JML process documented"",
+    ""No leaver revocation evidence"",
+    ""Leaver accounts still active after departure date""
+  ],
+  ""cross_checks"": [
+    ""Leaver accounts should not appear as active in C3""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C7,5.2,Token/certificate inventory and lifecycle,Token Management,M,Spreadsheet + Process,"{
+  ""sufficiency_criteria"": [
+    ""Complete inventory of ALL tokens used for SWIFT operations:"",
+    ""- Connected tokens: USB tokens, smart cards"",
+    ""- Disconnected tokens: TOTP generators, RSA SecurID, Digipass, 3-Skey Digital"",
+    ""- Software tokens: mobile apps storing cryptographic keys"",
+    ""- PED devices and PED keys for HSM operations"",
+    ""Per token: token ID/serial, type, assigned person, assignment date, status (active/revoked/lost)"",
+    ""Assignment and distribution process: controlled with documented approval"",
+    ""Annual review of token assignments: date, reviewer, findings"",
+    ""Revocation process: tokens recalled when individual no longer needs access"",
+    ""Token supervision policy: not left plugged in unattended"",
+    ""PED key management: stored in safe, access tracked, PIN changed when staff leaves"",
+    ""Remote PED security: connection to HSM secured per Alliance Security Guidance""
+  ]
+}","{
+  ""pass_if"": [
+    ""All tokens inventoried with assignment records"",
+    ""Annual review completed with findings"",
+    ""Revocation process documented and executed"",
+    ""PED key management with safe storage and access logging""
+  ],
+  ""fail_if"": [
+    ""Tokens without assigned owner"",
+    ""No annual review evidence"",
+    ""Revoked tokens not recalled"",
+    ""PED keys accessible without tracking""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A1,2.5A,Network architecture diagram,External Transmission Data Protection,A,Diagram + Text,"{
+  ""sufficiency_criteria"": [
+    ""ADVISORY in v2025 (Control 2.5A)"",
+    ""External transmission paths for SWIFT operations shown where documented"",
+    ""Backup/replication paths from secure zone to external storage locations shown if available"",
+    ""Data extraction paths for offline processing identified if applicable"",
+    ""Paths between data centres or on-prem to cloud environments shown where applicable"",
+    ""SAN/NAS connectivity from secure zone visible if used for SWIFT data""
+  ]
+}","{
+  ""pass_if"": [
+    ""External transmission paths documented where applicable (advisory \u2014 not required for v2025 pass)"",
+    ""Backup/replication paths shown if operational backups exist""
+  ],
+  ""fail_if"": [
+    ""No score penalty in v2025 for absence \u2014 this is advisory""
+  ],
+  ""notes"": [
+    ""Advisory control in v2025"",
+    ""Cross-check: encryption on external paths confirmed in B3""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C8,5.4,Credential storage evidence,Password Repository Protection,M,Config / Process,"{
+  ""sufficiency_criteria"": [
+    ""Password repository protection method documented for all mandatory in-scope credential types:"",
+    ""Physical protection: sealed tamper-evident envelopes in a certified safe; access logged"",
+    ""Logical protection: credentials encrypted at rest (no plain text); authenticated access required; access logging per Control 6.4"",
+    ""Mandatory scope (v2025) covers: dedicated/general-purpose operator PCs, jump server, SWIFT components (interfaces, GUI, Swift/customer connectors), HSM and related tokens, network devices, virtualisation/cloud platform, SwiftNet Online Operations Manager (O2M) on swift.com"",
+    ""Passwords not hardcoded in scripts, code, or operational documents"",
+    ""Emergency/controlled-access account process: password changed immediately after every use"",
+    ""Advisory scope (v2025): bridging server credentials, customer client connector credentials \u2014 noted positively if included"",
+    ""Note (v2025): Luna Backup HSM is NOT explicitly named in v2025 Controls 3.1/5.4 \u2014 becomes explicit in v2026""
+  ]
+}","{
+  ""pass_if"": [
+    ""Credentials encrypted at rest for digital credential store"",
+    ""Authenticated access with full access logging in place"",
+    ""Physical passwords in sealed tamper-evident envelopes in certified safe"",
+    ""Emergency/controlled-access password change process documented and executed after use"",
+    ""O2M (swift.com) account passwords covered in repository scope"",
+    ""No hardcoded passwords in scripts or configuration files""
+  ],
+  ""fail_if"": [
+    ""Plain text credential storage"",
+    ""Credentials hardcoded in scripts or code"",
+    ""No access logging on credential repository"",
+    ""Credentials stored in shared spreadsheets or documents"",
+    ""Emergency password not changed after use""
+  ],
+  ""notes"": [
+    ""vTPM backup credentials included where applicable"",
+    ""Luna Backup HSM credentials: not explicitly mandatory in v2025 \u2014 include if device is in use""
+  ],
+  ""cross_checks"": [
+    ""Credential repository access logs must be captured in E7 admin monitoring""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C9,5.3A,Personnel vetting records,Staff Screening Process,A,Records / Process,"{
+  ""sufficiency_criteria"": [
+    ""Screening process documented for ALL staff with operational/admin access to SWIFT systems:"",
+    ""- Employees, agents, consultants, contractors"",
+    ""- Initial screening and periodic re-screening (at least every 5 years)"",
+    ""Initial screening verifications:"",
+    ""- Identity verification"",
+    ""- Qualification confirmation"",
+    ""- Employment history confirmation"",
+    ""- Civil/criminal proceedings check"",
+    ""- Conflict of interest validation"",
+    ""- Financial credit verification"",
+    ""Periodic screening verifications:"",
+    ""- Pending civil/criminal proceedings"",
+    ""- Conflict of interest re-validation"",
+    ""Screening records maintained with: screening date, verification type, result, next screening due date"",
+    ""Catch-up plan for staff not yet screened who are already in role"",
+    ""Compliance with applicable laws and local regulations documented""
+  ]
+}","{
+  ""pass_if"": [
+    ""Screening process documented"",
+    ""Initial screening covers all 6 verifications"",
+    ""Periodic screening within 5-year cycle"",
+    ""Records maintained with due dates""
+  ],
+  ""fail_if"": [
+    ""No screening process"",
+    ""Staff in role >5 years without screening"",
+    ""Missing key verifications (no criminal check)""
+  ],
+  ""notes"": [
+    ""Advisory control — subject to local laws and regulations""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+D1,2.2,Patch management policy,Security Updates,M,Policy Document,"{
+  ""sufficiency_criteria"": [
+    ""Documented patch management policy covering:"",
+    ""\u2014 Vendor support lifecycle monitoring: all software/hardware within active vendor support window"",
+    ""\u2014 SWIFT mandatory updates: installed within vendor-specified deadline"",
+    ""\u2014 Risk assessment process: vendor criticality, user exposure, mitigating controls, operational impact"",
+    ""\u2014 Deployment timelines by criticality: Critical (CVSS 9.0+) \u22641 month; High (CVSS 7.0\u20138.9) \u22643 months; Low/Medium user-defined"",
+    ""\u2014 Source and integrity validation: legitimate source verified, checksum validated before applying patches"",
+    ""\u2014 Testing process before production deployment"",
+    ""\u2014 Emergency patching procedure for zero-day vulnerabilities"",
+    ""Mandatory scope (v2025): servers, operator PCs, jump servers, network devices, HSM, virtualisation/cloud platform"",
+    ""Advisory scope (v2025): bridging servers explicitly included in scope from v2026 \u2014 positive to include in v2025"",
+    ""Customer client connectors: advisory in-scope in v2025""
+  ]
+}","{
+  ""pass_if"": [
+    ""Policy exists with criticality-based patching timelines"",
+    ""Vendor support lifecycle monitoring included"",
+    ""Source validation required before patching"",
+    ""All mandatory component types in scope""
+  ],
+  ""fail_if"": [
+    ""No patch management policy"",
+    ""No criticality-based timelines"",
+    ""No source validation requirement"",
+    ""Mandatory component types missing from scope""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+D2,2.2,Current patch levels,Security Updates,M,Report / Export,"{
+  ""sufficiency_criteria"": [
+    ""Current patch status per mandatory in-scope system showing:"",
+    ""\u2014 System hostname/IP (matching A2 inventory)"",
+    ""\u2014 OS name and version: confirmed within vendor active support lifecycle"",
+    ""\u2014 Last patch date and patch level applied"",
+    ""\u2014 Outstanding patches: list with reason (testing, compatibility, risk-accepted)"",
+    ""\u2014 SWIFT application version and mandatory update status"",
+    ""\u2014 Maintenance/licensing contract status: active/expired"",
+    ""Summary: % of systems fully patched; systems with critical patches outstanding; systems approaching end-of-support"",
+    ""CSCF timeline compliance: critical patches applied within 1 month; high within 3 months"",
+    ""Note (v2025): bridging servers and customer client connectors are advisory scope \u2014 inclusion earns positive credit""
+  ]
+}","{
+  ""pass_if"": [
+    ""All mandatory A2 systems have patch status documented"",
+    ""All software within active vendor support lifecycle"",
+    ""Critical patches applied within 1-month SLA"",
+    ""SWIFT mandatory updates applied within vendor-specified deadline""
+  ],
+  ""fail_if"": [
+    ""Critical patches outstanding >1 month"",
+    ""Systems running end-of-support software"",
+    ""SWIFT mandatory updates overdue"",
+    ""Mandatory systems in A2 missing from patch report""
+  ],
+  ""cross_checks"": [
+    ""System list must match A2 inventory; gaps require justification""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+D4,2.7,Vulnerability scan reports,Vulnerability Scanning,M,Scan Reports,"{
+  ""sufficiency_criteria"": [
+    ""Vulnerability scan results covering ALL mandatory in-scope systems in v2025:"",
+    ""\u2014 Dedicated and general-purpose operator PCs"",
+    ""\u2014 Jump servers"",
+    ""\u2014 All systems hosting SWIFT components (interfaces, GUI, connectors)"",
+    ""\u2014 Virtualisation/cloud platform management systems"",
+    ""Scan tool identified: reputable vendor; vulnerability profiles updated within 1 month before scan"",
+    ""Scan type appropriate: authenticated (credential-based) scanning preferred over unauthenticated"",
+    ""Scan frequency: at least annually AND after significant environment changes"",
+    ""Per-vulnerability detail: CVE ID, severity (CVSS score), affected system, description, remediation recommendation"",
+    ""Scan coverage validation: systems scanned count vs A2 inventory count"",
+    ""Advisory scope (v2025): bridging servers and customer client connectors \u2014 positive to include"",
+    ""False positive identification and documentation""
+  ]
+}","{
+  ""pass_if"": [
+    ""All mandatory in-scope systems scanned (compare count to A2 inventory)"",
+    ""Reputable scan tool with profiles updated within 1 month before scan"",
+    ""Scan conducted within last 12 months"",
+    ""Per-vulnerability details documented with CVE IDs and CVSS scores""
+  ],
+  ""fail_if"": [
+    ""Mandatory in-scope systems missing from scan scope"",
+    ""Scan older than 12 months without justification"",
+    ""Unreputable or unknown scan tool"",
+    ""No per-vulnerability detail (only summary)""
+  ],
+  ""cross_checks"": [
+    ""System count must match A2 inventory; remediation tracked in D5""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+D5,2.7,Vulnerability remediation tracking,Vulnerability Scanning,M,Tracking Log,"{
+  ""sufficiency_criteria"": [
+    ""Tracking log for ALL identified vulnerabilities from D4 scans:"",
+    ""- Vulnerability ID (CVE), affected system, severity (CVSS score)"",
+    ""- Current status: open, in progress, remediated, risk-accepted"",
+    ""- Remediation action: patch applied, config change, compensating control, risk acceptance"",
+    ""- Timeline: date identified, target remediation date, actual remediation date"",
+    ""- Owner/responsible team assigned"",
+    ""Critical findings (CVSS 9.0+): resolution evidence within 1 month"",
+    ""High findings (CVSS 7.0-8.9): resolution evidence within 3 months"",
+    ""Risk-accepted vulnerabilities: formal risk acceptance with approver, justification, review date"",
+    ""Summary metrics: total open, critical open, average time to remediate""
+  ]
+}","{
+  ""pass_if"": [
+    ""All D4 scan findings tracked with status"",
+    ""Critical findings resolved within 1 month"",
+    ""Risk acceptances formally documented with approval"",
+    ""Owner assigned per vulnerability""
+  ],
+  ""fail_if"": [
+    ""Scan findings not tracked"",
+    ""Critical vulnerabilities open >1 month"",
+    ""Risk acceptance without formal approval"",
+    ""No owner assigned to findings""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+D5,7.3A,Vulnerability remediation tracking,Penetration Testing,A,Tracking Log,"{
+  ""sufficiency_criteria"": [
+    ""Tracking log for ALL penetration test findings from D6 reports:"",
+    ""- Finding ID, severity, description, affected component"",
+    ""- Current status: open, in progress, remediated, risk-accepted"",
+    ""- Remediation action taken with evidence"",
+    ""- Retest results confirming successful remediation"",
+    ""- Timeline: finding date, remediation date, retest date"",
+    ""High/critical findings: prioritised remediation with evidence"",
+    ""Findings feeding back into security update process""
+  ]
+}","{
+  ""pass_if"": [
+    ""All pen test findings tracked"",
+    ""High/critical findings remediated with retest"",
+    ""Retest confirms resolution""
+  ],
+  ""fail_if"": [
+    ""Pen test findings not tracked"",
+    ""High/critical findings unresolved without justification""
+  ],
+  ""notes"": [
+    ""D6 = pen test report; D5 = remediation tracking""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+D6,7.3A,Penetration test reports,Penetration Testing,A,Report,"{
+  ""sufficiency_criteria"": [
+    ""Penetration test report covering SWIFT secure zone and entry points:"",
+    ""- Scope: operator PCs or jump servers, dedicated PCs, secure zone boundary, SWIFT components, systems hosting SWIFT components, network devices, virtualisation platform"",
+    ""- Method: risk-based approach — stated whether whitebox/greybox/blackbox"",
+    ""- Attack origin: internal (within/outside zone), external, or combination"",
+    ""- Tester independence: performed by team independent from SWIFT infrastructure team (internal Red Team or external firm)"",
+    ""Test frequency: at least every 2 years, and ideally after significant changes"",
+    ""Test date and version of environment tested"",
+    ""Findings: vulnerability description, exploitation path, severity, affected component"",
+    ""Recommendation per finding"",
+    ""Compliance with SWIFT Customer Testing Policy: no testing of SWIFT central services (InterAct, FileAct, FIN)"",
+    ""Testing in production or replicated pre-production environment documented"",
+    ""Safeguards against operational impact documented""
+  ]
+}","{
+  ""pass_if"": [
+    ""Pen test conducted within last 2 years"",
+    ""Independent tester confirmed"",
+    ""Scope covers zone boundary and entry points"",
+    ""Findings documented with severity""
+  ],
+  ""fail_if"": [
+    ""No pen test within 2 years"",
+    ""Test performed by infrastructure team (not independent)"",
+    ""Scope too narrow (missing key components)"",
+    ""No findings documentation""
+  ],
+  ""cross_checks"": [
+    ""Findings must be tracked in D5""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E1,6.1,Anti-malware configuration and updates,Malware Protection,M,Config / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""Anti-malware/EPP/EDR software installed on ALL mandatory Windows in-scope systems in v2025:"",
+    ""\u2014 Dedicated and general-purpose operator PCs"",
+    ""\u2014 Jump servers"",
+    ""\u2014 Management PCs for virtualisation/cloud platform"",
+    ""\u2014 Systems hosting SWIFT components"",
+    ""Software from a reputable vendor identified"",
+    ""On-access (real-time) scanning enabled on all mandatory Windows systems"",
+    ""On-demand full scanning: weekly minimum for operator PCs; regular schedule for servers"",
+    ""Scan scope: all files on in-scope systems; exclusions require documented risk assessment"",
+    ""Signature/definition currency: date of last update confirmed (must be current \u2014 typically within 48 hours)"",
+    ""Prevention mode configured where possible (quarantine + alert, not delete-only)"",
+    ""Anti-malware alerts forwarded to SIEM per Control 6.4"",
+    ""Advisory scope (v2025): customer client connector systems and bridging servers \u2014 positive to include"",
+    ""Optional: non-Windows systems also covered; EDR/XDR accepted as valid alternative""
+  ]
+}","{
+  ""pass_if"": [
+    ""Anti-malware installed on ALL mandatory Windows in-scope systems"",
+    ""Real-time scanning enabled"",
+    ""Scheduled full scans configured (weekly minimum for operator PCs)"",
+    ""Signatures current within 48 hours of assessment"",
+    ""Scan exclusions documented with risk assessment""
+  ],
+  ""fail_if"": [
+    ""Mandatory Windows systems without anti-malware"",
+    ""Signatures outdated (>30 days since update)"",
+    ""Real-time scanning disabled on any mandatory system"",
+    ""No scheduled full scans"",
+    ""Scan exclusions without documented risk assessment""
+  ],
+  ""cross_checks"": [
+    ""Windows system list must match A2 inventory"",
+    ""Anti-malware alerts must reach E2 SIEM""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E2,6.4,SIEM/logging configuration,Logging and Monitoring,M,Config / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""Centralised logging configuration showing:"",
+    ""Log sources connected \u2014 mandatory in-scope systems forwarding logs to SIEM:"",
+    ""\u2014 Command-line/audit logs for privileged OS accounts on SWIFT servers"",
+    ""\u2014 Messaging/communication interface application + OS logs"",
+    ""\u2014 Firewall logs (zone boundary firewalls)"",
+    ""\u2014 Database logs for hosted database solutions"",
+    ""\u2014 Network device logs"",
+    ""\u2014 Authentication/authorisation server logs"",
+    ""\u2014 Virtualisation platform logs"",
+    ""\u2014 Operator PC logs"",
+    ""Log retention configuration:"",
+    ""\u2014 Application audit logs: \u226512 months"",
+    ""\u2014 Operator PC, firewall, and database logs: \u226531 days (3\u201312 months recommended)"",
+    ""\u2014 Other in-scope component logs: \u226512 months"",
+    ""Log integrity protection: logs protected from enterprise admin compromise (separate credentials/system)"",
+    ""Log collection from remote/cloud components confirmed"",
+    ""Advisory scope (v2025): bridging server logs and customer client connector logs \u2014 positive to include""
+  ]
+}","{
+  ""pass_if"": [
+    ""All mandatory in-scope systems forwarding logs to SIEM"",
+    ""Application audit logs retained \u226512 months"",
+    ""Firewall and DB logs retained \u226531 days"",
+    ""Logs protected from enterprise admin compromise""
+  ],
+  ""fail_if"": [
+    ""Mandatory in-scope systems not forwarding logs"",
+    ""Retention below minimum requirements"",
+    ""Logs stored without integrity protection"",
+    ""No centralised logging capability""
+  ],
+  ""cross_checks"": [
+    ""Log sources must cover all A2 systems; gaps require justification""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E3,6.4,Alert rules and escalation procedures,Logging and Monitoring,M,Documentation,"{
+  ""sufficiency_criteria"": [
+    ""Alert rule definitions for SWIFT environment:"",
+    ""- Suspicious login activities: multiple failed logins, logins outside business hours, authentication errors"",
+    ""- Privileged account usage: unexpected admin access, privilege escalation"",
+    ""- User group changes on SWIFT applications"",
+    ""- Abnormal system behaviour indicators"",
+    ""- Firewall rule violations or anomalous network traffic"",
+    ""- Database anomalies (if applicable)"",
+    ""Escalation procedures for each alert type:"",
+    ""- Escalation path: who is notified, response timeline"",
+    ""- Investigation process: steps to investigate alerts"",
+    ""- Incident declaration criteria: when alert becomes incident"",
+    ""Monitoring process:"",
+    ""- Daily review of server, application, database monitoring data (human or automated)"",
+    ""- Regular network monitoring data review"",
+    ""- Unusual/suspicious activity reporting to security team"",
+    ""Evidence of regular log review execution (sample review records)""
+  ]
+}","{
+  ""pass_if"": [
+    ""Alert rules defined for suspicious logins, admin access, changes"",
+    ""Escalation procedures documented with timelines"",
+    ""Daily monitoring process defined"",
+    ""Evidence of regular review execution""
+  ],
+  ""fail_if"": [
+    ""No alert rules defined"",
+    ""No escalation procedures"",
+    ""No monitoring process"",
+    ""No evidence of review execution""
+  ],
+  ""notes"": [
+    ""E2 = logging infrastructure; E3 = detection rules and response; E7 = admin-specific logs""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E3,6.5A,Alert rules and escalation procedures,Intrusion Detection,A,Documentation,"{
+  ""sufficiency_criteria"": [
+    ""IDS/IPS-specific alert rules:"",
+    ""- Anomalous network activity detection at secure zone boundary"",
+    ""- Signature-based detection rules for known attack patterns"",
+    ""- Anomaly-based detection for unusual traffic patterns"",
+    ""- Host-based detection rules (HIDS) for in-scope systems"",
+    ""- EDR/XDR detection rules if implemented"",
+    ""Response procedures for IDS alerts:"",
+    ""- Alert triage process"",
+    ""- Connection termination capability (IPS)"",
+    ""- Investigation and escalation procedures"",
+    ""- False positive management process""
+  ]
+}","{
+  ""pass_if"": [
+    ""IDS alert rules defined for zone boundary"",
+    ""Both signature and anomaly detection configured"",
+    ""Response procedures documented""
+  ],
+  ""fail_if"": [
+    ""No IDS-specific rules"",
+    ""No response procedures for IDS alerts""
+  ],
+  ""notes"": [
+    ""E6 = IDS system configuration; E3 = detection rules and response logic""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E4,6.2,Software integrity verification,Software Integrity,M,Check Results,"{
+  ""sufficiency_criteria"": [
+    ""Integrity verification check results for ALL in-scope SWIFT components:"",
+    ""- Swift connector, GUI, messaging interface, communication interface, Local RMA, SNL"",
+    ""- New HSM firmware integrity verification"",
+    ""- [Advisory: customer/client connector]"",
+    ""Check frequency: at startup + at least once daily"",
+    ""Implementation method: integrated product feature OR third-party FIM (File Integrity Monitoring) tool"",
+    ""Check results showing: baseline comparison result, any modifications detected, alert status"",
+    ""Download/deployment integrity: source/site validation and checksum verification before applying software"",
+    ""Alert results analysis: action taken for any integrity violations"",
+    ""Time range of check results: most recent + historical trend""
+  ]
+}","{
+  ""pass_if"": [
+    ""Integrity checks running on all in-scope components"",
+    ""Check frequency at startup + daily"",
+    ""Results show no unexpected modifications"",
+    ""Download integrity verification process documented""
+  ],
+  ""fail_if"": [
+    ""Components without integrity checking"",
+    ""Checks not running at required frequency"",
+    ""Unexplained integrity violations without remediation""
+  ],
+  ""cross_checks"": [
+    ""Baseline should reference B6 authorized software list""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E4,2.10,Software integrity verification,Application Hardening,M,Check Results,"{
+  ""sufficiency_criteria"": [
+    ""Application whitelisting evidence: only authorized SWIFT applications running"",
+    ""Software version matches SWIFT-approved versions: verification against SWIFT release notes"",
+    ""No unauthorized application modifications detected"",
+    ""Application configuration integrity maintained against approved baseline""
+  ]
+}","{
+  ""pass_if"": [
+    ""Only authorized applications running"",
+    ""Software versions match SWIFT-approved""
+  ],
+  ""fail_if"": [
+    ""Unauthorized software detected"",
+    ""Software version mismatch""
+  ],
+  ""notes"": [
+    ""E4→2.10 focuses on authorized software; E4→6.2 focuses on ongoing integrity checks""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A1,1.1,Network architecture diagram,SWIFT Environment Protection,M,Diagram + Text,"{
+  ""sufficiency_criteria"": [
+    ""Secure zone boundary clearly drawn with logical and/or physical separation indicated"",
+    ""Stateful firewall devices shown at every ingress/egress point of the secure zone"",
+    ""All mandatory in-scope SWIFT components visible inside the zone: messaging interface, communication interface, GUI, SwiftNet Link, HSM, Swift/customer connector, jump server"",
+    ""Dedicated operator PCs shown inside zone; general-purpose PCs shown outside zone"",
+    ""Jump server positioned inside secure zone or equivalent secure zone"",
+    ""Operator access paths clearly marked: dedicated PC path, jump server path, or browser-based GUI path"",
+    ""Separation from enterprise IT environment visible \u2014 no shared AD crossing zone boundary without separate authentication zone"",
+    ""Alliance Connect SRX/Virtual VPN placement shown in a secured environment"",
+    ""Protocol/encryption annotations present on data flows between components"",
+    ""Diagram version/date confirmed within last 12 months"",
+    ""Note (v2025): Customer client connectors are advisory in-scope; bridging servers are advisory in-scope under Control 2.4A""
+  ]
+}","{
+  ""pass_if"": [
+    ""Zone boundary explicitly drawn with firewall at every entry/exit point"",
+    ""All 7+ mandatory SWIFT component types visible inside zone"",
+    ""Dedicated operator PCs inside zone; general-purpose PCs outside"",
+    ""Jump server positioned inside or adjacent to zone with controlled access"",
+    ""No uncontrolled direct internet path from secure zone components"",
+    ""Diagram dated within last 12 months""
+  ],
+  ""fail_if"": [
+    ""No clear zone boundary drawn"",
+    ""SWIFT components shown outside secure zone without justification"",
+    ""Enterprise AD shared across zone boundary without a separate zone-local auth"",
+    ""Direct internet path visible from any secure zone component""
+  ],
+  ""cross_checks"": [
+    ""Every system on diagram must appear in A2 component inventory"",
+    ""Every firewall on diagram must have corresponding A4 rule set export"",
+    ""Protocol annotations on diagram must be confirmed by B3 encryption config""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A1,1.4,Network architecture diagram,Restriction of Internet Access,M,Diagram + Text,"{
+  ""sufficiency_criteria"": [
+    ""No direct internet connectivity path from any system inside the secure zone"",
+    ""No direct internet connectivity from the jump server"",
+    ""Proxy/gateway placement shown if indirect internet access exists for allowlisted URLs"",
+    ""General-purpose operator PC internet access path visible — through remote desktop, proxy with content inspection, or web gateway"",
+    ""Internet access from dedicated operator PCs blocked or highly restricted (shown)"",
+    ""If virtualisation platform has internet access: restricted path shown with controls""
+  ]
+}","{
+  ""pass_if"": [
+    ""No uncontrolled internet path from secure zone systems"",
+    ""Jump server explicitly shown with no internet access"",
+    ""Proxy/gateway architecture visible for any permitted access""
+  ],
+  ""fail_if"": [
+    ""Direct internet line from secure zone components"",
+    ""Jump server shown with internet connectivity"",
+    ""No indication of internet access control for operator PCs""
+  ],
+  ""cross_checks"": [
+    ""Firewall rules in A4 must confirm deny-outbound for internet from zone""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E5,6.3,Database integrity evidence,Database Integrity,M,Check Results / Config,"{
+  ""sufficiency_criteria"": [
+    ""Database integrity check configuration and results for:"",
+    ""- Messaging interface databases (including hosted database)"",
+    ""- [Advisory: customer/client connector databases]"",
+    ""Integrity check type: record-level checksum/signature + sequential transaction number gap detection"",
+    ""Implementation: integrated messaging interface feature OR database product feature (if hosted DB protected to SWIFT level)"",
+    ""Check frequency: regular intervals (daily recommended; full check ideally every two weeks)"",
+    ""Results showing: integrity status, any violations detected, gaps in sequential numbering"",
+    ""Alert handling: violations analysed and remediated per Control 6.4"",
+    ""[Optional: full referential check on all records, orphan record detection, deleted record search]"",
+    ""[Optional: dedicated database instance for SWIFT]"",
+    ""NOT APPLICABLE: Architecture A1 without messaging interface; Architecture A4 without connector database""
+  ]
+}","{
+  ""pass_if"": [
+    ""Integrity checks enabled on transaction databases"",
+    ""Record-level checksums and sequential numbering checked"",
+    ""Regular check schedule (at minimum weekly)"",
+    ""Results show no integrity violations""
+  ],
+  ""fail_if"": [
+    ""No integrity checking on SWIFT databases"",
+    ""Gaps in sequential transaction numbering unexplained"",
+    ""Integrity violations without remediation""
+  ],
+  ""notes"": [
+    ""Verify applicability based on architecture type""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+A2,1.3,SWIFT component inventory,Virtualisation/Cloud Platform Protection,M,Spreadsheet,"{
+  ""sufficiency_criteria"": [
+    ""Identification of which SWIFT components are virtualised vs physical"",
+    ""Hypervisor/cloud platform type and version per virtualised system"",
+    ""Host-to-guest VM mapping: which VMs run on which physical host"",
+    ""Shared hosts identified (SWIFT VMs co-located with non-SWIFT workloads)"",
+    ""Cloud provider identification with service model (IaaS/PaaS/SaaS)"",
+    ""Container-hosted applications flagged as co-hosted on container host"",
+    ""Management PC identification for virtualisation platform""
+  ]
+}","{
+  ""pass_if"": [
+    ""Every virtualised system has host mapping"",
+    ""Shared hosts explicitly flagged"",
+    ""Cloud provider identified with service model""
+  ],
+  ""fail_if"": [
+    ""Virtualised systems without host identification"",
+    ""No separation between SWIFT and non-SWIFT VMs identified""
+  ],
+  ""cross_checks"": [
+    ""Virtualisation platform security verified via B4""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+C2,5.1,Privileged account inventory,Logical Access Control,M,Spreadsheet,"{
+  ""sufficiency_criteria"": [
+    ""Privileged accounts cross-referenced with RBAC roles (C4)"",
+    ""Evidence of quarterly/annual review with: review date, reviewer, actions taken"",
+    ""Stale/orphan accounts identified and removed or justified"",
+    ""Separation of duties verified: no single account has conflicting roles"",
+    ""Provider accounts reviewed against current engagement status""
+  ]
+}","{
+  ""pass_if"": [
+    ""Accounts mapped to RBAC roles"",
+    ""Review evidence with actions"",
+    ""Stale accounts addressed""
+  ],
+  ""fail_if"": [
+    ""No review evidence"",
+    ""Conflicting roles on single account""
+  ],
+  ""notes"": [
+    ""C2 = current privileged account state; C5 = periodic review process evidence""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+D3,2.2,Patch deployment records,Security Updates,M,Records / Logs,"{
+  ""sufficiency_criteria"": [
+    ""Patch deployment history for last 12 months showing:"",
+    ""- Patch identifier, vendor severity, CVSS score"",
+    ""- Date released by vendor, date tested, date deployed to production"",
+    ""- Systems patched (matching A2 inventory)"",
+    ""- Deployment method (automated/manual)"",
+    ""- Post-deployment verification: confirmation of successful installation"",
+    ""- Source validation evidence: legitimate source confirmed, integrity check performed"",
+    ""Emergency patching records with expedited timeline justification"",
+    ""Failed deployments: rollback actions, remediation"",
+    ""Deployment coverage: all in-scope system types included""
+  ]
+}","{
+  ""pass_if"": [
+    ""12-month deployment history exists"",
+    ""Critical patches deployed within 1-month SLA"",
+    ""Source validation recorded per deployment"",
+    ""Post-deployment verification documented""
+  ],
+  ""fail_if"": [
+    ""No deployment records"",
+    ""Critical patches deployed >1 month after release"",
+    ""No source validation evidence"",
+    ""Systems missing from deployment coverage""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+H3,7.1,SWIFT ISAC participation evidence,Cyber Incident Response Planning,M,Records,"{
+  ""sufficiency_criteria"": [
+    ""Mandatory incident reporting process to SWIFT Customer Support Centre documented:"",
+    ""\u2014 What qualifies as a reportable SWIFT-related cyber incident"",
+    ""\u2014 Reporting steps and responsible person/team"",
+    ""\u2014 Reporting timeline per severity"",
+    ""Capability to consume SWIFT ISAC IOC feeds (encouraged in v2025 \u2014 not formally mandatory):"",
+    ""\u2014 Subscription/registration to SWIFT ISAC confirmed (advisory)"",
+    ""\u2014 Internal distribution process for ISAC alerts documented (advisory)"",
+    ""\u2014 Capability to block traffic based on IOCs received (advisory)"",
+    ""Threat information sharing plan documented if information sharing is conducted (advisory in v2025):"",
+    ""\u2014 Compliance with applicable laws noted before sharing"",
+    ""Note (v2025): Formal threat sharing plan documentation and ISAC IOC integration become more prescriptive in v2026""
+  ]
+}","{
+  ""pass_if"": [
+    ""Mandatory SWIFT incident reporting process documented and understood"",
+    ""ISAC subscription active and alerts being received (advisory \u2014 positive if present)"",
+    ""Internal distribution process for ISAC alerts defined (advisory)""
+  ],
+  ""fail_if"": [
+    ""No mandatory incident reporting process to SWIFT documented \u2014 this is a Control 7.1 compliance requirement"",
+    ""No awareness of SWIFT mandatory reporting obligations""
+  ],
+  ""notes"": [
+    ""SWIFT ISAC participation is encouraged in v2025 but formal plan documentation is less prescriptive than in v2026"",
+    ""Mandatory incident reporting to SWIFT is a Control 7.1 obligation in both v2025 and v2026""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E6,6.5A,IDS/IPS configuration,Intrusion Detection,A,Config / Screenshots,"{
+  ""sufficiency_criteria"": [
+    ""IDS/IPS system deployment configuration:"",
+    ""- NIDS (Network IDS) at secure zone boundary with sensor placement"",
+    ""- HIDS (Host IDS) on in-scope systems if applicable"",
+    ""- EDR/XDR deployment if used instead of or alongside traditional IDS"",
+    ""- EPP integration with detection capabilities"",
+    ""Configuration details:"",
+    ""- Detection methods: signature-based + anomaly-based combination"",
+    ""- Signature update frequency and currency (last update date)"",
+    ""- Baseline configuration for anomaly detection"",
+    ""- Network segment coverage: secure zone boundary + internal zone (ideal)"",
+    ""- IPS response capability: connection termination configuration"",
+    ""Integration with SIEM/logging (forwarding to E2)"",
+    ""Cloud/remote environment coverage: detection for remote virtualisation platform"",
+    ""Large VLAN specific configuration if applicable""
+  ]
+}","{
+  ""pass_if"": [
+    ""IDS deployed at zone boundary"",
+    ""Both signature and anomaly detection enabled"",
+    ""Signatures current (updated regularly)"",
+    ""Integrated with SIEM""
+  ],
+  ""fail_if"": [
+    ""No IDS deployment"",
+    ""Signatures outdated"",
+    ""No anomaly detection capability""
+  ],
+  ""notes"": [
+    ""E6 = system deployment config; E3 = detection rules and response procedures""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E7,1.1,Admin activity monitoring logs,SWIFT Environment Protection,M,Log Extracts,"{
+  ""sufficiency_criteria"": [
+    ""Admin access logs for secure zone systems showing:"",
+    ""- Login events to zone systems with timestamp, source, account used"",
+    ""- Administrative actions within the zone (config changes, service restarts, installations)"",
+    ""- Anomalous zone access: logins outside business hours, from unexpected sources"",
+    ""Zone boundary access monitoring: connections crossing zone boundary logged"",
+    ""Connection logging through boundary firewalls per 1.1 section (c)""
+  ]
+}","{
+  ""pass_if"": [
+    ""Admin zone access logged with timestamps"",
+    ""Administrative actions recorded"",
+    ""Anomalous access alerting configured""
+  ],
+  ""fail_if"": [
+    ""No admin access logging for zone systems"",
+    ""No boundary crossing logs""
+  ],
+  ""cross_checks"": [
+    ""Must match E2 SIEM configuration scope""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E7,1.2,Admin activity monitoring logs,OS Privileged Account Control,M,Log Extracts,"{
+  ""sufficiency_criteria"": [
+    ""Admin login events captured per in-scope system:"",
+    ""- Login timestamp, account name, source IP, success/failure status"",
+    ""- Failed login attempts tracked and alerted"",
+    ""Privilege escalation events logged: sudo usage on Linux, UAC elevation on Windows, root group actions"",
+    ""Administrative actions logged: config changes, user account modifications, software installations, service changes"",
+    ""Unusual admin activity alerting: logins outside business hours, multiple failed attempts, unexpected privilege escalation"",
+    ""Log review evidence: regular review of admin logs (daily recommended)"",
+    ""Activity reconstruction capability: logs sufficient to determine root cause of incidents""
+  ]
+}","{
+  ""pass_if"": [
+    ""Admin login events captured with all fields"",
+    ""Privilege escalation events logged"",
+    ""Administrative actions tracked"",
+    ""Anomalous activity alerting configured""
+  ],
+  ""fail_if"": [
+    ""No admin login logging"",
+    ""No privilege escalation logging"",
+    ""No admin action tracking"",
+    ""No review evidence""
+  ],
+  ""notes"": [
+    ""Logs from all systems in A2""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E7,5.4,Admin activity monitoring logs,Password Repository Protection,M,Log Extracts,"{
+  ""sufficiency_criteria"": [
+    ""Credential store/password repository access logs:"",
+    ""- Access timestamp, user accessing repository, action (view/retrieve/modify)"",
+    ""- Which account passwords were accessed"",
+    ""- Access from expected vs unexpected sources"",
+    ""Physical safe access logs (if passwords stored physically):"",
+    ""- Entry timestamp, person accessing, reason"",
+    ""Emergency password retrieval events: logged and reviewed"",
+    ""Anomalous repository access: alerts for unusual access patterns or times""
+  ]
+}","{
+  ""pass_if"": [
+    ""Repository access logged with user and action"",
+    ""Physical safe access logged"",
+    ""Emergency access events captured""
+  ],
+  ""fail_if"": [
+    ""No access logging on password repository"",
+    ""No physical access tracking for safe""
+  ],
+  ""cross_checks"": [
+    ""Access patterns should align with C8 credential storage evidence""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+E7,6.4,Admin activity monitoring logs,Logging and Monitoring,M,Log Extracts,"{
+  ""sufficiency_criteria"": [
+    ""Admin activity logs integrated with SIEM/centralised logging:"",
+    ""- Forwarded from all in-scope systems to central platform"",
+    ""- Parsed and indexed for searchability"",
+    ""Retention compliance for admin logs:"",
+    ""- Application audit logs: ≥12 months"",
+    ""- OS admin logs on servers: ≥12 months"",
+    ""- Operator PC logs: ≥31 days"",
+    ""Log integrity: admin logs protected from enterprise admin compromise"",
+    ""Regular review evidence: procedures for reviewing admin logs (daily recommended) with sample review records"",
+    ""Session recording for privileged accounts (optional enhancement but check if implemented)""
+  ]
+}","{
+  ""pass_if"": [
+    ""Admin logs forwarded to SIEM"",
+    ""Retention meets minimums"",
+    ""Regular review evidence exists""
+  ],
+  ""fail_if"": [
+    ""Admin logs not in SIEM"",
+    ""Retention below requirements"",
+    ""No review process""
+  ],
+  ""notes"": [
+    ""E7 is the admin-specific component of 6.4. E2 = infrastructure; E3 = alert rules.""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+F1,2.8,Third-party vendor inventory,Outsourced Critical Activity Protection,M,Spreadsheet,"{
+  ""sufficiency_criteria"": [
+    ""Complete list of ALL third parties managing/operating SWIFT-related components or activities:"",
+    ""- Vendor name, services provided, components managed (matching A2 flags)"",
+    ""- Contract start/end dates"",
+    ""- Service type: IT outsourcing, managed services, cloud hosting, connectivity provider"",
+    ""- Critical activity classification: which of SWIFT's critical activities are outsourced:"",
+    ""· Security/change management of hardware/software"",
+    ""· RMA and business transaction operations"",
+    ""· Accessing sensitive user data"",
+    ""· Monitoring events with sensitive data"",
+    ""· Network management and configuration"",
+    ""· Transaction operations"",
+    ""· Security administration of entitlements/tokens"",
+    ""· Ancillary services with shared credentials"",
+    ""- Outsourcing agent vs connectivity provider distinction noted"",
+    ""Remote vs on-site management indicator"",
+    ""Third parties operating on their own equipment vs user's equipment""
+  ]
+}","{
+  ""pass_if"": [
+    ""All third parties identified with services and components"",
+    ""Critical activities classification per vendor"",
+    ""Contract dates current (not expired)"",
+    ""Agent vs provider distinction noted""
+  ],
+  ""fail_if"": [
+    ""Third parties in A2 not in F1"",
+    ""No critical activity classification"",
+    ""Expired contracts without renewal""
+  ],
+  ""cross_checks"": [
+    ""Must match A2 third-party flags""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+F2,2.8,SLA/NDA agreements,Outsourced Critical Activity Protection,M,Agreement Copies / Summary,"{
+  ""sufficiency_criteria"": [
+    ""SLA in place with EVERY third party performing critical SWIFT activities:"",
+    ""- Standard of care defined: minimum security requirements"",
+    ""- Service levels for: incident response, patching, availability, change management"",
+    ""- Right to audit or obtain compliance evidence"",
+    ""- Breach notification requirements"",
+    ""NDA in place covering SWIFT-related sensitive data"",
+    ""Connectivity provider SLAs for hosted components (when acting as outsourcing agent)"",
+    ""Agreement review: SLAs reviewed periodically and updated"",
+    ""Summary: % of vendors with SLA, % with NDA, any gaps""
+  ]
+}","{
+  ""pass_if"": [
+    ""SLA exists for every critical-activity vendor"",
+    ""NDA covers SWIFT data"",
+    ""Right to audit included"",
+    ""Security requirements defined in SLA""
+  ],
+  ""fail_if"": [
+    ""Vendor without SLA/NDA"",
+    ""SLA without security requirements"",
+    ""No right to audit clause""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+F3,2.8,Third-party security risk assessments,Outsourced Critical Activity Protection,M,Assessment Reports,"{
+  ""sufficiency_criteria"": [
+    ""Security risk assessment for EACH third party performing critical activities:"",
+    ""- Conducted at start of engagement"",
+    ""- Reviewed on regular basis (annually recommended)"",
+    ""- Assessment scope: covers outsourced critical activities and their security posture"",
+    ""Risk assessment content:"",
+    ""- Third party's security controls and certifications"",
+    ""- Gaps identified and risk rating"",
+    ""- Remediation requirements or risk acceptance decisions"",
+    ""- Alignment with SWIFT Outsourcing Agents Security Requirements Baseline"",
+    ""Assessment date and next review date documented"",
+    ""Assessor independence (if external assessment used)""
+  ]
+}","{
+  ""pass_if"": [
+    ""Risk assessment exists per critical-activity vendor"",
+    ""Conducted at engagement start and reviewed periodically"",
+    ""Gaps and risks documented"",
+    ""Alignment with SWIFT OASRB addressed""
+  ],
+  ""fail_if"": [
+    ""Vendor without risk assessment"",
+    ""Assessment not reviewed in >2 years"",
+    ""No gap/risk identification""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+F4,2.8,Third-party ongoing monitoring evidence,Outsourced Critical Activity Protection,M,Reports / Records,"{
+  ""sufficiency_criteria"": [
+    ""Reasonable comfort evidence from EACH third party that outsourced activities maintained per SWIFT OASRB:"",
+    ""- Third-party compliance certifications: SOC2 Type II, PCI-DSS, ISO 27001, NIST CSF"",
+    ""- Certification scope: confirms coverage of SWIFT-related services"",
+    ""- Certification date: current and valid"",
+    ""- Gaps between certification scope and SWIFT requirements identified"",
+    ""Regular monitoring activities:"",
+    ""- Periodic security review meetings"",
+    ""- SLA performance reports"",
+    ""- Incident reports from third party"",
+    ""- Audit findings follow-up"",
+    ""For connectivity providers acting as outsourcing agents: additional comfort for hosted components"",
+    ""Annual attestation or comfort letter from third party""
+  ]
+}","{
+  ""pass_if"": [
+    ""Current certifications from each vendor"",
+    ""Certification scope covers SWIFT services"",
+    ""Regular monitoring meetings documented"",
+    ""Annual comfort obtained""
+  ],
+  ""fail_if"": [
+    ""No certifications or comfort evidence"",
+    ""Expired certifications"",
+    ""Certification scope does not cover SWIFT services"",
+    ""No ongoing monitoring evidence""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+G1,3.1,Physical access controls,Physical Security,M,Evidence Package,"{
+  ""sufficiency_criteria"": [
+    ""Physical security controls for each environment type:"",
+    ""1) Removable equipment: PED, PED keys, smart cards, USB tokens, TOTP devices"",
+    ""- Supervised (under owner control) or securely stored"",
+    ""- Hot-swap equipment in data centre or locked room"",
+    ""- Backup media physically secured"",
+    ""2) Workplace environment:"",
+    ""- Operator PCs in secured area with controlled access (employees + authorised only)"",
+    ""- Transaction printers in secured area with restricted access"",
+    ""3) Remote workers:"",
+    ""- Security policy for teleworking established"",
+    ""- Rules for personal equipment, public environment use, transport, storage"",
+    ""- VPN + MFA required for remote access"",
+    ""- Mobile device protection (password, auto-lock)"",
+    ""4) Server environment:"",
+    ""- Data centre or locked room with limited controlled access (access cards, biometrics)"",
+    ""- Rack-mounted servers (risk assessment for separate/locked rack)"",
+    ""- Video surveillance with movement detection and recording (images retained ≥3 months ideal)"",
+    ""- No physical SWIFT reference labels on servers"",
+    ""5) Equipment disposal:"",
+    ""- Data sanitisation (secure deletion, overwriting, encryption, manufacturer reset) before disposal/reuse""
+  ]
+}","{
+  ""pass_if"": [
+    ""Removable equipment supervised or stored securely"",
+    ""Server environment in locked room/data centre with access control"",
+    ""Video surveillance with recording"",
+    ""Equipment disposal with data sanitisation""
+  ],
+  ""fail_if"": [
+    ""Tokens left plugged in unattended"",
+    ""Servers in unlocked/uncontrolled room"",
+    ""No video surveillance"",
+    ""Equipment disposed without data wipe""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+G2,3.1,Physical access logs,Physical Security,M,Log Exports / Records,"{
+  ""sufficiency_criteria"": [
+    ""Physical access logs for sensitive equipment areas:"",
+    ""- Data centre access log: entry/exit timestamps, person, method (card/biometric)"",
+    ""- Secured storage areas (safes, locked cabinets): access log for equipment containing tokens/keys"",
+    ""- Server room access logs"",
+    ""Log retention: ≥6 months (minimum), compliant with local laws and regulations"",
+    ""Logs available for audit and investigations"",
+    ""Log review: periodic review for anomalous physical access patterns"",
+    ""Visitor access records for sensitive areas""
+  ]
+}","{
+  ""pass_if"": [
+    ""Physical access logs maintained for all sensitive areas"",
+    ""Retention ≥6 months"",
+    ""Logs available for audit""
+  ],
+  ""fail_if"": [
+    ""No physical access logging"",
+    ""Retention below 6 months"",
+    ""Log gaps or missing entries""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+G3,3.1,Video surveillance evidence,Physical Security,M,Config / Sample,"{
+  ""sufficiency_criteria"": [
+    ""Video surveillance configuration for server environment:"",
+    ""- Camera placement covering server room entry/exit and rack areas"",
+    ""- Movement detection enabled"",
+    ""- Recording active (not just live monitoring)"",
+    ""- Image retention: ≥3 months recommended (compliant with applicable laws)"",
+    ""- Recording integrity: tamper-evident storage"",
+    ""Compliance with applicable laws and regulations for video recording documented"",
+    ""Sample footage or system screenshot showing operational status""
+  ]
+}","{
+  ""pass_if"": [
+    ""Video surveillance operational with movement detection"",
+    ""Recording active with ≥3 month retention"",
+    ""Legal compliance documented""
+  ],
+  ""fail_if"": [
+    ""No video surveillance in server environment"",
+    ""No recording (live only)"",
+    ""Retention <3 months without justification""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+G4,3.1,Equipment disposal records,Physical Security,M,Records,"{
+  ""sufficiency_criteria"": [
+    ""Equipment disposal/reuse records for in-scope SWIFT equipment:"",
+    ""- Equipment identifier, type, original function"",
+    ""- Disposal/reuse date"",
+    ""- Sanitisation method applied: secure deletion, overwriting, encryption of storage, manufacturer reset"",
+    ""- Sanitisation verification: confirmation that data is unrecoverable"",
+    ""- Certificate of destruction (if using third-party disposal service)"",
+    ""Covers: servers, PCs, HSMs, tokens, removable media, backup tapes, network devices"",
+    ""Disposal process documented in policy""
+  ]
+}","{
+  ""pass_if"": [
+    ""Disposal records exist with sanitisation method"",
+    ""Verification of data destruction"",
+    ""All equipment types covered""
+  ],
+  ""fail_if"": [
+    ""Equipment disposed without sanitisation"",
+    ""No disposal records"",
+    ""Missing equipment types from disposal process""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+H1,7.1,Incident response plan,Cyber Incident Response Planning,M,Document,"{
+  ""sufficiency_criteria"": [
+    ""Cyber incident response plan documented and annually updated:"",
+    ""\u2014 Up-to-date contact details: internal contacts + external (third parties, connectivity providers, law enforcement, regulators)"",
+    ""\u2014 Escalation timers per severity level"",
+    ""\u2014 Based on SWIFT Cyber Security Incident Recovery roadmap (KB Bulletin #10047)"",
+    ""\u2014 Compliant with internal policies, local laws, and regulations"",
+    ""Plan includes steps to:"",
+    ""\u2014 Promptly notify internal stakeholders and leadership"",
+    ""\u2014 Notify external stakeholders: regulator(s), supervisor(s), law enforcement"",
+    ""\u2014 Report to SWIFT Customer Support Centre (mandatory reporting obligation in v2025)"",
+    ""\u2014 Contain and isolate compromised systems"",
+    ""\u2014 Collect and preserve forensic evidence (skilled cyber-security professional involvement)"",
+    ""\u2014 Safely recover operations from backup with minimised outage"",
+    ""Backup and recovery plan exists for all critical SWIFT business lines"",
+    ""Plan tested at least every 2 years (test records in H2)"",
+    ""Plan revision history showing annual update"",
+    ""Note (v2025): Post-incident SWIFT attestation review is NOT an explicitly mandatory plan step \u2014 added in v2026"",
+    ""Note (v2025): Isolated light-footprint recovery environment is an optional enhancement \u2014 not explicitly required""
+  ]
+}","{
+  ""pass_if"": [
+    ""IR plan exists with annual update evidence (dated within last 12 months)"",
+    ""SWIFT Cyber Security Incident Recovery roadmap (Bulletin #10047) referenced"",
+    ""Internal and external notification steps included"",
+    ""SWIFT Customer Support Centre notification explicitly included as a plan step"",
+    ""Containment, evidence preservation, and recovery steps present"",
+    ""Backup and recovery plan for all critical business lines confirmed"",
+    ""Plan tested within last 2 years""
+  ],
+  ""fail_if"": [
+    ""No IR plan exists"",
+    ""Plan not updated within last 12 months"",
+    ""No SWIFT Customer Support Centre notification step"",
+    ""Missing notification procedures (internal or external)"",
+    ""No backup/recovery plan for critical business lines"",
+    ""Plan never tested""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+H2,7.1,IR exercise/test records,Cyber Incident Response Planning,M,Test Reports,"{
+  ""sufficiency_criteria"": [
+    ""IR plan testing conducted at least every 2 years:"",
+    ""- Test date, type (tabletop, simulation, live drill), scope, participants"",
+    ""- Scenario tested (relevant to SWIFT operations)"",
+    ""- Test results: what worked, what failed, gaps identified"",
+    ""- Lessons learned documented"",
+    ""- Plan updates resulting from test findings"",
+    ""Most recent test within last 2 years"",
+    ""Safe recovery of critical business operations demonstrated"",
+    ""Minimised outage time objectives validated"",
+    ""External party participation if outsourced activities involved""
+  ]
+}","{
+  ""pass_if"": [
+    ""Test conducted within last 2 years"",
+    ""Results and lessons learned documented"",
+    ""Plan updated based on findings""
+  ],
+  ""fail_if"": [
+    ""No test within 2 years"",
+    ""No lessons learned or plan updates"",
+    ""Test scope too narrow (not covering SWIFT)""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+H4,7.2,Security training program documentation,Security Training & Awareness,M,Program Document,"{
+  ""sufficiency_criteria"": [
+    ""Annual security awareness programme documented covering mandatory v2025 topics:"",
+    ""\u2014 SWIFT-related products and services training (including SWIFT Smart modules)"",
+    ""\u2014 Cyber-security threat awareness relevant to financial services industry"",
+    ""\u2014 Risks related to internet usage and cloud deployment"",
+    ""\u2014 Password security and management"",
+    ""\u2014 Device security (mobile, operator PC)"",
+    ""\u2014 Safe operating habits: spam/phishing/spear-phishing identification, download safety, safe browsing"",
+    ""\u2014 Reporting suspicious events and activities"",
+    ""Target audience: ALL staff with access to SWIFT-related systems (employees, agents, consultants, contractors)"",
+    ""Additional training for privileged access users: specific to their environment/architecture (at management's discretion)"",
+    ""Training frequency: annual at minimum"",
+    ""Training delivery method: e-learning, classroom, workshop documented"",
+    ""Programme update process: annual review based on evolving threats"",
+    ""Note (v2025): AI-based phishing awareness (deepfake text, voice, video) is NOT a named mandatory training topic \u2014 this becomes explicitly mandatory in v2026""
+  ]
+}","{
+  ""pass_if"": [
+    ""Training programme documented with all mandatory v2025 topics covered"",
+    ""Covers ALL staff with SWIFT access"",
+    ""SWIFT Smart modules included"",
+    ""Additional training provided or planned for privileged access users"",
+    ""Annual frequency formally defined""
+  ],
+  ""fail_if"": [
+    ""No training programme documented"",
+    ""Core mandatory topics missing (phishing, passwords, incident reporting)"",
+    ""Privileged users not addressed separately in the programme"",
+    ""No annual frequency mandate""
+  ],
+  ""notes"": [
+    ""AI-based phishing/deepfake awareness is a recommended addition in v2025 but not a named mandatory topic \u2014 named as mandatory from v2026""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+H5,7.2,Training completion records,Security Training & Awareness,M,Records / Report,"{
+  ""sufficiency_criteria"": [
+    ""Training completion tracking for current year:"",
+    ""- Employee name/ID, role (end user vs privileged admin), training module completed"",
+    ""- Completion date"",
+    ""- Pass/fail status (if assessment included)"",
+    ""Completion rate: % of required staff who completed training"",
+    ""Non-completion escalation: process for staff who haven't completed within deadline"",
+    ""Privileged user additional training completion tracked separately"",
+    ""Third-party/contractor training completion if they have SWIFT access"",
+    ""Historical records: at least 2 prior years for trend analysis""
+  ]
+}","{
+  ""pass_if"": [
+    ""Training completed by >90% of required staff"",
+    ""Privileged users have additional training records"",
+    ""Non-completion escalation process exists""
+  ],
+  ""fail_if"": [
+    ""<50% completion rate"",
+    ""No tracking of training completion"",
+    ""Privileged users without additional training"",
+    ""Contractors with SWIFT access not trained""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+H6,2.9,Transaction control procedures,Transaction Business Controls,M,Process Document / Config,"{
+  ""sufficiency_criteria"": [
+    ""Documented transaction detection, prevention, and validation controls:"",
+    ""- Controls that restrict business transactions within expected bounds of normal activity"",
+    ""- One or more of the following implemented:"",
+    ""(1) Limiting traffic outside business hours (if applicable)"",
+    ""(2) Value and volume thresholds: per-transaction and cumulative limits"",
+    ""(3) Reconciliation: daily reconciliation of outbound vs back-office source"",
+    ""(4) Real-time monitoring: dashboard or automated detection of anomalous transactions"",
+    ""(5) Post-event validation: next-day verification of transaction activity"",
+    ""- Parameters based on analysis of 'normal' business activity"",
+    ""- Currency restrictions, counterparty restrictions if applicable"",
+    ""Four-eyes principle for sensitive transaction operations"",
+    ""Inbound transaction monitoring (optional but recommended)"",
+    ""Alert/exception handling process for triggered controls""
+  ]
+}","{
+  ""pass_if"": [
+    ""At least 2 transaction control types implemented"",
+    ""Controls based on analysis of normal activity"",
+    ""Alert/exception process documented""
+  ],
+  ""fail_if"": [
+    ""No transaction business controls"",
+    ""Controls not based on normal activity analysis"",
+    ""No alert/exception process""
+  ],
+  ""notes"": [
+    ""Controls may be outside secure zone (business controls); reliance on other assessments acceptable""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+H7,2.9,Transaction monitoring configuration/evidence,Transaction Business Controls,M,Config / Reports,"{
+  ""sufficiency_criteria"": [
+    ""Technical implementation evidence for transaction controls in v2025:"",
+    ""\u2014 Configuration screenshots/exports showing active controls (limits, hours, thresholds)"",
+    ""\u2014 Dashboard showing real-time or near-real-time monitoring (if implemented)"",
+    ""\u2014 Sample reconciliation reports using MT 900/MT 910 and MT 940/MT 950 messages (v2025 reconciliation method)"",
+    ""\u2014 Alert/exception report samples showing triggered controls are operational"",
+    ""Transaction parameters documented: specific limit values, thresholds, or patterns configured"",
+    ""Evidence of periodic review and adjustment of parameters based on changes in normal business activity"",
+    ""False positive management: process for reviewing and tuning alerts to maintain control effectiveness"",
+    ""Note (v2025): Universal Confirmation (UC) as a reconciliation method is introduced in v2026 \u2014 not applicable in v2025 attestations""
+  ]
+}","{
+  ""pass_if"": [
+    ""Active control configuration verified (actual system settings, not just policy documents)"",
+    ""Alert/exception report evidence demonstrates controls are operational"",
+    ""Transaction control parameters explicitly documented"",
+    ""Parameters reviewed and adjusted periodically""
+  ],
+  ""fail_if"": [
+    ""Controls documented in policy only \u2014 no technical configuration evidence"",
+    ""No evidence of alerts or exceptions (suggests controls may not be operationally active)"",
+    ""Control parameters never adjusted since initial setup""
+  ],
+  ""notes"": [
+    ""MT 900/910 and MT 940/950 are the v2025 reconciliation methods"",
+    ""Universal Confirmation (UC) is a v2026 addition \u2014 not applicable in v2025 assessments""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+H8,2.11A,RMA management procedures and review evidence,RMA Business Controls,A,Process + Records,"{
+  ""sufficiency_criteria"": [
+    ""RMA management process documented:"",
+    ""- Know-your-customer (KYC) due diligence for RMA relationship creation"",
+    ""- Approval process for new RMA relationships"",
+    ""- Annual review of ALL RMA relationships: unused, dormant, unwanted relationships identified"",
+    ""- Timely removal/revocation of obsolete relationships"",
+    ""- [Optional: restriction to specific business profiles agreed with counterparty]"",
+    ""Evidence of latest annual review:"",
+    ""- Review date, reviewer, scope (all RMA relationships)"",
+    ""- Relationships reviewed count, removed count, justified count"",
+    ""- Next review scheduled date"",
+    ""RMA relationship inventory: counterparty name, creation date, last review, status""
+  ]
+}","{
+  ""pass_if"": [
+    ""RMA management process documented"",
+    ""Annual review conducted with evidence"",
+    ""Obsolete relationships removed""
+  ],
+  ""fail_if"": [
+    ""No RMA management process"",
+    ""No annual review in last 12 months"",
+    ""Obsolete relationships retained without justification""
+  ],
+  ""notes"": [
+    ""Advisory control — RMA managed through central RMA Portal""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
+H9,7.4A,Risk assessment methodology and register,Scenario Risk Assessment,A,Document / Register,"{
+  ""sufficiency_criteria"": [
+    ""Scenario-based risk assessment documented and conducted regularly:"",
+    ""- Threats assessed: end-user impersonation, message tampering, eavesdropping, third-party software weaknesses, system compromise, DoS attacks"",
+    ""- Attack scenarios specific to SWIFT infrastructure evaluated"",
+    ""- Existing preventive and detective controls mapped per scenario"",
+    ""- Residual risk identified per scenario after mitigations"",
+    ""- Risk mitigation plan: actions to address identified gaps"",
+    ""- Results reported and closed per criticality and ISRM process"",
+    ""Risk assessment framework identified (e.g., CIS-Critical Security Controls, ISO 27005, NIST RMF)"",
+    ""Assessment scope includes: people, processes, infrastructure"",
+    ""For cloud-hosted: third-party risk assessment covering remote platform"",
+    ""Risk register: all identified risks with status, owner, treatment plan"",
+    ""Update cycle: reassessed after significant changes or at defined intervals""
+  ]
+}","{
+  ""pass_if"": [
+    ""Scenario-based assessment conducted"",
+    ""SWIFT-specific threats evaluated"",
+    ""Existing controls mapped per scenario"",
+    ""Residual risk and mitigation plan documented"",
+    ""Risk register maintained""
+  ],
+  ""fail_if"": [
+    ""No risk assessment"",
+    ""SWIFT-specific scenarios not covered"",
+    ""No risk register"",
+    ""No mitigation plan for identified gaps""
+  ],
+  ""notes"": [
+    ""Advisory control — framework selection is user's choice""
+  ]
+}",2025v,2026-03-03T10:08:46.123706Z
