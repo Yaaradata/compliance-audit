@@ -584,6 +584,7 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
     else:
         total_evidence = sum((d.item_count or 0) for d in domains)
     completed_evidence = sum(1 for s in submissions if s.status in ("approved", "submitted", "in_review"))
+    in_review_evidence = sum(1 for s in submissions if (s.status or "").lower() == "in_review")
     overall = round(
         (sum(cs.score for cs in control_scores) / len(control_scores)) if control_scores else 0, 1
     )
@@ -593,6 +594,7 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
         mandatory_controls=mandatory_count,
         total_controls=len(control_scores),
         evidence_items=completed_evidence,
+        evidence_in_review=in_review_evidence,
         total_evidence_items=total_evidence,
         gaps_identified=len(gaps),
         domain_scores=domain_scores,

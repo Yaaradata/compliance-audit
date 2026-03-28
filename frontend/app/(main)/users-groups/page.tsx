@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, useId } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
@@ -203,6 +204,7 @@ export default function UsersGroupsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<ComplianceUser | null>(null);
+  const deleteUserDialogTitleId = useId();
   const [userForm, setUserForm] = useState<NewUserForm>(emptyUserForm);
   const [groupForm, setGroupForm] = useState({ name: "", color: GROUP_COLORS[0], selectedUserIds: [] as string[] });
   const [groupFormUserSearch, setGroupFormUserSearch] = useState("");
@@ -212,6 +214,20 @@ export default function UsersGroupsPage() {
   const nextGroupId = useRef(1);
 
   const canAccess = user?.role === "compliance_officer" || user?.role === "tenant_admin";
+
+  useEffect(() => {
+    if (!userToDelete) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setUserToDelete(null);
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [userToDelete]);
 
   const fetchUsers = useCallback(() => {
     if (!canAccess) return;
@@ -500,19 +516,15 @@ export default function UsersGroupsPage() {
         {/* Stats — soft elevation, no harsh borders */}
         <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
-            { label: "Total Users", value: users.length, accent: "var(--primary)" },
-            { label: "Groups", value: groupsDisplay.length, accent: "#7c3aed" },
-            { label: "Assigned", value: users.filter((u) => u.group_name).length, accent: "var(--success)" },
-            { label: "Unassigned", value: users.filter((u) => !u.group_name).length, accent: "var(--warning)" },
+            { label: "Total Users", value: users.length },
+            { label: "Groups", value: groupsDisplay.length },
+            { label: "Assigned", value: users.filter((u) => u.group_name).length },
+            { label: "Unassigned", value: users.filter((u) => !u.group_name).length },
           ].map((s, i) => (
             <div
               key={i}
               className="rounded-2xl bg-white p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.06),0_2px_4px_rgba(0,0,0,0.03)]"
             >
-              <div
-                className="h-1 w-8 rounded-full mb-3"
-                style={{ background: s.accent }}
-              />
               <div className="text-2xl font-bold text-foreground tracking-tight" style={{ fontFamily: "var(--font-geist-sans)" }}>
                 {s.value}
               </div>
@@ -589,36 +601,49 @@ export default function UsersGroupsPage() {
           </div>
         )}
 
-        {/* Delete user confirmation modal */}
-        {userToDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setUserToDelete(null)}>
+        {/* Delete user — confirm in a portal so it always stacks above the page chrome */}
+        {userToDelete &&
+          createPortal(
             <div
-              className="mx-4 max-w-md rounded-2xl bg-white p-6 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4"
+              role="presentation"
+              onClick={() => setUserToDelete(null)}
             >
-              <h3 className="text-lg font-bold text-foreground mb-2">Delete User</h3>
-              <p className="text-sm text-foreground-muted mb-4">
-                Permanently delete <strong>{userToDelete.name || userToDelete.email}</strong> ({userToDelete.email})? This will remove them from all cycle assignments and related records.
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setUserToDelete(null)}
-                  className="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-slate-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteUser(userToDelete)}
-                  className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 transition-colors"
-                >
-                  Delete
-                </button>
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={deleteUserDialogTitleId}
+                className="mx-auto w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 id={deleteUserDialogTitleId} className="text-lg font-bold text-foreground mb-2">
+                  Delete this user?
+                </h3>
+                <p className="text-sm text-foreground-muted mb-4">
+                  You are about to permanently remove{" "}
+                  <strong>{userToDelete.name || userToDelete.email}</strong> ({userToDelete.email}). This cannot be undone
+                  and will remove them from all cycle assignments and related records.
+                </p>
+                <div className="flex flex-wrap justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setUserToDelete(null)}
+                    className="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteUser(userToDelete)}
+                    className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                  >
+                    Delete user
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            </div>,
+            document.body
+          )}
 
         {/* Users tab */}
         {tab === "users" && (

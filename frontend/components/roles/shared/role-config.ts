@@ -1,4 +1,4 @@
-﻿import type { UserRole } from "@/lib/types";
+import type { UserRole } from "@/lib/types";
 import type { QuickAction, RoleHighlights } from "./types";
 
 export function quickActionsForRole(
@@ -6,9 +6,15 @@ export function quickActionsForRole(
   activeCycleId: string | null
 ): QuickAction[] {
   const base = activeCycleId ? `/cycles/${activeCycleId}` : null;
-  const actions: QuickAction[] = [
-    { href: "/assessments/new", label: "Assessment cycles", description: "Create, open, or switch SWIFT CSCF assessments" },
-  ];
+  const actions: QuickAction[] = [];
+
+  if (role !== "it_sme") {
+    actions.push({
+      href: "/assessments/new",
+      label: "Assessment cycles",
+      description: "Create, open, or switch SWIFT CSCF assessments",
+    });
+  }
 
   if (role === "compliance_officer" || role === "tenant_admin") {
     actions.push({ href: "/users-groups", label: "Users & groups", description: "Manage participants and assignments" });
@@ -38,6 +44,7 @@ export function quickActionsForRole(
 
   let primaryHref = "/assessments/new";
   if (base && role === "it_sme") primaryHref = `${base}/dashboard`;
+  else if (role === "it_sme" && !base) primaryHref = "/aws";
   else if (base && (role === "internal_reviewer_l1" || role === "internal_reviewer_l2" || role === "external_assessor")) {
     primaryHref = `${base}/review`;
   }

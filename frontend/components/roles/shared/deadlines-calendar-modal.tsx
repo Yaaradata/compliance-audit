@@ -1,5 +1,7 @@
 "use client";
 
+import type { UserRole } from "@/lib/types";
+import { dashboardOutlineStyle } from "@/lib/dashboard-button-tokens";
 import type { CalendarDeadlineMark } from "@/components/roles/shared/compliance-types";
 import { addMonths, toDateKey, WEEKDAY_LABELS } from "@/components/roles/shared/utils";
 
@@ -12,6 +14,8 @@ type DeadlinesCalendarModalProps = {
   daysInMonth: number;
   calendarMonthLabel: string;
   deadlineMap: Map<string, CalendarDeadlineMark[]>;
+  /** Toolbar / nav button outline (role-colored). */
+  buttonRole?: UserRole | null;
 };
 
 export function DeadlinesCalendarModal({
@@ -23,7 +27,9 @@ export function DeadlinesCalendarModal({
   daysInMonth,
   calendarMonthLabel,
   deadlineMap,
+  buttonRole,
 }: DeadlinesCalendarModalProps) {
+  const outline = dashboardOutlineStyle(buttonRole ?? null);
   if (!open) return null;
 
   return (
@@ -40,19 +46,19 @@ export function DeadlinesCalendarModal({
           <button
             type="button"
             onClick={onClose}
-            className="interactive-outline-btn rounded-md border px-2.5 py-1 text-xs font-semibold"
-            style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+            className="interactive-outline-btn dashboard-btn-pill inline-flex items-center justify-center border-2 bg-white text-sm font-semibold"
+            style={{ borderColor: outline.border, color: outline.text }}
           >
             Close
           </button>
         </div>
 
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => onCalendarMonthChange(addMonths(calendarMonth, -1))}
-            className="interactive-outline-btn rounded-md border px-2.5 py-1 text-xs font-semibold"
-            style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+            className="interactive-outline-btn dashboard-btn-pill inline-flex min-w-[4.5rem] items-center justify-center border-2 bg-white text-sm font-semibold"
+            style={{ borderColor: outline.border, color: outline.text }}
           >
             Prev
           </button>
@@ -62,8 +68,8 @@ export function DeadlinesCalendarModal({
           <button
             type="button"
             onClick={() => onCalendarMonthChange(addMonths(calendarMonth, 1))}
-            className="interactive-outline-btn rounded-md border px-2.5 py-1 text-xs font-semibold"
-            style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+            className="interactive-outline-btn dashboard-btn-pill inline-flex min-w-[4.5rem] items-center justify-center border-2 bg-white text-sm font-semibold"
+            style={{ borderColor: outline.border, color: outline.text }}
           >
             Next
           </button>

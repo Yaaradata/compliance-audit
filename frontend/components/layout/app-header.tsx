@@ -39,6 +39,7 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
   const pathname = usePathname();
   const { user, logout, selectedArchitectureId, activeCycleId, activeCycleMeta, effectiveCycleRole } = useAuth();
   const globalRole = useGlobalRoleForRouting(user?.role);
+  const hideAssessmentsCycleNav = globalRole === "it_sme";
   const { toggle: toggleSidebar } = useSidebar();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -136,12 +137,14 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
                 Back to role dashboard
               </Link>
             )}
-            <Link
-              href="/assessments/new"
-              className="interactive-header-btn text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--border)] text-[var(--foreground-muted)]"
-            >
-              Switch cycle
-            </Link>
+            {!hideAssessmentsCycleNav && (
+              <Link
+                href="/assessments/new"
+                className="interactive-header-btn text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--border)] text-[var(--foreground-muted)]"
+              >
+                Switch cycle
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => logout()}
@@ -211,13 +214,15 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
               </div>
               {profileOpen && (
                 <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg z-50 p-1">
-                  <Link
-                    href="/assessments/new"
-                    className="interactive-dropdown-item block rounded-lg px-3 py-2 text-xs text-[var(--foreground)]"
-                    onClick={() => setProfileOpen(false)}
-                  >
-                    Switch cycle
-                  </Link>
+                  {!hideAssessmentsCycleNav && (
+                    <Link
+                      href="/assessments/new"
+                      className="interactive-dropdown-item block rounded-lg px-3 py-2 text-xs text-[var(--foreground)]"
+                      onClick={() => setProfileOpen(false)}
+                    >
+                      Switch cycle
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

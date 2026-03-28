@@ -155,7 +155,10 @@ class DashboardResponse(BaseModel):
     overall_score: float = 0
     mandatory_controls: int = 0
     total_controls: int = 0
+    # Submissions in approved, submitted, or in_review (historical dashboard metric).
     evidence_items: int = 0
+    # Submissions with DB status in_review (review queue).
+    evidence_in_review: int = 0
     total_evidence_items: int = 0
     gaps_identified: int = 0
     domain_scores: list[DomainScore] = []

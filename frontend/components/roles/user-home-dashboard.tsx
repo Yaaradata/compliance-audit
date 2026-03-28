@@ -1,17 +1,34 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
+import { dashboardOutlineStyle, dashboardPrimaryGradient } from "@/lib/dashboard-button-tokens";
 import type { AssessmentCycle, User, UserRole } from "@/lib/types";
 import { api } from "@/lib/api";
-import { ReviewerQueueOverviewPanel, RoleDashboardHero, StatKpiArticleGrid } from "@/components/roles/shared";
+import {
+  ComplianceOverviewPanel,
+  DeadlinesCalendarModal,
+  RoleDashboardHero,
+  StatKpiArticleGrid,
+  UpcomingDeadlinesPanel,
+} from "@/components/roles/shared";
 import type {
+  ComplianceOverviewData,
   CycleDashboard,
   CycleReviewStats,
+  DeadlineRow,
   EvidenceReviewApiRow,
-  ReviewerQueueOverviewData,
 } from "@/components/roles/shared/compliance-types";
-import { daysTo, normalizeRoleForCycle, phaseLabel, cycleEntryPath } from "@/components/roles/shared/utils";
+import {
+  daysTo,
+  monthEnd,
+  monthStart,
+  normalizeRoleForCycle,
+  phaseLabel,
+  toDateKey,
+  cycleEntryPath,
+} from "@/components/roles/shared/utils";
 
 type CycleCardRow = {
   id: string;
@@ -61,6 +78,8 @@ export function UserHomeDashboard({
   const [reviewByCycleId, setReviewByCycleId] = useState<Record<string, CycleReviewStats | null>>({});
   const [loadingCards, setLoadingCards] = useState(false);
   const [visualCycleId, setVisualCycleId] = useState<string | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => monthStart(new Date()));
   const [cycleQuery, setCycleQuery] = useState("");
   const [reviewerFilter, setReviewerFilter] = useState<"all" | "needs_action" | "due_soon" | "queue_clear">("all");
   const [itExpertListFilter, setItExpertListFilter] = useState<"all" | "due_soon" | "needs_upload">("all");
@@ -189,11 +208,6 @@ export function UserHomeDashboard({
         }),
     [cycles, rolesByCycleId, dashByCycleId, reviewByCycleId]
   );
-  const reviewerRows = useMemo(
-    () => rows.filter((r) => isReviewerRole(r.role)),
-    [rows]
-  );
-  const itExpertRows = useMemo(() => rows.filter((r) => r.role === "it_sme"), [rows]);
   const showItExpertVisualization = homeRole === "it_sme";
 
   const visibleRows = useMemo(() => {
@@ -262,101 +276,148 @@ export function UserHomeDashboard({
     .filter((r) => (showItExpertVisualization ? r.role === "it_sme" : Boolean(r.role)))
     .reduce((acc, r) => acc + (r.review?.inReview ?? 0), 0);
 
-  const deadlineRows = useMemo(() => {
-    return visibleRows
-      .filter((r) => Boolean(r.role) && r.dueIn !== null)
+  const upcomingDeadlineRows = useMemo<DeadlineRow[]>(() => {
+    const out: DeadlineRow[] = [];
+    for (const r of [...rows]
+      .filter((row) => Boolean(row.role) && row.dueIn !== null)
       .sort((a, b) => (a.dueIn ?? 9999) - (b.dueIn ?? 9999))
-      .slice(0, 6);
-  }, [visibleRows]);
+      .slice(0, 6)) {
+      const cycle = cycles.find((c) => c.id === r.id);
+      if (!cycle) continue;
+      out.push({
+        cycle,
+        dashboard: r.dashboard ?? null,
+        relatedUsers: [],
+        days: r.dueIn!,
+      });
+    }
+    return out;
+  }, [rows, cycles]);
+
+  const calendarDeadlines = useMemo(() => {
+    return rows
+      .filter((r) => r.role)
+      .map((r) => {
+        const c = cycles.find((x) => x.id === r.id);
+        if (!c) return null;
+        const raw = c.target_submission_date ?? c.end_date;
+        if (!raw) return null;
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return null;
+        return {
+          date: d,
+          key: toDateKey(d),
+          label: c.label,
+          displayId: c.display_id,
+          phase: phaseLabel(c.phase),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => Boolean(x));
+  }, [rows, cycles]);
+
+  const calendarMonthLabel = calendarMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const calStart = monthStart(calendarMonth);
+  const calEnd = monthEnd(calendarMonth);
+  const startOffset = calStart.getDay();
+  const daysInMonth = calEnd.getDate();
+  const deadlineMap = useMemo(() => {
+    const map = new Map<string, { label: string; displayId: string; phase: string }[]>();
+    calendarDeadlines.forEach((d) => {
+      if (!map.has(d.key)) map.set(d.key, []);
+      map.get(d.key)!.push({ label: d.label, displayId: d.displayId, phase: d.phase });
+    });
+    return map;
+  }, [calendarDeadlines]);
+
+  const complianceOverview = useMemo<ComplianceOverviewData>(() => {
+    const sourceRows = visualCycleId
+      ? rows.filter((r) => r.id === visualCycleId && r.role)
+      : rows.filter((r) => r.role);
+
+    let evidenceSubmitted = 0;
+    let evidenceNotSubmitted = 0;
+    let reviewCompleted = 0;
+    let inReview = 0;
+
+    sourceRows.forEach((r) => {
+      const evidenceDone = r.dashboard?.evidence_items ?? 0;
+      const evidenceTotal = r.dashboard?.total_evidence_items ?? 0;
+      const realInReview = r.dashboard?.evidence_in_review ?? 0;
+      const realReviewCompleted = Math.max(0, evidenceDone - realInReview);
+
+      evidenceSubmitted += evidenceDone;
+      evidenceNotSubmitted += Math.max(0, evidenceTotal - evidenceDone);
+      reviewCompleted += realReviewCompleted;
+      inReview += realInReview;
+    });
+
+    const total = evidenceSubmitted + evidenceNotSubmitted + reviewCompleted + inReview;
+    const pct = (v: number) => (total > 0 ? Math.round((v / total) * 100) : 0);
+
+    const submittedPct = pct(evidenceSubmitted);
+    const notSubmittedPct = pct(evidenceNotSubmitted);
+    const reviewCompletedPct = pct(reviewCompleted);
+    const inReviewPct = pct(inReview);
+
+    const topBucket = [
+      { label: "Evidence Submitted", value: submittedPct },
+      { label: "Evidence Not Submitted", value: notSubmittedPct },
+      { label: "Review Completed", value: reviewCompletedPct },
+      { label: "In Review", value: inReviewPct },
+    ].sort((a, b) => b.value - a.value)[0];
+
+    const first = sourceRows[0];
+    const firstCycle = first ? cycles.find((c) => c.id === first.id) ?? null : null;
+
+    return {
+      center: topBucket?.value ?? 0,
+      centerLabel: topBucket?.label ?? "Evidence Submitted",
+      totalCycles: total,
+      selectedCycle: firstCycle,
+      selectedCycleEvidencePct:
+        first && (first.dashboard?.total_evidence_items ?? 0) > 0
+          ? Math.round(
+              ((first.dashboard?.evidence_items ?? 0) / (first.dashboard?.total_evidence_items ?? 0)) * 100
+            )
+          : 0,
+      selectedCycleHealthPct: first?.dashboard?.overall_score ?? 0,
+      selectedCycleCreatedOn: firstCycle?.created_at ? new Date(firstCycle.created_at).toLocaleDateString() : "n/a",
+      rows: [
+        { label: "Evidence Submitted", value: submittedPct, count: evidenceSubmitted, color: "#14b8a6" },
+        { label: "Evidence Not Submitted", value: notSubmittedPct, count: evidenceNotSubmitted, color: "#f59e0b" },
+        { label: "Review Completed", value: reviewCompletedPct, count: reviewCompleted, color: "#10b981" },
+        { label: "In Review", value: inReviewPct, count: inReview, color: "#3b82f6" },
+      ],
+    };
+  }, [rows, visualCycleId, cycles]);
+
+  const cycleScopeOptions = useMemo(
+    () => rows.filter((r) => r.role).map((r) => ({ id: r.id, display_id: r.displayId })),
+    [rows]
+  );
 
   const loading = loadingRoles || loadingCards;
 
-  const roleLabel = (role: string | null) => {
-    if (role === "internal_reviewer_l1") return "L1 Reviewer";
-    if (role === "internal_reviewer_l2") return "L2 Reviewer";
-    if (role === "external_assessor") return "L3 Assessor";
-    return "Reviewer";
-  };
-  const baseControlClass =
-    "inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]";
-  const activeFilterClass = `${baseControlClass} interactive-filter-active bg-slate-900 text-white border-slate-900`;
-  const inactiveFilterClass = `${baseControlClass} interactive-filter-inactive bg-white text-slate-700 border-slate-300 hover:bg-slate-50`;
-  const reviewerOverview = useMemo<ReviewerQueueOverviewData>(() => {
-    const sourceRows = visualCycleId ? reviewerRows.filter((r) => r.id === visualCycleId) : reviewerRows;
-    const totals = sourceRows.reduce(
-      (acc, r) => {
-        acc.inQueue += r.review?.inReview ?? 0;
-        acc.approved += r.review?.approved ?? 0;
-        acc.returned += r.review?.rejected ?? 0;
-        return acc;
-      },
-      { inQueue: 0, approved: 0, returned: 0 }
-    );
-    const totalItems = totals.inQueue + totals.approved + totals.returned;
-    const pct = (value: number) => (totalItems > 0 ? Math.round((value / totalItems) * 100) : 0);
-    const inQueuePct = pct(totals.inQueue);
-    const approvedPct = pct(totals.approved);
-    const returnedPct = pct(totals.returned);
-    const topBucket = [
-      { label: "In Queue", value: inQueuePct },
-      { label: "Approved", value: approvedPct },
-      { label: "Returned", value: returnedPct },
-    ].sort((a, b) => b.value - a.value)[0];
-    return {
-      center: topBucket?.value ?? 0,
-      centerLabel: topBucket?.label ?? "In Queue",
-      totalItems,
-      rows: [
-        { label: "In Queue", value: inQueuePct, count: totals.inQueue, color: "#7c3aed" },
-        { label: "Approved", value: approvedPct, count: totals.approved, color: "#10b981" },
-        { label: "Returned", value: returnedPct, count: totals.returned, color: "#ef4444" },
-      ],
-    };
-  }, [reviewerRows, visualCycleId]);
+  const outline = dashboardOutlineStyle(homeRole);
+  const primaryFill = dashboardPrimaryGradient(homeRole);
 
-  const itExpertOverview = useMemo<ReviewerQueueOverviewData>(() => {
-    const sourceRows = visualCycleId ? itExpertRows.filter((r) => r.id === visualCycleId) : itExpertRows;
-    const totals = sourceRows.reduce(
-      (acc, r) => {
-        const done = r.dashboard?.evidence_items ?? 0;
-        const total = r.dashboard?.total_evidence_items ?? 0;
-        acc.pendingUpload += Math.max(0, total - done);
-        acc.inReview += r.review?.inReview ?? 0;
-        acc.approved += r.review?.approved ?? 0;
-        acc.returned += r.review?.rejected ?? 0;
-        return acc;
-      },
-      { pendingUpload: 0, inReview: 0, approved: 0, returned: 0 }
-    );
-    const totalItems = totals.pendingUpload + totals.inReview + totals.approved + totals.returned;
-    const pct = (value: number) => (totalItems > 0 ? Math.round((value / totalItems) * 100) : 0);
-    const pu = pct(totals.pendingUpload);
-    const ir = pct(totals.inReview);
-    const ap = pct(totals.approved);
-    const rt = pct(totals.returned);
-    const topBucket = [
-      { label: "Pending upload", value: pu },
-      { label: "In review", value: ir },
-      { label: "Approved", value: ap },
-      { label: "Returned", value: rt },
-    ].sort((a, b) => b.value - a.value)[0];
-    return {
-      center: topBucket?.value ?? 0,
-      centerLabel: topBucket?.label ?? "Pending upload",
-      totalItems,
-      rows: [
-        { label: "Pending upload", value: pu, count: totals.pendingUpload, color: "#f59e0b" },
-        { label: "In review", value: ir, count: totals.inReview, color: "#7c3aed" },
-        { label: "Approved", value: ap, count: totals.approved, color: "#10b981" },
-        { label: "Returned", value: rt, count: totals.returned, color: "#ef4444" },
-      ],
-    };
-  }, [itExpertRows, visualCycleId]);
+  const filterPillProps = (active: boolean): { className: string; style: CSSProperties } =>
+    active
+      ? {
+          className:
+            "inline-flex items-center justify-center border-0 text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dashboard-btn-pill-compact font-semibold interactive-filter-active",
+          style: { background: primaryFill },
+        }
+      : {
+          className:
+            "inline-flex items-center justify-center border-2 bg-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dashboard-btn-pill-compact font-semibold interactive-filter-inactive",
+          style: { borderColor: outline.border, color: outline.text },
+        };
 
-  const btnPrimarySm =
-    "interactive-btn-blue-filled inline-flex items-center justify-center rounded-md border border-blue-600 bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1";
-  const btnSecondarySm =
-    "interactive-btn-secondary-outline inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 disabled:opacity-60";
+  const btnPrimaryCls =
+    "interactive-hero-action dashboard-btn-pill inline-flex shrink-0 items-center justify-center border-0 text-sm font-semibold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1";
+  const btnSecondaryCls =
+    "interactive-outline-btn dashboard-btn-pill inline-flex items-center justify-center border-2 bg-white text-sm font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1";
 
   const MiniKpi = ({ label, value, tone }: { label: string; value: string | number; tone: string }) => (
     <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
@@ -377,13 +438,17 @@ export function UserHomeDashboard({
             ? "Upload and track evidence by cycle. Open a cycle below to continue collection, or switch assessments anytime."
             : "Your work changes by cycle. Pick a cycle below to jump into the correct workspace for your assigned role."
         }
-        primaryActions={[
-          {
-            href: "/assessments/new",
-            label: showItExpertVisualization ? "Assessment cycles" : "Switch / view cycles",
-            gradient: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-          },
-        ]}
+        primaryActions={
+          showItExpertVisualization
+            ? []
+            : [
+                {
+                  href: "/assessments/new",
+                  label: "Switch / view cycles",
+                  gradient: dashboardPrimaryGradient(homeRole),
+                },
+              ]
+        }
       />
 
       <StatKpiArticleGrid
@@ -457,7 +522,8 @@ export function UserHomeDashboard({
                   setItExpertListFilter("all");
                   setCycleQuery("");
                 }}
-                className={`${btnSecondarySm} shrink-0`}
+                className={`${btnSecondaryCls} shrink-0`}
+                style={{ borderColor: outline.border, color: outline.text }}
               >
                 Clear filters
               </button>
@@ -470,21 +536,21 @@ export function UserHomeDashboard({
                   <button
                     type="button"
                     onClick={() => setItExpertListFilter("all")}
-                    className={itExpertListFilter === "all" ? activeFilterClass : inactiveFilterClass}
+                    {...filterPillProps(itExpertListFilter === "all")}
                   >
                     All
                   </button>
                   <button
                     type="button"
                     onClick={() => setItExpertListFilter("due_soon")}
-                    className={itExpertListFilter === "due_soon" ? activeFilterClass : inactiveFilterClass}
+                    {...filterPillProps(itExpertListFilter === "due_soon")}
                   >
                     Due soon
                   </button>
                   <button
                     type="button"
                     onClick={() => setItExpertListFilter("needs_upload")}
-                    className={itExpertListFilter === "needs_upload" ? activeFilterClass : inactiveFilterClass}
+                    {...filterPillProps(itExpertListFilter === "needs_upload")}
                     title="IT cycles with evidence still to upload, or reviewer cycles with items in your queue"
                   >
                     Work backlog
@@ -495,28 +561,28 @@ export function UserHomeDashboard({
                   <button
                     type="button"
                     onClick={() => setReviewerFilter("all")}
-                    className={reviewerFilter === "all" ? activeFilterClass : inactiveFilterClass}
+                    {...filterPillProps(reviewerFilter === "all")}
                   >
                     All
                   </button>
                   <button
                     type="button"
                     onClick={() => setReviewerFilter("needs_action")}
-                    className={reviewerFilter === "needs_action" ? activeFilterClass : inactiveFilterClass}
+                    {...filterPillProps(reviewerFilter === "needs_action")}
                   >
                     Needs action
                   </button>
                   <button
                     type="button"
                     onClick={() => setReviewerFilter("due_soon")}
-                    className={reviewerFilter === "due_soon" ? activeFilterClass : inactiveFilterClass}
+                    {...filterPillProps(reviewerFilter === "due_soon")}
                   >
                     Due soon
                   </button>
                   <button
                     type="button"
                     onClick={() => setReviewerFilter("queue_clear")}
-                    className={reviewerFilter === "queue_clear" ? activeFilterClass : inactiveFilterClass}
+                    {...filterPillProps(reviewerFilter === "queue_clear")}
                   >
                     Queue clear
                   </button>
@@ -569,7 +635,9 @@ export function UserHomeDashboard({
             return (
               <div
                 key={r.id}
-                className="rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+                className={`relative rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md ${
+                  r.role === "it_sme" && !disabled ? "cursor-pointer" : ""
+                }`}
                 style={{
                   borderColor: "#cbd5e1",
                   background: "#ffffff",
@@ -577,7 +645,14 @@ export function UserHomeDashboard({
                   opacity: disabled ? 0.6 : 1,
                 }}
               >
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                {r.role === "it_sme" && !disabled && (
+                  <Link
+                    href={itExpertOpenHref}
+                    className="absolute inset-0 z-10 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+                    aria-label={`Open cycle ${r.label}`}
+                  />
+                )}
+                <div className="relative z-0 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-xl font-semibold leading-tight" style={{ color: "var(--foreground)" }}>
@@ -595,9 +670,6 @@ export function UserHomeDashboard({
                   </div>
                   {r.role === "it_sme" && (
                     <div className="flex w-full flex-wrap items-center justify-end gap-2 lg:w-auto lg:max-w-[65%]">
-                      <Link href={itExpertOpenHref} className={`${btnPrimarySm} shrink-0`}>
-                        Open cycle
-                      </Link>
                       {evidenceTotal > 0 && evidenceDone < evidenceTotal ? (
                         <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
                           Pending upload
@@ -620,7 +692,12 @@ export function UserHomeDashboard({
                     >
                       <Link
                         href={disabled ? "/assessments/new" : r.href}
-                        className={disabled ? `${btnSecondarySm} opacity-70` : btnPrimarySm}
+                        className={disabled ? `${btnSecondaryCls} opacity-70` : btnPrimaryCls}
+                        style={
+                          disabled
+                            ? { borderColor: outline.border, color: outline.text }
+                            : { background: primaryFill }
+                        }
                       >
                         {disabled ? "Request access" : "Choose cycle"}
                       </Link>
@@ -741,84 +818,41 @@ export function UserHomeDashboard({
           </div>
         </div>
 
-        <div
-          className="rounded-2xl border p-4 sm:p-5"
-          style={{ borderColor: "#cbd5e1", background: "#f1f5f9" }}
-        >
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-                {showItExpertVisualization ? "Upcoming deadlines" : "Cycle deadlines"}
-              </h2>
-              <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>
-                {showItExpertVisualization ? "Nearest due dates for your cycles" : "Quick links by due date"}
-              </p>
-            </div>
-            <Link href="/assessments/new" className={`${btnSecondarySm} shrink-0`}>
-              View all
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {deadlineRows.map((r) => (
-              <Link
-                key={r.id}
-                href={r.href}
-                className="interactive-card-link block rounded-lg border p-2.5 hover:-translate-y-0.5"
-                style={{ borderColor: "#cbd5e1", background: "#ffffff", boxShadow: "0 1px 2px rgba(15,23,42,0.06)" }}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                      {r.label}
-                    </p>
-                    <p className="mt-0.5 text-xs" style={{ color: "var(--foreground-muted)" }}>
-                      {r.displayId} · {r.phase}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
-                      {r.dueLabel}
-                    </p>
-                    <p className="text-[10px]" style={{ color: "var(--foreground-muted)" }}>
-                      {roleBadge(r.role).label}
-                    </p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-            {!loading && deadlineRows.length === 0 && (
-              <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>
-                No deadlines configured for your assigned cycles.
-              </p>
-            )}
-          </div>
-          <div className="mt-4">
-            {showItExpertVisualization ? (
-              <ReviewerQueueOverviewPanel
-                data={itExpertOverview}
-                hasSelectedCycle={visualCycleId !== null}
-                onShowAllCycles={() => setVisualCycleId(null)}
-                title="Evidence overview"
-                distributionCaption={`Evidence mix (${itExpertOverview.totalItems} items across your cycles)`}
-                visualCycleId={visualCycleId}
-                onVisualCycleChange={setVisualCycleId}
-                cycleOptions={itExpertRows.map((r) => ({ id: r.id, display_id: r.displayId }))}
-              />
-            ) : (
-              <ReviewerQueueOverviewPanel
-                data={reviewerOverview}
-                hasSelectedCycle={visualCycleId !== null}
-                onShowAllCycles={() => setVisualCycleId(null)}
-                title="Reviewer Queue Overview"
-                distributionCaption={`Queue distribution (${reviewerOverview.totalItems} reviewer items)`}
-                visualCycleId={visualCycleId}
-                onVisualCycleChange={setVisualCycleId}
-                cycleOptions={reviewerRows.map((r) => ({ id: r.id, display_id: r.displayId }))}
-              />
-            )}
-          </div>
+        <div className="space-y-5 xl:col-span-1">
+          <UpcomingDeadlinesPanel
+            deadlineRows={upcomingDeadlineRows}
+            loading={loading}
+            role={homeRole}
+            onOpenCalendar={(focusDate) => {
+              const first = calendarDeadlines[0]?.date ?? new Date();
+              const d = focusDate ?? first;
+              setCalendarMonth(monthStart(d));
+              setIsCalendarOpen(true);
+            }}
+          />
+          <ComplianceOverviewPanel
+            complianceOverview={complianceOverview}
+            hasSelectedCycle={visualCycleId !== null}
+            onShowAllCycles={() => setVisualCycleId(null)}
+            visualCycleId={visualCycleId}
+            onVisualCycleChange={cycleScopeOptions.length > 1 ? setVisualCycleId : undefined}
+            cycleOptions={cycleScopeOptions.length > 1 ? cycleScopeOptions : undefined}
+            role={homeRole}
+          />
         </div>
       </section>
+
+      <DeadlinesCalendarModal
+        open={isCalendarOpen}
+        onClose={() => setIsCalendarOpen(false)}
+        calendarMonth={calendarMonth}
+        onCalendarMonthChange={setCalendarMonth}
+        startOffset={startOffset}
+        daysInMonth={daysInMonth}
+        calendarMonthLabel={calendarMonthLabel}
+        deadlineMap={deadlineMap}
+        buttonRole={homeRole}
+      />
     </div>
   );
 }

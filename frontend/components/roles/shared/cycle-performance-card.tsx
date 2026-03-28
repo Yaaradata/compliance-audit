@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { dashboardOutlineStyle, dashboardPrimaryGradient } from "@/lib/dashboard-button-tokens";
 import type { CycleInsight } from "@/components/roles/shared/compliance-types";
 import { cycleEntryPath, daysTo, initials, PHASE_ORDER, phaseLabel, phaseStep } from "@/components/roles/shared/utils";
 
@@ -14,6 +15,8 @@ type CyclePerformanceCardProps = {
 };
 
 export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePerformanceCardProps) {
+  const coOutline = dashboardOutlineStyle("compliance_officer");
+  const coPrimary = dashboardPrimaryGradient("compliance_officer");
   const c = row.cycle;
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -163,15 +166,15 @@ export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePer
             <button
               type="button"
               onClick={() => onViewVisuals(c.id)}
-              className="interactive-outline-btn inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold"
-              style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+              className="interactive-outline-btn inline-flex items-center dashboard-btn-pill border-2 bg-white px-4 text-sm font-semibold"
+              style={{ borderColor: coOutline.border, color: coOutline.text }}
             >
               View visuals
             </button>
             <Link
               href={cycleEntryPath(c)}
-              className="interactive-outline-primary-btn inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold"
-              style={{ borderColor: "var(--primary)", color: "var(--primary)" }}
+              className="interactive-hero-action inline-flex items-center dashboard-btn-pill border-0 px-4 text-sm font-semibold text-white shadow-sm"
+              style={{ background: coPrimary }}
             >
               Open cycle
             </Link>
@@ -179,7 +182,7 @@ export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePer
               type="button"
               onClick={openDeleteDialog}
               disabled={deleting}
-              className="interactive-danger-btn inline-flex items-center justify-center rounded-lg border p-2 text-red-600 disabled:opacity-60"
+              className="interactive-danger-btn inline-flex h-10 w-10 items-center justify-center rounded-full border border-red-300 p-0 text-red-600 disabled:opacity-60"
               style={{ borderColor: deleting ? "#fecaca" : "#fca5a5" }}
               aria-label={`Delete cycle ${c.label}`}
               title={deleting ? "Deleting..." : "Delete cycle"}
@@ -355,8 +358,8 @@ export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePer
               type="button"
               onClick={closeDeleteDialog}
               disabled={deleting}
-              className="interactive-outline-btn rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-60"
-              style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+              className="interactive-outline-btn dashboard-btn-pill inline-flex items-center justify-center border-2 bg-white text-sm font-semibold disabled:opacity-60"
+              style={{ borderColor: coOutline.border, color: coOutline.text }}
             >
               Cancel
             </button>
@@ -364,7 +367,7 @@ export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePer
               type="button"
               onClick={executeDelete}
               disabled={deleting}
-              className="rounded-lg border border-red-600 bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-60"
+              className="dashboard-btn-pill inline-flex items-center justify-center border border-red-600 bg-red-600 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-60"
             >
               {deleting ? "Deleting…" : "Delete cycle"}
             </button>

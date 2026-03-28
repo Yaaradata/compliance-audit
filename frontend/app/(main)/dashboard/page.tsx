@@ -277,12 +277,13 @@ export default function DashboardHomePage() {
     effectiveRole === "internal_reviewer_l2" ||
     effectiveRole === "external_assessor"
   ) {
-    return <UserHomeDashboard user={user} cycles={cycles} homeRole={effectiveRole} />;
+    return <UserHomeDashboard user={user} cycles={cycles} homeRole={effectiveRole ?? null} />;
   }
 
   return (
     <RoleHomeDashboard
       user={user}
+      homeRole={effectiveRole ?? null}
       activeCycleId={activeCycleId}
       activeCycleMeta={activeCycleMeta}
       cycles={cycles}

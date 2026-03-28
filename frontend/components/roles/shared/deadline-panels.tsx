@@ -1,34 +1,50 @@
 import Link from "next/link";
+import type { UserRole } from "@/lib/types";
+import { dashboardOutlineStyle } from "@/lib/dashboard-button-tokens";
 import type { DeadlineRow, ItExpertDeadlineLinkRow } from "@/components/roles/shared/compliance-types";
 import { phaseLabel } from "@/components/roles/shared/utils";
 
 type UpcomingDeadlinesPanelProps = {
   deadlineRows: DeadlineRow[];
   loading: boolean;
-  onOpenCalendar: () => void;
+  /** Open calendar; optional date focuses the month (same as clicking a row). */
+  onOpenCalendar: (focusDate?: Date) => void;
+  /** Outline color for “Calendar view” (matches role dashboard palette). */
+  role?: UserRole | null;
 };
 
-export function UpcomingDeadlinesPanel({ deadlineRows, loading, onOpenCalendar }: UpcomingDeadlinesPanelProps) {
+/** Due date for a deadline row (for calendar month focus). */
+export function deadlineRowCalendarDate(row: DeadlineRow): Date | undefined {
+  const raw = row.cycle.target_submission_date ?? row.cycle.end_date;
+  if (!raw) return undefined;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+export function UpcomingDeadlinesPanel({ deadlineRows, loading, onOpenCalendar, role }: UpcomingDeadlinesPanelProps) {
+  const outline = dashboardOutlineStyle(role ?? null);
   return (
     <div className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
           Upcoming deadlines
         </h3>
         <button
           type="button"
-          onClick={onOpenCalendar}
-          className="interactive-text-link text-xs font-medium"
-          style={{ color: "var(--primary)" }}
+          onClick={() => onOpenCalendar()}
+          className="interactive-outline-btn dashboard-btn-pill inline-flex shrink-0 items-center justify-center border-2 bg-white text-sm font-semibold shadow-sm"
+          style={{ borderColor: outline.border, color: outline.text }}
         >
           Calendar view
         </button>
       </div>
       <div className="space-y-2">
         {deadlineRows.map((row) => (
-          <div
+          <button
             key={row.cycle.id}
-            className="rounded-lg border p-2.5"
+            type="button"
+            onClick={() => onOpenCalendar(deadlineRowCalendarDate(row))}
+            className="w-full rounded-lg border p-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
             style={{ borderColor: "var(--border)", background: "var(--background)" }}
           >
             <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
@@ -37,7 +53,7 @@ export function UpcomingDeadlinesPanel({ deadlineRows, loading, onOpenCalendar }
             <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>
               {phaseLabel(row.cycle.phase)} · {row.days <= 0 ? "Due today/overdue" : `${row.days} day(s) left`}
             </p>
-          </div>
+          </button>
         ))}
         {!loading && deadlineRows.length === 0 && (
           <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>

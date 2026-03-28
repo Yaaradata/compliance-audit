@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import type { UserRole } from "@/lib/types";
+import { dashboardOutlineStyle } from "@/lib/dashboard-button-tokens";
 import type {
   ComplianceOverviewData,
   CycleInsight,
@@ -13,32 +15,63 @@ type ComplianceOverviewPanelProps = {
   complianceOverview: ComplianceOverviewData;
   hasSelectedCycle: boolean;
   onShowAllCycles: () => void;
+  /** Multi-cycle home dashboards: scope donut to one cycle (same pattern as reviewer queue overview). */
+  visualCycleId?: string | null;
+  onVisualCycleChange?: (cycleId: string | null) => void;
+  cycleOptions?: { id: string; display_id: string }[];
+  /** Outline color for header actions (Details, Show all cycles). */
+  role?: UserRole | null;
 };
 
 export function ComplianceOverviewPanel({
   complianceOverview,
   hasSelectedCycle,
   onShowAllCycles,
+  visualCycleId,
+  onVisualCycleChange,
+  cycleOptions,
+  role,
 }: ComplianceOverviewPanelProps) {
   const co = complianceOverview;
+  const outline = dashboardOutlineStyle(role ?? null);
+  const showScope = Boolean(cycleOptions?.length && onVisualCycleChange);
   return (
     <div className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
           Compliance Overview
         </h3>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {showScope && (
+            <select
+              className="interactive-select max-w-[200px] rounded-lg border px-2.5 py-1.5 text-xs"
+              style={{ borderColor: "var(--border)", background: "var(--background)", color: "var(--foreground)" }}
+              value={visualCycleId ?? ""}
+              onChange={(e) => onVisualCycleChange?.(e.target.value || null)}
+            >
+              <option value="">All assigned cycles</option>
+              {cycleOptions!.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.display_id}
+                </option>
+              ))}
+            </select>
+          )}
           {hasSelectedCycle && (
             <button
               type="button"
               onClick={onShowAllCycles}
-              className="interactive-text-link text-xs font-medium"
-              style={{ color: "var(--primary)" }}
+              className="interactive-outline-btn dashboard-btn-pill inline-flex items-center justify-center border-2 bg-white text-sm font-semibold"
+              style={{ borderColor: outline.border, color: outline.text }}
             >
               Show all cycles
             </button>
           )}
-          <Link href="/report" className="interactive-text-link text-xs font-medium" style={{ color: "var(--primary)" }}>
+          <Link
+            href="/report"
+            className="interactive-outline-btn dashboard-btn-pill inline-flex items-center justify-center border-2 bg-white text-sm font-semibold no-underline"
+            style={{ borderColor: outline.border, color: outline.text }}
+          >
             Details
           </Link>
         </div>

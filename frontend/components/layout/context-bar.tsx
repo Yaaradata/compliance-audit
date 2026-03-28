@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { useGlobalRoleForRouting } from "@/lib/home-dashboard-role-context";
 import { getArchitecture } from "@/lib/frameworks/swift-cscf";
 import { getRoleLabel } from "@/lib/data/roles";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -12,6 +13,8 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
  */
 export function ContextBar() {
   const { user, logout, selectedArchitectureId, activeCycleId, activeCycleMeta, effectiveCycleRole } = useAuth();
+  const globalRole = useGlobalRoleForRouting(user?.role);
+  const hideAssessmentsCycleNav = globalRole === "it_sme";
   const arch = selectedArchitectureId ? getArchitecture(selectedArchitectureId) : null;
   const initials = user?.name?.split(/\s+/).map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
 
@@ -45,9 +48,11 @@ export function ContextBar() {
             >
               {initials}
             </div>
-            <Link href="/assessments/new" className="text-xs text-(--foreground-muted) hover:text-foreground hover:underline">
-              Switch cycle
-            </Link>
+            {!hideAssessmentsCycleNav && (
+              <Link href="/assessments/new" className="text-xs text-(--foreground-muted) hover:text-foreground hover:underline">
+                Switch cycle
+              </Link>
+            )}
             <button type="button" onClick={() => logout()} className="text-xs text-(--foreground-muted) hover:text-foreground hover:underline">
               Log out
             </button>

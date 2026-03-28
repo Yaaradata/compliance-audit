@@ -4,7 +4,7 @@ export { CyclePerformanceCard } from "./cycle-performance-card";
 export { CyclePerformanceSection } from "./cycle-performance-section";
 export { DashboardKpiGrid, StatKpiArticleGrid } from "./dashboard-kpi-grid";
 export { DeadlinesCalendarModal } from "./deadlines-calendar-modal";
-export { DeadlineLinksSection, UpcomingDeadlinesPanel } from "./deadline-panels";
+export { DeadlineLinksSection, UpcomingDeadlinesPanel, deadlineRowCalendarDate } from "./deadline-panels";
 export { EvidenceCycleInsightCard, ItExpertCycleInsightsSection } from "./evidence-cycle-insight";
 export { PlotlyDonutChart } from "./plotly-donut-chart";
 export { RoleDashboardHero } from "./role-dashboard-hero";

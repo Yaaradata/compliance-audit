@@ -12,6 +12,7 @@ import {
   type CycleInsight,
 } from "@/components/roles/shared";
 import { daysTo, monthEnd, monthStart, phaseLabel, toDateKey } from "@/components/roles/shared/utils";
+import { dashboardPrimaryGradient } from "@/lib/dashboard-button-tokens";
 
 export type { CycleDashboard, CycleInsight } from "@/components/roles/shared";
 
@@ -54,13 +55,17 @@ export function ComplianceOfficerHomeDashboard({
         acc.controls += item.dashboard?.total_controls ?? 0;
         acc.evidence += item.dashboard?.evidence_items ?? 0;
         acc.evidenceTotal += item.dashboard?.total_evidence_items ?? 0;
-        acc.gaps += item.dashboard?.gaps_identified ?? 0;
         acc.scoreSum += item.dashboard?.overall_score ?? 0;
         acc.scoreCount += item.dashboard ? 1 : 0;
         return acc;
       },
-      { controls: 0, evidence: 0, evidenceTotal: 0, gaps: 0, scoreSum: 0, scoreCount: 0 }
+      { controls: 0, evidence: 0, evidenceTotal: 0, scoreSum: 0, scoreCount: 0 }
     );
+  }, [insights]);
+
+  /** Submissions in reviewer queue (API evidence_in_review), summed across all cycles — matches Compliance Overview. */
+  const inReviewAcrossCycles = useMemo(() => {
+    return insights.reduce((sum, r) => sum + (r.dashboard?.evidence_in_review ?? 0), 0);
   }, [insights]);
 
   const deadlineRows = useMemo(() => {
@@ -119,12 +124,7 @@ export function ComplianceOfficerHomeDashboard({
     sourceInsights.forEach((r) => {
       const evidenceDone = r.dashboard?.evidence_items ?? 0;
       const evidenceTotal = r.dashboard?.total_evidence_items ?? 0;
-      const statusRows = r.dashboard?.control_scores ?? [];
-      const statusInReview = statusRows.filter((s) => {
-        const status = (s.status ?? "").toLowerCase();
-        return status === "assigned" || status === "in_review" || status === "hold";
-      }).length;
-      const realInReview = evidenceDone > 0 ? Math.min(evidenceDone, statusInReview) : 0;
+      const realInReview = r.dashboard?.evidence_in_review ?? 0;
       const realReviewCompleted = Math.max(0, evidenceDone - realInReview);
 
       evidenceSubmitted += evidenceDone;
@@ -216,11 +216,14 @@ export function ComplianceOfficerHomeDashboard({
       meter: evidencePct,
     },
     {
-      label: "Risk Gaps",
-      value: String(totals.gaps),
-      sub: "Needs attention",
-      tone: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-      meter: totals.gaps > 0 ? Math.min(100, Math.round((totals.gaps / 40) * 100)) : 0,
+      label: "In Review",
+      value: String(inReviewAcrossCycles),
+      sub: "Across all cycles",
+      tone: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+      meter:
+        totals.evidence > 0
+          ? Math.min(100, Math.round((inReviewAcrossCycles / Math.max(1, totals.evidence)) * 100))
+          : 0,
     },
   ];
   const importantKpiCards = [kpiCards[0], kpiCards[1], kpiCards[2], kpiCards[5]];
@@ -235,9 +238,9 @@ export function ComplianceOfficerHomeDashboard({
           {
             onClick: () => setIsNewCycleOpen(true),
             label: "+ New cycle",
-            gradient: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+            gradient: dashboardPrimaryGradient("compliance_officer"),
           },
-          { href: "/report", label: "Export report", gradient: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)" },
+          { href: "/report", label: "Export report", gradient: dashboardPrimaryGradient("compliance_officer") },
         ]}
       />
 
@@ -260,9 +263,11 @@ export function ComplianceOfficerHomeDashboard({
           <UpcomingDeadlinesPanel
             deadlineRows={deadlineRows}
             loading={loading}
-            onOpenCalendar={() => {
+            role="compliance_officer"
+            onOpenCalendar={(focusDate) => {
               const first = calendarDeadlines[0]?.date ?? new Date();
-              setCalendarMonth(monthStart(first));
+              const d = focusDate ?? first;
+              setCalendarMonth(monthStart(d));
               setIsCalendarOpen(true);
             }}
           />
@@ -271,6 +276,7 @@ export function ComplianceOfficerHomeDashboard({
             complianceOverview={complianceOverview}
             hasSelectedCycle={visualCycleId !== null}
             onShowAllCycles={() => setVisualCycleId(null)}
+            role="compliance_officer"
           />
         </div>
       </section>
@@ -284,6 +290,7 @@ export function ComplianceOfficerHomeDashboard({
         daysInMonth={daysInMonth}
         calendarMonthLabel={calendarMonthLabel}
         deadlineMap={deadlineMap}
+        buttonRole="compliance_officer"
       />
 
       <NewAssessmentCycleModal
