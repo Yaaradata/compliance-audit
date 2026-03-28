@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import type { AssessmentCycle, UserRole } from "@/lib/types";
 import type { CycleDashboard, CycleInsight } from "@/components/roles/shared/compliance-types";
 import { normalizeRoleForCycle, pickDerivedRoleFromCycleRoles, REVIEWER_HOME_ROLES } from "@/components/roles/shared/utils";
+import { DASHBOARD_PAGE_BG_CLASS } from "@/lib/ui-layout";
 
 type ComplianceUser = {
   id: string;
@@ -25,7 +26,7 @@ type RoleAssignment = {
 
 function DashboardLoadingSkeleton() {
   return (
-    <div className="w-full space-y-5 pb-6 animate-pulse">
+    <div className={`w-full space-y-5 pb-6 animate-pulse ${DASHBOARD_PAGE_BG_CLASS}`}>
       <section className="rounded-2xl border p-5 sm:p-6" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         <div className="h-3 w-24 rounded bg-[var(--background)] mb-4" />
         <div className="h-8 w-72 rounded bg-[var(--background)] mb-3" />

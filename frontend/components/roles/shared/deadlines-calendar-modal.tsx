@@ -5,6 +5,13 @@ import { dashboardOutlineStyle } from "@/lib/dashboard-button-tokens";
 import type { CalendarDeadlineMark } from "@/components/roles/shared/compliance-types";
 import { addMonths, toDateKey, WEEKDAY_LABELS } from "@/components/roles/shared/utils";
 
+export type DeadlinesCalendarCycleOption = {
+  id: string;
+  label: string;
+  display_id: string;
+  cycle_year: number;
+};
+
 type DeadlinesCalendarModalProps = {
   open: boolean;
   onClose: () => void;
@@ -16,6 +23,10 @@ type DeadlinesCalendarModalProps = {
   deadlineMap: Map<string, CalendarDeadlineMark[]>;
   /** Toolbar / nav button outline (role-colored). */
   buttonRole?: UserRole | null;
+  /** When set with options + handler, shows active cycle switcher inside the modal. */
+  activeCycleId?: string | null;
+  cycleSelectOptions?: DeadlinesCalendarCycleOption[];
+  onSelectCycle?: (cycleId: string | null) => void;
 };
 
 export function DeadlinesCalendarModal({
@@ -28,8 +39,12 @@ export function DeadlinesCalendarModal({
   calendarMonthLabel,
   deadlineMap,
   buttonRole,
+  activeCycleId,
+  cycleSelectOptions,
+  onSelectCycle,
 }: DeadlinesCalendarModalProps) {
   const outline = dashboardOutlineStyle(buttonRole ?? null);
+  const showCycleSwitcher = Boolean(cycleSelectOptions?.length && onSelectCycle);
   if (!open) return null;
 
   return (
@@ -52,6 +67,36 @@ export function DeadlinesCalendarModal({
             Close
           </button>
         </div>
+
+        {showCycleSwitcher && (
+          <div className="mb-4 flex flex-col gap-2 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4" style={{ borderColor: "var(--border)", background: "var(--background)" }}>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--foreground-muted)" }}>
+                Active cycle
+              </p>
+              <p className="mt-0.5 text-xs" style={{ color: "var(--foreground-muted)" }}>
+                Switching updates the header and navigation context for this workspace.
+              </p>
+            </div>
+            <select
+              className="interactive-select min-h-[2.5rem] w-full max-w-md shrink-0 rounded-lg border px-2.5 py-2 text-sm sm:w-auto"
+              style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--foreground)" }}
+              value={activeCycleId ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                onSelectCycle?.(v === "" ? null : v);
+              }}
+              aria-label="Select active assessment cycle"
+            >
+              <option value="">No active cycle</option>
+              {cycleSelectOptions!.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.display_id} · {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="mb-3 flex items-center justify-between gap-2">
           <button
@@ -99,7 +144,10 @@ export function DeadlinesCalendarModal({
             const day = idx + 1;
             const d = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day);
             const key = toDateKey(d);
-            const marks = deadlineMap.get(key) ?? [];
+            const rawMarks = deadlineMap.get(key) ?? [];
+            const marks = activeCycleId
+              ? rawMarks.filter((m) => m.cycleId === activeCycleId)
+              : rawMarks;
             const hasDeadline = marks.length > 0;
             const today = toDateKey(new Date()) === key;
             return (

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { dashboardPrimaryGradient } from "@/lib/dashboard-button-tokens";
-import { DASHBOARD_MAX_WIDTH_CLASS } from "@/lib/ui-layout";
+import { DASHBOARD_MAX_WIDTH_CLASS, DASHBOARD_PAGE_BG_CLASS } from "@/lib/ui-layout";
+import { useAuth } from "@/lib/auth-context";
 import {
   ComplianceOverviewPanel,
   DashboardKpiGrid,
@@ -42,6 +43,7 @@ export function RoleHomeDashboard({
   cycles: AssessmentCycle[];
   loading: boolean;
 }) {
+  const { setActiveCycleId } = useAuth();
   const firstName = user.name?.split(/\s+/)[0] ?? "there";
   const totalCycles = cycles.length;
   const inFlight = cycles.filter((c) => !["submitted", "archived"].includes((c.phase || "").toLowerCase())).length;
@@ -127,6 +129,7 @@ export function RoleHomeDashboard({
           label: r.cycle.label,
           displayId: r.cycle.display_id,
           phase: phaseLabel(r.cycle.phase),
+          cycleId: r.cycle.id,
         };
       })
       .filter((x): x is NonNullable<typeof x> => Boolean(x));
@@ -138,13 +141,27 @@ export function RoleHomeDashboard({
   const startOffset = calStart.getDay();
   const daysInMonth = calEnd.getDate();
   const deadlineMap = useMemo(() => {
-    const map = new Map<string, { label: string; displayId: string; phase: string }[]>();
+    const map = new Map<
+      string,
+      { label: string; displayId: string; phase: string; cycleId: string }[]
+    >();
     calendarDeadlines.forEach((d) => {
       if (!map.has(d.key)) map.set(d.key, []);
-      map.get(d.key)!.push({ label: d.label, displayId: d.displayId, phase: d.phase });
+      map.get(d.key)!.push({
+        label: d.label,
+        displayId: d.displayId,
+        phase: d.phase,
+        cycleId: d.cycleId,
+      });
     });
     return map;
   }, [calendarDeadlines]);
+
+  useEffect(() => {
+    if (!isCalendarOpen || !activeCycleId) return;
+    const hit = calendarDeadlines.find((x) => x.cycleId === activeCycleId);
+    if (hit?.date) setCalendarMonth(monthStart(hit.date));
+  }, [activeCycleId, isCalendarOpen, calendarDeadlines]);
 
   const complianceOverview = useMemo<ComplianceOverviewData>(() => {
     const sourceInsights = visualCycleId
@@ -178,7 +195,7 @@ export function RoleHomeDashboard({
 
     const topBucket = [
       { label: "Evidence Submitted", value: submittedPct },
-      { label: "Evidence Not Submitted", value: notSubmittedPct },
+      { label: "Not Submitted", value: notSubmittedPct },
       { label: "Review Completed", value: reviewCompletedPct },
       { label: "In Review", value: inReviewPct },
     ].sort((a, b) => b.value - a.value)[0];
@@ -202,7 +219,7 @@ export function RoleHomeDashboard({
         : "n/a",
       rows: [
         { label: "Evidence Submitted", value: submittedPct, count: evidenceSubmitted, color: "#14b8a6" },
-        { label: "Evidence Not Submitted", value: notSubmittedPct, count: evidenceNotSubmitted, color: "#f59e0b" },
+        { label: "Not Submitted", value: notSubmittedPct, count: evidenceNotSubmitted, color: "#f59e0b" },
         { label: "Review Completed", value: reviewCompletedPct, count: reviewCompleted, color: "#10b981" },
         { label: "In Review", value: inReviewPct, count: inReview, color: "#3b82f6" },
       ],
@@ -216,6 +233,23 @@ export function RoleHomeDashboard({
 
   const panelLoading = loading || dashLoading;
 
+  const calendarCycleSelectOptions = useMemo(
+    () => cycles.map((c) => ({ id: c.id, label: c.label, display_id: c.display_id, cycle_year: c.cycle_year })),
+    [cycles]
+  );
+
+  const handleCalendarCycleChange = useCallback(
+    (id: string | null) => {
+      if (id === null) {
+        setActiveCycleId(null);
+        return;
+      }
+      const c = cycles.find((x) => x.id === id);
+      if (c) setActiveCycleId(id, { label: c.label, cycle_year: c.cycle_year, display_id: c.display_id });
+    },
+    [cycles, setActiveCycleId]
+  );
+
   const kpiCards = [
     {
       label: "Assessment cycles",
@@ -224,7 +258,6 @@ export function RoleHomeDashboard({
       href: "/assessments/new",
       aria: `Open assessment cycles. ${totalCycles} cycles`,
       tone: "bg-[var(--primary-muted)] text-[var(--primary)]",
-      meter: Math.min(100, totalCycles * 12),
     },
     {
       label: "Active cycle",
@@ -233,7 +266,6 @@ export function RoleHomeDashboard({
       href: "/assessments/new",
       aria: "Open cycles to select an active assessment",
       tone: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-      meter: activeCycleId ? 80 : 0,
     },
     {
       label: "Phases in flight",
@@ -242,7 +274,6 @@ export function RoleHomeDashboard({
       href: "/assessments/new",
       aria: `${inFlight} cycles in active phases`,
       tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-      meter: totalCycles > 0 ? Math.round((inFlight / totalCycles) * 100) : 0,
     },
     {
       label: "Account",
@@ -251,12 +282,11 @@ export function RoleHomeDashboard({
       href: "/assessments/new",
       aria: "Account",
       tone: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
-      meter: 40,
     },
   ];
 
   return (
-    <div className={`${DASHBOARD_MAX_WIDTH_CLASS} space-y-5 pb-6`}>
+    <div className={`${DASHBOARD_MAX_WIDTH_CLASS} ${DASHBOARD_PAGE_BG_CLASS} space-y-5 pb-6`}>
       <RoleDashboardHero
         eyebrow="Home"
         greetingName={firstName}
@@ -326,6 +356,9 @@ export function RoleHomeDashboard({
         calendarMonthLabel={calendarMonthLabel}
         deadlineMap={deadlineMap}
         buttonRole={homeRole}
+        activeCycleId={activeCycleId}
+        cycleSelectOptions={calendarCycleSelectOptions}
+        onSelectCycle={handleCalendarCycleChange}
       />
     </div>
   );

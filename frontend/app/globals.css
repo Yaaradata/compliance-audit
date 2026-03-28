@@ -19,6 +19,8 @@
 
   /* Surfaces */
   --background: #f8fafc;
+  /** Role home dashboards: airy canvas behind cards (light, easy on the eyes). */
+  --dashboard-canvas: #f0f4fa;
   --surface: #ffffff;
   --surface-elevated: #ffffff;
   --card: #ffffff;
@@ -87,6 +89,7 @@
   --info-bg: rgba(14, 165, 233, 0.2);
 
   --background: #0f172a;
+  --dashboard-canvas: #0f172a;
   --surface: #1e293b;
   --surface-elevated: #334155;
   --card: #1e293b;
@@ -282,7 +285,7 @@ body {
 }
 .interactive-hero-action:hover {
   box-shadow: var(--interactive-glow-primary);
-  filter: brightness(1.16);
+  filter: brightness(1.08);
 }
 .interactive-hero-action:active {
   transform: scale(0.99);

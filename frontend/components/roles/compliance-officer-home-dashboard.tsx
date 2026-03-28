@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { NewAssessmentCycleModal } from "@/components/assessments/new-assessment-cycle-modal";
 import {
   ComplianceOverviewPanel,
@@ -13,7 +13,8 @@ import {
 } from "@/components/roles/shared";
 import { daysTo, monthEnd, monthStart, phaseLabel, toDateKey } from "@/components/roles/shared/utils";
 import { dashboardPrimaryGradient } from "@/lib/dashboard-button-tokens";
-import { DASHBOARD_MAX_WIDTH_CLASS } from "@/lib/ui-layout";
+import { DASHBOARD_MAX_WIDTH_CLASS, DASHBOARD_PAGE_BG_CLASS } from "@/lib/ui-layout";
+import { useAuth } from "@/lib/auth-context";
 
 export type { CycleDashboard, CycleInsight } from "@/components/roles/shared";
 
@@ -29,6 +30,7 @@ export function ComplianceOfficerHomeDashboard({
   /** Updates global dashboard state so KPIs, deadlines, and lists drop the deleted cycle. */
   onCycleDeleted?: (cycleId: string) => void;
 }) {
+  const { activeCycleId, setActiveCycleId } = useAuth();
   const cycles = useMemo(() => insights.map((i) => i.cycle), [insights]);
   const [visualCycleId, setVisualCycleId] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -48,6 +50,11 @@ export function ComplianceOfficerHomeDashboard({
         return da - db;
       }),
     [insights]
+  );
+
+  const cycleOptions = useMemo(
+    () => sortedInsights.map((i) => ({ id: i.cycle.id, display_id: i.cycle.display_id })),
+    [sortedInsights]
   );
 
   const totals = useMemo(() => {
@@ -92,6 +99,7 @@ export function ComplianceOfficerHomeDashboard({
           label: r.cycle.label,
           displayId: r.cycle.display_id,
           phase: phaseLabel(r.cycle.phase),
+          cycleId: r.cycle.id,
         };
       })
       .filter((x): x is NonNullable<typeof x> => Boolean(x));
@@ -104,13 +112,27 @@ export function ComplianceOfficerHomeDashboard({
   const startOffset = start.getDay();
   const daysInMonth = end.getDate();
   const deadlineMap = useMemo(() => {
-    const map = new Map<string, { label: string; displayId: string; phase: string }[]>();
+    const map = new Map<
+      string,
+      { label: string; displayId: string; phase: string; cycleId: string }[]
+    >();
     calendarDeadlines.forEach((d) => {
       if (!map.has(d.key)) map.set(d.key, []);
-      map.get(d.key)!.push({ label: d.label, displayId: d.displayId, phase: d.phase });
+      map.get(d.key)!.push({
+        label: d.label,
+        displayId: d.displayId,
+        phase: d.phase,
+        cycleId: d.cycleId,
+      });
     });
     return map;
   }, [calendarDeadlines]);
+
+  useEffect(() => {
+    if (!isCalendarOpen || !activeCycleId) return;
+    const hit = calendarDeadlines.find((x) => x.cycleId === activeCycleId);
+    if (hit?.date) setCalendarMonth(monthStart(hit.date));
+  }, [activeCycleId, isCalendarOpen, calendarDeadlines]);
 
   const complianceOverview = useMemo(() => {
     const sourceInsights = visualCycleId
@@ -144,7 +166,7 @@ export function ComplianceOfficerHomeDashboard({
 
     const topBucket = [
       { label: "Submitted", value: submittedPct },
-      { label: "Not submitted", value: notSubmittedPct },
+      { label: "Not Submitted", value: notSubmittedPct },
       { label: "Review Completed", value: reviewCompletedPct },
       { label: "In Review", value: inReviewPct },
     ].sort((a, b) => b.value - a.value)[0];
@@ -168,7 +190,7 @@ export function ComplianceOfficerHomeDashboard({
         : "n/a",
       rows: [
         { label: "Evidence Submitted", value: submittedPct, count: evidenceSubmitted, color: "#14b8a6" },
-        { label: "Evidence Not Submitted", value: notSubmittedPct, count: evidenceNotSubmitted, color: "#f59e0b" },
+        { label: "Not Submitted", value: notSubmittedPct, count: evidenceNotSubmitted, color: "#f59e0b" },
         { label: "Review Completed", value: reviewCompletedPct, count: reviewCompleted, color: "#10b981" },
         { label: "In Review", value: inReviewPct, count: inReview, color: "#3b82f6" },
       ],
@@ -186,51 +208,59 @@ export function ComplianceOfficerHomeDashboard({
       value: String(cycles.length),
       sub: "Total assessments",
       tone: "bg-[var(--primary-muted)] text-[var(--primary)]",
-      meter: Math.min(100, cycles.length * 12),
     },
     {
       label: "In Progress",
       value: String(inFlight),
       sub: `${urgentCycles} urgent`,
       tone: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-      meter: cycles.length > 0 ? Math.round((inFlight / cycles.length) * 100) : 0,
     },
     {
       label: "Avg Score",
       value: `${avgScore}%`,
       sub: "Compliance health",
       tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-      meter: avgScore,
     },
     {
       label: "Controls",
       value: String(totals.controls),
       sub: "Across cycles",
       tone: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
-      meter: totals.controls > 0 ? Math.min(100, Math.round((totals.controls / 400) * 100)) : 0,
     },
     {
       label: "Evidence",
       value: String(totals.evidence),
       sub: `${evidencePct}% uploaded`,
       tone: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
-      meter: evidencePct,
     },
     {
       label: "In Review",
       value: String(inReviewAcrossCycles),
       sub: "Across all cycles",
       tone: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
-      meter:
-        totals.evidence > 0
-          ? Math.min(100, Math.round((inReviewAcrossCycles / Math.max(1, totals.evidence)) * 100))
-          : 0,
     },
   ];
   const importantKpiCards = [kpiCards[0], kpiCards[1], kpiCards[2], kpiCards[5]];
 
+  const calendarCycleSelectOptions = useMemo(
+    () => cycles.map((c) => ({ id: c.id, label: c.label, display_id: c.display_id, cycle_year: c.cycle_year })),
+    [cycles]
+  );
+
+  const handleCalendarCycleChange = useCallback(
+    (id: string | null) => {
+      if (id === null) {
+        setActiveCycleId(null);
+        return;
+      }
+      const c = cycles.find((x) => x.id === id);
+      if (c) setActiveCycleId(id, { label: c.label, cycle_year: c.cycle_year, display_id: c.display_id });
+    },
+    [cycles, setActiveCycleId]
+  );
+
   return (
-    <div className={`${DASHBOARD_MAX_WIDTH_CLASS} space-y-5 pb-6`}>
+    <div className={`${DASHBOARD_MAX_WIDTH_CLASS} ${DASHBOARD_PAGE_BG_CLASS} space-y-5 pb-6`}>
       <RoleDashboardHero
         eyebrow="Compliance Officer Command Center"
         greetingName={firstName}
@@ -256,8 +286,11 @@ export function ComplianceOfficerHomeDashboard({
         <CyclePerformanceSection
           sortedInsights={sortedInsights}
           loading={loading}
-          onViewVisuals={setVisualCycleId}
           onCycleDeleted={onCycleDeleted}
+          visualCycleId={visualCycleId}
+          onVisualCycleChange={setVisualCycleId}
+          cycleOptions={cycleOptions}
+          role="compliance_officer"
         />
 
         <div className="space-y-5">
@@ -277,6 +310,9 @@ export function ComplianceOfficerHomeDashboard({
             complianceOverview={complianceOverview}
             hasSelectedCycle={visualCycleId !== null}
             onShowAllCycles={() => setVisualCycleId(null)}
+            visualCycleId={visualCycleId}
+            onVisualCycleChange={setVisualCycleId}
+            cycleOptions={cycleOptions}
             role="compliance_officer"
           />
         </div>
@@ -292,6 +328,9 @@ export function ComplianceOfficerHomeDashboard({
         calendarMonthLabel={calendarMonthLabel}
         deadlineMap={deadlineMap}
         buttonRole="compliance_officer"
+        activeCycleId={activeCycleId}
+        cycleSelectOptions={calendarCycleSelectOptions}
+        onSelectCycle={handleCalendarCycleChange}
       />
 
       <NewAssessmentCycleModal

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import type { UserRole } from "@/lib/types";
 import { dashboardOutlineStyle } from "@/lib/dashboard-button-tokens";
 import type { DeadlineRow, ItExpertDeadlineLinkRow } from "@/components/roles/shared/compliance-types";
@@ -7,9 +8,9 @@ import { phaseLabel } from "@/components/roles/shared/utils";
 type UpcomingDeadlinesPanelProps = {
   deadlineRows: DeadlineRow[];
   loading: boolean;
-  /** Open calendar; optional date focuses the month (same as clicking a row). */
+  /** Open calendar; optional date focuses the month for that cycle’s deadline. */
   onOpenCalendar: (focusDate?: Date) => void;
-  /** Outline color for “Calendar view” (matches role dashboard palette). */
+  /** Outline color for the Calendar View button (matches role dashboards). */
   role?: UserRole | null;
 };
 
@@ -25,7 +26,7 @@ export function UpcomingDeadlinesPanel({ deadlineRows, loading, onOpenCalendar, 
   const outline = dashboardOutlineStyle(role ?? null);
   return (
     <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 shadow-sm">
-      <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
           Upcoming deadlines
         </h3>
@@ -35,25 +36,34 @@ export function UpcomingDeadlinesPanel({ deadlineRows, loading, onOpenCalendar, 
           className="interactive-outline-btn dashboard-btn-pill inline-flex shrink-0 items-center justify-center border-2 bg-white text-sm font-semibold shadow-sm"
           style={{ borderColor: outline.border, color: outline.text }}
         >
-          Calendar view
+          Calendar View
         </button>
       </div>
       <div className="space-y-2">
         {deadlineRows.map((row) => (
-          <button
+          <div
             key={row.cycle.id}
-            type="button"
-            onClick={() => onOpenCalendar(deadlineRowCalendarDate(row))}
-            className="w-full rounded-lg border p-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+            className="flex items-center gap-2 rounded-lg border p-2.5 transition hover:-translate-y-0.5 hover:shadow-sm"
             style={{ borderColor: "var(--border)", background: "var(--background)" }}
           >
-            <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-              {row.cycle.label}
-            </p>
-            <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>
-              {phaseLabel(row.cycle.phase)} · {row.days <= 0 ? "Due today/overdue" : `${row.days} day(s) left`}
-            </p>
-          </button>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                {row.cycle.label}
+              </p>
+              <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>
+                {phaseLabel(row.cycle.phase)} · {row.days <= 0 ? "Due today/overdue" : `${row.days} day(s) left`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenCalendar(deadlineRowCalendarDate(row))}
+              className="interactive-outline-btn -mr-1 inline-flex shrink-0 items-center justify-center rounded-md p-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+              style={{ color: "var(--foreground-muted)" }}
+              aria-label={`Open calendar for ${row.cycle.label}`}
+            >
+              <ChevronRight className="h-5 w-5" aria-hidden />
+            </button>
+          </div>
         ))}
         {!loading && deadlineRows.length === 0 && (
           <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>

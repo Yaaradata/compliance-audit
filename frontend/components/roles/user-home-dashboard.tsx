@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { dashboardOutlineStyle, dashboardPrimaryGradient } from "@/lib/dashboard-button-tokens";
 import type { AssessmentCycle, User, UserRole } from "@/lib/types";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import {
   ComplianceOverviewPanel,
   DeadlinesCalendarModal,
@@ -31,7 +32,7 @@ import {
   DUE_SOON_DEADLINE_DAYS,
   isCycleDeadlineDueSoon,
 } from "@/components/roles/shared/utils";
-import { DASHBOARD_MAX_WIDTH_CLASS } from "@/lib/ui-layout";
+import { DASHBOARD_MAX_WIDTH_CLASS, DASHBOARD_PAGE_BG_CLASS } from "@/lib/ui-layout";
 
 const IconSearch = () => (
   <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -78,6 +79,7 @@ export function UserHomeDashboard({
   /** Tenant home role from /dashboard (JWT or derived). Drives IT Expert vs reviewer visualization. */
   homeRole: UserRole | null;
 }) {
+  const { activeCycleId, setActiveCycleId } = useAuth();
   const firstName = user.name?.split(/\s+/)[0] ?? "there";
   const isReviewerRole = (role: string | null) =>
     role === "internal_reviewer_l1" || role === "internal_reviewer_l2" || role === "external_assessor";
@@ -91,8 +93,13 @@ export function UserHomeDashboard({
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => monthStart(new Date()));
   const [cycleQuery, setCycleQuery] = useState("");
   const [reviewerFilter, setReviewerFilter] = useState<"all" | "needs_action" | "due_soon" | "queue_clear">("all");
-  const [itExpertListFilter, setItExpertListFilter] = useState<"all" | "due_soon" | "needs_upload">("all");
   const [sortMode, setSortMode] = useState<"urgency" | "queue" | "name">("urgency");
+
+  useEffect(() => {
+    if (homeRole === "it_sme" && sortMode === "queue") {
+      setSortMode("urgency");
+    }
+  }, [homeRole, sortMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -217,7 +224,28 @@ export function UserHomeDashboard({
         }),
     [cycles, rolesByCycleId, dashByCycleId, reviewByCycleId]
   );
-  const showItExpertVisualization = homeRole === "it_sme";
+
+  const hasItSmeAssignment = useMemo(() => rows.some((r) => r.role === "it_sme"), [rows]);
+  const hasReviewerAssignment = useMemo(
+    () => rows.some((r) => isReviewerRole(r.role)),
+    [rows]
+  );
+  const isMixedContributorHome = hasItSmeAssignment && hasReviewerAssignment;
+  /** Full IT Expert chrome only when tenant role is IT and every assignment is IT — not when user is also a reviewer on other cycles. */
+  const useItExpertExclusivePresentation = homeRole === "it_sme" && !hasReviewerAssignment;
+
+  const inReviewKpiTotal = useMemo(() => {
+    return rows.reduce((acc, r) => {
+      if (!r.role) return acc;
+      if (r.role === "it_sme") {
+        return acc + (r.dashboard?.evidence_in_review ?? r.review?.inReview ?? 0);
+      }
+      if (isReviewerRole(r.role)) {
+        return acc + (r.review?.inReview ?? 0);
+      }
+      return acc;
+    }, 0);
+  }, [rows]);
 
   const visibleRows = useMemo(() => {
     const query = cycleQuery.trim().toLowerCase();
@@ -230,21 +258,8 @@ export function UserHomeDashboard({
         (r.role ?? "").toLowerCase().includes(query);
       if (!matchesQuery) return false;
 
-      if (showItExpertVisualization) {
-        // Home JWT may be IT Expert while other cycles use reviewer roles — list filters must not drop those rows.
+      if (useItExpertExclusivePresentation) {
         if (!r.role) return false;
-        if (itExpertListFilter === "due_soon") return isCycleDeadlineDueSoon(r.dueIn);
-        if (itExpertListFilter === "needs_upload") {
-          if (r.role === "it_sme") {
-            const done = r.dashboard?.evidence_items ?? 0;
-            const total = r.dashboard?.total_evidence_items ?? 0;
-            return total > 0 && done < total;
-          }
-          if (isReviewerRole(r.role)) {
-            return (r.review?.inReview ?? 0) > 0;
-          }
-          return false;
-        }
         return true;
       }
 
@@ -264,16 +279,14 @@ export function UserHomeDashboard({
     return filtered.sort((a, b) => {
       if (sortMode === "name") return a.label.localeCompare(b.label);
       if (sortMode === "queue") {
-        if (showItExpertVisualization) return mixedHomeQueueScore(b) - mixedHomeQueueScore(a);
-        return (b.review?.inReview ?? 0) - (a.review?.inReview ?? 0);
+        return mixedHomeQueueScore(b) - mixedHomeQueueScore(a);
       }
       const aDue = a.dueIn ?? Number.POSITIVE_INFINITY;
       const bDue = b.dueIn ?? Number.POSITIVE_INFINITY;
       if (aDue !== bDue) return aDue - bDue;
-      if (showItExpertVisualization) return mixedHomeQueueScore(b) - mixedHomeQueueScore(a);
-      return (b.review?.inReview ?? 0) - (a.review?.inReview ?? 0);
+      return mixedHomeQueueScore(b) - mixedHomeQueueScore(a);
     });
-  }, [rows, cycleQuery, reviewerFilter, itExpertListFilter, sortMode, showItExpertVisualization]);
+  }, [rows, cycleQuery, reviewerFilter, sortMode, useItExpertExclusivePresentation]);
 
   const assignmentCount = rows.filter((r) => Boolean(r.role)).length;
   const accessible = assignmentCount;
@@ -281,9 +294,6 @@ export function UserHomeDashboard({
   const evidenceUploaded = rows
     .filter((r) => r.role === "it_sme")
     .reduce((acc, r) => acc + (r.dashboard?.evidence_items ?? 0), 0);
-  const aiInReview = rows
-    .filter((r) => (showItExpertVisualization ? r.role === "it_sme" : Boolean(r.role)))
-    .reduce((acc, r) => acc + (r.review?.inReview ?? 0), 0);
 
   const upcomingDeadlineRows = useMemo<DeadlineRow[]>(() => {
     const out: DeadlineRow[] = [];
@@ -319,6 +329,7 @@ export function UserHomeDashboard({
           label: c.label,
           displayId: c.display_id,
           phase: phaseLabel(c.phase),
+          cycleId: c.id,
         };
       })
       .filter((x): x is NonNullable<typeof x> => Boolean(x));
@@ -330,13 +341,27 @@ export function UserHomeDashboard({
   const startOffset = calStart.getDay();
   const daysInMonth = calEnd.getDate();
   const deadlineMap = useMemo(() => {
-    const map = new Map<string, { label: string; displayId: string; phase: string }[]>();
+    const map = new Map<
+      string,
+      { label: string; displayId: string; phase: string; cycleId: string }[]
+    >();
     calendarDeadlines.forEach((d) => {
       if (!map.has(d.key)) map.set(d.key, []);
-      map.get(d.key)!.push({ label: d.label, displayId: d.displayId, phase: d.phase });
+      map.get(d.key)!.push({
+        label: d.label,
+        displayId: d.displayId,
+        phase: d.phase,
+        cycleId: d.cycleId,
+      });
     });
     return map;
   }, [calendarDeadlines]);
+
+  useEffect(() => {
+    if (!isCalendarOpen || !activeCycleId) return;
+    const hit = calendarDeadlines.find((x) => x.cycleId === activeCycleId);
+    if (hit?.date) setCalendarMonth(monthStart(hit.date));
+  }, [activeCycleId, isCalendarOpen, calendarDeadlines]);
 
   const complianceOverview = useMemo<ComplianceOverviewData>(() => {
     const sourceRows = visualCycleId
@@ -370,7 +395,7 @@ export function UserHomeDashboard({
 
     const topBucket = [
       { label: "Evidence Submitted", value: submittedPct },
-      { label: "Evidence Not Submitted", value: notSubmittedPct },
+      { label: "Not Submitted", value: notSubmittedPct },
       { label: "Review Completed", value: reviewCompletedPct },
       { label: "In Review", value: inReviewPct },
     ].sort((a, b) => b.value - a.value)[0];
@@ -393,7 +418,7 @@ export function UserHomeDashboard({
       selectedCycleCreatedOn: firstCycle?.created_at ? new Date(firstCycle.created_at).toLocaleDateString() : "n/a",
       rows: [
         { label: "Evidence Submitted", value: submittedPct, count: evidenceSubmitted, color: "#2563eb" },
-        { label: "Evidence Not Submitted", value: notSubmittedPct, count: evidenceNotSubmitted, color: "#ea580c" },
+        { label: "Not Submitted", value: notSubmittedPct, count: evidenceNotSubmitted, color: "#ea580c" },
         { label: "Review Completed", value: reviewCompletedPct, count: reviewCompleted, color: "#10b981" },
         { label: "In Review", value: inReviewPct, count: inReview, color: "#38bdf8" },
       ],
@@ -406,6 +431,23 @@ export function UserHomeDashboard({
   );
 
   const loading = loadingRoles || loadingCards;
+
+  const calendarCycleSelectOptions = useMemo(
+    () => cycles.map((c) => ({ id: c.id, label: c.label, display_id: c.display_id, cycle_year: c.cycle_year })),
+    [cycles]
+  );
+
+  const handleCalendarCycleChange = useCallback(
+    (id: string | null) => {
+      if (id === null) {
+        setActiveCycleId(null);
+        return;
+      }
+      const c = cycles.find((x) => x.id === id);
+      if (c) setActiveCycleId(id, { label: c.label, cycle_year: c.cycle_year, display_id: c.display_id });
+    },
+    [cycles, setActiveCycleId]
+  );
 
   const outline = dashboardOutlineStyle(homeRole);
   const primaryFill = dashboardPrimaryGradient(homeRole);
@@ -437,20 +479,20 @@ export function UserHomeDashboard({
     </div>
   );
 
-  const itExpertMeterBar = "bg-[#D2691E]";
-
   return (
-    <div className={`${DASHBOARD_MAX_WIDTH_CLASS} space-y-5 bg-[#f8fafc] pb-6`}>
+    <div className={`${DASHBOARD_MAX_WIDTH_CLASS} ${DASHBOARD_PAGE_BG_CLASS} space-y-5 pb-6`}>
       <RoleDashboardHero
         eyebrow="Your Dashboard"
         greetingName={firstName}
         description={
-          showItExpertVisualization
-            ? "Upload and track evidence by cycle. Open a cycle below to continue collection, or switch assessments anytime."
-            : "Your work changes by cycle. Pick a cycle below to jump into the correct workspace for your assigned role."
+          isMixedContributorHome
+            ? "You have different roles on different cycles (for example IT Expert on some and reviewer on others). Open a cycle below for the workspace that matches your assignment."
+            : useItExpertExclusivePresentation
+              ? "Upload and track evidence by cycle. Open a cycle below to continue collection, or switch assessments anytime."
+              : "Your work changes by cycle. Pick a cycle below to jump into the correct workspace for your assigned role."
         }
         primaryActions={
-          showItExpertVisualization
+          useItExpertExclusivePresentation
             ? []
             : [
                 {
@@ -467,36 +509,40 @@ export function UserHomeDashboard({
           {
             label: "Assigned cycles",
             value: String(accessible),
-            sub: showItExpertVisualization ? "Cycles where you have a role" : "Cycles assigned to this user",
-            tone: showItExpertVisualization
+            sub: isMixedContributorHome
+              ? "Cycles where you have a role (IT Expert and/or reviewer)"
+              : useItExpertExclusivePresentation
+                ? "Cycles where you have a role"
+                : "Cycles assigned to this user",
+            tone: useItExpertExclusivePresentation
               ? "bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200"
               : "bg-[var(--primary-muted)] text-[var(--primary)]",
-            meter: Math.min(100, accessible * 20),
-            meterBarClass: showItExpertVisualization ? itExpertMeterBar : undefined,
           },
           {
             label: "In progress",
             value: String(inProgress),
             sub: "Active phases (not submitted)",
             tone: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
-            meter: accessible ? Math.round((inProgress / Math.max(1, accessible)) * 100) : 0,
-            meterBarClass: showItExpertVisualization ? itExpertMeterBar : undefined,
           },
           {
             label: "Evidence uploaded",
             value: String(evidenceUploaded),
-            sub: showItExpertVisualization ? "Evidence items you have submitted" : "Submissions uploaded by IT Expert",
+            sub: isMixedContributorHome
+              ? "Evidence items submitted on cycles where you are IT Expert"
+              : useItExpertExclusivePresentation
+                ? "Evidence items you have submitted"
+                : "Submissions uploaded by IT Expert",
             tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-            meter: Math.min(100, evidenceUploaded * 6),
-            meterBarClass: showItExpertVisualization ? itExpertMeterBar : undefined,
           },
           {
             label: "In review",
-            value: String(aiInReview),
-            sub: showItExpertVisualization ? "Your submissions currently in review" : "Items in the review queue",
+            value: String(inReviewKpiTotal),
+            sub: isMixedContributorHome
+              ? "Your submissions in review (IT cycles) + items awaiting your decision (reviewer cycles)"
+              : useItExpertExclusivePresentation
+                ? "Your submissions currently in review"
+                : "Items in the review queue",
             tone: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
-            meter: Math.min(100, aiInReview * 10),
-            meterBarClass: showItExpertVisualization ? itExpertMeterBar : undefined,
           },
         ]}
         loading={loading}
@@ -507,114 +553,27 @@ export function UserHomeDashboard({
         <div
           className="rounded-lg border border-[#e5e7eb] bg-white p-4 shadow-sm sm:p-5 xl:col-span-2"
         >
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-              Cycle-wise insights
-            </h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700">
-                {visibleRows.length} visible
-                {assignmentCount > 0 ? ` · ${assignmentCount} assigned` : ""}
-              </span>
-              <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>
-                {showItExpertVisualization
-                  ? "Evidence, review work, and deadlines for each assignment"
-                  : "Reviewer-focused cycle health view"}
-              </span>
-            </div>
-          </div>
-          {showItExpertVisualization && assignmentCount > visibleRows.length && (
-            <div
-              className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs"
-              style={{ borderColor: "#bfdbfe", background: "#eff6ff", color: "#1e3a5f" }}
-            >
-              <span>
-                {assignmentCount - visibleRows.length} assignment{assignmentCount - visibleRows.length === 1 ? "" : "s"} hidden by filters or search. Use{" "}
-                <strong>All</strong> to see IT Expert and reviewer cycles together.
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setItExpertListFilter("all");
-                  setCycleQuery("");
-                }}
-                className={`${btnSecondaryCls} shrink-0`}
-                style={{ borderColor: outline.border, color: outline.text }}
-              >
-                Clear filters
-              </button>
-            </div>
-          )}
-          <div className="mb-3 flex flex-col gap-2 rounded-lg border border-[#e5e7eb] bg-white p-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              {showItExpertVisualization ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setItExpertListFilter("all")}
-                    {...filterPillProps(itExpertListFilter === "all")}
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setItExpertListFilter("due_soon");
-                      setSortMode("urgency");
-                    }}
-                    {...filterPillProps(itExpertListFilter === "due_soon")}
-                    title={`Cycles with a submission deadline in the next ${DUE_SOON_DEADLINE_DAYS} days (or overdue). Soonest first.`}
-                  >
-                    Due soon
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setItExpertListFilter("needs_upload")}
-                    {...filterPillProps(itExpertListFilter === "needs_upload")}
-                    title="IT cycles with evidence still to upload, or reviewer cycles with items in your queue"
-                  >
-                    Work backlog
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setReviewerFilter("all")}
-                    {...filterPillProps(reviewerFilter === "all")}
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setReviewerFilter("needs_action")}
-                    {...filterPillProps(reviewerFilter === "needs_action")}
-                  >
-                    Needs action
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReviewerFilter("due_soon");
-                      setSortMode("urgency");
-                    }}
-                    {...filterPillProps(reviewerFilter === "due_soon")}
-                    title={`Cycles with a submission deadline in the next ${DUE_SOON_DEADLINE_DAYS} days (or overdue). Soonest first.`}
-                  >
-                    Due soon
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setReviewerFilter("queue_clear")}
-                    {...filterPillProps(reviewerFilter === "queue_clear")}
-                  >
-                    Queue clear
-                  </button>
-                </>
+          <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <h2 className="text-base font-semibold shrink-0" style={{ color: "var(--foreground)" }}>
+                Cycle-wise insights
+              </h2>
+              {!useItExpertExclusivePresentation && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700">
+                    {visibleRows.length} visible
+                    {assignmentCount > 0 ? ` · ${assignmentCount} assigned` : ""}
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>
+                    {isMixedContributorHome
+                      ? "IT Expert and reviewer cycles — filters apply to review queues"
+                      : "Reviewer-focused cycle health view"}
+                  </span>
+                </div>
               )}
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="relative w-full min-w-[200px] sm:w-56">
+            <div className="flex w-full flex-col gap-2 sm:max-w-xl sm:flex-row sm:items-center sm:justify-end lg:w-auto lg:max-w-none lg:flex-1">
+              <div className="relative min-w-0 flex-1 sm:min-w-[200px] sm:max-w-sm">
                 <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2">
                   <IconSearch />
                 </span>
@@ -629,18 +588,73 @@ export function UserHomeDashboard({
               <select
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as "urgency" | "queue" | "name")}
-                className="interactive-select h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D2691E]/40"
+                className="interactive-select h-9 w-full shrink-0 rounded-md border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D2691E]/40 sm:w-auto"
               >
                 <option value="urgency">Sort: Urgency</option>
-                <option value="queue">{showItExpertVisualization ? "Sort: Work backlog" : "Sort: Queue load"}</option>
+                {homeRole !== "it_sme" && (
+                  <option value="queue">{hasItSmeAssignment ? "Sort: Work backlog" : "Sort: Queue load"}</option>
+                )}
                 <option value="name">Sort: Name</option>
               </select>
             </div>
           </div>
+          {useItExpertExclusivePresentation && assignmentCount > visibleRows.length && (
+            <div
+              className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs"
+              style={{ borderColor: "#bfdbfe", background: "#eff6ff", color: "#1e3a5f" }}
+            >
+              <span>
+                {assignmentCount - visibleRows.length} assignment{assignmentCount - visibleRows.length === 1 ? "" : "s"} hidden by search. Clear the search field to see all cycles.
+              </span>
+              <button
+                type="button"
+                onClick={() => setCycleQuery("")}
+                className={`${btnSecondaryCls} shrink-0`}
+                style={{ borderColor: outline.border, color: outline.text }}
+              >
+                Clear search
+              </button>
+            </div>
+          )}
+          {!useItExpertExclusivePresentation && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setReviewerFilter("all")}
+                {...filterPillProps(reviewerFilter === "all")}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewerFilter("needs_action")}
+                {...filterPillProps(reviewerFilter === "needs_action")}
+              >
+                Needs action
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setReviewerFilter("due_soon");
+                  setSortMode("urgency");
+                }}
+                {...filterPillProps(reviewerFilter === "due_soon")}
+                title={`Cycles with a submission deadline in the next ${DUE_SOON_DEADLINE_DAYS} days (or overdue). Soonest first.`}
+              >
+                Due soon
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewerFilter("queue_clear")}
+                {...filterPillProps(reviewerFilter === "queue_clear")}
+              >
+                Queue clear
+              </button>
+            </div>
+          )}
 
           <div className="mb-3 space-y-2">
-            {((showItExpertVisualization && itExpertListFilter === "due_soon") ||
-              (!showItExpertVisualization && reviewerFilter === "due_soon")) && (
+            {!useItExpertExclusivePresentation && reviewerFilter === "due_soon" && (
               <p
                 className="rounded-lg border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100"
               >
@@ -850,11 +864,11 @@ export function UserHomeDashboard({
 
           {!loading && visibleRows.length === 0 && (
             <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-              {showItExpertVisualization && itExpertListFilter === "due_soon"
-                ? `No assigned cycles have a deadline in the next ${DUE_SOON_DEADLINE_DAYS} days (or overdue), or none match your search. Use “All” to see every cycle, or check that target submission / end dates are set on cycles.`
-                : !showItExpertVisualization && reviewerFilter === "due_soon"
+              {useItExpertExclusivePresentation
+                ? "No cycles match your search. Clear the search or try a different name or cycle id."
+                : reviewerFilter === "due_soon"
                   ? `No cycles have a deadline in the next ${DUE_SOON_DEADLINE_DAYS} days (or overdue), or none match your search. Try “All” or “Needs action”.`
-                  : "No cycles match the current filter/search. Try clearing filters."}
+                  : "No cycles match the current filter or search. Try adjusting filters or clearing search."}
             </p>
           )}
           </div>
@@ -894,6 +908,9 @@ export function UserHomeDashboard({
         calendarMonthLabel={calendarMonthLabel}
         deadlineMap={deadlineMap}
         buttonRole={homeRole}
+        activeCycleId={activeCycleId}
+        cycleSelectOptions={calendarCycleSelectOptions}
+        onSelectCycle={handleCalendarCycleChange}
       />
     </div>
   );

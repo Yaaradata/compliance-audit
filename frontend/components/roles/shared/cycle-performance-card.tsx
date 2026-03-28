@@ -10,11 +10,10 @@ import { cycleEntryPath, daysTo, initials, PHASE_ORDER, phaseLabel, phaseStep } 
 
 type CyclePerformanceCardProps = {
   row: CycleInsight;
-  onViewVisuals: (cycleId: string) => void;
   onDeleted?: (cycleId: string) => void;
 };
 
-export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePerformanceCardProps) {
+export function CyclePerformanceCard({ row, onDeleted }: CyclePerformanceCardProps) {
   const coOutline = dashboardOutlineStyle("compliance_officer");
   const coPrimary = dashboardPrimaryGradient("compliance_officer");
   const c = row.cycle;
@@ -151,20 +150,12 @@ export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePer
               </div>
             )}
             <span
-              className={`rounded-md px-2 py-1 text-xs font-semibold ${
+              className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold ${
                 days !== null && days <= 2 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
               }`}
             >
               {dueDateLabel ? `${dueLabel} · ${dueDateLabel}` : dueLabel}
             </span>
-            <button
-              type="button"
-              onClick={() => onViewVisuals(c.id)}
-              className="interactive-outline-btn inline-flex items-center dashboard-btn-pill border-2 bg-white px-4 text-sm font-semibold"
-              style={{ borderColor: coOutline.border, color: coOutline.text }}
-            >
-              View visuals
-            </button>
             <Link
               href={cycleEntryPath(c)}
               className="interactive-hero-action inline-flex items-center dashboard-btn-pill border-0 px-4 text-sm font-semibold text-white shadow-sm"

@@ -7,7 +7,6 @@ export type RoleDashboardKpiCard = {
   href: string;
   aria: string;
   tone: string;
-  meter: number;
 };
 
 export type ComplianceOverviewRow = {
@@ -32,6 +31,8 @@ export type CalendarDeadlineMark = {
   label: string;
   displayId: string;
   phase: string;
+  /** Which assessment cycle this deadline belongs to (for filtering when an active cycle is selected). */
+  cycleId: string;
 };
 
 export type CycleDashboard = {
@@ -74,9 +75,6 @@ export type StatKpiArticle = {
   value: string | number;
   sub: string;
   tone: string;
-  meter: number;
-  /** Tailwind classes for the bottom meter bar (defaults to primary CSS var). */
-  meterBarClass?: string;
 };
 
 export type ItExpertCycleRow = {
