@@ -11,7 +11,7 @@ Flow:
 6) Assign all evidence items to IT SME
 7) Login as IT SME
 8) For each evidence item from CSV:
-   - create/get submission
+   - create/get submission 
    - fill form_data using answers from CSV (non-file questions)
    - upload matched file for file questions
    - run AI evaluation

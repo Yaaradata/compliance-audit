@@ -75,6 +75,7 @@ from .routers import (
     aws,
     compliance,
     artifact_registry,
+    demo,
 )
 
 
@@ -166,6 +167,7 @@ app.include_router(reference.router, prefix=PREFIX)
 app.include_router(audit_log.router,    prefix=PREFIX, tags=["audit-log"])
 app.include_router(aws.router,          prefix=PREFIX, tags=["aws"])
 app.include_router(artifact_registry.router, prefix=PREFIX, tags=["artifact-registry"])
+app.include_router(demo.router,             prefix=PREFIX, tags=["demo"])
 
 
 @app.get("/health")

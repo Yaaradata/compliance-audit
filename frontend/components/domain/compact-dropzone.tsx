@@ -38,6 +38,7 @@ export function CompactDropzone({
   onEnsureSubmission,
   className,
   accentColor,
+  fileRefreshTrigger = 0,
 }: {
   submissionId?: string | null;
   label?: string;
@@ -45,6 +46,8 @@ export function CompactDropzone({
   onEnsureSubmission?: () => Promise<string | null>;
   className?: string;
   accentColor?: string;
+  /** Increment this number to force a re-fetch of the file list from the server. */
+  fileRefreshTrigger?: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -70,9 +73,8 @@ export function CompactDropzone({
       setFiles([]);
       return;
     }
-    setFiles([]);
     fetchFiles();
-  }, [submissionId, fetchFiles]);
+  }, [submissionId, fileRefreshTrigger, fetchFiles]);
 
   const getSubmissionId = useCallback(async (): Promise<string | null> => {
     if (submissionId) return submissionId;

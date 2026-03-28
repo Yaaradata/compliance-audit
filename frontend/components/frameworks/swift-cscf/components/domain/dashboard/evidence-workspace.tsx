@@ -5,15 +5,11 @@ import { useRouter } from "next/navigation";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
 import { ArtifactReusePanel } from "@/components/domain/artifact-reuse-panel";
-import { ArtifactControlScores } from "@/components/domain/artifact-control-scores";
-import { ArtifactCrossChecks } from "@/components/domain/artifact-cross-checks";
-import { ArtifactHistoryBar } from "@/components/domain/artifact-history-bar";
-import { api } from "@/lib/api";
+import { api, demoAutofill } from "@/lib/api";
 import { getAwsCredentialsForCycle } from "@/lib/aws-api";
-import { getArtifactForSubmission } from "@/lib/artifact-registry-api";
 import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
 import { A5_EVIDENCE_ITEM_ID, A5_ARCHITECTURE_KEYS } from "@/lib/frameworks/swift-cscf/constants";
-import type { EvidenceItem, DomainConfig, ArtifactOut } from "@/lib/types";
+import type { EvidenceItem, DomainConfig } from "@/lib/types";
 import type { AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 import type { EvaluationEditsMap } from "../../../../../domain/ai-evaluation-result";
 
@@ -118,7 +114,6 @@ export function EvidenceWorkspace({
 }) {
   const router = useRouter();
   const [notesRefresh, setNotesRefresh] = useState(0);
-  const [currentArtifact, setCurrentArtifact] = useState<ArtifactOut | null>(null);
   const [reuseApplied, setReuseApplied] = useState(false);
   const effectiveNotesRefresh = (notesRefreshTrigger ?? 0) + notesRefresh;
 
@@ -205,6 +200,11 @@ export function EvidenceWorkspace({
     return () => ro.disconnect();
   }, [updateGuideAlignment, guideAtBottom]);
 
+  const [demoAutofillLoading, setDemoAutofillLoading] = useState(false);
+  const [demoAutofillDone, setDemoAutofillDone] = useState(false);
+  const [demoAutofillError, setDemoAutofillError] = useState<string | null>(null);
+  const [fileRefreshTrigger, setFileRefreshTrigger] = useState(0);
+
   const prevItemIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (currentItem) {
@@ -221,23 +221,48 @@ export function EvidenceWorkspace({
         setAwsSuggestionGaps({});
         setAwsSuggestRoundDone(false);
         setQuestionSources({});
+        setDemoAutofillDone(false);
+        setDemoAutofillError(null);
+        setFileRefreshTrigger(0);
       }
     } else {
       prevItemIdRef.current = null;
     }
   }, [currentItem?.id]);
 
-  useEffect(() => {
-    if (!cycleId || !currentItem) {
-      setCurrentArtifact(null);
-      return;
-    }
-    getArtifactForSubmission(cycleId, currentItem.id)
-      .then((a) => setCurrentArtifact(a))
-      .catch(() => setCurrentArtifact(null));
-  }, [cycleId, currentItem?.id]);
-
   const evidenceFormLocked = isSubmissionAwsLocked(submissionStatus);
+
+  const handleDemoAutofill = useCallback(async () => {
+    if (!cycleId || !currentItem) return;
+    setDemoAutofillLoading(true);
+    setDemoAutofillError(null);
+    try {
+      const result = await demoAutofill(cycleId, currentItem.id);
+      const subId =
+        (await onEnsureSubmission(currentItem.id)) ?? result.submission_id ?? null;
+      if (subId && cycleId) {
+        try {
+          const sub = await api.get<{ form_data: Record<string, string> }>(
+            `/assessments/${cycleId}/evidence/${subId}`
+          );
+          if (sub?.form_data) {
+            Object.entries(sub.form_data).forEach(([k, v]) => {
+              onItemFormChange(k, String(v ?? ""));
+            });
+          }
+        } catch {
+          /* best-effort */
+        }
+      }
+      setFileRefreshTrigger((n) => n + 1);
+      onUploadComplete();
+      setDemoAutofillDone(true);
+    } catch (e: unknown) {
+      setDemoAutofillError(e instanceof Error ? e.message : "Auto-fill failed");
+    } finally {
+      setDemoAutofillLoading(false);
+    }
+  }, [cycleId, currentItem, onEnsureSubmission, onItemFormChange, onUploadComplete]);
 
   useEffect(() => {
     if (!cycleId) {
@@ -358,34 +383,6 @@ export function EvidenceWorkspace({
     if (cycleId) {
       return (
         <>
-          <div className="rounded-lg border border-(--border) bg-(--surface) px-3 py-2.5 mb-3">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="text-[11px] font-semibold text-foreground">
-                Artifact Registry
-              </div>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border border-(--border) bg-background text-foreground">
-                {frameworkSchema && cscfVersion ? "Active" : "Pending"}
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-(--foreground-muted)">
-              {frameworkSchema && cscfVersion
-                ? `Enabled for ${frameworkSchema} (${cscfVersion})`
-                : "Waiting for cycle framework metadata"}
-            </p>
-          </div>
-
-          {currentArtifact ? (
-            <ArtifactHistoryBar artifactId={currentArtifact.artifact_id} />
-          ) : (
-            <div className="rounded-lg border border-(--border) bg-(--surface) px-3 py-2.5 mb-3">
-              <div className="text-[11px] text-(--foreground-muted)">
-                <span className="font-semibold text-foreground">Artifact History</span>
-                {" — "}
-                No artifact versions yet. Submit evidence to start tracking.
-              </div>
-            </div>
-          )}
-
           {cycleId && currentItem && frameworkSchema && cscfVersion && !evidenceFormLocked && (
             <ArtifactReusePanel
               cycleId={cycleId}
@@ -459,6 +456,7 @@ export function EvidenceWorkspace({
               <p className="text-[11px] text-(--foreground-muted) w-full">{awsSuggestMessage}</p>
             )}
           </div>
+
           <EvidenceQuestionsForm
             evidenceItemId={currentItem.id}
             cycleId={cycleId}
@@ -477,21 +475,8 @@ export function EvidenceWorkspace({
             awsSuggestionGaps={awsSuggestionGaps}
             awsSuggestRoundDone={awsSuggestRoundDone}
             visualVariant="swiftReview"
+            fileRefreshTrigger={fileRefreshTrigger}
           />
-
-          <div className="mt-3">
-            {currentArtifact ? (
-              <ArtifactCrossChecks artifactId={currentArtifact.artifact_id} />
-            ) : (
-              <div className="rounded-lg border border-(--border) bg-(--surface) px-3 py-2.5">
-                <div className="text-[11px] text-(--foreground-muted)">
-                  <span className="font-semibold text-foreground">Cross-Checks</span>
-                  {" — "}
-                  Submit evidence to enable cross-check validation.
-                </div>
-              </div>
-            )}
-          </div>
 
           {!aiEvaluationResult && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-2xl border border-(--border) bg-gradient-to-br from-background to-background/80 shadow-md hover:shadow-lg transition-shadow duration-200">
@@ -539,11 +524,37 @@ export function EvidenceWorkspace({
             >
               <div className="shrink-0 px-4 py-2.5 border-b border-slate-200 dark:border-(--border) bg-slate-50/80 dark:bg-background/50 min-h-[48px] flex flex-col justify-center">
                 <div className="flex items-center justify-between gap-3 min-h-[36px]">
-                  <div className="min-w-0">
-                    <h2 className="text-sm font-bold text-slate-800 dark:text-foreground">Evidence</h2>
+                  <h2 className="text-sm font-bold text-slate-800 dark:text-foreground shrink-0">Evidence</h2>
+                  <div className="flex items-center justify-end gap-2 min-w-0 flex-1">
+                    {!evidenceFormLocked &&
+                      cycleId &&
+                      (getItemCompletion(currentItem.id) === 0 || demoAutofillLoading || demoAutofillDone) && (
+                        <button
+                          type="button"
+                          disabled={demoAutofillLoading}
+                          onClick={handleDemoAutofill}
+                          aria-label={
+                            demoAutofillLoading
+                              ? "Auto-filling demo data"
+                              : demoAutofillDone
+                                ? "Re-fill from demo data"
+                                : "Auto-fill for demo"
+                          }
+                          aria-busy={demoAutofillLoading}
+                          className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1.5 text-[11px] font-semibold text-amber-900 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800/60 disabled:opacity-50"
+                        >
+                          {demoAutofillLoading && (
+                            <span className="inline-block size-3 border-2 border-amber-400 border-t-amber-700 dark:border-amber-600 dark:border-t-amber-300 rounded-full animate-spin" />
+                          )}
+                          {demoAutofillLoading ? "Auto-filling…" : demoAutofillDone ? "Re-fill" : "Auto-fill for demo"}
+                        </button>
+                      )}
+                    {hasResult && <div className="w-[88px] shrink-0 lg:block hidden" aria-hidden />}
                   </div>
-                  {hasResult && <div className="w-[88px] shrink-0 lg:block hidden" aria-hidden />}
                 </div>
+                {demoAutofillError && (
+                  <p className="text-[11px] text-red-600 mt-1.5 text-right">{demoAutofillError}</p>
+                )}
               </div>
               <div ref={evidenceScrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 md:p-5 space-y-4 bg-slate-50/30 dark:bg-transparent">
                 {renderCommonEvidence()}
@@ -600,17 +611,6 @@ export function EvidenceWorkspace({
                       visualVariant="swiftReview"
                       hideAiHint={false}
                     />
-                    {currentArtifact ? (
-                      <div className="mt-4">
-                        <ArtifactControlScores artifactId={currentArtifact.artifact_id} />
-                      </div>
-                    ) : aiEvaluationResult ? (
-                      <div className="mt-4 rounded-lg border border-(--border) bg-(--surface) px-3 py-2">
-                        <div className="text-[11px] text-(--foreground-muted)">
-                          <span className="font-semibold text-foreground">Per-Control AI Scores</span> — Artifact not linked yet. Scores will appear after evidence is saved.
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
                 ) : (
                   <div ref={guidanceContentRef} className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">

@@ -866,10 +866,16 @@ function AiEvaluationResultTabs({
     const isApproved = submissionStatus === "approved";
     const canEdit = !isSubmitted && !isApproved;
 
+    /** After form edits, domain page sets evaluationState to "idle" but keeps last result — still need Re-evaluate. */
+    const showReEvaluate =
+      canEdit &&
+      onReEvaluate &&
+      (evaluationState === "done" || (evaluationState === "idle" && result));
+
     return (
       <div className="shrink-0 mt-4 pt-4 border-t border-(--border) space-y-3">
-        {/* Re-evaluate: only when editable and evaluation is done */}
-        {canEdit && evaluationState === "done" && onReEvaluate && (
+        {/* Re-evaluate: after a completed run ("done") or after edits invalidated run ("idle" but result still shown) */}
+        {showReEvaluate && (
           <button
             type="button"
             onClick={onReEvaluate}
@@ -908,12 +914,6 @@ function AiEvaluationResultTabs({
         {isApproved && (
           <div className="py-2.5 px-3 rounded-lg bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 text-sm text-center font-medium">
             Evidence approved
-          </div>
-        )}
-        {/* Evidence edited: prompt to re-evaluate when edits made after last run */}
-        {canEdit && evaluationState === "idle" && (
-          <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-            Evidence edited. Run Re-evaluate to refresh results.
           </div>
         )}
       </div>

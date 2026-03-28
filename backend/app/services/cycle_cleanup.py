@@ -84,13 +84,151 @@ def _delete_cycle_swift_aws_collector_data(cycle_id: UUID) -> dict[str, int]:
     return stats
 
 
+def _delete_cycle_artifacts(db: Session, cycle_id: UUID) -> int:
+    """
+    Hard-delete every artifact_registry row that belongs to (or references) a
+    cycle being deleted.  All statements are raw SQL so SQLAlchemy's ORM layer
+    never tries to load objects it can't flush in FK-safe order.
+
+    Full FK graph in artifact_registry that touches artifacts:
+      artifacts.parent_artifact_id  → artifacts.artifact_id  (self, nullable)
+      artifacts.reuse_source_id     → artifacts.artifact_id  (self, nullable)
+      cross_checks.source_artifact_id → artifacts.artifact_id (NOT NULL)
+      cross_checks.target_artifact_id → artifacts.artifact_id (nullable)
+      reuse_records.source_artifact_id → artifacts.artifact_id (NOT NULL)
+      reuse_records.target_artifact_id → artifacts.artifact_id (NOT NULL)
+      audit_trail.artifact_id         → artifacts.artifact_id (NOT NULL)
+        └─ audit_trail rows are cleared by the router (trigger disabled)
+      comments.artifact_id            → artifacts.artifact_id (NOT NULL)
+      comments.parent_comment_id      → comments.comment_id   (self, nullable)
+      artifact_control_links.artifact_id → artifacts.artifact_id (CASCADE DELETE)
+
+    Deletion order:
+      1. Collect artifact_ids for this cycle.
+      2. Delete reuse_records rows where source OR target belongs to this cycle
+         (covers both same-cycle and cross-cycle reuse links).
+      3. NULL out cross-cycle back-references on artifacts in OTHER cycles
+         (parent_artifact_id, reuse_source_id).
+      4. NULL out cross_checks.target_artifact_id from other cycles.
+      5. Delete cross_checks for this cycle.
+      6. NULL out self-references within this cycle's artifacts.
+      7. NULL out comments.parent_comment_id for this cycle's artifacts (self-FK).
+      8. Delete comments for this cycle's artifacts.
+      9. Delete artifact_control_links for this cycle (explicit; CASCADE also fires).
+     10. Delete artifact rows for this cycle.
+    """
+    # Step 1 – collect artifact IDs
+    rows = db.execute(
+        text("SELECT artifact_id FROM artifact_registry.artifacts WHERE cycle_id = :cid"),
+        {"cid": cycle_id},
+    ).fetchall()
+    if not rows:
+        return 0
+    artifact_ids = [r[0] for r in rows]
+
+    # Step 2 – reuse_records: delete any row where source OR target is ours
+    #   (handles same-cycle and cross-cycle reuse links in one shot)
+    db.execute(
+        text(
+            "DELETE FROM artifact_registry.reuse_records "
+            "WHERE source_artifact_id = ANY(:ids) OR target_artifact_id = ANY(:ids)"
+        ),
+        {"ids": artifact_ids},
+    )
+
+    # Step 3 – NULL out back-refs on artifacts in OTHER cycles
+    db.execute(
+        text(
+            "UPDATE artifact_registry.artifacts "
+            "SET reuse_source_id = NULL "
+            "WHERE reuse_source_id = ANY(:ids) AND cycle_id != :cid"
+        ),
+        {"ids": artifact_ids, "cid": cycle_id},
+    )
+    db.execute(
+        text(
+            "UPDATE artifact_registry.artifacts "
+            "SET parent_artifact_id = NULL "
+            "WHERE parent_artifact_id = ANY(:ids) AND cycle_id != :cid"
+        ),
+        {"ids": artifact_ids, "cid": cycle_id},
+    )
+
+    # Step 4 – NULL out cross_checks.target_artifact_id from other cycles
+    db.execute(
+        text(
+            "UPDATE artifact_registry.cross_checks "
+            "SET target_artifact_id = NULL "
+            "WHERE target_artifact_id = ANY(:ids) AND cycle_id != :cid"
+        ),
+        {"ids": artifact_ids, "cid": cycle_id},
+    )
+
+    # Step 5 – delete cross_checks for this cycle
+    db.execute(
+        text("DELETE FROM artifact_registry.cross_checks WHERE cycle_id = :cid"),
+        {"cid": cycle_id},
+    )
+
+    # Step 6 – NULL out self-references within this cycle's artifacts
+    db.execute(
+        text(
+            "UPDATE artifact_registry.artifacts "
+            "SET parent_artifact_id = NULL, reuse_source_id = NULL "
+            "WHERE cycle_id = :cid"
+        ),
+        {"cid": cycle_id},
+    )
+
+    # Step 7 – NULL out comments.parent_comment_id (self-FK) for this cycle's artifacts
+    db.execute(
+        text(
+            "UPDATE artifact_registry.comments "
+            "SET parent_comment_id = NULL "
+            "WHERE artifact_id = ANY(:ids)"
+        ),
+        {"ids": artifact_ids},
+    )
+
+    # Step 8 – delete comments
+    db.execute(
+        text(
+            "DELETE FROM artifact_registry.comments WHERE artifact_id = ANY(:ids)"
+        ),
+        {"ids": artifact_ids},
+    )
+
+    # Step 9 – delete artifact_control_links
+    db.execute(
+        text(
+            "DELETE FROM artifact_registry.artifact_control_links "
+            "WHERE artifact_id = ANY(:ids)"
+        ),
+        {"ids": artifact_ids},
+    )
+
+    # Step 10 – delete the artifact rows themselves
+    result = db.execute(
+        text(
+            "DELETE FROM artifact_registry.artifacts WHERE cycle_id = :cid"
+        ),
+        {"cid": cycle_id},
+    )
+    deleted = result.rowcount
+    db.flush()
+
+    logger.info("Deleted %d artifact(s) for cycle %s", deleted, cycle_id)
+    return deleted
+
+
 def delete_cycle_evidence_and_related(db: Session, cycle_id: UUID) -> dict[str, int]:
     """
     Delete all evidence files from storage (GCS or local) and remove related DB rows
     for the given cycle. Call this before deleting the AssessmentCycle row.
 
-    Order: review comments -> review assignments -> attachment files + attachment rows
-           -> submissions -> sufficiency_scores -> reports -> vendors.
+    Order: artifact_registry rows -> review comments -> review assignments
+           -> attachment files + attachment rows -> submissions
+           -> sufficiency_scores -> reports -> vendors.
 
     Returns a small summary dict (includes AWS cleanup counts when applicable).
     """
@@ -99,12 +237,16 @@ def delete_cycle_evidence_and_related(db: Session, cycle_id: UUID) -> dict[str, 
         "files_failed": 0,
         "attachments": 0,
         "submissions": 0,
+        "artifacts_deleted": 0,
         "aws_gcs_objects_deleted": 0,
         "aws_evidence_rows": 0,
         "aws_collector_run_rows": 0,
     }
 
     _delete_cycle_phase_deadlines_all_schemas(db, cycle_id)
+
+    # Delete artifact_registry rows first (they have self-FK and cross-cycle FK).
+    stats["artifacts_deleted"] = _delete_cycle_artifacts(db, cycle_id)
 
     submissions = db.query(EvidenceSubmission).filter(EvidenceSubmission.cycle_id == cycle_id).all()
     if not submissions:

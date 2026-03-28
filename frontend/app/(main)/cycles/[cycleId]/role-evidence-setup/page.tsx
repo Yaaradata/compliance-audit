@@ -64,6 +64,8 @@ const DOMAIN_NAMES: Record<string, string> = {
   H: "Policies & Governance",
 };
 
+const DOMAIN_ORDER = ["A", "B", "C", "D", "E", "F", "G", "H"] as const;
+
 function getInitials(name: string) {
   return (name || "?")
     .split(" ")
@@ -71,6 +73,16 @@ function getInitials(name: string) {
     .join("")
     .toUpperCase()
     .slice(0, 2);
+}
+
+/** SME users whose `group_name` is already assigned as a group — hide from Individuals to avoid duplicate coverage. */
+function userIdsBelongingToAssignedGroups(users: ComplianceUser[], assignedGroupNames: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  if (assignedGroupNames.size === 0) return out;
+  for (const u of users) {
+    if (u.group_name && assignedGroupNames.has(u.group_name)) out.add(u.id);
+  }
+  return out;
 }
 
 export default function RoleEvidenceSetupPage() {
@@ -92,6 +104,8 @@ export default function RoleEvidenceSetupPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [roleDateRanges, setRoleDateRanges] = useState<RoleDateRanges>({});
   const [evidenceDateRanges, setEvidenceDateRanges] = useState<EvidenceDateRanges>({});
+  /** Default: domain rows (A–H). Switch to item-wise for per–evidence-item editing. */
+  const [evidenceAssignmentView, setEvidenceAssignmentView] = useState<"domain" | "items">("domain");
 
   const canAccess = user?.role === "compliance_officer" || user?.role === "tenant_admin";
 
@@ -344,6 +358,68 @@ export default function RoleEvidenceSetupPage() {
     const a = assignmentsByRole["it_sme"] || { groups: [], users: [] };
     return { groups: a.groups, users: a.users };
   }, [assignmentsByRole]);
+
+  const domainsWithEvidence = useMemo(
+    () => DOMAIN_ORDER.filter((d) => evidenceItems.some((e) => e.domain_id === d)),
+    [evidenceItems]
+  );
+
+  const getDomainDateRangeForUI = (domainId: string) => {
+    const items = evidenceItems.filter((e) => e.domain_id === domainId);
+    if (items.length === 0) {
+      return { evidence_start_date: null as string | null, evidence_end_date: null as string | null, mixed: false };
+    }
+    const ranges = items.map((i) => evidenceDateRanges[i.id] || { evidence_start_date: null, evidence_end_date: null });
+    const s0 = ranges[0].evidence_start_date;
+    const e0 = ranges[0].evidence_end_date;
+    const mixed = ranges.some((r) => r.evidence_start_date !== s0 || r.evidence_end_date !== e0);
+    return { evidence_start_date: s0, evidence_end_date: e0, mixed };
+  };
+
+  const updateEvidenceDateRangeForDomain = (
+    domainId: string,
+    field: "evidence_start_date" | "evidence_end_date",
+    value: string
+  ) => {
+    const normalized = value || null;
+    const ids = evidenceItems.filter((e) => e.domain_id === domainId).map((e) => e.id);
+    setEvidenceDateRanges((prev) => {
+      const next = { ...prev };
+      for (const id of ids) {
+        const current = next[id] || { evidence_start_date: null, evidence_end_date: null };
+        next[id] = { ...current, [field]: normalized };
+      }
+      return next;
+    });
+  };
+
+  const getUniqueEvidenceAssignmentsForDomain = (domainId: string): EvidenceAssignment[] => {
+    const itemIds = new Set(evidenceItems.filter((e) => e.domain_id === domainId).map((e) => e.id));
+    const seen = new Set<string>();
+    const out: EvidenceAssignment[] = [];
+    for (const a of evidenceAssignments) {
+      if (!itemIds.has(a.evidence_item_id)) continue;
+      const key = `${a.assignment_type}:${a.group_name ?? ""}:${a.user_id ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(a);
+    }
+    return out;
+  };
+
+  const removeEvidenceAssignmentFromDomain = (domainId: string, type: "group" | "user", id: string) => {
+    const itemIds = new Set(evidenceItems.filter((e) => e.domain_id === domainId).map((e) => e.id));
+    setEvidenceAssignments((prev) =>
+      prev.filter(
+        (e) =>
+          !(
+            itemIds.has(e.evidence_item_id) &&
+            e.assignment_type === type &&
+            (type === "group" ? e.group_name === id : e.user_id === id)
+          )
+      )
+    );
+  };
 
   const addEvidenceAssignment = (itemId: string, type: "group" | "user", id: string) => {
     const existing = evidenceAssignments.filter((e) => e.evidence_item_id === itemId && e.assignment_type === type && (type === "group" ? e.group_name === id : e.user_id === id));
@@ -728,6 +804,27 @@ export default function RoleEvidenceSetupPage() {
                 Assign IT Experts in Step 1 before assigning evidence items.
               </div>
             )}
+
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  {evidenceAssignmentView === "domain" ? "Evidence by domain" : "Evidence item–wise"}
+                </p>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  {evidenceAssignmentView === "domain"
+                    ? "Set start and end dates per domain (applied to every item in that domain). Use bulk actions or assign experts per domain."
+                    : "Adjust dates and IT Experts for each evidence code (A1, A2, …)."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEvidenceAssignmentView((v) => (v === "domain" ? "items" : "domain"))}
+                className="shrink-0 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#1f4e79] shadow-sm hover:bg-slate-50 transition-colors"
+              >
+                {evidenceAssignmentView === "domain" ? "Assign item-wise →" : "← Back to domain view"}
+              </button>
+            </div>
+
             <div className="mb-4 flex flex-wrap gap-2">
               <BulkAssignAllEvidenceButton
                 smeOptions={smeOptions}
@@ -739,6 +836,13 @@ export default function RoleEvidenceSetupPage() {
               {Object.entries(DOMAIN_NAMES).map(([domainId, domainName]) => {
                 const count = evidenceItems.filter((e) => e.domain_id === domainId).length;
                 if (count === 0) return null;
+                const domainEaToolbar = getUniqueEvidenceAssignmentsForDomain(domainId);
+                const assignedGroupNamesToolbar = domainEaToolbar
+                  .filter((a) => a.assignment_type === "group" && a.group_name)
+                  .map((a) => a.group_name!);
+                const assignedUserIdsToolbar = domainEaToolbar
+                  .filter((a) => a.assignment_type === "user" && a.user_id)
+                  .map((a) => a.user_id!);
                 return (
                   <BulkAssignDomainButton
                     key={domainId}
@@ -749,86 +853,187 @@ export default function RoleEvidenceSetupPage() {
                     users={users}
                     onAssign={handleBulkAssignByDomain}
                     disabled={smeOptions.groups.length === 0 && smeOptions.users.length === 0}
+                    assignedGroupNames={assignedGroupNamesToolbar}
+                    assignedUserIds={assignedUserIdsToolbar}
                   />
                 );
               })}
             </div>
+
             <div className="rounded-xl bg-white shadow-md overflow-visible w-full min-w-0">
               <div className="overflow-x-auto overflow-y-visible w-full min-w-0">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-100">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Code</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Evidence Item</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Domain</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Start date</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">End date</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">IT Expert assigned</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {evidenceItems.map((ev) => {
-                      const ea = evidenceAssignments.filter((e) => e.evidence_item_id === ev.id);
-                      const d = evidenceDateRanges[ev.id] || { evidence_start_date: null, evidence_end_date: null };
-                      return (
-                        <tr key={ev.id} className="border-t border-slate-200">
-                          <td className="px-4 py-3 font-mono font-semibold text-[#1f4e79]">{ev.id}</td>
-                          <td className="px-4 py-3 text-slate-900">{ev.name}</td>
-                          <td className="px-4 py-3 text-slate-600">
-                            {ev.domain_id}: {DOMAIN_NAMES[ev.domain_id] || ev.domain_id}
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="date"
-                              value={d.evidence_start_date || ""}
-                              onChange={(e) => updateEvidenceDateRange(ev.id, "evidence_start_date", e.target.value)}
-                              disabled={submitting}
-                              className="w-[150px] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-[#1f4e79] focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 disabled:cursor-not-allowed disabled:bg-slate-100"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="date"
-                              value={d.evidence_end_date || ""}
-                              onChange={(e) => updateEvidenceDateRange(ev.id, "evidence_end_date", e.target.value)}
-                              disabled={submitting}
-                              min={d.evidence_start_date || undefined}
-                              className="w-[150px] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-[#1f4e79] focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 disabled:cursor-not-allowed disabled:bg-slate-100"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                              {ea.map((e) => (
-                                <span
-                                  key={`${e.evidence_item_id}-${e.assignment_type}-${e.group_name || e.user_id}`}
-                                  className="inline-flex items-center gap-1 rounded-full bg-[#1f4e79] px-2.5 py-1 text-xs font-medium text-white"
-                                >
-                                  {e.group_name || users.find((u) => u.id === e.user_id)?.name || "—"}
-                                  <button
-                                    type="button"
-                                    onClick={() => removeEvidenceAssignment(ev.id, e.assignment_type as "group" | "user", (e.group_name || e.user_id)!)}
-                                    className="hover:opacity-80"
-                                  >
-                                    ×
-                                  </button>
-                                </span>
-                              ))}
-                              <EvidencePicker
-                                itemId={ev.id}
-                                smeOptions={smeOptions}
-                                groups={groups}
-                                users={users}
-                                assignments={ea}
-                                onAdd={(type, id) => addEvidenceAssignment(ev.id, type, id)}
-                                disabled={submitting || (smeOptions.groups.length === 0 && smeOptions.users.length === 0)}
+                {evidenceAssignmentView === "domain" ? (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 w-14">Domain</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 min-w-[200px]">
+                          Domain name
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Items</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Start date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">End date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">IT Expert assigned</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {domainsWithEvidence.map((domainId) => {
+                        const domainName = DOMAIN_NAMES[domainId] || domainId;
+                        const count = evidenceItems.filter((e) => e.domain_id === domainId).length;
+                        const dr = getDomainDateRangeForUI(domainId);
+                        const domainEa = getUniqueEvidenceAssignmentsForDomain(domainId);
+                        return (
+                          <tr key={domainId} className="border-t border-slate-200 align-top">
+                            <td className="px-4 py-3 align-middle">
+                              <span className="font-mono font-bold text-[#1f4e79]">{domainId}</span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-700 leading-snug max-w-xs">
+                              {domainName}
+                            </td>
+                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{count}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col gap-1">
+                                {dr.mixed && (
+                                  <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 w-fit">
+                                    Mixed dates in items — edit here to align all
+                                  </span>
+                                )}
+                                <input
+                                  type="date"
+                                  value={dr.evidence_start_date || ""}
+                                  onChange={(e) => updateEvidenceDateRangeForDomain(domainId, "evidence_start_date", e.target.value)}
+                                  disabled={submitting}
+                                  className="w-[150px] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-[#1f4e79] focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                />
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="date"
+                                value={dr.evidence_end_date || ""}
+                                onChange={(e) => updateEvidenceDateRangeForDomain(domainId, "evidence_end_date", e.target.value)}
+                                disabled={submitting}
+                                min={dr.evidence_start_date || undefined}
+                                className="w-[150px] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-[#1f4e79] focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 disabled:cursor-not-allowed disabled:bg-slate-100"
                               />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {domainEa.map((e) => (
+                                  <span
+                                    key={`${domainId}-${e.assignment_type}-${e.group_name || e.user_id}`}
+                                    className="inline-flex items-center gap-1 rounded-full bg-[#1f4e79] px-2.5 py-1 text-xs font-medium text-white"
+                                  >
+                                    {e.group_name || users.find((u) => u.id === e.user_id)?.name || "—"}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeEvidenceAssignmentFromDomain(domainId, e.assignment_type as "group" | "user", (e.group_name || e.user_id)!)
+                                      }
+                                      className="hover:opacity-80"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                                <BulkAssignDomainButton
+                                  domainId={domainId}
+                                  domainName={domainName}
+                                  smeOptions={smeOptions}
+                                  groups={groups}
+                                  users={users}
+                                  onAssign={handleBulkAssignByDomain}
+                                  disabled={smeOptions.groups.length === 0 && smeOptions.users.length === 0}
+                                  assignedGroupNames={domainEa
+                                    .filter((a) => a.assignment_type === "group" && a.group_name)
+                                    .map((a) => a.group_name!)}
+                                  assignedUserIds={domainEa
+                                    .filter((a) => a.assignment_type === "user" && a.user_id)
+                                    .map((a) => a.user_id!)}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Code</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Evidence Item</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Domain</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Start date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">End date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">IT Expert assigned</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {evidenceItems.map((ev) => {
+                        const ea = evidenceAssignments.filter((e) => e.evidence_item_id === ev.id);
+                        const d = evidenceDateRanges[ev.id] || { evidence_start_date: null, evidence_end_date: null };
+                        return (
+                          <tr key={ev.id} className="border-t border-slate-200">
+                            <td className="px-4 py-3 font-mono font-semibold text-[#1f4e79]">{ev.id}</td>
+                            <td className="px-4 py-3 text-slate-900">{ev.name}</td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {ev.domain_id}: {DOMAIN_NAMES[ev.domain_id] || ev.domain_id}
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="date"
+                                value={d.evidence_start_date || ""}
+                                onChange={(e) => updateEvidenceDateRange(ev.id, "evidence_start_date", e.target.value)}
+                                disabled={submitting}
+                                className="w-[150px] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-[#1f4e79] focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 disabled:cursor-not-allowed disabled:bg-slate-100"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="date"
+                                value={d.evidence_end_date || ""}
+                                onChange={(e) => updateEvidenceDateRange(ev.id, "evidence_end_date", e.target.value)}
+                                disabled={submitting}
+                                min={d.evidence_start_date || undefined}
+                                className="w-[150px] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-[#1f4e79] focus:outline-none focus:ring-2 focus:ring-[#1f4e79]/30 disabled:cursor-not-allowed disabled:bg-slate-100"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {ea.map((e) => (
+                                  <span
+                                    key={`${e.evidence_item_id}-${e.assignment_type}-${e.group_name || e.user_id}`}
+                                    className="inline-flex items-center gap-1 rounded-full bg-[#1f4e79] px-2.5 py-1 text-xs font-medium text-white"
+                                  >
+                                    {e.group_name || users.find((u) => u.id === e.user_id)?.name || "—"}
+                                    <button
+                                      type="button"
+                                      onClick={() => removeEvidenceAssignment(ev.id, e.assignment_type as "group" | "user", (e.group_name || e.user_id)!)}
+                                      className="hover:opacity-80"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                                <EvidencePicker
+                                  itemId={ev.id}
+                                  smeOptions={smeOptions}
+                                  groups={groups}
+                                  users={users}
+                                  assignments={ea}
+                                  onAdd={(type, id) => addEvidenceAssignment(ev.id, type, id)}
+                                  disabled={submitting || (smeOptions.groups.length === 0 && smeOptions.users.length === 0)}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -1017,6 +1222,8 @@ function BulkAssignDomainButton({
   users,
   onAssign,
   disabled,
+  assignedGroupNames = [],
+  assignedUserIds = [],
 }: {
   domainId: string;
   domainName: string;
@@ -1025,11 +1232,17 @@ function BulkAssignDomainButton({
   users: ComplianceUser[];
   onAssign: (domainId: string, type: "group" | "user", id: string) => void;
   disabled: boolean;
+  /** Groups already assigned in this domain — omitted from the picker. */
+  assignedGroupNames?: readonly string[];
+  /** User IDs already assigned in this domain — omitted from the picker. */
+  assignedUserIds?: readonly string[];
 }) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"groups" | "users">("groups");
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [popupPos, setPopupPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!open) return;
@@ -1040,7 +1253,46 @@ function BulkAssignDomainButton({
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  const filteredGroups = groups.filter((g) => smeOptions.groups.includes(g) && g.toLowerCase().includes(q.toLowerCase()));
+  useEffect(() => {
+    if (!open) return;
+    const recalc = () => {
+      if (!triggerRef.current) return;
+      const r = triggerRef.current.getBoundingClientRect();
+      const popupWidth = 288; // w-72
+      const popupHeightEstimate = 320;
+      const margin = 8;
+      const spaceBelow = window.innerHeight - r.bottom;
+      const placeAbove = spaceBelow < popupHeightEstimate && r.top > popupHeightEstimate;
+
+      const top = placeAbove
+        ? Math.max(margin, r.top - popupHeightEstimate - 4)
+        : Math.min(window.innerHeight - popupHeightEstimate - margin, r.bottom + 4);
+      const left = Math.max(margin, Math.min(r.left, window.innerWidth - popupWidth - margin));
+      setPopupPos({ top, left });
+    };
+
+    recalc();
+    window.addEventListener("resize", recalc);
+    window.addEventListener("scroll", recalc, true);
+    return () => {
+      window.removeEventListener("resize", recalc);
+      window.removeEventListener("scroll", recalc, true);
+    };
+  }, [open]);
+
+  const assignedGroupsSet = useMemo(() => new Set(assignedGroupNames), [assignedGroupNames]);
+  const assignedUsersSet = useMemo(() => new Set(assignedUserIds), [assignedUserIds]);
+  const userIdsCoveredByAssignedGroups = useMemo(
+    () => userIdsBelongingToAssignedGroups(users, assignedGroupsSet),
+    [users, assignedGroupsSet]
+  );
+
+  const filteredGroups = groups.filter(
+    (g) =>
+      smeOptions.groups.includes(g) &&
+      !assignedGroupsSet.has(g) &&
+      g.toLowerCase().includes(q.toLowerCase())
+  );
   // IT Expert individuals should include:
   // 1) directly assigned IT Expert users
   // 2) users that belong to IT Expert-assigned groups
@@ -1053,12 +1305,29 @@ function BulkAssignDomainButton({
   const filteredUsers = users.filter(
     (u) =>
       smeUserIds.has(u.id) &&
+      !assignedUsersSet.has(u.id) &&
+      !userIdsCoveredByAssignedGroups.has(u.id) &&
       (((u.name || "").toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase())))
   );
 
+  const hasUnassignedGroupLeft = smeOptions.groups.some((g) => !assignedGroupsSet.has(g));
+  const hasUnassignedUserLeft = [...smeUserIds].some(
+    (id) => !assignedUsersSet.has(id) && !userIdsCoveredByAssignedGroups.has(id)
+  );
+
+  const groupsEmptyMessage =
+    !hasUnassignedGroupLeft && smeOptions.groups.length > 0
+      ? "All IT Expert groups are already assigned for this domain."
+      : "No IT Expert groups";
+  const usersEmptyMessage =
+    !hasUnassignedUserLeft && smeUserIds.size > 0
+      ? "All IT Expert users are already assigned for this domain."
+      : "No IT Expert users";
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative inline-block">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(!open)}
         disabled={disabled}
@@ -1067,7 +1336,10 @@ function BulkAssignDomainButton({
         Assign all in {domainId}
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-xl bg-white shadow-xl overflow-hidden ring-1 ring-slate-300">
+        <div
+          className="fixed z-120 w-72 max-h-[min(24rem,calc(100vh-1rem))] flex flex-col rounded-xl bg-white shadow-xl overflow-hidden ring-1 ring-slate-300"
+          style={{ top: popupPos.top, left: popupPos.left }}
+        >
           <div className="px-3 py-2 text-xs font-medium text-slate-600 border-b border-slate-200 bg-slate-100">
             Assign one IT Expert to all items in Domain {domainId}: {domainName}
           </div>
@@ -1099,7 +1371,9 @@ function BulkAssignDomainButton({
           <div className="max-h-48 overflow-y-auto p-1">
             {view === "groups" &&
               (filteredGroups.length === 0 ? (
-                <p className="py-4 text-center text-xs text-slate-500">No IT Expert groups</p>
+                <p className="py-4 text-center text-xs text-slate-500 px-2">
+                  {hasUnassignedGroupLeft ? "No matches." : groupsEmptyMessage}
+                </p>
               ) : (
                 filteredGroups.map((g) => (
                   <button
@@ -1114,7 +1388,9 @@ function BulkAssignDomainButton({
               ))}
             {view === "users" &&
               (filteredUsers.length === 0 ? (
-                <p className="py-4 text-center text-xs text-slate-500">No IT Expert users</p>
+                <p className="py-4 text-center text-xs text-slate-500 px-2">
+                  {hasUnassignedUserLeft ? "No matches." : usersEmptyMessage}
+                </p>
               ) : (
                 filteredUsers.map((u) => (
                   <button
@@ -1198,10 +1474,31 @@ function EvidencePicker({
     };
   }, [open]);
 
-  const assignedGroups = assignments.filter((a) => a.assignment_type === "group" && a.group_name).map((a) => a.group_name!);
-  const assignedUsers = assignments.filter((a) => a.assignment_type === "user" && a.user_id).map((a) => a.user_id!);
+  const assignedGroupSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of assignments) {
+      if (a.assignment_type === "group" && a.group_name) s.add(a.group_name);
+    }
+    return s;
+  }, [assignments]);
+  const assignedUserSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of assignments) {
+      if (a.assignment_type === "user" && a.user_id) s.add(a.user_id);
+    }
+    return s;
+  }, [assignments]);
+  const userIdsCoveredByAssignedGroups = useMemo(
+    () => userIdsBelongingToAssignedGroups(users, assignedGroupSet),
+    [users, assignedGroupSet]
+  );
 
-  const filteredGroups = groups.filter((g) => smeOptions.groups.includes(g) && g.toLowerCase().includes(q.toLowerCase()));
+  const filteredGroups = groups.filter(
+    (g) =>
+      smeOptions.groups.includes(g) &&
+      !assignedGroupSet.has(g) &&
+      g.toLowerCase().includes(q.toLowerCase())
+  );
   // IT Expert individuals should include:
   // 1) directly assigned IT Expert users
   // 2) users that belong to IT Expert-assigned groups
@@ -1214,9 +1511,23 @@ function EvidencePicker({
   const filteredUsers = users.filter(
     (u) =>
       smeUserIds.has(u.id) &&
-      (((u.name || "").toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase()))
-      )
+      !assignedUserSet.has(u.id) &&
+      !userIdsCoveredByAssignedGroups.has(u.id) &&
+      (((u.name || "").toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase())))
   );
+
+  const hasUnassignedGroupLeft = smeOptions.groups.some((g) => !assignedGroupSet.has(g));
+  const hasUnassignedUserLeft = [...smeUserIds].some(
+    (id) => !assignedUserSet.has(id) && !userIdsCoveredByAssignedGroups.has(id)
+  );
+  const groupsEmptyMessage =
+    !hasUnassignedGroupLeft && smeOptions.groups.length > 0
+      ? "All IT Expert groups are already assigned to this item."
+      : "No IT Expert groups";
+  const usersEmptyMessage =
+    !hasUnassignedUserLeft && smeUserIds.size > 0
+      ? "All IT Expert users are already assigned to this item."
+      : "No IT Expert users";
 
   return (
     <div ref={ref} className="relative">
@@ -1262,38 +1573,38 @@ function EvidencePicker({
           <div className="max-h-48 overflow-y-auto p-1">
             {view === "groups" &&
               (filteredGroups.length === 0 ? (
-                <p className="py-4 text-center text-xs text-slate-500">No IT Expert groups</p>
+                <p className="py-4 text-center text-xs text-slate-500 px-2">
+                  {hasUnassignedGroupLeft ? "No matches." : groupsEmptyMessage}
+                </p>
               ) : (
                 filteredGroups.map((g) => (
                   <button
                     key={g}
                     type="button"
                     onClick={() => { onAdd("group", g); setOpen(false); }}
-                    disabled={assignedGroups.includes(g)}
-                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 transition-colors"
                   >
                     <span className="font-medium">{g}</span>
-                    {assignedGroups.includes(g) && <span className="text-[#1f4e79] font-bold">✓</span>}
                   </button>
                 ))
               ))}
             {view === "users" &&
               (filteredUsers.length === 0 ? (
-                <p className="py-4 text-center text-xs text-slate-500">No IT Expert users</p>
+                <p className="py-4 text-center text-xs text-slate-500 px-2">
+                  {hasUnassignedUserLeft ? "No matches." : usersEmptyMessage}
+                </p>
               ) : (
                 filteredUsers.map((u) => (
                   <button
                     key={u.id}
                     type="button"
                     onClick={() => { onAdd("user", u.id); setOpen(false); }}
-                    disabled={assignedUsers.includes(u.id)}
-                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs hover:bg-slate-100 transition-colors"
                   >
                     <span className="w-6 h-6 rounded-full bg-[#1f4e79] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
                       {getInitials(u.name || u.email)}
                     </span>
                     <span className="truncate font-medium text-slate-900">{u.name || u.email}</span>
-                    {assignedUsers.includes(u.id) && <span className="text-[#1f4e79] font-bold shrink-0">✓</span>}
                   </button>
                 ))
               ))}

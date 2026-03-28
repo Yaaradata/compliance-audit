@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { useGlobalRoleForRouting } from "@/lib/home-dashboard-role-context";
 import { getControlLinks } from "@/lib/artifact-registry-api";
 import type { ArtifactControlLinkOut } from "@/lib/types";
 
@@ -39,18 +41,28 @@ function reviewerBadge(status: string): { label: string; cls: string } | null {
 }
 
 export function ArtifactControlScores({ artifactId }: ArtifactControlScoresProps) {
+  const { user } = useAuth();
+  const effectiveRole = useGlobalRoleForRouting(user?.role);
   const [links, setLinks] = useState<ArtifactControlLinkOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!artifactId) return;
+    if (effectiveRole === "it_sme" || !artifactId) {
+      setLinks([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     getControlLinks(artifactId)
       .then(setLinks)
       .catch(() => setLinks([]))
       .finally(() => setLoading(false));
-  }, [artifactId]);
+  }, [artifactId, effectiveRole]);
+
+  if (effectiveRole === "it_sme") {
+    return null;
+  }
 
   if (loading) {
     return (

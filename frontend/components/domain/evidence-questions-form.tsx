@@ -45,6 +45,8 @@ export interface EvidenceQuestionsFormProps {
    * Wraps the form in `.swift-review-tpl.swift-review-embed` so CSS variables apply.
    */
   visualVariant?: "default" | "swiftReview";
+  /** Increment to force CompactDropzone to re-fetch the file list from the server. */
+  fileRefreshTrigger?: number;
 }
 
 export type EvidenceFormVisualVariant = "default" | "swiftReview";
@@ -855,6 +857,7 @@ export function EvidenceQuestionsForm({
   awsSuggestionGaps = {},
   awsSuggestRoundDone = false,
   visualVariant = "default",
+  fileRefreshTrigger = 0,
 }: EvidenceQuestionsFormProps) {
   const swift = visualVariant === "swiftReview";
   const [questions, setQuestions] = useState<EvidenceQuestion[]>([]);
@@ -1003,6 +1006,7 @@ export function EvidenceQuestionsForm({
                 label="Drop files or click to upload"
                 onUploadComplete={() => onUploadComplete?.()}
                 onEnsureSubmission={() => onEnsureSubmission?.(evidenceItemId) ?? Promise.resolve(null)}
+                fileRefreshTrigger={fileRefreshTrigger}
               />
             </div>
           );

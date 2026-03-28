@@ -254,3 +254,22 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
+
+// ─── Demo helpers ─────────────────────────────────────────────────────────────
+
+export interface DemoAutofillResult {
+  submission_id: string;
+  evidence_item_id: string;
+  fields_filled: number;
+  file_uploaded: boolean;
+  file_name: string | null;
+}
+
+/**
+ * Autofill form data + upload demo file for a given evidence item.
+ * Reads answers from demo."2026_demo" DB table and downloads the matching
+ * file from GCS demo/ prefix. Does NOT run AI evaluation or submit.
+ */
+export function demoAutofill(cycleId: string, evidenceItemId: string): Promise<DemoAutofillResult> {
+  return api.postViaProxy<DemoAutofillResult>(`/demo/autofill/${cycleId}/${evidenceItemId}`, {});
+}

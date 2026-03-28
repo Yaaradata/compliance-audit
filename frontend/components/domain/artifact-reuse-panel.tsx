@@ -14,15 +14,10 @@ export interface ArtifactReusePanelProps {
   disabled?: boolean;
 }
 
-function ScoreBadge({ controlId, score }: { controlId: string; score: number }) {
-  const pct = Math.round(score * 100);
-  const color =
-    pct >= 80 ? "text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800"
-    : pct >= 50 ? "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/40 dark:border-amber-800"
-    : "text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-950/40 dark:border-red-800";
+function ControlChip({ controlId }: { controlId: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${color}`}>
-      {controlId} {pct}%
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border border-slate-200 bg-white text-slate-800 shadow-sm dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100">
+      {controlId}
     </span>
   );
 }
@@ -246,8 +241,8 @@ export function ArtifactReusePanel({
 
               {Object.keys(c.prior_scores).length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5">
-                  {Object.entries(c.prior_scores).map(([ctrlId, score]) => (
-                    <ScoreBadge key={ctrlId} controlId={ctrlId} score={score} />
+                  {Object.keys(c.prior_scores).map((ctrlId) => (
+                    <ControlChip key={ctrlId} controlId={ctrlId} />
                   ))}
                 </div>
               )}
