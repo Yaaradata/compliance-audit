@@ -85,7 +85,7 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
           <button
             type="button"
             onClick={toggleSidebar}
-            className="md:hidden p-2 -ml-2 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]"
+            className="interactive-icon-btn md:hidden p-2 -ml-2 rounded-lg border border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]"
             aria-label="Open menu"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -112,7 +112,7 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
             <span key={i} className="flex items-center gap-1.5">
               {i > 0 && <span className="text-[var(--foreground-subtle)]">/</span>}
               {item.href ? (
-                <Link href={item.href} className="hover:text-[var(--foreground)] transition-colors">
+                <Link href={item.href} className="interactive-breadcrumb-link text-[var(--foreground-muted)]">
                   {item.label}
                 </Link>
               ) : (
@@ -131,21 +131,21 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
             {activeCycleId && (
               <Link
                 href="/dashboard"
-                className="text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
+                className="interactive-header-btn text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--border)] text-[var(--foreground-muted)]"
               >
                 Back to role dashboard
               </Link>
             )}
             <Link
               href="/assessments/new"
-              className="text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
+              className="interactive-header-btn text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--border)] text-[var(--foreground-muted)]"
             >
               Switch cycle
             </Link>
             <button
               type="button"
               onClick={() => logout()}
-              className="text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
+              className="interactive-header-btn text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--border)] text-[var(--foreground-muted)]"
             >
               Log out
             </button>
@@ -153,7 +153,7 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
               <button
                 type="button"
                 onClick={() => setNotificationOpen((o) => !o)}
-                className="relative h-9 w-9 rounded-full border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors inline-flex items-center justify-center"
+                className="interactive-icon-btn relative h-9 w-9 rounded-full border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] inline-flex items-center justify-center"
                 aria-label={notificationCount > 0 ? `${notificationCount} unread notifications` : "Notifications"}
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -197,7 +197,7 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
                 <button
                   type="button"
                   onClick={() => setProfileOpen((o) => !o)}
-                  className="h-9 w-9 rounded-full inline-flex items-center justify-center text-white text-[11px] font-semibold shrink-0"
+                  className="interactive-profile-btn h-9 w-9 rounded-full inline-flex items-center justify-center text-white text-[11px] font-semibold shrink-0"
                   style={{ background: "var(--primary)" }}
                   title={user.email}
                   aria-label="Open profile menu"
@@ -213,7 +213,7 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
                 <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg z-50 p-1">
                   <Link
                     href="/assessments/new"
-                    className="block rounded-lg px-3 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--background)]"
+                    className="interactive-dropdown-item block rounded-lg px-3 py-2 text-xs text-[var(--foreground)]"
                     onClick={() => setProfileOpen(false)}
                   >
                     Switch cycle
@@ -224,7 +224,7 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
                       setProfileOpen(false);
                       logout();
                     }}
-                    className="block w-full text-left rounded-lg px-3 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--background)]"
+                    className="interactive-dropdown-item block w-full text-left rounded-lg px-3 py-2 text-xs text-[var(--foreground)]"
                   >
                     Log out
                   </button>

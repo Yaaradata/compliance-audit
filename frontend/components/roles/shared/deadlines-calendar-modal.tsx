@@ -40,7 +40,7 @@ export function DeadlinesCalendarModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border px-2.5 py-1 text-xs font-semibold"
+            className="interactive-outline-btn rounded-md border px-2.5 py-1 text-xs font-semibold"
             style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
           >
             Close
@@ -51,7 +51,7 @@ export function DeadlinesCalendarModal({
           <button
             type="button"
             onClick={() => onCalendarMonthChange(addMonths(calendarMonth, -1))}
-            className="rounded-md border px-2.5 py-1 text-xs font-semibold"
+            className="interactive-outline-btn rounded-md border px-2.5 py-1 text-xs font-semibold"
             style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
           >
             Prev
@@ -62,7 +62,7 @@ export function DeadlinesCalendarModal({
           <button
             type="button"
             onClick={() => onCalendarMonthChange(addMonths(calendarMonth, 1))}
-            className="rounded-md border px-2.5 py-1 text-xs font-semibold"
+            className="interactive-outline-btn rounded-md border px-2.5 py-1 text-xs font-semibold"
             style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
           >
             Next

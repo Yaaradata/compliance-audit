@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NewAssessmentCycleModal } from "@/components/assessments/new-assessment-cycle-modal";
 import {
   ComplianceOverviewPanel,
@@ -19,15 +19,24 @@ export function ComplianceOfficerHomeDashboard({
   userName,
   insights,
   loading,
+  onCycleDeleted,
 }: {
   userName: string;
   insights: CycleInsight[];
   loading: boolean;
+  /** Updates global dashboard state so KPIs, deadlines, and lists drop the deleted cycle. */
+  onCycleDeleted?: (cycleId: string) => void;
 }) {
   const cycles = useMemo(() => insights.map((i) => i.cycle), [insights]);
   const [visualCycleId, setVisualCycleId] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isNewCycleOpen, setIsNewCycleOpen] = useState(false);
+
+  useEffect(() => {
+    if (visualCycleId && !insights.some((i) => i.cycle.id === visualCycleId)) {
+      setVisualCycleId(null);
+    }
+  }, [insights, visualCycleId]);
 
   const sortedInsights = useMemo(
     () =>
@@ -244,6 +253,7 @@ export function ComplianceOfficerHomeDashboard({
           sortedInsights={sortedInsights}
           loading={loading}
           onViewVisuals={setVisualCycleId}
+          onCycleDeleted={onCycleDeleted}
         />
 
         <div className="space-y-5">

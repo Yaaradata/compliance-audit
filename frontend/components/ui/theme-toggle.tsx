@@ -33,7 +33,7 @@ export function ThemeToggle({
     <button
       type="button"
       onClick={toggleTheme}
-      className={`p-2 rounded-lg outline-none transition-colors duration-200 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--primary)] ${className}`}
+      className={`interactive-icon-btn p-2 rounded-lg border border-transparent outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--primary)] ${className}`}
       style={{ color: iconColor }}
       title={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
       aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}

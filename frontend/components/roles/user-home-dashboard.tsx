@@ -279,8 +279,8 @@ export function UserHomeDashboard({
   };
   const baseControlClass =
     "inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]";
-  const activeFilterClass = `${baseControlClass} bg-slate-900 text-white border-slate-900`;
-  const inactiveFilterClass = `${baseControlClass} bg-white text-slate-700 border-slate-300 hover:bg-slate-50`;
+  const activeFilterClass = `${baseControlClass} interactive-filter-active bg-slate-900 text-white border-slate-900`;
+  const inactiveFilterClass = `${baseControlClass} interactive-filter-inactive bg-white text-slate-700 border-slate-300 hover:bg-slate-50`;
   const reviewerOverview = useMemo<ReviewerQueueOverviewData>(() => {
     const sourceRows = visualCycleId ? reviewerRows.filter((r) => r.id === visualCycleId) : reviewerRows;
     const totals = sourceRows.reduce(
@@ -354,9 +354,9 @@ export function UserHomeDashboard({
   }, [itExpertRows, visualCycleId]);
 
   const btnPrimarySm =
-    "inline-flex items-center justify-center rounded-md border border-blue-600 bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1";
+    "interactive-btn-blue-filled inline-flex items-center justify-center rounded-md border border-blue-600 bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1";
   const btnSecondarySm =
-    "inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 disabled:opacity-60";
+    "interactive-btn-secondary-outline inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 disabled:opacity-60";
 
   const MiniKpi = ({ label, value, tone }: { label: string; value: string | number; tone: string }) => (
     <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
@@ -529,12 +529,12 @@ export function UserHomeDashboard({
                 value={cycleQuery}
                 onChange={(e) => setCycleQuery(e.target.value)}
                 placeholder="Search cycle name or id"
-                className="h-9 w-full min-w-[200px] rounded-md border border-slate-300 bg-white px-2.5 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:w-56"
+                className="interactive-select h-9 w-full min-w-[200px] rounded-md border border-slate-300 bg-white px-2.5 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:w-56"
               />
               <select
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as "urgency" | "queue" | "name")}
-                className="h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                className="interactive-select h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
               >
                 <option value="urgency">Sort: Urgency</option>
                 <option value="queue">{showItExpertVisualization ? "Sort: Work backlog" : "Sort: Queue load"}</option>
@@ -763,7 +763,7 @@ export function UserHomeDashboard({
               <Link
                 key={r.id}
                 href={r.href}
-                className="block rounded-lg border p-2.5 transition hover:-translate-y-0.5 hover:shadow-sm"
+                className="interactive-card-link block rounded-lg border p-2.5 hover:-translate-y-0.5"
                 style={{ borderColor: "#cbd5e1", background: "#ffffff", boxShadow: "0 1px 2px rgba(15,23,42,0.06)" }}
               >
                 <div className="flex items-center justify-between gap-3">

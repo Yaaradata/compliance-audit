@@ -22,7 +22,7 @@ export function DashboardKpiGrid({
           key={kpi.label}
           href={kpi.href}
           aria-label={kpi.aria}
-          className="group rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+          className="interactive-kpi-card group rounded-xl border p-3 transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
           <div className="flex items-start justify-between gap-2">

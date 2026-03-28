@@ -28,7 +28,7 @@ export function ReviewerReviewDeadlinesPanel({
         <button
           type="button"
           onClick={onOpenCalendar}
-          className="shrink-0 text-xs font-medium hover:underline"
+          className="interactive-text-link shrink-0 text-xs font-medium"
           style={{ color: "var(--primary)" }}
         >
           Calendar
@@ -39,7 +39,7 @@ export function ReviewerReviewDeadlinesPanel({
           <Link
             key={row.cycle.id}
             href={`/cycles/${row.cycle.id}/review`}
-            className="block rounded-lg border p-2.5 transition hover:border-[var(--primary)] hover:shadow-sm"
+            className="interactive-card-link block rounded-lg border p-2.5"
             style={{ borderColor: "var(--border)", background: "var(--background)" }}
           >
             <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>

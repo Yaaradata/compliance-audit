@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -16,6 +16,7 @@ type CyclePerformanceCardProps = {
 export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePerformanceCardProps) {
   const c = row.cycle;
   const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const phaseIdx = phaseStep(c.phase);
   const completionPct = Math.round((phaseIdx / (PHASE_ORDER.length - 1)) * 100);
   const evidenceDone = row.dashboard?.evidence_items ?? 0;
@@ -52,21 +53,41 @@ export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePer
   const remainingUsers = Math.max(0, row.relatedUsers.length - relatedUsers.length);
   const cycleInitials = initials(c.label || c.display_id || "CY");
 
-  const handleDelete = async () => {
+  useEffect(() => {
+    if (!deleteDialogOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !deleting) setDeleteDialogOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [deleteDialogOpen, deleting]);
+
+  const openDeleteDialog = () => {
     if (deleting) return;
-    if (!confirm(`Delete "${c.label}"? This permanently removes the cycle and its data.`)) return;
+    setDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    if (deleting) return;
+    setDeleteDialogOpen(false);
+  };
+
+  const executeDelete = async () => {
+    if (deleting) return;
     setDeleting(true);
     try {
       await api.del(`/assessments/${c.id}`);
+      setDeleteDialogOpen(false);
       onDeleted?.(c.id);
     } catch {
-      // keep card visible on failure
+      // keep dialog open so the user can cancel or retry
     } finally {
       setDeleting(false);
     }
   };
 
   return (
+    <>
     <div
       className="rounded-2xl border p-0 overflow-hidden"
       style={{
@@ -142,23 +163,23 @@ export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePer
             <button
               type="button"
               onClick={() => onViewVisuals(c.id)}
-              className="inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold"
+              className="interactive-outline-btn inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold"
               style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
             >
               View visuals
             </button>
             <Link
               href={cycleEntryPath(c)}
-              className="inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold"
+              className="interactive-outline-primary-btn inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold"
               style={{ borderColor: "var(--primary)", color: "var(--primary)" }}
             >
               Open cycle
             </Link>
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={openDeleteDialog}
               disabled={deleting}
-              className="inline-flex items-center justify-center rounded-lg border p-2 text-red-600 hover:bg-red-50 disabled:opacity-60"
+              className="interactive-danger-btn inline-flex items-center justify-center rounded-lg border p-2 text-red-600 disabled:opacity-60"
               style={{ borderColor: deleting ? "#fecaca" : "#fca5a5" }}
               aria-label={`Delete cycle ${c.label}`}
               title={deleting ? "Deleting..." : "Delete cycle"}
@@ -291,5 +312,66 @@ export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePer
         </div>
       </div>
     </div>
+
+    {deleteDialogOpen && (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-cycle-dialog-title"
+        aria-describedby="delete-cycle-dialog-desc"
+      >
+        <div
+          role="presentation"
+          className="absolute inset-0 bg-black/40"
+          onClick={deleting ? undefined : closeDeleteDialog}
+          aria-hidden
+        />
+        <div
+          className="relative w-full max-w-md rounded-2xl border p-5 shadow-xl"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        >
+          <h2 id="delete-cycle-dialog-title" className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+            Delete assessment cycle?
+          </h2>
+          <p id="delete-cycle-dialog-desc" className="mt-3 text-sm leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
+            This will permanently delete this assessment cycle and all related data—including evidence, reviews, and progress.
+            This action cannot be undone.
+          </p>
+          <div
+            className="mt-4 rounded-lg border px-3 py-2.5 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--background)" }}
+          >
+            <p className="font-semibold" style={{ color: "var(--foreground)" }}>
+              {c.label}
+            </p>
+            <p className="mt-0.5 text-xs font-mono" style={{ color: "var(--foreground-muted)" }}>
+              {c.display_id}
+              {c.cycle_year != null ? ` · Year ${c.cycle_year}` : ""}
+            </p>
+          </div>
+          <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeDeleteDialog}
+              disabled={deleting}
+              className="interactive-outline-btn rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-60"
+              style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={executeDelete}
+              disabled={deleting}
+              className="rounded-lg border border-red-600 bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-60"
+            >
+              {deleting ? "Deleting…" : "Delete cycle"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

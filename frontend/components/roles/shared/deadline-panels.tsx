@@ -18,7 +18,7 @@ export function UpcomingDeadlinesPanel({ deadlineRows, loading, onOpenCalendar }
         <button
           type="button"
           onClick={onOpenCalendar}
-          className="text-xs font-medium hover:underline"
+          className="interactive-text-link text-xs font-medium"
           style={{ color: "var(--primary)" }}
         >
           Calendar view
@@ -86,7 +86,7 @@ export function DeadlineLinksSection({
           <Link
             key={d.id}
             href={cycleDashboardHref(d.id)}
-            className="block rounded-lg border p-2.5 transition hover:shadow-sm"
+            className="interactive-card-link block rounded-lg border p-2.5"
             style={{ borderColor: "var(--border)", background: "var(--background)" }}
           >
             <p className="truncate text-sm font-semibold" style={{ color: "var(--foreground)" }}>

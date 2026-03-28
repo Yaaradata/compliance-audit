@@ -88,8 +88,7 @@ export default function AssessmentsPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-6">
       <div className="max-w-3xl mx-auto">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-          <h1 className="text-2xl font-bold text-gray-900">Your Assessment Cycles</h1>
+        <div className="flex flex-wrap items-center justify-end gap-2 mb-1">
           <Link href="/dashboard" className="text-sm font-medium text-blue-600 hover:underline">
             ← Back to dashboard
           </Link>

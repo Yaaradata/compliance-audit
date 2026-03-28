@@ -42,7 +42,7 @@ export function RoleDashboardHero({
                   key={a.label}
                   type="button"
                   onClick={a.onClick}
-                  className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  className="interactive-hero-action rounded-xl px-4 py-2 text-sm font-semibold text-white"
                   style={{ background: a.gradient }}
                 >
                   {a.label}
@@ -51,7 +51,7 @@ export function RoleDashboardHero({
                 <Link
                   key={a.href + a.label}
                   href={a.href}
-                  className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  className="interactive-hero-action rounded-xl px-4 py-2 text-sm font-semibold text-white"
                   style={{ background: a.gradient }}
                 >
                   {a.label}

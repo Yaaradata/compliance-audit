@@ -32,13 +32,13 @@ export function ComplianceOverviewPanel({
             <button
               type="button"
               onClick={onShowAllCycles}
-              className="text-xs font-medium hover:underline"
+              className="interactive-text-link text-xs font-medium"
               style={{ color: "var(--primary)" }}
             >
               Show all cycles
             </button>
           )}
-          <Link href="/report" className="text-xs font-medium hover:underline" style={{ color: "var(--primary)" }}>
+          <Link href="/report" className="interactive-text-link text-xs font-medium" style={{ color: "var(--primary)" }}>
             Details
           </Link>
         </div>
@@ -110,7 +110,7 @@ export function ReviewerQueueOverviewPanel({
         <div className="flex flex-wrap items-center gap-3">
           {showScope && (
             <select
-              className="max-w-[200px] rounded-lg border px-2.5 py-1.5 text-xs"
+              className="interactive-select max-w-[200px] rounded-lg border px-2.5 py-1.5 text-xs"
               style={{ borderColor: "var(--border)", background: "var(--background)", color: "var(--foreground)" }}
               value={visualCycleId ?? ""}
               onChange={(e) => onVisualCycleChange?.(e.target.value || null)}
@@ -127,13 +127,13 @@ export function ReviewerQueueOverviewPanel({
             <button
               type="button"
               onClick={onShowAllCycles}
-              className="text-xs font-medium hover:underline"
+              className="interactive-text-link text-xs font-medium"
               style={{ color: "var(--primary)" }}
             >
               Show all cycles
             </button>
           )}
-          <Link href="/report" className="text-xs font-medium hover:underline" style={{ color: "var(--primary)" }}>
+          <Link href="/report" className="interactive-text-link text-xs font-medium" style={{ color: "var(--primary)" }}>
             Reporting
           </Link>
         </div>
@@ -207,14 +207,14 @@ export function ItExpertVisualizationPanel({
             <button
               type="button"
               onClick={() => onVisualCycleChange(null)}
-              className="text-xs font-medium hover:underline"
+              className="interactive-text-link text-xs font-medium"
               style={{ color: "var(--primary)" }}
             >
               Show all cycles
             </button>
           )}
           <select
-            className="rounded-lg border px-2.5 py-1.5 text-xs"
+            className="interactive-select rounded-lg border px-2.5 py-1.5 text-xs"
             style={{ borderColor: "var(--border)", background: "var(--background)", color: "var(--foreground)" }}
             value={visualCycleId ?? ""}
             onChange={(e) => onVisualCycleChange(e.target.value || null)}

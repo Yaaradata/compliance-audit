@@ -59,6 +59,17 @@
   --scrollbar-track: transparent;
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-thumb-hover: #94a3b8;
+
+  /* Hover glow tokens (buttons / links on role dashboards) */
+  --interactive-glow-primary:
+    0 0 0 2px color-mix(in srgb, var(--primary) 38%, transparent),
+    0 6px 22px color-mix(in srgb, var(--primary) 30%, transparent);
+  --interactive-glow-subtle:
+    0 0 0 2px color-mix(in srgb, var(--primary) 24%, transparent),
+    0 4px 16px color-mix(in srgb, var(--primary) 16%, transparent);
+  --interactive-glow-danger:
+    0 0 0 2px color-mix(in srgb, var(--danger) 38%, transparent),
+    0 4px 18px color-mix(in srgb, var(--danger) 26%, transparent);
 }
 
 /* Dark theme */
@@ -145,10 +156,16 @@ body {
   color: white;
   border-radius: var(--radius);
   font-weight: 600;
-  transition: background var(--transition), transform 0.1s ease;
+  transition:
+    background var(--transition),
+    transform 0.1s ease,
+    box-shadow var(--transition),
+    filter var(--transition);
 }
 .btn-primary:hover {
   background: var(--primary-hover);
+  box-shadow: var(--interactive-glow-primary);
+  filter: brightness(1.04);
 }
 .btn-primary:active {
   transform: scale(0.99);
@@ -218,4 +235,214 @@ body {
 }
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--sidebar-text);
+}
+
+/* ——— Role dashboards & header: interactive hover (glow + color shift) ——— */
+.interactive-hero-action {
+  transition:
+    box-shadow var(--transition),
+    transform 0.12s ease,
+    filter var(--transition);
+}
+.interactive-hero-action:hover {
+  box-shadow: var(--interactive-glow-primary);
+  filter: brightness(1.07);
+}
+.interactive-hero-action:active {
+  transform: scale(0.99);
+}
+
+.interactive-header-btn {
+  transition:
+    box-shadow var(--transition),
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+.interactive-header-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-muted);
+  box-shadow: var(--interactive-glow-subtle);
+}
+
+.interactive-icon-btn {
+  transition:
+    box-shadow var(--transition),
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+.interactive-icon-btn:hover {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+  color: var(--primary);
+  box-shadow: var(--interactive-glow-subtle);
+}
+
+.interactive-profile-btn {
+  transition: box-shadow var(--transition), background-color var(--transition), filter var(--transition);
+}
+.interactive-profile-btn:hover {
+  background: var(--primary-hover);
+  box-shadow: var(--interactive-glow-primary);
+  filter: brightness(1.05);
+}
+
+.interactive-outline-btn {
+  transition:
+    box-shadow var(--transition),
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+.interactive-outline-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-muted);
+  box-shadow: var(--interactive-glow-subtle);
+}
+
+.interactive-outline-primary-btn {
+  transition:
+    box-shadow var(--transition),
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    filter var(--transition);
+}
+.interactive-outline-primary-btn:hover {
+  background: var(--primary-muted);
+  border-color: var(--primary-hover);
+  color: var(--primary-hover);
+  box-shadow: var(--interactive-glow-subtle);
+  filter: brightness(1.02);
+}
+
+.interactive-danger-btn {
+  transition:
+    box-shadow var(--transition),
+    background-color var(--transition),
+    border-color var(--transition);
+}
+.interactive-danger-btn:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+  box-shadow: var(--interactive-glow-danger);
+}
+
+.interactive-text-link {
+  transition:
+    color var(--transition),
+    background-color var(--transition),
+    box-shadow var(--transition),
+    text-decoration-color var(--transition);
+  border-radius: 4px;
+  padding: 0.125rem 0.25rem;
+  margin: -0.125rem -0.25rem;
+}
+.interactive-text-link:hover {
+  color: var(--primary-hover);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+  text-decoration: underline;
+}
+
+.interactive-breadcrumb-link {
+  transition: color var(--transition), box-shadow var(--transition), background-color var(--transition);
+  border-radius: 4px;
+  padding: 0.125rem 0.25rem;
+  margin: -0.125rem -0.25rem;
+}
+.interactive-breadcrumb-link:hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.interactive-btn-blue-filled {
+  transition:
+    box-shadow var(--transition),
+    background-color var(--transition),
+    border-color var(--transition),
+    filter var(--transition);
+}
+.interactive-btn-blue-filled:hover:not(:disabled) {
+  box-shadow: var(--interactive-glow-primary);
+  filter: brightness(1.05);
+}
+
+.interactive-btn-secondary-outline {
+  transition:
+    box-shadow var(--transition),
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+.interactive-btn-secondary-outline:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--primary-muted);
+  color: var(--primary);
+  box-shadow: var(--interactive-glow-subtle);
+}
+
+.interactive-filter-inactive:hover {
+  border-color: var(--primary);
+  box-shadow: var(--interactive-glow-subtle);
+}
+
+.interactive-filter-active:hover {
+  box-shadow: var(--interactive-glow-subtle);
+}
+
+.interactive-solid-primary {
+  background: var(--primary);
+  color: white;
+  transition:
+    box-shadow var(--transition),
+    background-color var(--transition),
+    filter var(--transition);
+}
+.interactive-solid-primary:hover {
+  background: var(--primary-hover);
+  box-shadow: var(--interactive-glow-primary);
+  filter: brightness(1.03);
+}
+
+.interactive-dropdown-item {
+  transition: background-color var(--transition), box-shadow var(--transition);
+}
+.interactive-dropdown-item:hover {
+  background: var(--primary-muted);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.interactive-kpi-card {
+  transition:
+    box-shadow var(--transition),
+    transform var(--transition),
+    border-color var(--transition);
+}
+.interactive-kpi-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  box-shadow: var(--interactive-glow-subtle), var(--shadow-md);
+}
+
+.interactive-select {
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+.interactive-select:hover {
+  border-color: var(--primary);
+  box-shadow: var(--interactive-glow-subtle);
+}
+
+.interactive-card-link {
+  transition:
+    box-shadow var(--transition),
+    transform var(--transition),
+    border-color var(--transition);
+}
+.interactive-card-link:hover {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+  box-shadow: var(--interactive-glow-subtle);
 }

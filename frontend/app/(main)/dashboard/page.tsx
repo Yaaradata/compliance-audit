@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   RoleHomeDashboard,
   ComplianceOfficerHomeDashboard,
@@ -61,7 +61,7 @@ function DashboardLoadingSkeleton() {
  * the per-cycle collection workspace when a cycle is active.
  */
 export default function DashboardHomePage() {
-  const { user, activeCycleId, activeCycleMeta, loading: authLoading } = useAuth();
+  const { user, activeCycleId, activeCycleMeta, setActiveCycleId, loading: authLoading } = useAuth();
   const { setHomeDerivedRole } = useHomeDashboardRole();
   const [cycles, setCycles] = useState<AssessmentCycle[]>([]);
   const [cyclesLoading, setCyclesLoading] = useState(true);
@@ -72,6 +72,20 @@ export default function DashboardHomePage() {
    * `undefined` = still probing; `null` = probed, no role; otherwise derived tenant role for home + routing.
    */
   const [derivedCycleRole, setDerivedCycleRole] = useState<UserRole | null | undefined>(undefined);
+  /** After an optimistic cycle delete, skip the next insights reload so the UI does not flash loading. */
+  const skipInsightsReloadRef = useRef(false);
+
+  const handleCycleDeleted = useCallback(
+    (cycleId: string) => {
+      skipInsightsReloadRef.current = true;
+      setCycles((prev) => prev.filter((c) => c.id !== cycleId));
+      setInsights((prev) => prev.filter((i) => i.cycle.id !== cycleId));
+      if (activeCycleId === cycleId) {
+        setActiveCycleId(null);
+      }
+    },
+    [activeCycleId, setActiveCycleId]
+  );
 
   useEffect(() => {
     if (!user) {
@@ -179,6 +193,11 @@ export default function DashboardHomePage() {
       return;
     }
 
+    if (skipInsightsReloadRef.current) {
+      skipInsightsReloadRef.current = false;
+      return;
+    }
+
     let cancelled = false;
     async function loadInsights() {
       setInsightsLoading(true);
@@ -242,7 +261,14 @@ export default function DashboardHomePage() {
   if (probingPerCycleRole || waitingForDerivedRole) return <DashboardLoadingSkeleton />;
 
   if (effectiveRole === "compliance_officer") {
-    return <ComplianceOfficerHomeDashboard userName={user.name} insights={insights} loading={loading} />;
+    return (
+      <ComplianceOfficerHomeDashboard
+        userName={user.name}
+        insights={insights}
+        loading={loading}
+        onCycleDeleted={handleCycleDeleted}
+      />
+    );
   }
 
   if (

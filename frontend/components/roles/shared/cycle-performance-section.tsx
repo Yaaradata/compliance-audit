@@ -1,11 +1,12 @@
 import type { CycleInsight } from "@/components/roles/shared/compliance-types";
 import { CyclePerformanceCard } from "@/components/roles/shared/cycle-performance-card";
-import { useMemo, useState } from "react";
 
 type CyclePerformanceSectionProps = {
   sortedInsights: CycleInsight[];
   loading: boolean;
   onViewVisuals: (cycleId: string) => void;
+  /** Called after a cycle is successfully deleted so parent state can refresh (KPIs, deadlines, etc.). */
+  onCycleDeleted?: (cycleId: string) => void;
   title?: string;
   subtitle?: string;
   emptyMessage?: string;
@@ -17,16 +18,13 @@ export function CyclePerformanceSection({
   sortedInsights,
   loading,
   onViewVisuals,
+  onCycleDeleted,
   title = "Cycle-wise performance",
   subtitle = "Status, progress, and direct navigation",
   emptyMessage = "No cycles available. Create your first assessment cycle to start tracking execution.",
   stacked = false,
 }: CyclePerformanceSectionProps) {
-  const [deletedCycleIds, setDeletedCycleIds] = useState<Set<string>>(new Set());
-  const visibleInsights = useMemo(
-    () => sortedInsights.filter((row) => !deletedCycleIds.has(row.cycle.id)),
-    [sortedInsights, deletedCycleIds]
-  );
+  const visibleInsights = sortedInsights;
 
   return (
     <div
@@ -47,13 +45,7 @@ export function CyclePerformanceSection({
             key={row.cycle.id}
             row={row}
             onViewVisuals={onViewVisuals}
-            onDeleted={(cycleId) =>
-              setDeletedCycleIds((prev) => {
-                const next = new Set(prev);
-                next.add(cycleId);
-                return next;
-              })
-            }
+            onDeleted={onCycleDeleted}
           />
         ))}
         {!loading && visibleInsights.length === 0 && (

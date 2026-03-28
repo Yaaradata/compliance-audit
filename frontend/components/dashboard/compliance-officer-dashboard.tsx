@@ -173,13 +173,13 @@ export function ComplianceOfficerDashboard({ cycleId }: { cycleId: string }) {
       <section aria-label="Quick actions" className="flex flex-wrap gap-3">
         <Link
           href={`/cycles/${cycleId}/review`}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200/80 transition-[box-shadow,background-color,transform] hover:bg-blue-200 hover:shadow-[var(--interactive-glow-subtle)] active:scale-[0.99]"
         >
           Review Queue
         </Link>
         <Link
           href={`/cycles/${cycleId}/approval`}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-violet-100 text-violet-800 hover:bg-violet-200 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-violet-100 text-violet-800 border border-violet-200/80 transition-[box-shadow,background-color,transform] hover:bg-violet-200 hover:shadow-[var(--interactive-glow-subtle)] active:scale-[0.99]"
         >
           Approval Gates
         </Link>

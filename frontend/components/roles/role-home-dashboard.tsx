@@ -90,8 +90,7 @@ export function RoleHomeDashboard({
         <div className="mt-4">
           <Link
             href="/assessments/new"
-            className="inline-flex rounded-xl px-4 py-2 text-sm font-semibold text-white transition hover:opacity-95"
-            style={{ background: "var(--primary)" }}
+            className="interactive-solid-primary inline-flex rounded-xl px-4 py-2 text-sm font-semibold text-white"
           >
             Go to assessment cycles
           </Link>
