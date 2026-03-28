@@ -145,3 +145,4 @@ class EvidenceBasedQuestion(Base):
     reason_rationale: Mapped[str | None] = mapped_column(Text)
     show_when_question: Mapped[str | None] = mapped_column(String(100))
     show_when_values: Mapped[list | None] = mapped_column(JSONB, server_default="[]")
+    answers: Mapped[str | None] = mapped_column(Text)

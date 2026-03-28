@@ -30,6 +30,12 @@ import {
   cycleEntryPath,
 } from "@/components/roles/shared/utils";
 
+const IconSearch = () => (
+  <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+
 type CycleCardRow = {
   id: string;
   label: string;
@@ -383,10 +389,10 @@ export function UserHomeDashboard({
       selectedCycleHealthPct: first?.dashboard?.overall_score ?? 0,
       selectedCycleCreatedOn: firstCycle?.created_at ? new Date(firstCycle.created_at).toLocaleDateString() : "n/a",
       rows: [
-        { label: "Evidence Submitted", value: submittedPct, count: evidenceSubmitted, color: "#14b8a6" },
-        { label: "Evidence Not Submitted", value: notSubmittedPct, count: evidenceNotSubmitted, color: "#f59e0b" },
+        { label: "Evidence Submitted", value: submittedPct, count: evidenceSubmitted, color: "#2563eb" },
+        { label: "Evidence Not Submitted", value: notSubmittedPct, count: evidenceNotSubmitted, color: "#ea580c" },
         { label: "Review Completed", value: reviewCompletedPct, count: reviewCompleted, color: "#10b981" },
-        { label: "In Review", value: inReviewPct, count: inReview, color: "#3b82f6" },
+        { label: "In Review", value: inReviewPct, count: inReview, color: "#38bdf8" },
       ],
     };
   }, [rows, visualCycleId, cycles]);
@@ -420,7 +426,7 @@ export function UserHomeDashboard({
     "interactive-outline-btn dashboard-btn-pill inline-flex items-center justify-center border-2 bg-white text-sm font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1";
 
   const MiniKpi = ({ label, value, tone }: { label: string; value: string | number; tone: string }) => (
-    <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+    <div className="rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 shadow-sm">
       <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--foreground-muted)" }}>
         {label}
       </p>
@@ -428,8 +434,10 @@ export function UserHomeDashboard({
     </div>
   );
 
+  const itExpertMeterBar = "bg-[#D2691E]";
+
   return (
-    <div className="w-full space-y-5 pb-6">
+    <div className="w-full space-y-5 bg-[#f8fafc] pb-6">
       <RoleDashboardHero
         eyebrow="Your Dashboard"
         greetingName={firstName}
@@ -457,8 +465,11 @@ export function UserHomeDashboard({
             label: "Assigned cycles",
             value: String(accessible),
             sub: showItExpertVisualization ? "Cycles where you have a role" : "Cycles assigned to this user",
-            tone: "bg-[var(--primary-muted)] text-[var(--primary)]",
+            tone: showItExpertVisualization
+              ? "bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200"
+              : "bg-[var(--primary-muted)] text-[var(--primary)]",
             meter: Math.min(100, accessible * 20),
+            meterBarClass: showItExpertVisualization ? itExpertMeterBar : undefined,
           },
           {
             label: "In progress",
@@ -466,6 +477,7 @@ export function UserHomeDashboard({
             sub: "Active phases (not submitted)",
             tone: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
             meter: accessible ? Math.round((inProgress / Math.max(1, accessible)) * 100) : 0,
+            meterBarClass: showItExpertVisualization ? itExpertMeterBar : undefined,
           },
           {
             label: "Evidence uploaded",
@@ -473,6 +485,7 @@ export function UserHomeDashboard({
             sub: showItExpertVisualization ? "Evidence items you have submitted" : "Submissions uploaded by IT Expert",
             tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
             meter: Math.min(100, evidenceUploaded * 6),
+            meterBarClass: showItExpertVisualization ? itExpertMeterBar : undefined,
           },
           {
             label: "In review",
@@ -480,6 +493,7 @@ export function UserHomeDashboard({
             sub: showItExpertVisualization ? "Your submissions currently in review" : "Items in the review queue",
             tone: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
             meter: Math.min(100, aiInReview * 10),
+            meterBarClass: showItExpertVisualization ? itExpertMeterBar : undefined,
           },
         ]}
         loading={loading}
@@ -488,8 +502,7 @@ export function UserHomeDashboard({
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <div
-          className="rounded-2xl border p-4 sm:p-5 xl:col-span-2"
-          style={{ borderColor: "#cbd5e1", background: "#ffffff" }}
+          className="rounded-lg border border-[#e5e7eb] bg-white p-4 shadow-sm sm:p-5 xl:col-span-2"
         >
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
@@ -529,7 +542,7 @@ export function UserHomeDashboard({
               </button>
             </div>
           )}
-          <div className="mb-3 flex flex-col gap-2 rounded-xl border p-2.5 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "#cfd8e3", background: "#ffffff" }}>
+          <div className="mb-3 flex flex-col gap-2 rounded-lg border border-[#e5e7eb] bg-white p-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               {showItExpertVisualization ? (
                 <>
@@ -590,17 +603,22 @@ export function UserHomeDashboard({
               )}
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <input
-                type="search"
-                value={cycleQuery}
-                onChange={(e) => setCycleQuery(e.target.value)}
-                placeholder="Search cycle name or id"
-                className="interactive-select h-9 w-full min-w-[200px] rounded-md border border-slate-300 bg-white px-2.5 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:w-56"
-              />
+              <div className="relative w-full min-w-[200px] sm:w-56">
+                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2">
+                  <IconSearch />
+                </span>
+                <input
+                  type="search"
+                  value={cycleQuery}
+                  onChange={(e) => setCycleQuery(e.target.value)}
+                  placeholder="Search cycle name or id"
+                  className="interactive-select h-9 w-full rounded-md border border-slate-300 bg-white py-2 pl-9 pr-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D2691E]/40"
+                />
+              </div>
               <select
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as "urgency" | "queue" | "name")}
-                className="interactive-select h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                className="interactive-select h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm font-semibold text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D2691E]/40"
               >
                 <option value="urgency">Sort: Urgency</option>
                 <option value="queue">{showItExpertVisualization ? "Sort: Work backlog" : "Sort: Queue load"}</option>
@@ -635,20 +653,17 @@ export function UserHomeDashboard({
             return (
               <div
                 key={r.id}
-                className={`relative rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md ${
+                className={`relative rounded-lg border border-[#e5e7eb] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                   r.role === "it_sme" && !disabled ? "cursor-pointer" : ""
                 }`}
                 style={{
-                  borderColor: "#cbd5e1",
-                  background: "#ffffff",
-                  boxShadow: "0 1px 3px rgba(15,23,42,0.08)",
                   opacity: disabled ? 0.6 : 1,
                 }}
               >
                 {r.role === "it_sme" && !disabled && (
                   <Link
                     href={itExpertOpenHref}
-                    className="absolute inset-0 z-10 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+                    className="absolute inset-0 z-10 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D2691E]"
                     aria-label={`Open cycle ${r.label}`}
                   />
                 )}
@@ -722,9 +737,9 @@ export function UserHomeDashboard({
                           {evidenceDone}/{evidenceTotal} ({evidencePct}%)
                         </p>
                       </div>
-                      <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700">
+                      <div className="h-2 rounded-full bg-sky-100 dark:bg-slate-700">
                         <div
-                          className="h-2 rounded-full bg-cyan-500"
+                          className="h-2 rounded-full bg-sky-500"
                           style={{ width: `${Math.max(0, Math.min(100, evidencePct))}%` }}
                         />
                       </div>
@@ -804,8 +819,6 @@ export function UserHomeDashboard({
                     </div>
                   </div>
                 )}
-
-                <div className="mt-3 border-t pt-3" style={{ borderColor: "#dbe3ee" }} />
               </div>
             );
           })}

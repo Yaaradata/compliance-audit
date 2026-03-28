@@ -27,7 +27,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = SCRIPT_DIR.parent
 REPO_ROOT = BACKEND_DIR.parent
 
-DEFAULT_FILE = REPO_ROOT / "SWIFT_2025.evidence_based-questions - studio_results_20260326_enriched.csv.csv"
+DEFAULT_FILE = REPO_ROOT / "Swift_2025_Evidence_Based_Question_Updated.csv"
 
 REQUIRED_COLUMNS = [
     "id",
@@ -185,6 +185,7 @@ def build_payload(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "aws_services": to_text(row["aws_services"]),
                     "question_level_aws_sources": to_text(row["question_level_aws_sources"]),
                     "reason_rationale": to_text(row["reason_rationale"]),
+                    "answers": to_text(row.get("answers")),
                 }
             )
         except Exception as exc:
@@ -230,6 +231,7 @@ def run(csv_path: Path, truncate_first: bool) -> int:
                 "aws_services",
                 "question_level_aws_sources",
                 "reason_rationale",
+                "answers",
             ]
             insert_columns = [c for c in ordered_columns if c in existing_columns]
             cast_types = {

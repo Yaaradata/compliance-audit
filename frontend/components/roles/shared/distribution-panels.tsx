@@ -36,7 +36,7 @@ export function ComplianceOverviewPanel({
   const outline = dashboardOutlineStyle(role ?? null);
   const showScope = Boolean(cycleOptions?.length && onVisualCycleChange);
   return (
-    <div className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+    <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 shadow-sm">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
           Compliance Overview

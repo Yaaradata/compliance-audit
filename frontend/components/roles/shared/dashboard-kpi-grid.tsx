@@ -69,8 +69,8 @@ export function StatKpiArticleGrid({
       {items.map((kpi) => (
         <article
           key={kpi.label}
-          className="rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-md"
-          style={{ borderColor: "#d6dee8", background: "#ffffff" }}
+          className="rounded-lg border p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+          style={{ borderColor: "#e5e7eb", background: "#ffffff" }}
         >
           <div className="flex items-start justify-between gap-2">
             <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--foreground-muted)" }}>
@@ -86,7 +86,7 @@ export function StatKpiArticleGrid({
           </p>
           <div className="mt-2 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700">
             <div
-              className="h-1.5 rounded-full bg-[var(--primary)] transition-all"
+              className={`h-1.5 rounded-full transition-all ${kpi.meterBarClass ?? "bg-[var(--primary)]"}`}
               style={{ width: `${loading ? 20 : kpi.meter}%` }}
               aria-hidden
             />

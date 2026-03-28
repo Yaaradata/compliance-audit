@@ -75,6 +75,8 @@ export type StatKpiArticle = {
   sub: string;
   tone: string;
   meter: number;
+  /** Tailwind classes for the bottom meter bar (defaults to primary CSS var). */
+  meterBarClass?: string;
 };
 
 export type ItExpertCycleRow = {
