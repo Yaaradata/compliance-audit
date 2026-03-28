@@ -6,6 +6,8 @@ from datetime import datetime, timezone, time
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from collections import defaultdict
+
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -17,6 +19,7 @@ from ..models.assessment import AssessmentCycle, CyclePhaseDeadline, ControlAppl
 from ..models.approval import ApprovalGate
 from ..models.framework import Control, EvidenceDomain, CanonicalEvidenceItem, AuditFramework, ItemControlMapping
 from ..models.sufficiency import SufficiencyScore
+from ..models.review import ReviewAssignment
 from ..schemas.assessment import (
     CreateCycleRequest, UpdateCycleRequest, CycleOut,
     PhaseDeadlineOut,
@@ -485,6 +488,54 @@ def sufficiency_detail(
     return controls_router.get_sufficiency_detail(cycle_id, db, user)
 
 
+_REVIEW_L2 = "l2_quality"
+_REVIEW_L3 = "l3_assessment"
+
+
+def _review_pipeline_breakdown(db: Session, submissions: list) -> tuple[int, int, int, int]:
+    """
+    Evidence awaiting review (same notion as the CO dashboard KPI).
+
+    - DB `submitted`: submitted for review, waiting on L1 (maps to review_pending_l1).
+    - DB `in_review`: past L1; split using open L2/L3 assignments (L2 before L3).
+
+    Returns (evidence_in_review_total, review_pending_l1, review_pending_l2, review_pending_l3).
+    """
+    pipeline_total = sum(
+        1 for s in submissions if (s.status or "").lower() in ("submitted", "in_review")
+    )
+    sub_ids = [s.id for s in submissions]
+    if not sub_ids:
+        return (0, 0, 0, 0)
+
+    revs = db.query(ReviewAssignment).filter(ReviewAssignment.submission_id.in_(sub_ids)).all()
+    by_sub: dict = defaultdict(list)
+    for r in revs:
+        by_sub[r.submission_id].append(r)
+
+    def approved(r: ReviewAssignment) -> bool:
+        return (r.status or "").lower() == "approved"
+
+    l1c = sum(1 for s in submissions if (s.status or "").lower() == "submitted")
+    l2c = l3c = 0
+    for sub in submissions:
+        if (sub.status or "").lower() != "in_review":
+            continue
+        rs = by_sub.get(sub.id, [])
+        l2_ra = next((x for x in rs if x.level == _REVIEW_L2), None)
+        l3_ra = next((x for x in rs if x.level == _REVIEW_L3), None)
+        if l2_ra and not approved(l2_ra):
+            l2c += 1
+        elif l3_ra and not approved(l3_ra):
+            l3c += 1
+
+    remainder = pipeline_total - l1c - l2c - l3c
+    if remainder > 0:
+        l2c += remainder
+
+    return (pipeline_total, l1c, l2c, l3c)
+
+
 @router.get("/{cycle_id}/dashboard", response_model=DashboardResponse)
 def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User = Depends(get_current_user)):
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
@@ -584,7 +635,7 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
     else:
         total_evidence = sum((d.item_count or 0) for d in domains)
     completed_evidence = sum(1 for s in submissions if s.status in ("approved", "submitted", "in_review"))
-    in_review_evidence = sum(1 for s in submissions if (s.status or "").lower() == "in_review")
+    in_review_evidence, rp_l1, rp_l2, rp_l3 = _review_pipeline_breakdown(db, submissions)
     overall = round(
         (sum(cs.score for cs in control_scores) / len(control_scores)) if control_scores else 0, 1
     )
@@ -595,6 +646,9 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
         total_controls=len(control_scores),
         evidence_items=completed_evidence,
         evidence_in_review=in_review_evidence,
+        review_pending_l1=rp_l1,
+        review_pending_l2=rp_l2,
+        review_pending_l3=rp_l3,
         total_evidence_items=total_evidence,
         gaps_identified=len(gaps),
         domain_scores=domain_scores,

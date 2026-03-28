@@ -39,8 +39,11 @@ export type CycleDashboard = {
   mandatory_controls: number;
   total_controls: number;
   evidence_items: number;
-  /** Submissions with status in_review (review queue). */
+  /** Submissions awaiting review (submitted + in_review pipeline). */
   evidence_in_review?: number;
+  review_pending_l1?: number;
+  review_pending_l2?: number;
+  review_pending_l3?: number;
   total_evidence_items: number;
   gaps_identified: number;
   gaps: { control_id: string; name: string; score: number }[];

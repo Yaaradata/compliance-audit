@@ -34,15 +34,9 @@ export function CyclePerformanceCard({ row, onViewVisuals, onDeleted }: CyclePer
       })
     : null;
   const dueLabel = days === null ? "No deadline" : days <= 0 ? "Due now" : `${days} days left`;
-  const statusRows = row.dashboard?.control_scores ?? [];
-  const controlsInReview = Math.max(
-    0,
-    Math.min(row.dashboard?.total_controls ?? 0, Math.round((row.dashboard?.total_controls ?? 0) * 0.2))
-  );
-  const evidenceInReview = Math.min(evidenceDone, controlsInReview);
-  const l2Review = statusRows.filter((s) => (s.status ?? "").toLowerCase().includes("l2")).length;
-  const l3Review = statusRows.filter((s) => (s.status ?? "").toLowerCase().includes("l3")).length;
-  const l1Review = Math.max(0, evidenceInReview - l2Review - l3Review);
+  const l1Review = row.dashboard?.review_pending_l1 ?? 0;
+  const l2Review = row.dashboard?.review_pending_l2 ?? 0;
+  const l3Review = row.dashboard?.review_pending_l3 ?? 0;
   const submissionScore = evidenceTotal > 0 ? Math.round((evidenceDone / evidenceTotal) * 100) : 0;
   const submissionScoreLabel =
     submissionScore < 25

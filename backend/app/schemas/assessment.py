@@ -157,8 +157,12 @@ class DashboardResponse(BaseModel):
     total_controls: int = 0
     # Submissions in approved, submitted, or in_review (historical dashboard metric).
     evidence_items: int = 0
-    # Submissions with DB status in_review (review queue).
+    # Awaiting review: submitted (L1 queue) + in_review (L2/L3 pipeline). Matches review workflow.
     evidence_in_review: int = 0
+    # Breakdown by review stage (from review_assignments + submission status).
+    review_pending_l1: int = 0
+    review_pending_l2: int = 0
+    review_pending_l3: int = 0
     total_evidence_items: int = 0
     gaps_identified: int = 0
     domain_scores: list[DomainScore] = []
