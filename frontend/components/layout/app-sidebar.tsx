@@ -121,10 +121,16 @@ export function AppSidebar() {
   const navItemsFiltered = q
     ? navItems.filter((item) => item.label.toLowerCase().includes(q))
     : navItems;
+  const isAwsPath = Boolean(pathname?.startsWith("/aws"));
   const navHref = (item: { href: string }) => {
     if (!base) return item.href;
     if (item.href === "/aws") return "/aws";
-    if (item.href === "/dashboard") return hasCycleInPath ? `${base}/dashboard` : "/dashboard";
+    if (item.href === "/dashboard") {
+      // Cycle-scoped URL: /cycles/[id]/... → Overall Evidence Collection board.
+      // AWS workspace: /aws/... has no cycle in the path but activeCycleId still sets `base` — same destination.
+      if (hasCycleInPath || isAwsPath) return `${base}/dashboard`;
+      return "/dashboard";
+    }
     if (item.href.startsWith("/evidence")) return item.href.replace("/evidence", `${base}/evidence`);
     if (item.href.startsWith("/review")) return `${base}/review`;
     if (item.href.startsWith("/approval")) return `${base}/approval`;
