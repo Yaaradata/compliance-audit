@@ -13,6 +13,7 @@ import {
 } from "@/components/roles/shared";
 import { daysTo, monthEnd, monthStart, phaseLabel, toDateKey } from "@/components/roles/shared/utils";
 import { dashboardPrimaryGradient } from "@/lib/dashboard-button-tokens";
+import { DASHBOARD_MAX_WIDTH_CLASS } from "@/lib/ui-layout";
 
 export type { CycleDashboard, CycleInsight } from "@/components/roles/shared";
 
@@ -229,7 +230,7 @@ export function ComplianceOfficerHomeDashboard({
   const importantKpiCards = [kpiCards[0], kpiCards[1], kpiCards[2], kpiCards[5]];
 
   return (
-    <div className="w-full space-y-5 pb-6">
+    <div className={`${DASHBOARD_MAX_WIDTH_CLASS} space-y-5 pb-6`}>
       <RoleDashboardHero
         eyebrow="Compliance Officer Command Center"
         greetingName={firstName}

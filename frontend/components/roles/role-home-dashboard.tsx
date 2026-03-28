@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { dashboardPrimaryGradient } from "@/lib/dashboard-button-tokens";
+import { DASHBOARD_MAX_WIDTH_CLASS } from "@/lib/ui-layout";
 import {
   ComplianceOverviewPanel,
   DashboardKpiGrid,
@@ -255,7 +256,7 @@ export function RoleHomeDashboard({
   ];
 
   return (
-    <div className="w-full max-w-6xl space-y-5 pb-6">
+    <div className={`${DASHBOARD_MAX_WIDTH_CLASS} space-y-5 pb-6`}>
       <RoleDashboardHero
         eyebrow="Home"
         greetingName={firstName}

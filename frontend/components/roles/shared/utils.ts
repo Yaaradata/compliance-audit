@@ -2,6 +2,15 @@ import type { AssessmentCycle, UserRole } from "@/lib/types";
 
 export const PHASE_ORDER = ["setup", "collection", "review", "approval", "reporting", "submitted", "archived"] as const;
 
+/** Home dashboard "Due soon" filter: deadline within this many calendar days (includes overdue). */
+export const DUE_SOON_DEADLINE_DAYS = 14;
+
+/** Cycle list filter — must have a deadline date and be due within the window (or overdue). */
+export function isCycleDeadlineDueSoon(dueInDays: number | null, maxDays: number = DUE_SOON_DEADLINE_DAYS): boolean {
+  if (dueInDays === null) return false;
+  return dueInDays <= maxDays;
+}
+
 export function phaseLabel(phase: string): string {
   const map: Record<string, string> = {
     setup: "Setup",

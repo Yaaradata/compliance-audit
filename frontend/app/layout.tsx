@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
@@ -18,6 +18,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "YaaraLabs SWIFT Compliance Platform",
   description: "SWIFT CSCF Compliance Assessment & Evidence Management",
+};
+
+/** Predictable scaling on laptops/PCs; users can still zoom the page for accessibility. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

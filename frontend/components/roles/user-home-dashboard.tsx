@@ -28,7 +28,10 @@ import {
   phaseLabel,
   toDateKey,
   cycleEntryPath,
+  DUE_SOON_DEADLINE_DAYS,
+  isCycleDeadlineDueSoon,
 } from "@/components/roles/shared/utils";
+import { DASHBOARD_MAX_WIDTH_CLASS } from "@/lib/ui-layout";
 
 const IconSearch = () => (
   <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -230,7 +233,7 @@ export function UserHomeDashboard({
       if (showItExpertVisualization) {
         // Home JWT may be IT Expert while other cycles use reviewer roles — list filters must not drop those rows.
         if (!r.role) return false;
-        if (itExpertListFilter === "due_soon") return (r.dueIn ?? 999) <= 7;
+        if (itExpertListFilter === "due_soon") return isCycleDeadlineDueSoon(r.dueIn);
         if (itExpertListFilter === "needs_upload") {
           if (r.role === "it_sme") {
             const done = r.dashboard?.evidence_items ?? 0;
@@ -246,7 +249,7 @@ export function UserHomeDashboard({
       }
 
       if (reviewerFilter === "needs_action") return pending > 0;
-      if (reviewerFilter === "due_soon") return (r.dueIn ?? 999) <= 7;
+      if (reviewerFilter === "due_soon") return isCycleDeadlineDueSoon(r.dueIn);
       if (reviewerFilter === "queue_clear") return pending === 0;
       return true;
     });
@@ -437,7 +440,7 @@ export function UserHomeDashboard({
   const itExpertMeterBar = "bg-[#D2691E]";
 
   return (
-    <div className="w-full space-y-5 bg-[#f8fafc] pb-6">
+    <div className={`${DASHBOARD_MAX_WIDTH_CLASS} space-y-5 bg-[#f8fafc] pb-6`}>
       <RoleDashboardHero
         eyebrow="Your Dashboard"
         greetingName={firstName}
@@ -555,8 +558,12 @@ export function UserHomeDashboard({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setItExpertListFilter("due_soon")}
+                    onClick={() => {
+                      setItExpertListFilter("due_soon");
+                      setSortMode("urgency");
+                    }}
                     {...filterPillProps(itExpertListFilter === "due_soon")}
+                    title={`Cycles with a submission deadline in the next ${DUE_SOON_DEADLINE_DAYS} days (or overdue). Soonest first.`}
                   >
                     Due soon
                   </button>
@@ -587,8 +594,12 @@ export function UserHomeDashboard({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setReviewerFilter("due_soon")}
+                    onClick={() => {
+                      setReviewerFilter("due_soon");
+                      setSortMode("urgency");
+                    }}
                     {...filterPillProps(reviewerFilter === "due_soon")}
+                    title={`Cycles with a submission deadline in the next ${DUE_SOON_DEADLINE_DAYS} days (or overdue). Soonest first.`}
                   >
                     Due soon
                   </button>
@@ -625,6 +636,20 @@ export function UserHomeDashboard({
                 <option value="name">Sort: Name</option>
               </select>
             </div>
+          </div>
+
+          <div className="mb-3 space-y-2">
+            {((showItExpertVisualization && itExpertListFilter === "due_soon") ||
+              (!showItExpertVisualization && reviewerFilter === "due_soon")) && (
+              <p
+                className="rounded-lg border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100"
+              >
+                <span className="font-semibold">Due soon</span> lists only cycles whose{" "}
+                <span className="font-medium">target submission</span> or <span className="font-medium">end date</span> is within the next{" "}
+                <span className="font-semibold tabular-nums">{DUE_SOON_DEADLINE_DAYS}</span> days (or already overdue). Cycles without a deadline date are hidden. Order uses{" "}
+                <span className="font-medium">Sort: Urgency</span> (soonest deadline first).
+              </p>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -825,7 +850,11 @@ export function UserHomeDashboard({
 
           {!loading && visibleRows.length === 0 && (
             <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-              No cycles match the current filter/search. Try clearing filters.
+              {showItExpertVisualization && itExpertListFilter === "due_soon"
+                ? `No assigned cycles have a deadline in the next ${DUE_SOON_DEADLINE_DAYS} days (or overdue), or none match your search. Use “All” to see every cycle, or check that target submission / end dates are set on cycles.`
+                : !showItExpertVisualization && reviewerFilter === "due_soon"
+                  ? `No cycles have a deadline in the next ${DUE_SOON_DEADLINE_DAYS} days (or overdue), or none match your search. Try “All” or “Needs action”.`
+                  : "No cycles match the current filter/search. Try clearing filters."}
             </p>
           )}
           </div>
