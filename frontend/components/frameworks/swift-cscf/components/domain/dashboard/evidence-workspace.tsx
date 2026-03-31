@@ -7,11 +7,10 @@ import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-fo
 import { ArtifactReusePanel } from "@/components/domain/artifact-reuse-panel";
 import { api, demoAutofill } from "@/lib/api";
 import { getAwsCredentialsForCycle } from "@/lib/aws-api";
-import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
-import { A5_EVIDENCE_ITEM_ID, A5_ARCHITECTURE_KEYS } from "@/lib/frameworks/swift-cscf/constants";
 import type { EvidenceItem, DomainConfig } from "@/lib/types";
 import type { AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 import type { EvaluationEditsMap } from "../../../../../domain/ai-evaluation-result";
+import { evaluationRequiredFieldsHintClassName } from "@/lib/evidence-evaluation-validation";
 
 /** Submission is locked for IT SME editing after submit/approve. */
 function isSubmissionAwsLocked(status: string | undefined): boolean {
@@ -29,32 +28,24 @@ function itemHasPersistedAwsSnapshot(fd: Record<string, string>): boolean {
   return false;
 }
 
-function A5ArchitecturePreview({ formData }: { formData: Record<string, string> }) {
-  const archType = formData[A5_ARCHITECTURE_KEYS.architecture_type];
-  const diagramFile = formData[A5_ARCHITECTURE_KEYS.selected_diagram];
-  const arch = archType ? getArchitecture(archType) : null;
-  if (!archType && !diagramFile) return null;
-  return (
-    <div className="rounded-lg border border-(--border) bg-background p-3">
-      <div className="text-[11px] font-semibold text-foreground mb-2">Architecture Evidence (from cycle selection)</div>
-      <div className="flex items-start gap-3">
-        {archType && (
-          <div className="shrink-0">
-            <div className="text-[10px] text-(--foreground-muted)">Declared type</div>
-            <div className="text-sm font-bold text-foreground">{arch?.name ?? archType}</div>
-          </div>
-        )}
-        {diagramFile && (
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] text-(--foreground-muted) mb-1">Selected diagram</div>
-            <div className="rounded border border-(--border) overflow-hidden bg-(--surface) max-w-[280px]">
-              <img src={getArchitectureDiagramUrl(diagramFile)} alt="Architecture diagram" className="w-full h-auto max-h-40 object-contain" />
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+/** Aligns with backend `_aws_suggestion_value_is_usable`: `[]` spreadsheet is not a real fill (gaps explain why). */
+function awsSuggestionCountsAsFilled(raw: string | undefined): boolean {
+  const v = (raw ?? "").trim();
+  if (!v) return false;
+  if (v === "[]" || v === "{}") return false;
+  try {
+    const rows = JSON.parse(v) as unknown;
+    if (!Array.isArray(rows)) return true;
+    if (rows.length === 0) return false;
+    return rows.some(
+      (row) =>
+        row &&
+        typeof row === "object" &&
+        Object.values(row as Record<string, unknown>).some((c) => String(c ?? "").trim() !== ""),
+    );
+  } catch {
+    return true;
+  }
 }
 
 export function EvidenceWorkspace({
@@ -310,9 +301,8 @@ export function EvidenceWorkspace({
       setAwsSuggestionGaps(gaps);
       autoFilledItemsRef.current.add(targetItem);
 
-      const keys = Object.keys(sugg).filter((k) => (sugg[k] ?? "").trim().length > 0);
-      keys.forEach((k) => {
-        const val = sugg[k]!;
+      Object.keys(sugg).forEach((k) => {
+        const val = sugg[k] ?? "";
         onItemFormChange(`${k}__ai_origin`, val);
         const src = (sources[k] ?? "").trim().toLowerCase();
         const isAwsPlusHuman = src.startsWith("aws") && src.includes("human");
@@ -323,15 +313,24 @@ export function EvidenceWorkspace({
           onItemFormChange(`${k}__ai`, val);
         }
       });
-      if (keys.length > 0) {
+      const attempted = Array.from(new Set([
+        ...(res.question_keys_attempted ?? []),
+        ...Object.keys(sugg),
+        ...Object.keys(gaps),
+      ]));
+      attempted.forEach((k) => {
+        onItemFormChange(`${k}__ai_gap`, (gaps[k] ?? "").trim());
+      });
+      const filledCount = Object.keys(sugg).filter((k) => awsSuggestionCountsAsFilled(sugg[k])).length;
+      if (filledCount > 0) {
         await onEnsureSubmission(targetItem);
         onItemFormBlur();
       }
       if (res.message) setAwsSuggestMessage(res.message);
-      else if (keys.length > 0) {
-        setAwsSuggestMessage(`Filled ${keys.length} field(s) from AWS evidence (${res.aws_evidence_bundle_count} snapshot(s)).`);
+      else if (filledCount > 0) {
+        setAwsSuggestMessage(`Filled ${filledCount} field(s) from AWS evidence (${res.aws_evidence_bundle_count} snapshot(s)).`);
       } else {
-        setAwsSuggestMessage("No suggestions returned — check AWS collection or question evidence_source (AWS / AWS + Human).");
+        setAwsSuggestMessage("No usable values returned — see (i) hints per field or check AWS collection / evidence_source.");
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Request failed";
@@ -402,12 +401,6 @@ export function EvidenceWorkspace({
               disabled={evidenceFormLocked}
             />
           )}
-
-          {currentItem.id === A5_EVIDENCE_ITEM_ID && itemFormData[A5_ARCHITECTURE_KEYS.architecture_type] && (
-            <div className="mb-4">
-              <A5ArchitecturePreview formData={itemFormData} />
-            </div>
-          )}
           <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between rounded-lg border border-(--border) bg-(--surface) px-3 py-2.5">
             <div className="text-[11px] text-(--foreground-muted) min-w-0">
               {!awsConnectionChecked ? (
@@ -476,7 +469,14 @@ export function EvidenceWorkspace({
             awsSuggestRoundDone={awsSuggestRoundDone}
             visualVariant="swiftReview"
             fileRefreshTrigger={fileRefreshTrigger}
+            awsAssistanceEnabled={awsConnectionChecked && awsConnected}
           />
+
+          {aiEvaluationError && !aiEvaluationResult && (
+            <p className={`${evaluationRequiredFieldsHintClassName} mb-2`} role="alert">
+              {aiEvaluationError}
+            </p>
+          )}
 
           {!aiEvaluationResult && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-2xl border border-(--border) bg-gradient-to-br from-background to-background/80 shadow-md hover:shadow-lg transition-shadow duration-200">
@@ -586,6 +586,11 @@ export function EvidenceWorkspace({
                 {/* When has result or loading: show Evaluation result view. Otherwise: Guidance. */}
                 {hasResult ? (
                   <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden overflow-y-auto">
+                    {aiEvaluationError && (
+                      <p className={`${evaluationRequiredFieldsHintClassName} mb-3 shrink-0`} role="alert">
+                        {aiEvaluationError}
+                      </p>
+                    )}
                     <AiEvaluationResult
                       result={aiEvaluationResult}
                       loading={aiEvaluationLoading}
@@ -651,20 +656,6 @@ export function EvidenceWorkspace({
                           </p>
                         </div>
                       </div>
-
-                      {aiEvaluationError && (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 shadow-sm">
-                          <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Evaluation failed</p>
-                          <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 font-mono">{aiEvaluationError}</p>
-                          <button
-                            type="button"
-                            onClick={onEvaluateEvidence}
-                            className="mt-2 py-1.5 px-3 text-xs font-semibold rounded-lg bg-amber-200 text-amber-900 hover:bg-amber-300 dark:bg-amber-800 dark:text-amber-100 dark:hover:bg-amber-700 transition-colors"
-                          >
-                            Try again
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}

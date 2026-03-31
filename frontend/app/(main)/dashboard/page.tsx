@@ -58,7 +58,7 @@ function DashboardLoadingSkeleton() {
 
 /**
  * Pre-cycle home: role-aware overview, stats, and quick actions.
- * New cycles: Compliance Officer dashboard modal; full list at /assessments/new (KPIs / modal link).
+ * New cycles: Compliance Officer dashboard modal and cycle list on this page.
  * the per-cycle collection workspace when a cycle is active.
  */
 export default function DashboardHomePage() {

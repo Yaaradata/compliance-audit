@@ -255,7 +255,7 @@ export function RoleHomeDashboard({
       label: "Assessment cycles",
       value: totalCycles,
       sub: "Visible to your tenant",
-      href: "/assessments/new",
+      href: "/dashboard",
       aria: `Open assessment cycles. ${totalCycles} cycles`,
       tone: "bg-[var(--primary-muted)] text-[var(--primary)]",
     },
@@ -263,7 +263,7 @@ export function RoleHomeDashboard({
       label: "Active cycle",
       value: activeCycleMeta?.display_id ?? (activeCycleId ? "Selected" : "None"),
       sub: activeCycleId ? "Use header to switch" : "Pick a cycle after assignment",
-      href: "/assessments/new",
+      href: "/dashboard",
       aria: "Open cycles to select an active assessment",
       tone: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
     },
@@ -271,7 +271,7 @@ export function RoleHomeDashboard({
       label: "Phases in flight",
       value: inFlight,
       sub: "Excludes submitted / archived",
-      href: "/assessments/new",
+      href: "/dashboard",
       aria: `${inFlight} cycles in active phases`,
       tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
     },
@@ -279,7 +279,7 @@ export function RoleHomeDashboard({
       label: "Account",
       value: initials(user.name),
       sub: user.email ?? "",
-      href: "/assessments/new",
+      href: "/dashboard",
       aria: "Account",
       tone: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
     },
@@ -293,7 +293,7 @@ export function RoleHomeDashboard({
         description="Your tenant admin assigns a global role or adds you to cycles. Open assessment cycles to see work you can access."
         primaryActions={[
           {
-            href: "/assessments/new",
+            href: "/dashboard",
             label: "+ Assessment cycles",
             gradient: dashboardPrimaryGradient(homeRole),
           },
@@ -313,7 +313,7 @@ export function RoleHomeDashboard({
           </p>
           <div className="mt-4">
             <Link
-              href="/assessments/new"
+              href="/dashboard"
               className="interactive-hero-action dashboard-btn-pill inline-flex items-center justify-center border-0 text-sm font-semibold text-white shadow-sm"
               style={{ background: dashboardPrimaryGradient(homeRole) }}
             >

@@ -85,7 +85,7 @@ export function AppSidebar() {
         if (status !== 404) return;
         // Stale activeCycleId in localStorage, or bookmarked /cycles/{id}/... for a deleted cycle.
         if (cycleIdFromPath && cycleId === cycleIdFromPath) {
-          router.replace("/assessments/new");
+          router.replace("/dashboard");
         } else if (!cycleIdFromPath && activeCycleId) {
           setActiveCycleId(null);
         }
@@ -141,10 +141,7 @@ export function AppSidebar() {
     pathname?.includes("/team-setup") ||
     pathname?.includes("/role-evidence-setup") ||
     pathname?.includes("/control-scoping");
-  const isMainPageRoute =
-    pathname === "/dashboard" ||
-    pathname?.endsWith("/dashboard") ||
-    pathname?.startsWith("/assessments/new");
+  const isMainPageRoute = pathname === "/dashboard" || pathname?.endsWith("/dashboard");
   const shouldShowDomains =
     staticDomains.length > 0 &&
     hasCycleInPath &&

@@ -10,7 +10,7 @@ export default function ReviewRedirectPage() {
 
   useEffect(() => {
     if (activeCycleId) router.replace(`/cycles/${activeCycleId}/review`);
-    else router.replace("/assessments/new");
+    else router.replace("/dashboard");
   }, [activeCycleId, router]);
 
   return (

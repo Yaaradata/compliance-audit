@@ -7,7 +7,13 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { DomainWorkspaceLayout } from "@/components/domain/dashboard/domain-workspace-layout";
 import { LoadingState } from "@/components/ui/loading-state";
-import type { DomainConfig, EvidenceItem, ControlCriteria, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
+import type { DomainConfig, EvidenceItem, ControlCriteria, EvidenceQuestion, AiEvaluationResult as AiEvalResultType } from "@/lib/types";
+import {
+  validateEvidenceQuestionsForEvaluation,
+  EVIDENCE_EVALUATION_REQUIRED_SHORT_HINT,
+  buildRequiredFieldsTopHint,
+  buildEffectiveFormDataForEvaluation,
+} from "@/lib/evidence-evaluation-validation";
 
 interface ApiDomain {
   id: string;
@@ -339,6 +345,7 @@ export default function CycleDomainPage() {
   const updateField = useCallback((key: string, value: string) => {
     setFormData((p) => ({ ...p, [key]: value }));
     setEvaluated(false);
+    setAiEvaluationError(null);
   }, []);
 
   const currentItem = useMemo(() => config?.evidenceItems.find((e) => e.id === activeItem), [config, activeItem]);
@@ -441,9 +448,6 @@ export default function CycleDomainPage() {
   // Backend uses submission form_data + attachments for AI. Save form data first so evaluation uses latest.
   const handleEvaluateEvidence = useCallback(async () => {
     if (!currentItem || !cycleId) return;
-    setAiEvaluationLoading(true);
-    setEvaluated(true);
-    setAiEvaluationResult(null);
     setAiEvaluationError(null);
 
     let subId = currentSubmissionId;
@@ -451,21 +455,52 @@ export default function CycleDomainPage() {
       try {
         subId = await ensureSubmission(currentItem.id);
       } catch {
-        subId = null;
+        setAiEvaluationError("Could not create a submission. Try again or refresh the page.");
+        return;
       }
     }
 
-    // Save form data before evaluate so backend has latest evidence; user sees persisted data on return.
-    if (subId && activeItem === currentItem.id) {
-      const prefix = `${currentItem.id}_`;
-      const fd: Record<string, string> = {};
-      Object.entries(formData).forEach(([k, v]) => {
-        if (k.startsWith(prefix)) fd[k.slice(prefix.length)] = v;
-      });
+    const prefix = `${currentItem.id}_`;
+    const fd: Record<string, string> = {};
+    Object.entries(formData).forEach(([k, v]) => {
+      if (k.startsWith(prefix)) fd[k.slice(prefix.length)] = v;
+    });
+
+    try {
+      const questions = await api.get<EvidenceQuestion[]>(
+        `/ref/evidence-items/${currentItem.id}/questions?cycle_id=${cycleId}`
+      );
+      const fdToSave = buildEffectiveFormDataForEvaluation(questions, fd);
       try {
-        await api.put(`/assessments/${cycleId}/evidence/${subId}`, { form_data: fd });
-      } catch { /* ignore */ }
+        await api.put(`/assessments/${cycleId}/evidence/${subId}`, { form_data: fdToSave });
+      } catch {
+        /* ignore */
+      }
+      let fileCount = 0;
+      try {
+        const files = await api.get<{ id: string }[]>(`/evidence/${subId}/files`);
+        fileCount = files.length;
+      } catch {
+        fileCount = 0;
+      }
+      const validation = validateEvidenceQuestionsForEvaluation({
+        questions,
+        formData: fd,
+        evidenceItemId: currentItem.id,
+        submissionFileCount: fileCount,
+      });
+      if (!validation.ok) {
+        setAiEvaluationError(buildRequiredFieldsTopHint(validation));
+        return;
+      }
+    } catch {
+      setAiEvaluationError("Could not validate the form. Check your connection and try again.");
+      return;
     }
+
+    setAiEvaluationLoading(true);
+    setEvaluated(true);
+    setAiEvaluationResult(null);
 
     try {
       const res = await api.postDirect<{
@@ -514,7 +549,7 @@ export default function CycleDomainPage() {
     } finally {
       setAiEvaluationLoading(false);
     }
-  }, [currentItem, cycleId, currentSubmissionId, ensureSubmission, fetchControlScores, domainId, formData, activeItem]);
+  }, [currentItem, cycleId, currentSubmissionId, ensureSubmission, fetchControlScores, domainId, formData]);
 
   /** When user selects an evidence item, update URL so sidebar can highlight it. */
   const handleSelectItem = useCallback(
@@ -564,7 +599,7 @@ export default function CycleDomainPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              href={backCycleId ? `/cycles/${backCycleId}/dashboard` : "/assessments/new"}
+              href={backCycleId ? `/cycles/${backCycleId}/dashboard` : "/dashboard"}
               className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium bg-(--primary) text-(--primary-foreground) hover:opacity-90 transition-opacity"
             >
               ← {backCycleId ? "Back to Dashboard" : "Your Assessment Cycles"}

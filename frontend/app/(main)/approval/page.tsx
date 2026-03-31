@@ -10,7 +10,7 @@ export default function ApprovalRedirectPage() {
 
   useEffect(() => {
     if (activeCycleId) router.replace(`/cycles/${activeCycleId}/approval`);
-    else router.replace("/assessments/new");
+    else router.replace("/dashboard");
   }, [activeCycleId, router]);
 
   return (

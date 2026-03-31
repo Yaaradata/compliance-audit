@@ -49,7 +49,7 @@ export function ContextBar() {
               {initials}
             </div>
             {!hideAssessmentsCycleNav && (
-              <Link href="/assessments/new" className="text-xs text-(--foreground-muted) hover:text-foreground hover:underline">
+              <Link href="/dashboard" className="text-xs text-(--foreground-muted) hover:text-foreground hover:underline">
                 Switch cycle
               </Link>
             )}

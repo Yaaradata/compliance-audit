@@ -805,7 +805,7 @@ function SelectArchitectureInner() {
           )}
 
           <p className="mt-8 text-center text-sm text-slate-500">
-            <Link href="/assessments/new" className="text-blue-600 hover:underline">
+            <Link href="/dashboard" className="text-blue-600 hover:underline">
               Back to assessment cycles
             </Link>
           </p>

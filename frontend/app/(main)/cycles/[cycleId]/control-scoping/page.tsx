@@ -210,7 +210,7 @@ export default function ControlScopingPage() {
               </Link>
               <span className="text-foreground-muted">·</span>
               <Link
-                href="/assessments/new"
+                href="/dashboard"
                 className="text-sm font-medium text-foreground-muted hover:text-foreground transition-colors"
               >
                 Back to cycles

@@ -75,6 +75,35 @@ function notMetRationaleStyle(swiftReview: boolean): CSSProperties | undefined {
   };
 }
 
+/**
+ * Convert AI paragraph/list text to UI bullets — full text, no character cap or “…” truncation.
+ * Prefer newline / bullet structure; else one bullet per sentence; else a single bullet with the whole string.
+ */
+function toCrispAiPoints(text: string): string[] {
+  const raw = (text ?? "").trim();
+  if (!raw) return [];
+
+  const lineLike = raw
+    .split(/\r?\n+/)
+    .map((s) => s.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+    .filter(Boolean);
+  if (lineLike.length > 1) {
+    return lineLike;
+  }
+
+  const sentences = raw
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (sentences.length > 1) {
+    return sentences;
+  }
+
+  return [raw];
+}
+
 /** Donut ring: score/total with color by ratio (same as Control & AI Evaluation). Exported for use in Evaluation result panel header. */
 export function EvaluationScoreRing({ score, total, size = 40 }: { score: number; total: number; size?: number }) {
   const pct = total ? score / total : 0;
@@ -284,14 +313,15 @@ function EditableCriterion({
           </button>
           <div className="flex-1 min-w-0 space-y-3">
             <h3 className="text-sm font-bold text-[var(--text-primary)] leading-snug">{stripCriteriaPrefix(criterion.label)}</h3>
-            {!hideAiHint && aiDescription && aiDescription.trim() && (
+            {!hideAiHint && !criterion.met && aiDescription && aiDescription.trim() && (
               <div className="flex flex-col gap-2">
-                <p
-                  className={notMetRationaleClassName(criterion.met, true)}
-                  style={notMetRationaleStyle(true)}
-                >
-                  {aiDescription.trim()}
-                </p>
+                <div className={notMetRationaleClassName(criterion.met, true)} style={notMetRationaleStyle(true)}>
+                  <ul className="list-disc pl-4 space-y-1">
+                    {toCrispAiPoints(aiDescription).map((pt, i) => (
+                      <li key={`${criterion.id}-ai-${i}`}>{pt}</li>
+                    ))}
+                  </ul>
+                </div>
                 {showAddComment && (
                   <span
                     role="button"
@@ -435,9 +465,15 @@ function EditableCriterion({
       </button>
       <div className="flex-1 min-w-0 space-y-1 py-0.5">
         <span className="text-sm text-foreground font-medium leading-snug">{stripCriteriaPrefix(criterion.label)}</span>
-        {!hideAiHint && aiDescription && aiDescription.trim() && (
+        {!hideAiHint && !criterion.met && aiDescription && aiDescription.trim() && (
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <p className={`text-xs ${notMetRationaleClassName(criterion.met)}`}>{aiDescription.trim()}</p>
+            <div className={`text-xs ${notMetRationaleClassName(criterion.met)}`}>
+              <ul className="list-disc pl-4 space-y-1">
+                {toCrispAiPoints(aiDescription).map((pt, i) => (
+                  <li key={`${criterion.id}-ai-${i}`}>{pt}</li>
+                ))}
+              </ul>
+            </div>
             {showAddComment && (
               <span
                 role="button"
@@ -614,14 +650,15 @@ function CriterionRow({
             <h3 className="text-sm font-bold text-[var(--text-primary)] leading-snug">
               {stripCriteriaPrefix(criterion.label)}
             </h3>
-            {!hideAiHint && aiDescription && aiDescription.trim() && (
+            {!hideAiHint && !criterion.met && aiDescription && aiDescription.trim() && (
               <>
-                <p
-                  className={notMetRationaleClassName(criterion.met, true)}
-                  style={notMetRationaleStyle(true)}
-                >
-                  {aiDescription.trim()}
-                </p>
+                <div className={notMetRationaleClassName(criterion.met, true)} style={notMetRationaleStyle(true)}>
+                  <ul className="list-disc pl-4 space-y-1">
+                    {toCrispAiPoints(aiDescription).map((pt, i) => (
+                      <li key={`${criterion.id}-ai-${i}`}>{pt}</li>
+                    ))}
+                  </ul>
+                </div>
                 {showAddComment && (
                   <button
                     type="button"
@@ -685,9 +722,15 @@ function CriterionRow({
       </span>
       <div className="flex-1 min-w-0 space-y-1 py-0.5">
         <span className="text-sm text-foreground font-medium leading-snug">{stripCriteriaPrefix(criterion.label)}</span>
-        {!hideAiHint && aiDescription && aiDescription.trim() && (
+        {!hideAiHint && !criterion.met && aiDescription && aiDescription.trim() && (
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <p className={`text-xs ${notMetRationaleClassName(criterion.met, swift)}`}>{aiDescription.trim()}</p>
+            <div className={`text-xs ${notMetRationaleClassName(criterion.met, swift)}`}>
+              <ul className="list-disc pl-4 space-y-1">
+                {toCrispAiPoints(aiDescription).map((pt, i) => (
+                  <li key={`${criterion.id}-ai-${i}`}>{pt}</li>
+                ))}
+              </ul>
+            </div>
             {showAddComment && (
               <span
                 role="button"
@@ -1121,7 +1164,7 @@ function AiEvaluationResultTabs({
                 {swift ? "Manually met" : "Manually met (note or x→✓)"}
               </h4>
             </div>
-            {renderList(edited, { defaultExpandNote: true, onClearCriterionEdit: handleClearCriterionEdit, hideAiHint: false })}
+            {renderList(edited, { defaultExpandNote: true, onClearCriterionEdit: handleClearCriterionEdit, hideAiHint })}
             {renderActionButtons()}
           </TabsContent>
           <TabsContent value="notes" className="mt-0 block">

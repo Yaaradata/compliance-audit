@@ -10,7 +10,7 @@ export function quickActionsForRole(
 
   if (role !== "it_sme") {
     actions.push({
-      href: "/assessments/new",
+      href: "/dashboard",
       label: "Assessment cycles",
       description: "Create, open, or switch SWIFT CSCF assessments",
     });
@@ -42,7 +42,7 @@ export function quickActionsForRole(
     actions.unshift({ href: `${base}/dashboard`, label: "Collection workspace", description: "Domains, controls, and evidence intake" });
   }
 
-  let primaryHref = "/assessments/new";
+  let primaryHref = "/dashboard";
   if (base && role === "it_sme") primaryHref = `${base}/dashboard`;
   else if (role === "it_sme" && !base) primaryHref = "/aws";
   else if (base && (role === "internal_reviewer_l1" || role === "internal_reviewer_l2" || role === "external_assessor")) {

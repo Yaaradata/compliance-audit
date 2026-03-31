@@ -87,18 +87,32 @@ def prepare_form_data_from_db(evidence_item_id: str, db_session) -> dict[str, st
     The table schema mirrors the CSV columns: evidence_item_id, question_key,
     question_type, answers (all TEXT).  Rows with question_type = 'file' or
     empty answers are skipped — identical behaviour to prepare_form_data_for_item.
+
+    If the ``demo`` schema / ``2026_demo`` table is missing (not loaded yet),
+    logs a warning and returns ``{}`` instead of raising (avoids 500 on
+    POST /demo/autofill). Load data with ``backend/scripts/upload_demo_2026_combined_csv.py``.
     """
     from sqlalchemy import text as sa_text
+    from sqlalchemy.exc import OperationalError, ProgrammingError
 
     eid = evidence_item_id.strip().upper()
-    rows = db_session.execute(
-        sa_text(
-            'SELECT question_key, question_type, answers '
-            'FROM demo."2026_demo" '
-            'WHERE UPPER(evidence_item_id) = :eid'
-        ),
-        {"eid": eid},
-    ).fetchall()
+    try:
+        rows = db_session.execute(
+            sa_text(
+                'SELECT question_key, question_type, answers '
+                'FROM demo."2026_demo" '
+                'WHERE UPPER(evidence_item_id) = :eid'
+            ),
+            {"eid": eid},
+        ).fetchall()
+    except (ProgrammingError, OperationalError) as exc:
+        logger.warning(
+            "prepare_form_data_from_db(%s): demo.\"2026_demo\" unavailable (%s). "
+            "Run: python backend/scripts/upload_demo_2026_combined_csv.py",
+            eid,
+            exc,
+        )
+        return {}
 
     form_data: dict[str, str] = {}
     for r in rows:

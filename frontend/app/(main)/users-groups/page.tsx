@@ -249,7 +249,7 @@ export default function UsersGroupsPage() {
       return;
     }
     if (!canAccess) {
-      router.replace("/assessments/new");
+      router.replace("/dashboard");
       return;
     }
     fetchUsers();

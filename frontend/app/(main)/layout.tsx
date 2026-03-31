@@ -64,13 +64,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const isAwsPage = pathname?.startsWith("/aws") && effectiveRole === "it_sme";
     const isUsersGroupsPage = pathname?.startsWith("/users-groups");
     const canAccessUsersGroups = (effectiveRole === "compliance_officer" || effectiveRole === "tenant_admin") && isUsersGroupsPage;
-    const isAssessmentsPage = pathname?.startsWith("/assessments");
-    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage && !canAccessUsersGroups && !isAssessmentsPage && !isHomeDashboard) {
-      router.replace("/assessments/new");
+    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage && !canAccessUsersGroups && !isHomeDashboard) {
+      router.replace("/dashboard");
       return;
     }
     if (pathname?.startsWith("/aws") && effectiveRole !== "it_sme" && effectiveCycleRole !== undefined) {
-      router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/assessments/new");
+      router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/dashboard");
       return;
     }
     if (activeCycleId && !isCycleRoute && pathname && !isAwsPage) {
@@ -100,9 +99,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const renderRole = effectiveTenantRole;
   const allowAwsWithoutCycle = pathname?.startsWith("/aws") && renderRole === "it_sme";
   const allowUsersGroups = pathname?.startsWith("/users-groups") && (renderRole === "compliance_officer" || renderRole === "tenant_admin");
-  const allowAssessmentsPage = pathname?.startsWith("/assessments");
   const allowHomeDashboard = pathname === "/dashboard";
-  if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute && !allowAwsWithoutCycle && !allowUsersGroups && !allowAssessmentsPage && !allowHomeDashboard) return null;
+  if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute && !allowAwsWithoutCycle && !allowUsersGroups && !allowHomeDashboard) return null;
 
   // Team setup: standalone page without sidebar or main header
   if (pathname?.includes("/team-setup")) {
@@ -132,7 +130,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const isApprovalRoute = pathname.includes("/approval");
     const isDomainRoute = pathname.includes("/domains/");
 
-    // Null-role users (unassigned) can only access dashboard and assessments list
+    // Null-role users (unassigned) can only access the home dashboard
     if (!role && (isReviewRoute || isApprovalRoute || isDomainRoute)) {
       return (
         <AppShell showSidebar={showSidebar}>

@@ -20,7 +20,7 @@ export default function HomePage() {
       router.replace(`/cycles/${activeCycleId}/dashboard`);
       return;
     }
-    router.replace("/assessments/new");
+    router.replace("/dashboard");
   }, [user, isPlatformAdmin, activeCycleId, loading, router]);
 
   if (loading || user) return null;

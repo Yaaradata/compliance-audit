@@ -415,6 +415,163 @@ def _format_file_size(bytes_val: int) -> str:
     return f"{bytes_val / (1024 * 1024):.1f} MB"
 
 
+def _spreadsheet_has_meaningful_content(raw: object) -> bool:
+    if raw is None:
+        return False
+    s = str(raw).strip()
+    if not s:
+        return False
+    try:
+        rows = json.loads(s)
+    except (json.JSONDecodeError, TypeError):
+        return False
+    if not isinstance(rows, list) or len(rows) == 0:
+        return False
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        for v in row.values():
+            if str(v or "").strip():
+                return True
+    return False
+
+
+def _is_aws_plus_human_source(evidence_source: object) -> bool:
+    if evidence_source is None:
+        return False
+    s = str(evidence_source).strip().lower()
+    return s.startswith("aws") and "human" in s
+
+
+def _should_merge_ai_twin_field(q: EvidenceBasedQuestion, fd: dict) -> bool:
+    """Match frontend: merge when evidence_source says AWS+Human or `__ai` has usable data (DB source often null)."""
+    if q.question_type == "file":
+        return False
+    if _is_aws_plus_human_source(getattr(q, "evidence_source", None)):
+        return True
+    ai_raw = fd.get(f"{q.question_key}__ai")
+    ai = "" if ai_raw is None else str(ai_raw)
+    if not ai.strip():
+        return False
+    if q.question_type == "spreadsheet":
+        return _spreadsheet_has_meaningful_content(ai)
+    return True
+
+
+def _parse_spreadsheet_column_dicts(q: EvidenceBasedQuestion) -> list[dict]:
+    opts = q.options or []
+    return [o for o in opts if isinstance(o, dict) and o.get("key")]
+
+
+def _spreadsheet_required_keys(q: EvidenceBasedQuestion, cols: list[dict]) -> list[str]:
+    explicit = [str(c["key"]) for c in cols if c.get("required") is True]
+    if explicit:
+        return explicit
+    if bool(getattr(q, "required", True)) and cols:
+        return [str(c["key"]) for c in cols]
+    return []
+
+
+def _spreadsheet_cell_ok(val: object, col: dict) -> bool:
+    t = str(val if val is not None else "").strip()
+    if not t:
+        return False
+    if col.get("type") == "select" and col.get("options"):
+        opts = col["options"]
+        if isinstance(opts, list) and len(opts) > 0:
+            return t in [str(x) for x in opts]
+    return True
+
+
+def _spreadsheet_non_empty_rows(rows: list, cols: list[dict]) -> list[dict]:
+    if not cols:
+        return [r for r in rows if isinstance(r, dict)]
+    keys = [str(c["key"]) for c in cols]
+    out: list[dict] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if any(str(row.get(k) if row.get(k) is not None else "").strip() for k in keys):
+            out.append(row)
+    return out
+
+
+def _spreadsheet_validate_error(q: EvidenceBasedQuestion, raw: object) -> str | None:
+    cols = _parse_spreadsheet_column_dicts(q)
+    req_keys = _spreadsheet_required_keys(q, cols)
+    must_validate = bool(getattr(q, "required", True)) or bool(req_keys)
+    if not must_validate:
+        return None
+    s = "" if raw is None else str(raw).strip()
+    try:
+        rows = json.loads(s) if s else []
+    except (json.JSONDecodeError, TypeError):
+        return "invalid"
+    if not isinstance(rows, list):
+        return "invalid"
+    keys_to_check = req_keys if req_keys else ([str(c["key"]) for c in cols] if bool(getattr(q, "required", True)) and cols else [])
+    if not keys_to_check:
+        return None
+    data_rows = _spreadsheet_non_empty_rows(rows, cols) if cols else [r for r in rows if isinstance(r, dict)]
+    if len(data_rows) == 0:
+        return "empty"
+    col_by_key = {str(c["key"]): c for c in cols}
+    for i, row in enumerate(data_rows):
+        for rk in keys_to_check:
+            col = col_by_key.get(rk)
+            if not col:
+                continue
+            if not _spreadsheet_cell_ok(row.get(rk), col):
+                return f"row{i}"  # marker only; pick logic needs ok/null
+    return None
+
+
+def _non_file_field_filled_simple(q: EvidenceBasedQuestion, raw: object) -> bool:
+    t = str(raw if raw is not None else "").strip()
+    qt = q.question_type or ""
+    if qt == "checkbox":
+        return t == "true"
+    if qt == "spreadsheet":
+        return _spreadsheet_validate_error(q, raw) is None
+    if qt == "select":
+        if not t:
+            return False
+        str_opts = [str(x) for x in (q.options or []) if isinstance(x, str)]
+        if not str_opts:
+            return True
+        return t in str_opts
+    return len(t) > 0
+
+
+def _effective_form_answer(q: EvidenceBasedQuestion, fd: dict) -> str:
+    """Align with frontend: dual-tab fields use `{question_key}__ai`; merge when human empty/invalid."""
+    human_raw = fd.get(q.question_key)
+    human = "" if human_raw is None else str(human_raw)
+    if q.question_type == "file":
+        return human
+    if not _should_merge_ai_twin_field(q, fd):
+        return human
+    ai_raw = fd.get(f"{q.question_key}__ai")
+    ai = "" if ai_raw is None else str(ai_raw)
+    if q.question_type == "spreadsheet":
+        if not _spreadsheet_has_meaningful_content(human):
+            return ai
+        if _spreadsheet_validate_error(q, human) is None:
+            return human
+        if _spreadsheet_validate_error(q, ai) is None:
+            return ai
+        return human
+    if q.question_type == "checkbox":
+        if human.strip() != "":
+            return human
+        return ai
+    if not human.strip():
+        return ai
+    if bool(getattr(q, "required", True)) and not _non_file_field_filled_simple(q, human) and _non_file_field_filled_simple(q, ai):
+        return ai
+    return human
+
+
 def _build_submission_context(
     db: Session,
     evidence_item_id: str,
@@ -448,7 +605,7 @@ def _build_submission_context(
                 val = "Not uploaded"
             parts.append(_format_form_field(q.question_key, q.label, val))
         else:
-            val = fd.get(q.question_key) or ""
+            val = _effective_form_answer(q, fd)
             parts.append(_format_form_field(q.question_key, q.label, val))
 
     return "\n---\n".join(parts) if parts else None
@@ -537,6 +694,14 @@ def _score_to_status(score: float) -> str:
     return "sufficient"
 
 
+def _normalize_control_id_for_sufficiency(raw: object) -> str | None:
+    """Canonical control_id for sufficiency_scores (AI/JSON may emit 1.1 as float or str)."""
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    return s if s else None
+
+
 def _sync_to_control_applicability(db: Session, cycle_id: UUID, control_id: str, score: float, status: str) -> None:
     """Mirror SufficiencyScore into ControlApplicability so the dashboard picks it up."""
     ca = (
@@ -599,14 +764,26 @@ def _persist_per_control_scores(
     suf_results = (evaluation_result or {}).get("sufficiency_results", [])
     criteria = (evaluation_result or {}).get("criteria", [])
 
+    # One entry per canonical control_id (AI JSON may mix float/string keys; avoids double INSERT same uq).
     by_control: dict[str, dict] = {}
     for ctrl in controls:
-        cid = ctrl.get("control_id")
+        cid = _normalize_control_id_for_sufficiency(ctrl.get("control_id"))
         if cid:
             by_control[cid] = ctrl
 
+    if not by_control:
+        return
+
+    keys = list(by_control.keys())
+    existing_map: dict[str, SufficiencyScore] = {
+        s.control_id: s
+        for s in db.query(SufficiencyScore)
+        .filter(SufficiencyScore.cycle_id == cycle_id, SufficiencyScore.control_id.in_(keys))
+        .all()
+    }
+
     for ctrl in by_control.values():
-        control_id = ctrl.get("control_id")
+        control_id = _normalize_control_id_for_sufficiency(ctrl.get("control_id"))
         if not control_id:
             continue
 
@@ -619,24 +796,22 @@ def _persist_per_control_scores(
             score = float(ctrl.get("score", 0) or 0)
 
         status = _score_to_status(score)
-        existing = (
-            db.query(SufficiencyScore)
-            .filter(SufficiencyScore.cycle_id == cycle_id, SufficiencyScore.control_id == control_id)
-            .first()
-        )
+        existing = existing_map.get(control_id)
         if existing:
             existing.overall_score = score
             existing.status = status
             existing.last_evaluated_at = datetime.utcnow()
         else:
-            db.add(SufficiencyScore(
+            new_row = SufficiencyScore(
                 cycle_id=cycle_id,
                 control_id=control_id,
                 overall_score=score,
                 status=status,
                 last_evaluated_at=datetime.utcnow(),
-            ))
-            db.flush()  # so same session sees this row if we process this control again
+            )
+            db.add(new_row)
+            db.flush()
+            existing_map[control_id] = new_row
         _sync_to_control_applicability(db, cycle_id, control_id, score, status)
 
 
@@ -798,6 +973,10 @@ def suggest_evidence_fields_from_aws(
         question_sources[q.question_key] = src_raw.strip()
 
     if not eligible_payload:
+        ai_service.log_suggest_from_aws_skip(
+            "no_eligible_questions",
+            f"item={item_upper} (no AWS / AWS+Human LLM-fillable fields for this item)",
+        )
         return AwsEvidenceSuggestResponse(
             suggestions={},
             suggestion_gaps={},
@@ -819,6 +998,10 @@ def suggest_evidence_fields_from_aws(
     )
     bundle = aws_evidence_service.build_aws_evidence_bundle_for_llm(aws_rows)
     if not bundle:
+        ai_service.log_suggest_from_aws_skip(
+            "no_aws_evidence_bundle",
+            f"item={item_upper} raw_rows={len(aws_rows)} (run AWS collection / collectors for this item)",
+        )
         return AwsEvidenceSuggestResponse(
             suggestions={},
             suggestion_gaps={},

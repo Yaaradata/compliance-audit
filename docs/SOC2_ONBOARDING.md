@@ -50,7 +50,7 @@ Use `backend/sql/02_seed_reference_data.sql` and the SWIFT seed scripts as a ref
 ### 4. Create a cycle that uses SOC 2
 
 - **Backend**: Cycle creation already supports `framework_id` (`backend/app/routers/assessments.py`). If the frontend sends the SOC 2 framework’s id, the cycle will use the SOC 2 schema.
-- **Frontend**: `frontend/app/assessments/new/page.tsx` loads all frameworks from `GET /ref/frameworks` and shows a framework dropdown. Once the SOC 2 row exists in `audit_frameworks`, it will appear there. Your friend may want to:
+- **Frontend**: Create cycle from the Compliance Officer dashboard (`/dashboard`) via **New Assessment Cycle** (modal uses `GET /ref/frameworks` for the framework dropdown). Once the SOC 2 row exists in `audit_frameworks`, it will appear there. Your friend may want to:
   - Adjust the default selection logic so SOC 2 can be chosen.
   - Derive `cycle_year` (or similar) from the selected framework in a way that makes sense for SOC 2 (e.g. report period).
 
@@ -83,7 +83,7 @@ Use `backend/sql/02_seed_reference_data.sql` and the SWIFT seed scripts as a ref
 | Framework list (API) | `GET /ref/frameworks` → `backend/app/routers/reference.py` |
 | Schema resolution | `backend/app/dependencies.py` → `_resolve_schema_for_cycle`, `get_db_scoped` |
 | Cycle creation | `POST /assessments` → `backend/app/routers/assessments.py` (uses `framework_id`) |
-| New assessment page | `frontend/app/assessments/new/page.tsx` (framework dropdown) |
+| New assessment (UI) | Compliance Officer dashboard modal + `NewAssessmentCycleForm` (framework dropdown) |
 | Domain/evidence ref data | Queried from cycle’s schema (e.g. `swift_2025`, `swift_2026`, or `soc2`) |
 | SWIFT seed data | `backend/sql/02_seed_reference_data.sql`, `14_seed_swift_2026_*.sql`, etc. |
 | Framework registry | `frontend/lib/frameworks/registry.ts` (maps schema_name → evidence workspace) |

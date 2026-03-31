@@ -139,7 +139,7 @@ All under prefix **`/api/v1`**:
 ## 7. Frontend structure (main areas)
 
 - **`/login`** — Sign in / sign up.
-- **`/assessments/new`** — Your Assessment Cycles: create cycle, open cycle, delete cycle, switch cycle.
+- **`/dashboard`** — Role home: create/open cycles (Compliance Officer modal and cycle list), KPIs, and navigation.
 - **`/select-architecture`** — Choose architecture (A1–B) for a new or existing cycle.
 - **`/cycles/[cycleId]/dashboard`** — Cycle dashboard (domains, controls, progress).
 - **`/cycles/[cycleId]/domains/[domainId]`** — Domain view and evidence items; quick upload and evaluate.

@@ -62,7 +62,7 @@ function roleBadge(role: string | null) {
 }
 
 function roleHref(cycleId: string, role: string | null, cycle: AssessmentCycle) {
-  if (!role) return "/assessments/new";
+  if (!role) return "/dashboard";
   if (role === "internal_reviewer_l1" || role === "internal_reviewer_l2" || role === "external_assessor") {
     return `/cycles/${cycleId}/review`;
   }
@@ -496,7 +496,7 @@ export function UserHomeDashboard({
             ? []
             : [
                 {
-                  href: "/assessments/new",
+                  href: "/dashboard",
                   label: "Switch / view cycles",
                   gradient: dashboardPrimaryGradient(homeRole),
                 },
@@ -745,7 +745,7 @@ export function UserHomeDashboard({
                       style={{ borderColor: "#dbe3ee", background: "#f8fafc" }}
                     >
                       <Link
-                        href={disabled ? "/assessments/new" : r.href}
+                        href={disabled ? "/dashboard" : r.href}
                         className={disabled ? `${btnSecondaryCls} opacity-70` : btnPrimaryCls}
                         style={
                           disabled

@@ -77,12 +77,13 @@ export function getDiagramFolder(_version?: string | null): "" {
 export async function getArchitectureDiagramUrlAsync(
   _diagramFilename: string,
   _version?: string | null
-): Promise<string> {
-  return "";
+): Promise<string | null> {
+  return null;
 }
 
-export function getArchitectureDiagramUrl(_diagramFilename: string, _version?: string | null): string {
-  return "";
+/** Returns a public URL for the diagram image, or `null` when assets are unavailable (do not pass `""` to `<img src>`). */
+export function getArchitectureDiagramUrl(_diagramFilename: string, _version?: string | null): string | null {
+  return null;
 }
 
 export function getArchitectureDiagramPath(

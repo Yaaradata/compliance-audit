@@ -139,7 +139,7 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
             )}
             {!hideAssessmentsCycleNav && (
               <Link
-                href="/assessments/new"
+                href="/dashboard"
                 className="interactive-header-btn text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--border)] text-[var(--foreground-muted)]"
               >
                 Switch cycle
@@ -216,7 +216,7 @@ export function AppHeader({ showSidebarToggle = true }: { showSidebarToggle?: bo
                 <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg z-50 p-1">
                   {!hideAssessmentsCycleNav && (
                     <Link
-                      href="/assessments/new"
+                      href="/dashboard"
                       className="interactive-dropdown-item block rounded-lg px-3 py-2 text-xs text-[var(--foreground)]"
                       onClick={() => setProfileOpen(false)}
                     >

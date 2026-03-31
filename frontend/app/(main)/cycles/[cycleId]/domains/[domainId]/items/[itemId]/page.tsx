@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import { getAwsCredentialsForCycle } from "@/lib/aws-api";
 import { ControlBadge } from "@/components/ui/control-badge";
 import { PriorityBadge } from "@/components/ui/badge";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
@@ -16,9 +17,15 @@ import "@/components/review/swift-review-template/swift-review-template.css";
 import { PerControlEvidence } from "@/components/domain/per-control-evidence";
 import { getStatusColor, getStatusIcon } from "@/lib/utils";
 import { LoadingState } from "@/components/ui/loading-state";
-import { getArchitecture, getArchitectureDiagramUrl } from "@/lib/frameworks/swift-cscf";
 import { A5_ARCHITECTURE_KEYS } from "@/lib/frameworks/swift-cscf/constants";
-import type { EvidenceItem, ControlRef, ControlCriteria, AiEvaluationResult as AiEvalResultType, AiCriterionResult } from "@/lib/types";
+import type { EvidenceItem, ControlRef, ControlCriteria, EvidenceQuestion, AiEvaluationResult as AiEvalResultType, AiCriterionResult } from "@/lib/types";
+import {
+  validateEvidenceQuestionsForEvaluation,
+  EVIDENCE_EVALUATION_REQUIRED_SHORT_HINT,
+  evaluationRequiredFieldsHintClassName,
+  buildRequiredFieldsTopHint,
+  buildEffectiveFormDataForEvaluation,
+} from "@/lib/evidence-evaluation-validation";
 
 const EVIDENCE_ITEM_A5 = "A5";
 
@@ -114,6 +121,9 @@ export default function CycleItemIntakePage() {
   const [aiEvaluationResult, setAiEvaluationResult] = useState<AiEvalResultType | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [notesRefreshTrigger, setNotesRefreshTrigger] = useState(0);
+  const [awsConnected, setAwsConnected] = useState(false);
+  const [awsConnectionChecked, setAwsConnectionChecked] = useState(false);
+  const [evaluationGateError, setEvaluationGateError] = useState<string | null>(null);
 
   const ensureSubmission = useCallback(async (): Promise<string> => {
     if (submissionId) return submissionId;
@@ -181,10 +191,35 @@ export default function CycleItemIntakePage() {
       .catch(() => {});
   }, [cycleId, itemId]);
 
+  /** A5: progress ring — detect existing uploads (not just current session). */
+  useEffect(() => {
+    if (itemId !== EVIDENCE_ITEM_A5 || !submissionId) return;
+    api
+      .get<{ id: string }[]>(`/evidence/${submissionId}/files`)
+      .then((files) => {
+        if (files.length > 0) setUploadedFiles((p) => ({ ...p, evidence: true }));
+      })
+      .catch(() => {});
+  }, [itemId, submissionId]);
+
+  useEffect(() => {
+    if (!cycleId) {
+      setAwsConnected(false);
+      setAwsConnectionChecked(true);
+      return;
+    }
+    setAwsConnectionChecked(false);
+    getAwsCredentialsForCycle(cycleId)
+      .then((cfg) => setAwsConnected(Boolean(cfg?.has_config)))
+      .catch(() => setAwsConnected(false))
+      .finally(() => setAwsConnectionChecked(true));
+  }, [cycleId]);
+
   const updateField = useCallback((key: string, value: string) => {
     setFormData((p) => ({ ...p, [key]: value }));
     setEvaluated(false);
     setAiEvaluationResult(null);
+    setEvaluationGateError(null);
   }, []);
 
   const persistForm = useCallback(async () => {
@@ -209,36 +244,80 @@ export default function CycleItemIntakePage() {
     setUploadedFiles((p) => ({ ...p, [key]: true }));
     setEvaluated(false);
     setAiEvaluationResult(null);
+    setEvaluationGateError(null);
   }, []);
 
-  const handleEvaluateEvidence = useCallback(() => {
+  const handleEvaluateEvidence = useCallback(async () => {
     if (!item || !cycleId) return;
+    setEvaluationGateError(null);
+
+    let sid = submissionId;
+    if (!sid) {
+      try {
+        sid = await ensureSubmission();
+      } catch {
+        setEvaluationGateError("Could not create a submission. Try again.");
+        return;
+      }
+    }
+
+    try {
+      const questions = await api.get<EvidenceQuestion[]>(
+        `/ref/evidence-items/${item.id}/questions?cycle_id=${cycleId}`
+      );
+      const fdToSave = buildEffectiveFormDataForEvaluation(questions, formData);
+      try {
+        await api.put(`/assessments/${cycleId}/evidence/${sid}`, { form_data: fdToSave });
+      } catch {
+        /* ignore */
+      }
+      let fileCount = 0;
+      try {
+        const files = await api.get<{ id: string }[]>(`/evidence/${sid}/files`);
+        fileCount = files.length;
+      } catch {
+        fileCount = 0;
+      }
+      const validation = validateEvidenceQuestionsForEvaluation({
+        questions,
+        formData,
+        evidenceItemId: item.id,
+        submissionFileCount: fileCount,
+      });
+      if (!validation.ok) {
+        setEvaluationGateError(buildRequiredFieldsTopHint(validation));
+        return;
+      }
+    } catch {
+      setEvaluationGateError("Could not validate the form. Check your connection and try again.");
+      return;
+    }
+
     setAiEvaluationLoading(true);
     setEvaluated(true);
     setAiEvaluationResult(null);
-    api
-      .post<{
+    try {
+      const res = await api.post<{
         evidence_item_id: string;
         overall_met: boolean;
         sufficiency_results: { id: string; label: string; met: boolean; description?: string | null }[];
         criteria: { id: string; label: string; met: boolean; description?: string | null }[];
         summary?: string | null;
-      }>(
-        `/assessments/${cycleId}/evidence/evaluate`,
-        { evidence_item_id: item.id, submission_id: submissionId ?? undefined }
-      )
-      .then((res) => {
-        setAiEvaluationResult({
-          evidence_item_id: res.evidence_item_id,
-          overall_met: res.overall_met,
-          sufficiency_results: res.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
-          criteria: res.criteria.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })),
-          summary: res.summary ?? null,
-        });
-      })
-      .catch(() => setAiEvaluationResult(null))
-      .finally(() => setAiEvaluationLoading(false));
-  }, [item, cycleId, submissionId]);
+      }>(`/assessments/${cycleId}/evidence/evaluate`, { evidence_item_id: item.id, submission_id: sid });
+      setAiEvaluationResult({
+        evidence_item_id: res.evidence_item_id,
+        overall_met: res.overall_met,
+        sufficiency_results: res.sufficiency_results?.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })) ?? [],
+        criteria: res.criteria.map((c) => ({ id: c.id, label: c.label, met: c.met, description: c.description ?? null })),
+        summary: res.summary ?? null,
+      });
+    } catch {
+      setAiEvaluationResult(null);
+      setEvaluationGateError("Evaluation failed. Check your connection and try again.");
+    } finally {
+      setAiEvaluationLoading(false);
+    }
+  }, [item, cycleId, submissionId, formData, ensureSubmission]);
 
   const [questionKeys, setQuestionKeys] = useState<string[]>([]);
   useEffect(() => {
@@ -252,11 +331,11 @@ export default function CycleItemIntakePage() {
     if (!item) return 0;
     if (item.id === EVIDENCE_ITEM_A5) {
       const hasArch = !!formData.architecture_type;
-      const hasDiagram = !!formData.selected_diagram;
+      const hasDiagramUpload = !!uploadedFiles.evidence;
       const hasRationale = !!formData[A5_ARCHITECTURE_KEYS.decision_rationale]?.trim();
       const hasBics = !!formData[A5_ARCHITECTURE_KEYS.bics]?.trim();
       const hasInfra = !!formData[A5_ARCHITECTURE_KEYS.infrastructure_characteristics]?.trim();
-      const count = [hasArch, hasDiagram, hasRationale, hasBics, hasInfra].filter(Boolean).length;
+      const count = [hasArch, hasDiagramUpload, hasRationale, hasBics, hasInfra].filter(Boolean).length;
       return Math.round((count / 5) * 100);
     }
     if (questionKeys.length === 0) return 0;
@@ -266,16 +345,7 @@ export default function CycleItemIntakePage() {
       return false;
     }).length;
     return Math.round((filled / questionKeys.length) * 100);
-  }, [item, formData, questionKeys]);
-
-  const a5Evidence = useMemo(() => {
-    if (item?.id !== EVIDENCE_ITEM_A5) return null;
-    const archType = formData.architecture_type;
-    const diagramFile = formData.selected_diagram;
-    if (!archType && !diagramFile) return null;
-    const arch = archType ? getArchitecture(archType) : null;
-    return { architectureType: archType, architectureName: arch?.name, diagramFilename: diagramFile };
-  }, [item?.id, formData.architecture_type, formData.selected_diagram]);
+  }, [item, formData, questionKeys, uploadedFiles.evidence]);
 
   const controlScores = useMemo(() => {
     if (!item) return {};
@@ -350,33 +420,6 @@ export default function CycleItemIntakePage() {
           <EvidenceCriteriaSections
             evidenceDescription={item.description}
           />
-          {a5Evidence && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="text-sm font-semibold text-gray-700 mb-3">Architecture evidence (from selection)</div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                {a5Evidence.architectureType && (
-                  <div>
-                    <div className="text-xs font-medium text-gray-500 mb-1">Declared architecture</div>
-                    <div className="font-semibold text-gray-900">
-                      {a5Evidence.architectureName ?? a5Evidence.architectureType}
-                    </div>
-                  </div>
-                )}
-                {a5Evidence.diagramFilename && (
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-500 mb-1">Selected diagram</div>
-                    <div className="rounded-lg border border-gray-200 overflow-hidden bg-gray-50 max-w-md">
-                      <img
-                        src={getArchitectureDiagramUrl(a5Evidence.diagramFilename)}
-                        alt="Architecture diagram"
-                        className="w-full h-auto max-h-64 object-contain"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
           <PerControlEvidence
             evidenceItemId={item.id}
             matrix={item.matrix ?? []}
@@ -392,31 +435,8 @@ export default function CycleItemIntakePage() {
             </div>
             {item.id === EVIDENCE_ITEM_A5 && (
               <p className="text-xs text-gray-500 mb-4">
-                Complete the form below. Your declared architecture (from cycle selection) is stored as evidence and used for AI evaluation.
+                Upload your architecture diagram and complete the declaration fields below. Evidence is evaluated against your uploaded diagram and answers.
               </p>
-            )}
-            {formData.architecture_type && item.id === EVIDENCE_ITEM_A5 && (
-              <div className="mb-4 rounded-lg border border-gray-200 p-3 bg-gray-50">
-                <div className="text-[11px] font-semibold text-gray-700 mb-2">Architecture Evidence (from cycle selection)</div>
-                <div className="flex items-center gap-3">
-                  <div>
-                    <div className="text-[10px] text-gray-500">Declared type</div>
-                    <div className="text-sm font-bold text-gray-900">
-                      {getArchitecture(formData.architecture_type)?.name ?? formData.architecture_type}
-                    </div>
-                  </div>
-                  {formData.selected_diagram && (
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[10px] text-gray-500 mb-1">Selected diagram</div>
-                      <img
-                        src={getArchitectureDiagramUrl(formData.selected_diagram)}
-                        alt="Architecture diagram"
-                        className="rounded border border-gray-200 max-h-40 object-contain"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
             )}
             <EvidenceQuestionsForm
               evidenceItemId={item.id}
@@ -435,11 +455,21 @@ export default function CycleItemIntakePage() {
                 }
               }}
               visualVariant="swiftReview"
+              awsAssistanceEnabled={awsConnectionChecked && awsConnected}
             />
           </div>
-          <button onClick={handleEvaluateEvidence}
-            className="btn-primary w-full py-3 text-sm"
-            style={{ background: domainStyle.color }}>
+          {evaluationGateError && (
+            <p className={evaluationRequiredFieldsHintClassName} role="alert">
+              {evaluationGateError}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleEvaluateEvidence()}
+            disabled={aiEvaluationLoading}
+            className="btn-primary w-full py-3 text-sm disabled:opacity-60"
+            style={{ background: domainStyle.color }}
+          >
             Evaluate Evidence Sufficiency
           </button>
           {evaluated && (

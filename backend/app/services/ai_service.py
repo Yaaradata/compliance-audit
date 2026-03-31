@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -30,20 +31,31 @@ _LEVEL_TAG = {
 }
 
 
+def _ai_print_console(text: str, *, end: str = "\n") -> None:
+    """
+    Single write to **stderr** (typical server console). We do not mirror to stdout: that caused every
+    `[AI]` line to appear twice. Uvicorn's own `logger.info` on stderr would triple the noise — see `_ai_emit`.
+    """
+    try:
+        sys.stderr.write(text + end)
+        sys.stderr.flush()
+    except Exception:
+        pass
+
+
 def _ai_emit(level: str, operation: str, message: str, *, exc_info: bool = False) -> None:
     """
-    Structured AI log line always printed to stdout (visible in uvicorn CMD like [Backend]).
-    Also forwards to Python logging for log collectors / files.
+    One human-readable `[AI]` line on stderr. Avoid `logger.info`/`warning` here: Uvicorn's default handler
+    also prints those to the same console → duplicate blocks that look like “the model ran many times”.
+    Use `logger.debug` so aggregators can still enable `DEBUG` for `app.services.ai_service` without doubling output.
     """
     tag = _LEVEL_TAG.get(level.upper(), level[:5].ljust(5))
     line = f"[AI][{tag}][{operation}] {message}"
-    print(line, flush=True)
+    _ai_print_console(line)
     if level.upper() == "ERROR":
         logger.error("[%s] %s", operation, message, exc_info=exc_info)
-    elif level.upper() == "WARN":
-        logger.warning("[%s] %s", operation, message)
     else:
-        logger.info("[%s] %s", operation, message)
+        logger.debug("[%s] %s", operation, message)
 
 
 def _ai_raw_response_console(operation: str, raw_text: str) -> None:
@@ -57,12 +69,12 @@ def _ai_raw_response_console(operation: str, raw_text: str) -> None:
             operation,
             f"Console raw truncated: {n} chars > AI_LOG_RAW_MAX_CHARS={_AI_RAW_MAX_CONSOLE}",
         )
-    print(f"[AI][RESPONSE][{operation}] ===== RAW BEGIN ({len(body)} of {n} chars) =====", flush=True)
-    print(body, flush=True)
-    print(f"[AI][RESPONSE][{operation}] ===== RAW END =====", flush=True)
+    _ai_print_console(f"[AI][RESPONSE][{operation}] ===== RAW BEGIN ({len(body)} of {n} chars) =====")
+    _ai_print_console(body.rstrip("\r\n") + "\n")
+    _ai_print_console(f"[AI][RESPONSE][{operation}] ===== RAW END =====")
     cap = 12000
     tail = "" if n <= cap else f"\n...[truncated {n - cap} chars]"
-    logger.info("[%s] Raw response (%d chars) log preview:%s%s", operation, n, tail, raw_text[:cap])
+    logger.debug("[%s] Raw response (%d chars) log preview:%s%s", operation, n, tail, raw_text[:cap])
 
 
 def _load_prompt_template() -> str:
@@ -314,6 +326,8 @@ def _build_prompt(
         "- IDs starting with 'eval_' (e.g. 1.1_eval_1) are EVALUATION criteria. Return them ONLY in the 'criteria' array.\n"
         "- NEVER duplicate: each criterion ID must appear in exactly ONE array.\n"
         "- Use the EXACT IDs provided (including the suf_/eval_ prefix).\n"
+        "- For met=false criteria, keep description concise and user-friendly: max 2 short points, prefer 1.\n"
+        "- Description style: what is missing + what to add/verify; avoid long paragraphs.\n"
     )
 
     if previous_evaluation:
@@ -750,6 +764,41 @@ _DEFAULT_SUGGESTION_GAP = (
 )
 
 
+def _aws_suggestion_value_is_usable(question_type: str, raw: str | None) -> bool:
+    """
+    True when the model returned something we treat as a real answer (not empty / not [] spreadsheet).
+    ``[]`` must be false so ``gaps`` from the LLM are still returned to the UI.
+    """
+    qt = (question_type or "").strip().lower()
+    s = "" if raw is None else str(raw).strip()
+    if not s:
+        return False
+    if qt == "spreadsheet":
+        if s in ("[]", "{}", "null", "undefined"):
+            return False
+        try:
+            rows = json.loads(s)
+        except (json.JSONDecodeError, TypeError):
+            return False
+        if not isinstance(rows, list) or len(rows) == 0:
+            return False
+        return any(
+            isinstance(row, dict) and any(str(v if v is not None else "").strip() for v in row.values())
+            for row in rows
+        )
+    if qt == "checkbox":
+        return s in ("true", "false")
+    return True
+
+
+def log_suggest_from_aws_skip(reason: str, detail: str = "") -> None:
+    """Call from HTTP layer when suggest-from-aws returns without calling Vertex (visible in uvicorn terminal)."""
+    msg = f"skip_llm reason={reason}"
+    if detail:
+        msg = f"{msg} | {detail}"
+    _ai_emit("WARN", "suggest_answers_from_aws_evidence", msg)
+
+
 def suggest_answers_from_aws_evidence(
     *,
     evidence_item_id: str,
@@ -786,15 +835,74 @@ def suggest_answers_from_aws_evidence(
         aws_evidence_json=ev_json,
         questions_json=q_json,
     )
+    prompt += (
+        "\n\n## RUNTIME — RESPONSE RULES (do not echo this section)\n"
+        "- Output one JSON object only; keys exactly `answers` and `gaps`.\n"
+        "- Every listed question_key must appear in `answers` (string values).\n"
+        "- Empty strings need a one-line reason in `gaps` under the same key.\n"
+    )
     _ai_emit(
         "INFO",
         "suggest_answers_from_aws_evidence",
         f"start item={evidence_item_id} questions={len(questions)} evidence_chunks={len(aws_evidence_bundle)} "
-        f"model={settings.VERTEX_AI_MODEL} prompt_chars={len(prompt)}",
+        f"model={settings.VERTEX_AI_MODEL} prompt_chars={len(prompt)} "
+        "| console: this Python/uvicorn process (not Next.js npm run dev)",
+    )
+    _ai_emit(
+        "INFO",
+        "suggest_answers_from_aws_evidence",
+        "prompt_preview (truncated):\n" + _preview_text(prompt, min(_AI_LOG_PREVIEW_CHARS, 12_000)),
     )
 
-    response = model.generate_content([Part.from_text(prompt)])
-    _ai_emit("INFO", "suggest_answers_from_aws_evidence", "vertex_ok")
+    max_retries = 3
+    last_err: Exception | None = None
+    response = None
+    for attempt in range(max_retries + 1):
+        try:
+            response = model.generate_content([Part.from_text(prompt)])
+            _ai_emit(
+                "INFO",
+                "suggest_answers_from_aws_evidence",
+                f"vertex_ok attempt={attempt + 1}/{max_retries + 1}",
+            )
+            break
+        except Exception as api_err:
+            last_err = api_err
+            err_msg = str(api_err)
+            err_type = type(api_err).__name__
+            is_rate_limit = (
+                "RESOURCE_EXHAUSTED" in err_type
+                or "ResourceExhausted" in err_type
+                or "429" in err_msg
+                or "Resource exhausted" in err_msg
+            )
+            if is_rate_limit and attempt < max_retries:
+                wait = min(2**attempt * 5, 60)
+                _ai_emit(
+                    "WARN",
+                    "suggest_answers_from_aws_evidence",
+                    f"rate_limit retry in {wait}s attempt={attempt + 1}/{max_retries + 1} err={err_msg[:240]}",
+                )
+                time.sleep(wait)
+                continue
+            if is_rate_limit:
+                _ai_emit(
+                    "ERROR",
+                    "suggest_answers_from_aws_evidence",
+                    f"rate_limit exhausted: {err_msg[:400]}",
+                )
+                raise ValueError(
+                    "Vertex AI rate limit (429). Try again in a minute."
+                ) from api_err
+            _ai_emit(
+                "ERROR",
+                "suggest_answers_from_aws_evidence",
+                f"generate_content failed: {err_type}: {err_msg[:500]}",
+            )
+            raise ValueError(f"Vertex AI API error (suggest-from-aws): {api_err}") from api_err
+    else:
+        raise ValueError(f"Vertex AI failed after {max_retries + 1} attempts: {last_err}")
+
     text = _get_response_text(response)
     if not (text and text.strip()):
         _ai_emit("ERROR", "suggest_answers_from_aws_evidence", "empty_model_text")
@@ -803,10 +911,13 @@ def suggest_answers_from_aws_evidence(
 
     try:
         parsed = _parse_ai_response(text)
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, ValueError) as e:
+        _ai_emit("ERROR", "suggest_answers_from_aws_evidence", f"json_parse_failed: {e}")
         raise ValueError(f"Model returned invalid JSON: {e}") from e
     if not isinstance(parsed, dict):
+        _ai_emit("ERROR", "suggest_answers_from_aws_evidence", "response_not_json_object")
         raise ValueError("Model response was not a JSON object.")
+    _ai_emit("INFO", "suggest_answers_from_aws_evidence", "parse_ok")
 
     allowed = {q["question_key"] for q in questions if q.get("question_key")}
     gaps_raw: dict[str, str] = {}
@@ -825,17 +936,44 @@ def suggest_answers_from_aws_evidence(
         v = answers_block.get(k)
         out[str(k)] = "" if v is None else str(v).strip()
 
+    key_to_type = {str(q["question_key"]): str(q.get("question_type") or "").lower() for q in questions if q.get("question_key")}
+
     gaps: dict[str, str] = {}
     for k in allowed:
-        if out.get(k):
+        ks = str(k)
+        qtype = key_to_type.get(ks, "")
+        raw = out[ks]
+        if _aws_suggestion_value_is_usable(qtype, raw):
             continue
-        reason = gaps_raw.get(k) or gaps_raw.get(str(k))
-        gaps[str(k)] = (reason.strip() if reason else _DEFAULT_SUGGESTION_GAP)
+        reason = gaps_raw.get(k) or gaps_raw.get(ks)
+        gaps[ks] = (reason.strip() if reason else _DEFAULT_SUGGESTION_GAP)
 
+    filled = sum(
+        1 for k in allowed if _aws_suggestion_value_is_usable(key_to_type.get(str(k), ""), out[str(k)])
+    )
+    answered_keys = [
+        k for k in sorted(allowed) if _aws_suggestion_value_is_usable(key_to_type.get(str(k), ""), out[str(k)])
+    ]
+    empty_keys = [
+        k for k in sorted(allowed) if not _aws_suggestion_value_is_usable(key_to_type.get(str(k), ""), out[str(k)])
+    ]
+    summary_obj = {
+        "evidence_item_id": evidence_item_id,
+        "answered_count": filled,
+        "empty_count": len(empty_keys),
+        "answered_keys": answered_keys,
+        "empty_keys": empty_keys,
+        "gaps_preview": {k: gaps.get(k, "")[:200] for k in empty_keys[:15]},
+    }
     _ai_emit(
         "INFO",
         "suggest_answers_from_aws_evidence",
-        f"done item={evidence_item_id} answered={sum(1 for v in out.values() if v)} gaps={len(gaps)}",
+        "result_summary:\n" + json.dumps(summary_obj, indent=2, ensure_ascii=False),
+    )
+    _ai_emit(
+        "INFO",
+        "suggest_answers_from_aws_evidence",
+        f"done item={evidence_item_id} answered={filled} gaps={len(gaps)}",
     )
     return {"suggestions": out, "gaps": gaps}
 

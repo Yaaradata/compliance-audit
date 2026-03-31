@@ -30,7 +30,7 @@ export default function CycleLayout({ children }: { children: React.ReactNode })
         if (cycle.architecture_type) setArchitecture(cycle.architecture_type);
       })
       .catch(() => {
-        router.replace("/assessments/new");
+        router.replace("/dashboard");
       });
   }, [cycleId, setActiveCycleId, setArchitecture, router]);
 

@@ -146,7 +146,7 @@ export default function RoleEvidenceSetupPage() {
       return;
     }
     if (!canAccess) {
-      router.replace("/assessments/new");
+      router.replace("/dashboard");
       return;
     }
     fetchData();
@@ -565,8 +565,8 @@ export default function RoleEvidenceSetupPage() {
         <main className="flex-1 flex items-center justify-center p-6">
           <div className="text-center">
             <p className="text-sm text-foreground-muted mb-4">Assessment cycle not found.</p>
-            <Link href="/assessments/new" className="text-sm font-medium text-primary hover:underline">
-              Back to assessment cycles
+            <Link href="/dashboard" className="text-sm font-medium text-primary hover:underline">
+              Back to dashboard
             </Link>
           </div>
         </main>

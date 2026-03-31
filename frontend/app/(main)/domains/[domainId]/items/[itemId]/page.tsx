@@ -17,7 +17,7 @@ export default function DomainItemRedirectPage() {
     } else if (activeCycleId) {
       router.replace(`/cycles/${activeCycleId}/dashboard`);
     } else {
-      router.replace("/assessments/new");
+      router.replace("/dashboard");
     }
   }, [activeCycleId, domainId, itemId, router]);
 
