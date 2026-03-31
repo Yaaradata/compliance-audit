@@ -93,3 +93,14 @@ export interface GcpRunDetail {
 export function getGcpRunDetail(runId: string, cycleId?: string | null): Promise<GcpRunDetail> {
   return api.get<GcpRunDetail>(`${PREFIX}/runs/${runId}${scopeQuery(cycleId)}`);
 }
+
+export interface GcpCollectorApiMatrix {
+  by_collector: Array<{
+    collector: string;
+    gcp_api_methods: string[];
+  }>;
+}
+
+export function getGcpCollectorApiMatrix(cycleId?: string | null): Promise<GcpCollectorApiMatrix> {
+  return api.get<GcpCollectorApiMatrix>(`${PREFIX}/collectors/api-matrix${scopeQuery(cycleId)}`);
+}

@@ -22,7 +22,7 @@ export function SidebarCloudEvidence(props: {
   const triggerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 220 });
 
   const commitOpen = useCallback(
     (next: boolean) => {
@@ -36,7 +36,7 @@ export function SidebarCloudEvidence(props: {
     const el = triggerRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    setCoords({ top: r.top, left: r.right + 8 });
+    setCoords({ top: r.bottom + 8, left: r.left, width: Math.max(220, r.width) });
   }, []);
 
   const cancelClose = useCallback(() => {
@@ -63,8 +63,10 @@ export function SidebarCloudEvidence(props: {
   }, [cancelClose, commitOpen, updateCoords]);
 
   useEffect(() => {
-    commitOpen(false);
-  }, [pathname, commitOpen]);
+    return () => {
+      onOpenChange?.(false);
+    };
+  }, [onOpenChange]);
 
   useEffect(() => {
     if (!visible) return;
@@ -172,14 +174,15 @@ export function SidebarCloudEvidence(props: {
             ref={panelRef}
             role="menu"
             aria-label="Cloud evidence providers"
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -8 }}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            className="fixed z-[60] flex flex-col gap-1 rounded-xl p-2 min-w-[220px] border"
+            className="fixed z-[60] flex flex-col gap-1 rounded-xl p-2 border"
             style={{
               top: coords.top,
               left: coords.left,
+              width: coords.width,
               background: "var(--sidebar-bg)",
               borderColor: "color-mix(in srgb, var(--sidebar-border) 80%, var(--sidebar-active-text))",
               boxShadow:

@@ -274,7 +274,7 @@ export function AppSidebar() {
             if (isNavCloudEvidence(item)) {
               return (
                 <SidebarCloudEvidence
-                  key={item.label}
+                  key={`${item.label}-${pathname ?? ""}`}
                   label={item.label}
                   sidebarOpen={open}
                   hoverEnabled={hoverEnabled}
