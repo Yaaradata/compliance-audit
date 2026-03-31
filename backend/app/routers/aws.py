@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.aws_evidence.core.db import get_db as get_aws_db, ensure_schema as ensure_aws_schema
+from app.aws_evidence.core.db import ensure_schema as ensure_aws_schema, get_swift_evidence_db
 from app.constants import PLATFORM_ADMIN_ROLES
 from app.dependencies import get_current_user, get_db
 from app.models.tenant import User
@@ -46,7 +46,7 @@ from app.aws_evidence.collectors.evidence_mapping import get_apis_for_control as
 from app.aws_evidence.collectors.aws_api_catalog import get_apis_for_run as get_run_aws_calls
 
 
-router = APIRouter(prefix="/aws")
+router = APIRouter()
 
 
 @dataclass(frozen=True)
@@ -138,7 +138,7 @@ def connect_validate_and_save(
 def disconnect_and_delete_all(
     scope: AwsScope = Depends(get_effective_aws_scope),
     db: Session = Depends(get_db),
-    aws_db: Session = Depends(get_aws_db),
+    aws_db: Session = Depends(get_swift_evidence_db),
 ) -> dict:
     """
     Disconnect the current AWS account: delete all evidence and collector runs for this tenant,
@@ -147,7 +147,7 @@ def disconnect_and_delete_all(
     try:
         ensure_aws_schema()
         result = delete_all_evidence_and_runs_for_tenant(
-            aws_db, scope.tenant_id, scope.cycle_id, scope.user_id
+            aws_db, scope.tenant_id, scope.cycle_id, scope.user_id, cloud_provider="aws"
         )
         delete_aws_connection(db, scope.tenant_id, scope.cycle_id, scope.user_id)
         return {
@@ -157,7 +157,7 @@ def disconnect_and_delete_all(
             "deleted_runs": result["deleted_runs"],
         }
     except Exception as exc:
-        logger.exception("DELETE /aws/connect failed: %s", exc)
+        logger.exception("DELETE /cloud/aws/connect failed: %s", exc)
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
@@ -192,7 +192,7 @@ def oauth_start(
     """
     Start AWS SSO device authorization (IAM Identity Center).
     Returns verification_uri, verification_uri_complete, user_code, device_code, expires_in, interval.
-    Frontend shows URL + code to user and polls POST /aws/auth/oauth/poll with device_code until success.
+    Frontend shows URL + code to user and polls POST /cloud/aws/auth/oauth/poll with device_code until success.
     """
     try:
         start_url = _validate_sso_start_url(body.sso_start_url)
@@ -296,7 +296,7 @@ def test_credentials(
 def list_runs(
     limit: int = Query(20, ge=1, le=100),
     scope: AwsScope = Depends(get_effective_aws_scope),
-    db: Session = Depends(get_aws_db),
+    db: Session = Depends(get_swift_evidence_db),
 ) -> list[dict]:
     """
     List recent collector runs (execution history) with evidence counts for the current tenant.
@@ -308,9 +308,10 @@ def list_runs(
             tenant_id=scope.tenant_id,
             cycle_id=scope.cycle_id,
             user_id=scope.user_id,
+            exclude_cloud_provider="gcp",
         )
     except Exception as exc:
-        logger.exception("GET /aws/runs failed: %s", exc)
+        logger.exception("GET /cloud/aws/runs failed: %s", exc)
         db.rollback()
         try:
             ensure_aws_schema()
@@ -320,9 +321,10 @@ def list_runs(
                 tenant_id=scope.tenant_id,
                 cycle_id=scope.cycle_id,
                 user_id=scope.user_id,
+                exclude_cloud_provider="gcp",
             )
         except Exception as retry_exc:
-            logger.exception("GET /aws/runs retry after ensure_schema failed: %s", retry_exc)
+            logger.exception("GET /cloud/aws/runs retry after ensure_schema failed: %s", retry_exc)
             raise HTTPException(status_code=502, detail=str(retry_exc)) from retry_exc
     run_ids = [r.run_id for r in runs]
     counts = {}
@@ -350,11 +352,13 @@ def list_runs(
 def get_run_detail(
     run_id: UUID,
     scope: AwsScope = Depends(get_effective_aws_scope),
-    db: Session = Depends(get_aws_db),
+    db: Session = Depends(get_swift_evidence_db),
 ) -> dict:
     """Run detail with evidence count and AWS API calls by collector."""
     run = get_run_by_id(db, run_id)
     if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if getattr(run, "cloud_provider", None) == "gcp":
         raise HTTPException(status_code=404, detail="Run not found")
     if not run_belongs_to_tenant(run, scope.tenant_id, scope.cycle_id, scope.user_id):
         raise HTTPException(status_code=404, detail="Run not found")
@@ -379,18 +383,20 @@ def get_run_detail(
 def delete_run_history(
     run_id: UUID,
     scope: AwsScope = Depends(get_effective_aws_scope),
-    db: Session = Depends(get_aws_db),
+    db: Session = Depends(get_swift_evidence_db),
 ) -> dict:
     """
     Delete a collector run and all associated evidence rows.
     """
     run = get_run_by_id(db, run_id)
-    if not run or not run_belongs_to_tenant(run, scope.tenant_id, scope.cycle_id, scope.user_id):
+    if not run or getattr(run, "cloud_provider", None) == "gcp":
+        raise HTTPException(status_code=404, detail="Run not found")
+    if not run_belongs_to_tenant(run, scope.tenant_id, scope.cycle_id, scope.user_id):
         raise HTTPException(status_code=404, detail="Run not found")
     try:
         deleted = delete_run(db, run_id)
     except Exception as exc:
-        logger.exception("DELETE /aws/runs/%s failed: %s", run_id, exc)
+        logger.exception("DELETE /cloud/aws/runs/%s failed: %s", run_id, exc)
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {"run_id": str(run_id), "deleted_evidence": deleted}
 
@@ -427,8 +433,9 @@ def trigger_collect(
 @router.get("/evidence")
 def list_evidence(
     limit: int = Query(200, ge=1, le=1000),
+    run_id: UUID | None = Query(None, description="Optional: return evidence for a single collector run only"),
     scope: AwsScope = Depends(get_effective_aws_scope),
-    db: Session = Depends(get_aws_db),
+    db: Session = Depends(get_swift_evidence_db),
 ) -> list[dict]:
     """
     List AWS evidence rows for the current tenant.
@@ -440,6 +447,8 @@ def list_evidence(
             tenant_id=scope.tenant_id,
             cycle_id=scope.cycle_id,
             user_id=scope.user_id,
+            exclude_cloud_provider="gcp",
+            run_id=run_id,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
@@ -462,7 +471,7 @@ def list_evidence(
 def get_evidence_content(
     evidence_id: UUID,
     scope: AwsScope = Depends(get_effective_aws_scope),
-    db: Session = Depends(get_aws_db),
+    db: Session = Depends(get_swift_evidence_db),
 ) -> dict:
     """
     Fetch AWS evidence content JSON from DB (response_json).
@@ -476,11 +485,23 @@ def get_evidence_content(
         raise HTTPException(status_code=404, detail="Evidence not found")
     if not evidence_belongs_to_tenant(e, scope.tenant_id, scope.cycle_id, scope.user_id):
         raise HTTPException(status_code=404, detail="Evidence not found")
+    if getattr(e, "cloud_provider", None) == "gcp":
+        raise HTTPException(status_code=404, detail="Evidence not found")
 
     if e.response_json is None:
         raise HTTPException(status_code=404, detail="Evidence content not available (no response_json)")
 
-    return e.response_json
+    from app.aws_evidence.core.json_utils import sanitize_for_jsonb
+
+    raw = e.response_json
+    if isinstance(raw, str):
+        import json
+
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            return {"_note": "Evidence payload is not valid JSON text", "_preview": raw[:4000]}
+    return sanitize_for_jsonb(raw)
 
 
 # ─── Controls (for Control View UI) ─────────────────────────────────────────
@@ -488,7 +509,7 @@ def get_evidence_content(
 @router.get("/controls")
 def list_controls(
     scope: AwsScope = Depends(get_effective_aws_scope),
-    db: Session = Depends(get_aws_db),
+    db: Session = Depends(get_swift_evidence_db),
 ) -> list[dict]:
     """List controls from evidence_sufficiency_matrix (or swift_2026.controls when USE_SWIFT_2026)."""
     try:
@@ -501,12 +522,16 @@ def list_controls(
 @router.get("/controls/coverage")
 def controls_coverage(
     scope: AwsScope = Depends(get_effective_aws_scope),
-    db: Session = Depends(get_aws_db),
+    db: Session = Depends(get_swift_evidence_db),
 ) -> dict:
     """Control IDs that have at least one evidence row for the current tenant."""
     try:
         ids = get_control_ids_with_evidence(
-            db, tenant_id=scope.tenant_id, cycle_id=scope.cycle_id, user_id=scope.user_id
+            db,
+            tenant_id=scope.tenant_id,
+            cycle_id=scope.cycle_id,
+            user_id=scope.user_id,
+            exclude_cloud_provider="gcp",
         )
         return {"control_ids_with_evidence": ids}
     except Exception:
@@ -516,12 +541,16 @@ def controls_coverage(
 @router.get("/controls/coverage/items")
 def controls_coverage_items(
     scope: AwsScope = Depends(get_effective_aws_scope),
-    db: Session = Depends(get_aws_db),
+    db: Session = Depends(get_swift_evidence_db),
 ) -> list:
     """(control_id, control_name, item_code) for each evidence item that has at least one evidence row. Use for sidebar so clicking A2 shows only A2 evidence."""
     try:
         return get_control_item_pairs_with_evidence(
-            db, tenant_id=scope.tenant_id, cycle_id=scope.cycle_id, user_id=scope.user_id
+            db,
+            tenant_id=scope.tenant_id,
+            cycle_id=scope.cycle_id,
+            user_id=scope.user_id,
+            exclude_cloud_provider="gcp",
         )
     except Exception:
         return []
@@ -532,7 +561,7 @@ def get_control_detail(
     control_id: str,
     item_code: str | None = Query(None, description="Filter to this evidence item only (e.g. A2). When set, only that item's evidence and required items are returned."),
     scope: AwsScope = Depends(get_effective_aws_scope),
-    db: Session = Depends(get_aws_db),
+    db: Session = Depends(get_swift_evidence_db),
 ) -> dict:
     """Control detail with required evidence items, evidence grouped by run, and AWS calls. Optional item_code filters to a single evidence item (e.g. A2) so the panel shows only that item's data."""
     try:
@@ -544,6 +573,7 @@ def get_control_detail(
             tenant_id=scope.tenant_id,
             cycle_id=scope.cycle_id,
             user_id=scope.user_id,
+            exclude_cloud_provider="gcp",
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
@@ -590,7 +620,7 @@ class ManualEvidenceCreate(BaseModel):
 def create_manual_evidence_endpoint(
     body: ManualEvidenceCreate,
     scope: AwsScope = Depends(get_effective_aws_scope),
-    db: Session = Depends(get_aws_db),
+    db: Session = Depends(get_swift_evidence_db),
 ) -> dict:
     """Submit manual evidence for a control."""
     try:

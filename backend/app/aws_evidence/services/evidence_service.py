@@ -4,7 +4,7 @@ import json
 import uuid
 from uuid import UUID
 
-from sqlalchemy import desc, func, text
+from sqlalchemy import desc, func, or_, text
 from sqlalchemy.orm import Session
 
 from app.aws_evidence.core import config
@@ -25,17 +25,41 @@ def _apply_scope_filter(q, model, tenant_id: UUID | None, cycle_id: UUID | None,
 from app.services.storage_service import upload as storage_upload
 
 
+def _apply_evidence_cloud_provider_filter(q, cloud_provider: str | None):
+    """
+    Scope evidence queries by denormalized Evidence.cloud_provider.
+    Avoids ``run_id IN (SELECT ... collector_runs ...)``, which deadlocks when collects
+    update collector_runs while readers hold locks on the subquery scan.
+    """
+    if not cloud_provider:
+        return q
+    return q.filter(Evidence.cloud_provider == cloud_provider)
+
+
+def _apply_evidence_exclude_cloud_provider(q, exclude: str | None):
+    """Exclude one provider (e.g. gcp on /cloud/aws/*). Keeps NULL for legacy AWS rows."""
+    if not exclude:
+        return q
+    return q.filter(or_(Evidence.cloud_provider.is_(None), Evidence.cloud_provider != exclude))
+
+
 def get_runs(
     db: Session,
     limit: int = 50,
     tenant_id: UUID | None = None,
     cycle_id: UUID | None = None,
     user_id: UUID | None = None,
+    cloud_provider: str | None = None,
+    exclude_cloud_provider: str | None = None,
 ):
     # Order by most recently finished (ended_at) or started (execution_time) so "last run" is first
     order_col = func.coalesce(CollectorRun.ended_at, CollectorRun.execution_time)
     q = db.query(CollectorRun).order_by(desc(order_col))
     q = _apply_scope_filter(q, CollectorRun, tenant_id, cycle_id, user_id)
+    if cloud_provider:
+        q = q.filter(CollectorRun.cloud_provider == cloud_provider)
+    elif exclude_cloud_provider:
+        q = q.filter(CollectorRun.cloud_provider != exclude_cloud_provider)
     return q.limit(limit).all()
 
 
@@ -87,9 +111,37 @@ def get_evidence_list(
     tenant_id: UUID | None = None,
     cycle_id: UUID | None = None,
     user_id: UUID | None = None,
+    cloud_provider: str | None = None,
+    exclude_cloud_provider: str | None = None,
+    run_id: UUID | None = None,
 ):
     q = db.query(Evidence).order_by(desc(Evidence.collected_at))
     q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
+    # When run_id is set, avoid `evidence.run_id IN (SELECT ... collector_runs ...)`: that shape
+    # deadlocks easily if another session mutates collector_runs (collect/delete) while listing.
+    if run_id is not None:
+        if cloud_provider:
+            run = get_run_by_id(db, run_id)
+            if (
+                not run
+                or getattr(run, "cloud_provider", None) != cloud_provider
+                or not run_belongs_to_tenant(run, tenant_id, cycle_id, user_id)
+            ):
+                return []
+        elif exclude_cloud_provider:
+            run = get_run_by_id(db, run_id)
+            if (
+                not run
+                or not run_belongs_to_tenant(run, tenant_id, cycle_id, user_id)
+                or getattr(run, "cloud_provider", None) == exclude_cloud_provider
+            ):
+                return []
+        q = q.filter(Evidence.run_id == run_id)
+    else:
+        if cloud_provider:
+            q = _apply_evidence_cloud_provider_filter(q, cloud_provider)
+        elif exclude_cloud_provider:
+            q = _apply_evidence_exclude_cloud_provider(q, exclude_cloud_provider)
     return q.limit(limit).all()
 
 
@@ -103,10 +155,16 @@ def get_evidence_for_control(
     tenant_id: UUID | None = None,
     cycle_id: UUID | None = None,
     user_id: UUID | None = None,
+    cloud_provider: str | None = None,
+    exclude_cloud_provider: str | None = None,
 ):
-    """Collected AWS evidence for this control (always from swift_2026.evidence)."""
+    """Collected evidence for this control (swift_2026.evidence)."""
     q = db.query(Evidence).filter(Evidence.control_id == control_id)
     q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
+    if cloud_provider:
+        q = _apply_evidence_cloud_provider_filter(q, cloud_provider)
+    elif exclude_cloud_provider:
+        q = _apply_evidence_exclude_cloud_provider(q, exclude_cloud_provider)
     return q.order_by(Evidence.collected_at.desc()).all()
 
 
@@ -117,11 +175,13 @@ def get_evidence_for_item_code(
     cycle_id: UUID | None = None,
     user_id: UUID | None = None,
     limit: int = 100,
+    cloud_provider: str | None = None,
 ):
-    """Collected AWS evidence rows for a canonical evidence item (e.g. A1, B2). Scoped by tenant/cycle/user."""
+    """Collected evidence rows for a canonical evidence item (e.g. A1, B2). Scoped by tenant/cycle/user."""
     code = (item_code or "").strip().upper()
     q = db.query(Evidence).filter(Evidence.item_code == code)
     q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
+    q = _apply_evidence_cloud_provider_filter(q, cloud_provider)
     return q.order_by(desc(Evidence.collected_at)).limit(limit).all()
 
 
@@ -173,9 +233,11 @@ def get_evidence_for_control_grouped_by_run(
     tenant_id: UUID | None = None,
     cycle_id: UUID | None = None,
     user_id: UUID | None = None,
+    cloud_provider: str | None = None,
+    exclude_cloud_provider: str | None = None,
 ):
     """
-    Collected AWS evidence for this control, grouped by collector run.
+    Collected evidence for this control, grouped by collector run.
     Returns list of dicts: { run_id, execution_time, ended_at, status, trigger_type, evidence_count, evidence }.
     Runs ordered by most recent first; evidence within each run by collected_at desc.
     """
@@ -185,6 +247,8 @@ def get_evidence_for_control_grouped_by_run(
         tenant_id=tenant_id,
         cycle_id=cycle_id,
         user_id=user_id,
+        cloud_provider=cloud_provider,
+        exclude_cloud_provider=exclude_cloud_provider,
     )
     if not evidence_list:
         return []
@@ -360,10 +424,16 @@ def get_control_ids_with_evidence(
     tenant_id: UUID | None = None,
     cycle_id: UUID | None = None,
     user_id: UUID | None = None,
+    cloud_provider: str | None = None,
+    exclude_cloud_provider: str | None = None,
 ) -> list[str]:
     """Return distinct control_ids that have at least one evidence row."""
     q = db.query(Evidence.control_id).distinct()
     q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
+    if cloud_provider:
+        q = _apply_evidence_cloud_provider_filter(q, cloud_provider)
+    elif exclude_cloud_provider:
+        q = _apply_evidence_exclude_cloud_provider(q, exclude_cloud_provider)
     return [row[0] for row in q.all()]
 
 
@@ -372,6 +442,8 @@ def get_control_item_pairs_with_evidence(
     tenant_id: UUID | None = None,
     cycle_id: UUID | None = None,
     user_id: UUID | None = None,
+    cloud_provider: str | None = None,
+    exclude_cloud_provider: str | None = None,
 ) -> list[dict]:
     """
     Return (control_id, control_name, item_code) for each (control_id, item_code) that has at least one evidence row.
@@ -382,6 +454,10 @@ def get_control_item_pairs_with_evidence(
         .distinct()
     )
     q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
+    if cloud_provider:
+        q = _apply_evidence_cloud_provider_filter(q, cloud_provider)
+    elif exclude_cloud_provider:
+        q = _apply_evidence_exclude_cloud_provider(q, exclude_cloud_provider)
     pairs = q.all()
     if not pairs:
         return []
@@ -412,25 +488,29 @@ def delete_all_evidence_and_runs_for_tenant(
     tenant_id: UUID,
     cycle_id: UUID,
     user_id: UUID,
+    cloud_provider: str | None = None,
 ) -> dict:
     """
-    Delete all evidence and collector runs for the given tenant.
-    Returns {"deleted_evidence": int, "deleted_runs": int}.
+    Delete evidence and collector runs for the given tenant scope.
+    When cloud_provider is \"aws\", all runs except GCP (includes manual / \"n/a\" runs) are removed so GCP evidence stays intact.
+    Returns {\"deleted_evidence\": int, \"deleted_runs\": int}.
     """
-    deleted_evidence = (
-        db.query(Evidence)
-        .filter(Evidence.tenant_id == tenant_id)
-        .filter(Evidence.cycle_id == cycle_id)
-        .filter(Evidence.user_id == user_id)
-        .delete()
-    )
-    deleted_runs = (
-        db.query(CollectorRun)
+    run_q = (
+        db.query(CollectorRun.run_id)
         .filter(CollectorRun.tenant_id == tenant_id)
         .filter(CollectorRun.cycle_id == cycle_id)
         .filter(CollectorRun.user_id == user_id)
-        .delete()
     )
+    if cloud_provider == "aws":
+        # Keep GCP-only runs; remove AWS collector runs and legacy manual ("n/a") runs from the AWS workflow.
+        run_q = run_q.filter(CollectorRun.cloud_provider != "gcp")
+    elif cloud_provider is not None:
+        run_q = run_q.filter(CollectorRun.cloud_provider == cloud_provider)
+    run_ids = [row[0] for row in run_q.all()]
+    if not run_ids:
+        return {"deleted_evidence": 0, "deleted_runs": 0}
+    deleted_evidence = db.query(Evidence).filter(Evidence.run_id.in_(run_ids)).delete(synchronize_session=False)
+    deleted_runs = db.query(CollectorRun).filter(CollectorRun.run_id.in_(run_ids)).delete(synchronize_session=False)
     db.commit()
     return {"deleted_evidence": deleted_evidence, "deleted_runs": deleted_runs}
 
@@ -501,6 +581,7 @@ def create_manual_evidence(
         file_hash=file_hash,
         collected_at=now,
         response_json=safe_content,
+        cloud_provider=getattr(run, "cloud_provider", None) or "aws",
     )
     db.add(ev)
     db.commit()

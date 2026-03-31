@@ -19,6 +19,7 @@ _MIGRATIONS = [
     "04_drop_storage_uri.sql",
     "05_add_run_error_message.sql",
     "06_add_tenant_id.sql",
+    "07_evidence_cloud_provider.sql",
 ]
 
 
@@ -63,6 +64,18 @@ def ensure_schema() -> None:
         conn.execute(text(
             f"ALTER TABLE {SWIFT_SCHEMA}.evidence ADD COLUMN IF NOT EXISTS tenant_id UUID NULL"
         ))
+        conn.execute(text(
+            f"ALTER TABLE {SWIFT_SCHEMA}.evidence ADD COLUMN IF NOT EXISTS cloud_provider VARCHAR(16) NULL"
+        ))
+        conn.execute(text(
+            f"""
+            UPDATE {SWIFT_SCHEMA}.evidence AS e
+            SET cloud_provider = cr.cloud_provider
+            FROM {SWIFT_SCHEMA}.collector_runs AS cr
+            WHERE e.run_id = cr.run_id
+              AND (e.cloud_provider IS NULL OR e.cloud_provider = '')
+            """
+        ))
         conn.commit()
 
 
@@ -72,4 +85,8 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# Shared SWIFT evidence schema (collector_runs, evidence) for both AWS and GCP HTTP routers.
+get_swift_evidence_db = get_db
 

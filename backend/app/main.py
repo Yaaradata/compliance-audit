@@ -73,6 +73,7 @@ from .routers import (
     notes,
     notifications,
     aws,
+    gcp,
     compliance,
     artifact_registry,
     demo,
@@ -142,6 +143,9 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
 app.add_middleware(RequestLogMiddleware)
 
 PREFIX = "/api/v1"
+# Separated HTTP namespaces: AWS vs GCP evidence APIs (no shared /aws vs /gcp root path).
+CLOUD_AWS_API_PREFIX = f"{PREFIX}/cloud/aws"
+CLOUD_GCP_API_PREFIX = f"{PREFIX}/cloud/gcp"
 
 app.include_router(auth.router,          prefix=PREFIX, tags=["auth"])
 app.include_router(compliance.router,   prefix=PREFIX)
@@ -165,7 +169,8 @@ app.include_router(vendors.router,      prefix=PREFIX, tags=["vendors"])
 app.include_router(reference.diagrams_content_router, prefix=PREFIX)
 app.include_router(reference.router, prefix=PREFIX)
 app.include_router(audit_log.router,    prefix=PREFIX, tags=["audit-log"])
-app.include_router(aws.router,          prefix=PREFIX, tags=["aws"])
+app.include_router(aws.router, prefix=CLOUD_AWS_API_PREFIX, tags=["cloud-aws-evidence"])
+app.include_router(gcp.router, prefix=CLOUD_GCP_API_PREFIX, tags=["cloud-gcp-evidence"])
 app.include_router(artifact_registry.router, prefix=PREFIX, tags=["artifact-registry"])
 app.include_router(demo.router,             prefix=PREFIX, tags=["demo"])
 

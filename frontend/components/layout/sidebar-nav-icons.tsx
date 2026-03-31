@@ -54,6 +54,16 @@ export function IconAWS({ className }: { className?: string } = {}) {
   );
 }
 
+/** Distinct from AWS cloud: hex outline suggests another cloud provider in monochrome. */
+export function IconGCP({ className }: { className?: string } = {}) {
+  return (
+    <svg className={svgClass(className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l8.66 5v10L12 23l-8.66-5V8L12 3z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8.5v7M8.5 12h7" />
+    </svg>
+  );
+}
+
 export function IconAdmin({ className }: { className?: string } = {}) {
   return (
     <svg className={svgClass(className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
@@ -74,6 +84,7 @@ export function IconTenants({ className }: { className?: string } = {}) {
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   "/dashboard": IconDashboard,
   "/aws": IconAWS,
+  "/gcp": IconGCP,
   "/review": IconReview,
   "/approval": IconApproval,
   "/report": IconReport,

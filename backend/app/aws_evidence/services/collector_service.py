@@ -98,6 +98,7 @@ def run_all_collectors(
                 file_hash=payload_hash_cache[payload_key],
                 collected_at=ts,
                 response_json=payload,
+                cloud_provider="aws",
             )
             db.add(ev)
 

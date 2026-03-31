@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Play } from "lucide-react";
-import type { AwsEvidenceRow, AwsRun } from "@/lib/aws-api";
+import type { CloudCollectorRun, CloudEvidenceRow } from "@/lib/cloud-evidence-types";
 import {
   awsButtonAccentOutlineClass,
   awsButtonPaginationClass,
@@ -11,13 +11,15 @@ import {
 } from "@/components/aws/aws-ui";
 
 interface AwsEvidenceTableProps {
-  data: AwsEvidenceRow[];
-  runs?: AwsRun[];
+  data: CloudEvidenceRow[];
+  runs?: CloudCollectorRun[];
   /** Opens Run Comparisor on the dashboard for this control (no inline modal). */
-  onOpenRunComparisor: (row: AwsEvidenceRow) => void;
+  onOpenRunComparisor: (row: CloudEvidenceRow) => void;
   /** When set, shows Fetch in the table card header (e.g. dashboard). */
   onFetchEvidence?: () => void;
   fetching?: boolean;
+  /** Default: "Fetch AWS evidence" */
+  fetchButtonLabel?: string;
 }
 
 const ITEM_DESCRIPTION_MAP: Record<string, string> = {
@@ -56,7 +58,7 @@ function formatCollectedAt(iso: string | null): string {
   }
 }
 
-function formatRunLabel(run: AwsRun | undefined, index: number): string {
+function formatRunLabel(run: CloudCollectorRun | undefined, index: number): string {
   if (!run) return "—";
   return `Run ${index + 1}`;
 }
@@ -99,6 +101,7 @@ export function AwsEvidenceTable({
   onOpenRunComparisor,
   onFetchEvidence,
   fetching = false,
+  fetchButtonLabel = "Fetch AWS evidence",
 }: AwsEvidenceTableProps) {
   const [query, setQuery] = useState("");
   const [domainFilter, setDomainFilter] = useState("all");
@@ -284,7 +287,7 @@ export function AwsEvidenceTable({
           type="button"
           className={awsButtonAccentOutlineClass}
           onClick={() => onOpenRunComparisor(e)}
-          title="Open Run Comparisor for this control on the dashboard"
+          title="Compare this evidence across collector runs"
         >
           Compare
         </button>
@@ -321,7 +324,7 @@ export function AwsEvidenceTable({
             ) : (
               <>
                 <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                Fetch AWS evidence
+                {fetchButtonLabel}
               </>
             )}
           </button>

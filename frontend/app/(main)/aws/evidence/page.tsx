@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { RotateCw, FileCheck, Activity, Target, Layers } from "lucide-react";
-import { getEvidence, getRuns, getControlsCoverage } from "@/lib/aws-api";
+import { getEvidence, getRuns, getControlsCoverage, getEvidenceContent } from "@/lib/aws-api";
+import { EvidenceRunCompareModal } from "@/components/cloud/evidence-run-compare-modal";
 import { AwsEvidenceTable } from "@/components/aws/aws-evidence-table";
 import { AwsKpiCard } from "@/components/aws/aws-kpi-cards";
 import { AwsPageHeader, AwsSectionTitle, awsButtonSecondaryClass } from "@/components/aws/aws-page-header";
@@ -12,7 +12,6 @@ import type { AwsEvidenceRow, AwsRun } from "@/lib/aws-api";
 import { useAuth } from "@/lib/auth-context";
 
 export default function AwsEvidencePage() {
-  const router = useRouter();
   const { activeCycleId } = useAuth();
   const [data, setData] = useState<AwsEvidenceRow[]>([]);
   const [runs, setRuns] = useState<AwsRun[]>([]);
@@ -20,6 +19,7 @@ export default function AwsEvidencePage() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [controlsWithEvidenceCount, setControlsWithEvidenceCount] = useState(0);
+  const [compareAnchorRow, setCompareAnchorRow] = useState<AwsEvidenceRow | null>(null);
 
   const load = useCallback(() => {
     setError(null);
@@ -78,16 +78,9 @@ export default function AwsEvidencePage() {
     };
   }, [load, activeCycleId]);
 
-  const onOpenRunComparisor = useCallback(
-    (row: AwsEvidenceRow) => {
-      const params = new URLSearchParams({
-        runHistory: "1",
-        controlKey: `${row.control_id}::${row.item_code ?? ""}`,
-      });
-      router.push(`/aws/dashboard?${params.toString()}`);
-    },
-    [router]
-  );
+  const onOpenRunComparisor = useCallback((row: AwsEvidenceRow) => {
+    setCompareAnchorRow(row);
+  }, []);
 
   const uniqueSources = new Set(data.map((e) => e.source_system)).size;
 
@@ -178,6 +171,17 @@ export default function AwsEvidencePage() {
         </>
       )}
 
+      <EvidenceRunCompareModal
+        key={compareAnchorRow?.evidence_id ?? "closed"}
+        anchorRow={compareAnchorRow}
+        onClose={() => setCompareAnchorRow(null)}
+        allEvidenceRows={data}
+        runs={runs}
+        cycleId={activeCycleId}
+        fetchEvidenceContent={getEvidenceContent}
+        fetchEvidenceIndexForRun={(runId, cyc) => getEvidence(1000, cyc, runId)}
+        providerLabel="AWS"
+      />
     </>
   );
 }

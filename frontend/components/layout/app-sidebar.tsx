@@ -17,16 +17,81 @@ import { useAuth } from "@/lib/auth-context";
 import { useGlobalRoleForRouting } from "@/lib/home-dashboard-role-context";
 import { getArchitecture, getDomainsForArchitecture } from "@/lib/frameworks/swift-cscf";
 import { useCycleIdFromPath } from "@/lib/hooks/use-cycle-id";
-import { getNavForRole } from "@/lib/data/roles";
+import { getNavForRole, isNavCloudEvidence, isNavGroup, type NavItem } from "@/lib/data/roles";
 import { useSidebar } from "@/lib/sidebar-context";
 import { api } from "@/lib/api";
 import { SidebarHeader } from "@/components/layout/sidebar-header";
 import { SidebarDomainRow } from "@/components/layout/sidebar-domain-row";
 import { NavIcon } from "@/components/layout/sidebar-nav-icons";
+import { SidebarCloudEvidence } from "@/components/layout/sidebar-cloud-evidence";
 
 const SIDEBAR_WIDTH_EXPANDED = 260;
 const SIDEBAR_WIDTH_COLLAPSED = 56;
 const TRANSITION_MS = 200;
+
+function primaryNavHrefAllowed(href: string): boolean {
+  return (
+    href.startsWith("/dashboard") ||
+    href.startsWith("/evidence") ||
+    href.startsWith("/aws") ||
+    href.startsWith("/gcp") ||
+    href.startsWith("/users-groups") ||
+    href.startsWith("/review") ||
+    href.startsWith("/approval") ||
+    href.startsWith("/report") ||
+    href.startsWith("/admin")
+  );
+}
+
+function complianceBlocksHref(role: string | null | undefined, href: string): boolean {
+  return (
+    role === "compliance_officer" &&
+    (href.startsWith("/review") || href.startsWith("/approval") || href.startsWith("/report"))
+  );
+}
+
+function filterPrimaryNavItem(item: NavItem, role: string | null | undefined): NavItem | null {
+  if (isNavCloudEvidence(item)) {
+    return item;
+  }
+  if (isNavGroup(item)) {
+    const children = item.children.filter(
+      (c) => primaryNavHrefAllowed(c.href) && !complianceBlocksHref(role, c.href)
+    );
+    if (children.length === 0) return null;
+    return { ...item, children };
+  }
+  if (!primaryNavHrefAllowed(item.href)) return null;
+  if (complianceBlocksHref(role, item.href)) return null;
+  return item;
+}
+
+function filterNavBySearch(items: NavItem[], q: string): NavItem[] {
+  if (!q) return items;
+  return items
+    .map((item) => {
+      if (isNavCloudEvidence(item)) {
+        const ql = q.toLowerCase();
+        const hit =
+          item.label.toLowerCase().includes(ql) ||
+          ["cloud", "aws", "gcp", "amazon", "google", "evidence"].some((k) => ql.includes(k));
+        return hit ? item : null;
+      }
+      if (!isNavGroup(item)) {
+        const match =
+          item.label.toLowerCase().includes(q) || item.href.toLowerCase().includes(q);
+        return match ? item : null;
+      }
+      const groupMatches = item.label.toLowerCase().includes(q);
+      const children = item.children.filter(
+        (c) =>
+          groupMatches || c.label.toLowerCase().includes(q) || c.href.toLowerCase().includes(q)
+      );
+      if (children.length === 0) return null;
+      return { ...item, children };
+    })
+    .filter((item): item is NavItem => item !== null);
+}
 
 interface DomainScore {
   id: string;
@@ -47,25 +112,13 @@ export function AppSidebar() {
   const hasCycleInPath = Boolean(cycleIdFromPath && pathname?.startsWith("/cycles/"));
   const [searchQuery, setSearchQuery] = useState("");
   const role = cycleId && effectiveCycleRole !== undefined ? (effectiveCycleRole ?? globalRole) : globalRole;
-  const navItems = getNavForRole(role)
-    ?.filter(
-      (item) =>
-        item.href.startsWith("/dashboard") ||
-        item.href.startsWith("/evidence") ||
-        item.href.startsWith("/aws") ||
-        item.href.startsWith("/users-groups") ||
-        item.href.startsWith("/review") ||
-        item.href.startsWith("/approval") ||
-        item.href.startsWith("/report")
-    )
-    .filter((item) => {
-      if (role !== "compliance_officer") return true;
-      return (
-        !item.href.startsWith("/review") &&
-        !item.href.startsWith("/approval") &&
-        !item.href.startsWith("/report")
-      );
-    });
+  const navItems = useMemo(
+    () =>
+      getNavForRole(role)
+        .map((item) => filterPrimaryNavItem(item, role))
+        .filter((item): item is NavItem => item !== null),
+    [role]
+  );
   const arch = selectedArchitectureId ? getArchitecture(selectedArchitectureId) : null;
   const staticDomains = getDomainsForArchitecture(arch?.domainIds);
 
@@ -118,19 +171,14 @@ export function AppSidebar() {
 
   const base = cycleId ? `/cycles/${cycleId}` : "";
   const q = searchQuery.trim().toLowerCase();
-  const navItemsFiltered = q
-    ? navItems.filter((item) => item.label.toLowerCase().includes(q))
-    : navItems;
-  const isAwsPath = Boolean(pathname?.startsWith("/aws"));
+  const navItemsFiltered = useMemo(() => filterNavBySearch(navItems, q), [navItems, q]);
+  // Cloud evidence UIs stay at /aws/* and /gcp/* (not under /cycles/...) so APIs stay provider-specific.
+  const isCloudWorkspacePath = Boolean(pathname?.startsWith("/aws") || pathname?.startsWith("/gcp"));
   const navHref = (item: { href: string }) => {
     if (!base) return item.href;
     if (item.href === "/aws") return "/aws";
-    if (item.href === "/dashboard") {
-      // Cycle-scoped URL: /cycles/[id]/... → Overall Evidence Collection board.
-      // AWS workspace: /aws/... has no cycle in the path but activeCycleId still sets `base` — same destination.
-      if (hasCycleInPath || isAwsPath) return `${base}/dashboard`;
-      return "/dashboard";
-    }
+    if (item.href === "/gcp") return "/gcp";
+    if (item.href === "/dashboard") return hasCycleInPath || isCloudWorkspacePath ? `${base}/dashboard` : "/dashboard";
     if (item.href.startsWith("/evidence")) return item.href.replace("/evidence", `${base}/evidence`);
     if (item.href.startsWith("/review")) return `${base}/review`;
     if (item.href.startsWith("/approval")) return `${base}/approval`;
@@ -153,6 +201,7 @@ export function AppSidebar() {
   const sidebarWidth = open ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED;
 
   const [hoverEnabled, setHoverEnabled] = useState(false);
+  const [cloudFlyoutOpen, setCloudFlyoutOpen] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
     setHoverEnabled(mq.matches);
@@ -166,8 +215,8 @@ export function AppSidebar() {
   }, [hoverEnabled, setOpen]);
 
   const handleMouseLeave = useCallback(() => {
-    if (hoverEnabled) setOpen(false, true);
-  }, [hoverEnabled, setOpen]);
+    if (hoverEnabled && !cloudFlyoutOpen) setOpen(false, true);
+  }, [hoverEnabled, setOpen, cloudFlyoutOpen]);
 
   return (
     <aside
@@ -222,6 +271,58 @@ export function AppSidebar() {
         {/* Primary nav — icon + label (expanded), icon only (collapsed) */}
         <nav className="p-3 flex flex-col gap-0.5" aria-label="Primary">
           {navItemsFiltered.map((item) => {
+            if (isNavCloudEvidence(item)) {
+              return (
+                <SidebarCloudEvidence
+                  key={item.label}
+                  label={item.label}
+                  sidebarOpen={open}
+                  hoverEnabled={hoverEnabled}
+                  awsHref={navHref({ href: "/aws" })}
+                  gcpHref={navHref({ href: "/gcp" })}
+                  onOpenChange={setCloudFlyoutOpen}
+                />
+              );
+            }
+            if (isNavGroup(item)) {
+              return (
+                <div key={item.label} className="flex flex-col gap-0.5">
+                  {open && (
+                    <div
+                      className="text-[10px] font-semibold uppercase tracking-wider px-3 pt-2 pb-1 mt-0.5"
+                      style={{ color: "var(--sidebar-text-muted)" }}
+                    >
+                      {item.label}
+                    </div>
+                  )}
+                  {item.children.map((child) => {
+                    const href = navHref(child);
+                    const isActive =
+                      href === "/dashboard"
+                        ? pathname === "/dashboard" || pathname?.endsWith("/dashboard")
+                        : pathname?.startsWith(href);
+                    return (
+                      <Link
+                        key={child.href}
+                        href={href || child.href}
+                        className={`flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium outline-none transition-all duration-200 hover:bg-(--sidebar-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--sidebar-active-text) min-w-0 ${open ? "pl-6 pr-3" : "px-3 justify-center"}`}
+                        style={{
+                          color: isActive ? "var(--sidebar-active-text)" : "var(--sidebar-text-muted)",
+                          backgroundColor: isActive ? "var(--sidebar-active-bg)" : "transparent",
+                        }}
+                        title={!open ? child.label : undefined}
+                        aria-current={isActive ? "page" : undefined}
+                      >
+                        <span style={{ color: "inherit" }}>
+                          <NavIcon href={child.href} className="w-5 h-5" />
+                        </span>
+                        {open && <span className="truncate">{child.label}</span>}
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            }
             const href = navHref(item);
             const isActive =
               href === "/dashboard"
@@ -240,7 +341,7 @@ export function AppSidebar() {
                 aria-current={isActive ? "page" : undefined}
               >
                 <span style={{ color: "inherit" }}>
-                  <NavIcon href={item.href} className={open ? "w-5 h-5" : "w-5 h-5"} />
+                  <NavIcon href={item.href} className="w-5 h-5" />
                 </span>
                 {open && <span className="truncate">{item.label}</span>}
               </Link>

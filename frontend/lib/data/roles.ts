@@ -1,5 +1,19 @@
 import type { UserRole } from "../types";
 
+/** Primary nav entry: flat link, grouped links, or cloud evidence flyout (single row + hover/click panel). */
+export type NavItem =
+  | { href: string; label: string; icon?: string }
+  | { kind: "group"; label: string; children: { href: string; label: string }[] }
+  | { kind: "cloud_evidence"; label: string };
+
+export function isNavGroup(item: NavItem): item is { kind: "group"; label: string; children: { href: string; label: string }[] } {
+  return "kind" in item && item.kind === "group";
+}
+
+export function isNavCloudEvidence(item: NavItem): item is { kind: "cloud_evidence"; label: string } {
+  return "kind" in item && item.kind === "cloud_evidence";
+}
+
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Platform Administrator",
   platform_admin: "Platform Administrator",
@@ -29,15 +43,15 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
 };
 
 /** Minimal nav for users with no global role and no active cycle role. */
-export const UNASSIGNED_NAV: { href: string; label: string; icon?: string }[] = [{ href: "/dashboard", label: "Dashboard" }];
+export const UNASSIGNED_NAV: NavItem[] = [{ href: "/dashboard", label: "Dashboard" }];
 
 /** Resolve nav items for a role, including null (unassigned). */
-export function getNavForRole(role: UserRole | string | null | undefined): { href: string; label: string; icon?: string }[] {
+export function getNavForRole(role: UserRole | string | null | undefined): NavItem[] {
   if (!role) return UNASSIGNED_NAV;
   return NAV_BY_ROLE[role as UserRole] ?? UNASSIGNED_NAV;
 }
 
-export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?: string }[]> = {
+export const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   admin: [
     { href: "/admin", label: "Bank Onboarding" },
     { href: "/admin/tenants", label: "Tenants" },
@@ -60,7 +74,7 @@ export const NAV_BY_ROLE: Record<UserRole, { href: string; label: string; icon?:
   ],
   it_sme: [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/aws", label: "AWS" },
+    { kind: "cloud_evidence", label: "Cloud Evidence" },
     { href: "/report", label: "Report" },
   ],
   internal_reviewer_l1: [

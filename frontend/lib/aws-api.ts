@@ -1,39 +1,21 @@
 /**
- * AWS Evidence API — all calls use /api/v1/aws/... (via main api client).
+ * AWS Evidence API — all calls use /api/v1/cloud/aws/... (via main api client).
  */
 
 import { api } from "@/lib/api";
+import { CLOUD_EVIDENCE_API } from "@/lib/cloud-evidence-api-paths";
+import type { CloudCollectorRun, CloudEvidenceRow } from "@/lib/cloud-evidence-types";
 
-const PREFIX = "/aws";
+const PREFIX = CLOUD_EVIDENCE_API.aws;
 const AWS_CONNECTION_CYCLE_KEY = "aws_connection_cycle_id";
 const scopeQuery = (cycleId: string | null | undefined): string => {
   const id = (cycleId || "").trim();
   return id ? `?cycle_id=${encodeURIComponent(id)}` : "";
 };
 
-export interface AwsRun {
-  run_id: string;
-  collector_name: string;
-  cloud_provider: string;
-  execution_time: string | null;
-  in_time?: string | null;
-  ended_at: string | null;
-  status: string;
-  trigger_type: string | null;
-  evidence_count: number;
-  /** Present when status is partial or failed; lists which collectors failed and why. */
-  error_message?: string | null;
-}
+export type AwsRun = CloudCollectorRun;
 
-export interface AwsEvidenceRow {
-  evidence_id: string;
-  run_id?: string;
-  item_code: string;
-  control_id: string;
-  evidence_type: string;
-  source_system: string;
-  collected_at: string | null;
-}
+export type AwsEvidenceRow = CloudEvidenceRow;
 
 export interface AwsControl {
   control_id: string;
@@ -98,9 +80,14 @@ export function fetchAwsEvidence(cycleId?: string | null): Promise<{ run_id: str
   return api.postViaProxy<{ run_id: string; status: string }>(`${PREFIX}/runs/collect${scopeQuery(cycleId)}`, {}, 120_000);
 }
 
-export function getEvidence(limit = 1000, cycleId?: string | null): Promise<AwsEvidenceRow[]> {
+export function getEvidence(
+  limit = 1000,
+  cycleId?: string | null,
+  runId?: string | null
+): Promise<AwsEvidenceRow[]> {
   const qs = scopeQuery(cycleId);
-  const url = `${PREFIX}/evidence?limit=${limit}${qs ? `&${qs.slice(1)}` : ""}`;
+  const runQs = runId ? `&run_id=${encodeURIComponent(runId)}` : "";
+  const url = `${PREFIX}/evidence?limit=${limit}${runQs}${qs ? `&${qs.slice(1)}` : ""}`;
   return api.get<AwsEvidenceRow[]>(url).then((r) => (Array.isArray(r) ? r : []));
 }
 

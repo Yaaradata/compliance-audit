@@ -18,6 +18,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const isCycleRoute = pathname?.startsWith("/cycles/");
   const isAwsRoute = pathname?.startsWith("/aws");
+  const isGcpRoute = pathname?.startsWith("/gcp");
   const isHomeDashboard = pathname === "/dashboard";
 
   const urlCycleId = pathname?.match(/^\/cycles\/([^/]+)/)?.[1];
@@ -62,17 +63,32 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       return;
     }
     const isAwsPage = pathname?.startsWith("/aws") && effectiveRole === "it_sme";
+    const isGcpPage = pathname?.startsWith("/gcp") && effectiveRole === "it_sme";
     const isUsersGroupsPage = pathname?.startsWith("/users-groups");
     const canAccessUsersGroups = (effectiveRole === "compliance_officer" || effectiveRole === "tenant_admin") && isUsersGroupsPage;
-    if (!activeCycleId && !selectedArchitectureId && !isCycleRoute && !isAwsPage && !canAccessUsersGroups && !isHomeDashboard) {
-      router.replace("/dashboard");
+    const isAssessmentsPage = pathname?.startsWith("/assessments");
+    if (
+      !activeCycleId &&
+      !selectedArchitectureId &&
+      !isCycleRoute &&
+      !isAwsPage &&
+      !isGcpPage &&
+      !canAccessUsersGroups &&
+      !isAssessmentsPage &&
+      !isHomeDashboard
+    ) {
+      router.replace("/assessments/new");
       return;
     }
     if (pathname?.startsWith("/aws") && effectiveRole !== "it_sme" && effectiveCycleRole !== undefined) {
       router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/dashboard");
       return;
     }
-    if (activeCycleId && !isCycleRoute && pathname && !isAwsPage) {
+    if (pathname?.startsWith("/gcp") && effectiveRole !== "it_sme" && effectiveCycleRole !== undefined) {
+      router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/assessments/new");
+      return;
+    }
+    if (activeCycleId && !isCycleRoute && pathname && !isAwsPage && !isGcpPage) {
       if (pathname.startsWith("/domains/")) {
         const rest = pathname.slice("/domains/".length);
         router.replace(`/cycles/${activeCycleId}/domains/${rest}`);
@@ -98,9 +114,23 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (isPlatformAdmin && pathname !== "/admin") return null;
   const renderRole = effectiveTenantRole;
   const allowAwsWithoutCycle = pathname?.startsWith("/aws") && renderRole === "it_sme";
+  const allowGcpWithoutCycle = pathname?.startsWith("/gcp") && renderRole === "it_sme";
   const allowUsersGroups = pathname?.startsWith("/users-groups") && (renderRole === "compliance_officer" || renderRole === "tenant_admin");
+  const allowAssessmentsPage = pathname?.startsWith("/assessments");
   const allowHomeDashboard = pathname === "/dashboard";
-  if (!isPlatformAdmin && !activeCycleId && !selectedArchitectureId && !isCycleRoute && !allowAwsWithoutCycle && !allowUsersGroups && !allowHomeDashboard) return null;
+  if (
+    !isPlatformAdmin &&
+    !activeCycleId &&
+    !selectedArchitectureId &&
+    !isCycleRoute &&
+    !allowAwsWithoutCycle &&
+    !allowGcpWithoutCycle &&
+    !allowUsersGroups &&
+    !allowAssessmentsPage &&
+    !allowHomeDashboard
+  ) {
+    return null;
+  }
 
   // Team setup: standalone page without sidebar or main header
   if (pathname?.includes("/team-setup")) {
@@ -120,8 +150,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     role === "internal_reviewer_l1" ||
     role === "internal_reviewer_l2" ||
     role === "external_assessor";
-  /** Cycle and AWS workspaces keep the sidebar for consistent navigation (same as /cycles/...). */
-  const showSidebar = isCycleRoute || isAwsRoute
+  /** Cycle, AWS, and GCP workspaces keep the sidebar for consistent navigation (same as /cycles/...). */
+  const showSidebar = isCycleRoute || isAwsRoute || isGcpRoute
     ? true
     : !hideSidebarOutsideCycleForRole && (!isHomeDashboard || role === "compliance_officer");
 

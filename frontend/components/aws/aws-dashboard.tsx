@@ -6,8 +6,8 @@ import { AlertCircle, FileText, Loader2, BarChart3 } from "lucide-react";
 import { AwsKpiCards } from "./aws-kpi-cards";
 import { AwsSectionTitle, awsButtonSecondaryClass, awsSegmentShellClass, awsSegmentButtonClass } from "./aws-page-header";
 import { AwsEvidenceTable } from "./aws-evidence-table";
-import { RunHistoryVisualsPlotly } from "./run-history-visuals-plotly";
-import type { AwsRun, AwsEvidenceRow } from "@/lib/aws-api";
+import { RunHistoryVisualsPlotly } from "@/components/cloud/run-history-visuals-plotly";
+import { getEvidenceContent, type AwsRun, type AwsEvidenceRow } from "@/lib/aws-api";
 
 interface AwsDashboardProps {
   runs: AwsRun[];
@@ -89,7 +89,7 @@ export function AwsDashboard({
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between md:gap-6">
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-semibold leading-tight" style={{ color: "var(--foreground)" }}>
-              Dashboard
+              AWS dashboard
             </h1>
             <p className="mt-1 text-sm leading-snug" style={{ color: "var(--foreground-muted)" }}>
               Compliance evidence at a glance — collect and view AWS security evidence for SWIFT controls.
@@ -198,6 +198,7 @@ export function AwsDashboard({
             evidenceRows={evidenceRows}
             focusComparisorControlKey={focusComparisorControlKey}
             deferredCharts={activeSection !== "run-history"}
+            fetchEvidenceContent={getEvidenceContent}
           />
         </section>
       )}
@@ -224,12 +225,17 @@ function RunHistoryVisuals({
   evidenceRows,
   focusComparisorControlKey,
   deferredCharts = false,
+  fetchEvidenceContent,
 }: {
   runs: AwsRun[];
   evidenceRows: AwsEvidenceRow[];
   focusComparisorControlKey?: string | null;
   /** When true, skip heavy Plotly charts (dashboard is showing Evidence); Comparisor still preloads. */
   deferredCharts?: boolean;
+  fetchEvidenceContent: (
+    evidenceId: string,
+    cycleId: string | null | undefined
+  ) => Promise<unknown>;
 }) {
   return (
     <RunHistoryVisualsPlotly
@@ -237,6 +243,7 @@ function RunHistoryVisuals({
       evidenceRows={evidenceRows}
       focusComparisorControlKey={focusComparisorControlKey ?? null}
       deferredCharts={deferredCharts}
+      fetchEvidenceContent={fetchEvidenceContent}
     />
   );
 }

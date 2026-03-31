@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     VERTEX_AI_MODEL: str = "gemini-2.5-flash-lite"
     GOOGLE_CLOUD_PROJECT: str | None = None
     VERTEX_AI_LOCATION: str = "us-central1"
+    # SWIFT 2026 GCP evidence (test/setup): project to scan using Application Default Credentials.
+    GCP_EVIDENCE_PROJECT_ID: str | None = None
+    # Optional: path to GCP_Evidence_CollectionforSWIFT_v2026_Updated.xlsx for structured / workbook APIs.
+    GCP_EVIDENCE_WORKBOOK_PATH: str | None = None
 
     GCS_BUCKET_NAME: str = ""
     GCS_PREFIX: str = "compliance-audit"

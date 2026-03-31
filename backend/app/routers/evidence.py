@@ -23,7 +23,7 @@ from ..schemas.evidence import (
     AiCriterionResultOut,
     AwsEvidenceSuggestResponse,
 )
-from app.aws_evidence.core.db import get_db as get_aws_db, ensure_schema as ensure_aws_schema
+from app.aws_evidence.core.db import ensure_schema as ensure_aws_schema, get_swift_evidence_db
 from app.aws_evidence.services import evidence_service as aws_evidence_service
 from ..services import ai_service
 from ..services import artifact_registry_service
@@ -914,7 +914,7 @@ def suggest_evidence_fields_from_aws(
     cycle_id: UUID,
     item_id: str,
     db: Session = Depends(get_db_scoped),
-    aws_db: Session = Depends(get_aws_db),
+    aws_db: Session = Depends(get_swift_evidence_db),
     user: User = Depends(get_current_user),
 ):
     """

@@ -1,5 +1,7 @@
 """Shared JSON utilities for AWS evidence (PostgreSQL JSONB-safe serialization)."""
+import math
 import re
+import uuid
 from datetime import datetime, date
 from decimal import Decimal
 
@@ -22,7 +24,8 @@ def sanitize_for_jsonb(obj):
         return None
 
     if isinstance(obj, dict):
-        return {k: sanitize_for_jsonb(v) for k, v in obj.items()}
+        # JSON object keys must be strings; also normalizes accidental UUID keys.
+        return {str(k): sanitize_for_jsonb(v) for k, v in obj.items()}
 
     if isinstance(obj, list):
         return [sanitize_for_jsonb(v) for v in obj]
@@ -51,7 +54,19 @@ def sanitize_for_jsonb(obj):
             obj,
         )
 
-    if isinstance(obj, (int, float, bool)):
+    if isinstance(obj, uuid.UUID):
+        return str(obj)
+
+    if isinstance(obj, bool):
+        return obj
+
+    if isinstance(obj, int):
+        return obj
+
+    if isinstance(obj, float):
+        # Standard JSON (and FastAPI's encoder with allow_nan=False) cannot emit NaN/Infinity.
+        if not math.isfinite(obj):
+            return None
         return obj
 
     # Fallback: stringify anything else (e.g. botocore StreamingBody, Enum)

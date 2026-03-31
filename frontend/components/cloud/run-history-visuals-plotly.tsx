@@ -10,7 +10,7 @@ import {
   type CSSProperties,
 } from "react";
 import dynamic from "next/dynamic";
-import { getEvidenceContent, type AwsEvidenceRow, type AwsRun } from "@/lib/aws-api";
+import type { CloudCollectorRun, CloudEvidenceRow } from "@/lib/cloud-evidence-types";
 import { useAuth } from "@/lib/auth-context";
 import {
   awsAccordionTriggerClass,
@@ -220,15 +220,25 @@ export function RunHistoryVisualsPlotly({
   evidenceRows,
   focusComparisorControlKey = null,
   deferredCharts = false,
+  fetchEvidenceContent,
 }: {
-  runs: AwsRun[];
-  evidenceRows: AwsEvidenceRow[];
+  runs: CloudCollectorRun[];
+  evidenceRows: CloudEvidenceRow[];
   /** When set, switch to Run Comparisor and select this control (`control_id::item_code`). */
   focusComparisorControlKey?: string | null;
   /** When true (e.g. Evidence tab visible), skip Plotly charts but still preload Run Comparisor in the background. */
   deferredCharts?: boolean;
+  /** Provider-specific content fetch (AWS: getEvidenceContent; GCP: getGcpEvidenceContent). */
+  fetchEvidenceContent: (
+    evidenceId: string,
+    cycleId: string | null | undefined
+  ) => Promise<unknown>;
 }) {
   const { activeCycleId } = useAuth();
+  const loadEvidenceContent = useCallback(
+    (evidenceId: string) => fetchEvidenceContent(evidenceId, activeCycleId),
+    [fetchEvidenceContent, activeCycleId]
+  );
   const [sidebarPreference, setSidebarPreference] = useState<"metrics" | "comparisor">(() =>
     focusComparisorControlKey ? "comparisor" : "metrics"
   );
@@ -332,7 +342,7 @@ export function RunHistoryVisualsPlotly({
 
   const buildRowsForControl = useCallback(async (controlKey: string) => {
     const [controlId, itemCode] = controlKey.split("::");
-    const byRun = new Map<string, AwsEvidenceRow[]>();
+    const byRun = new Map<string, CloudEvidenceRow[]>();
     for (const row of evidenceRows) {
       if (row.control_id !== controlId || row.item_code !== itemCode) continue;
       if (!row.run_id) continue;
@@ -340,7 +350,7 @@ export function RunHistoryVisualsPlotly({
       list.push(row);
       byRun.set(row.run_id, list);
     }
-    const pickLatest = (runId: string): AwsEvidenceRow | null => {
+    const pickLatest = (runId: string): CloudEvidenceRow | null => {
       const list = byRun.get(runId) ?? [];
       if (!list.length) return null;
       return [...list].sort((a, b) => {
@@ -352,12 +362,14 @@ export function RunHistoryVisualsPlotly({
 
     const comparableRuns = runs
       .map((run) => ({ run, evidence: pickLatest(run.run_id) }))
-      .filter((x): x is { run: AwsRun; evidence: AwsEvidenceRow } => Boolean(x.evidence));
+      .filter((x): x is { run: CloudCollectorRun; evidence: CloudEvidenceRow } =>
+        Boolean(x.evidence)
+      );
     if (!comparableRuns.length) return null;
 
     const contentList = await Promise.all(
       comparableRuns.map(async ({ run, evidence }) => {
-        const content = await getEvidenceContent(evidence.evidence_id, activeCycleId);
+        const content = await loadEvidenceContent(evidence.evidence_id);
         return { run, evidence, values: flattenContent(content) };
       })
     );
@@ -380,7 +392,7 @@ export function RunHistoryVisualsPlotly({
       })),
       rows,
     };
-  }, [evidenceRows, runs, runLabelMap, activeCycleId]);
+  }, [evidenceRows, runs, runLabelMap, loadEvidenceContent]);
 
   const compareRuns = useCallback(async () => {
     if (!controlOptions.length) return;

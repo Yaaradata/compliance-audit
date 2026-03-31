@@ -25,4 +25,6 @@ class Evidence(Base):
     file_hash = Column(String, nullable=False)
     collected_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     response_json = Column(JSONB, nullable=True)
+    # Denormalized from collector_runs.cloud_provider; avoids joining collector_runs on /evidence/.../content (deadlock-safe).
+    cloud_provider = Column(String(16), nullable=True)
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect, useCallback, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
   getRuns,
@@ -9,11 +9,14 @@ import {
   getControlsCoverage,
   fetchAwsEvidence,
   getRunDetail,
+  getEvidenceContent,
   isAwsConnectionVisibleForCycle,
+  type AwsRun,
+  type AwsEvidenceRow,
 } from "@/lib/aws-api";
 import { AwsDashboard } from "@/components/aws/aws-dashboard";
 import { AwsDashboardSkeleton } from "@/components/aws/aws-dashboard-skeleton";
-import type { AwsRun, AwsEvidenceRow } from "@/lib/aws-api";
+import { EvidenceRunCompareModal } from "@/components/cloud/evidence-run-compare-modal";
 
 const POLL_INTERVAL_MS = 4000;
 const TIMEOUT_POLL_INTERVAL_MS = 6000;
@@ -42,7 +45,6 @@ function isCollectRecoveryComplete(
 }
 
 function AwsDashboardPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { activeCycleId } = useAuth();
   const focusKey = searchParams.get("controlKey");
@@ -55,6 +57,7 @@ function AwsDashboardPageContent() {
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [compareAnchorRow, setCompareAnchorRow] = useState<AwsEvidenceRow | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutPollStartRef = useRef<number>(0);
@@ -235,16 +238,9 @@ function AwsDashboardPageContent() {
       });
   }, [load, activeCycleId, evidenceRows.length]);
 
-  const onOpenRunComparisor = useCallback(
-    (row: AwsEvidenceRow) => {
-      const params = new URLSearchParams({
-        runHistory: "1",
-        controlKey: `${row.control_id}::${row.item_code ?? ""}`,
-      });
-      router.push(`/aws/dashboard?${params.toString()}`);
-    },
-    [router]
-  );
+  const onOpenRunCompare = useCallback((row: AwsEvidenceRow) => {
+    setCompareAnchorRow(row);
+  }, []);
 
   if (loading) {
     return (
@@ -262,10 +258,21 @@ function AwsDashboardPageContent() {
         evidenceCount={evidenceCount}
         controlIdsWithEvidence={controlIdsWithEvidence}
         onFetchEvidence={onFetchEvidence}
-        onOpenRunComparisor={onOpenRunComparisor}
+        onOpenRunComparisor={onOpenRunCompare}
         focusComparisorControlKey={focusComparisorControlKey}
         fetching={fetching}
         fetchError={fetchError}
+      />
+      <EvidenceRunCompareModal
+        key={compareAnchorRow?.evidence_id ?? "closed"}
+        anchorRow={compareAnchorRow}
+        onClose={() => setCompareAnchorRow(null)}
+        allEvidenceRows={evidenceRows}
+        runs={runs}
+        cycleId={activeCycleId}
+        fetchEvidenceContent={getEvidenceContent}
+        fetchEvidenceIndexForRun={(runId, cyc) => getEvidence(1000, cyc, runId)}
+        providerLabel="AWS"
       />
     </>
   );
