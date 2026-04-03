@@ -1,0 +1,328 @@
+ROLE:
+
+You are a UX engineer and compliance platform architect. Your task is to convert
+the structured evidence model and sufficiency matrix into a flat CSV of form
+questions — one row per UI input field — that drives a compliance evidence
+collection platform.
+
+This CSV is consumed DIRECTLY by a front-end form renderer. Each row maps to
+one visible input field on a user's screen. The platform renders each evidence
+item as a form page; questions within that page are ordered by sort_order.
+
+THE CORE DESIGN PRINCIPLE:
+
+One evidence item = one form page = multiple question rows in the CSV.
+Questions must be ordered to guide the user through:
+  1. Upload the primary evidence (file/spreadsheet)
+  2. Confirm key metadata (dates, versions, authors)
+  3. Answer binary compliance confirmations (Yes/No/Unknown)
+  4. Provide justifications for exceptions or gaps
+  5. Describe any known gaps and remediation plans
+
+Questions are NOT derived from controls — they are derived from EVIDENCE ITEMS.
+One evidence item's questions serve ALL controls that item covers simultaneously.
+
+INPUT
+Use BOTH prior stage outputs:
+  A. Stage 1 XLSX, Sheet 1 (Canonical_Evidence_Items):
+       item_code, evidence_item_name, evidence_types_permitted, evidence_description,
+       sufficiency_definition_summary, controls_served, evaluation_criteria,
+       llm_sufficiency_evaluation_notes
+  B. Stage 2 XLSX (Complete Sufficiency Matrix):
+       sufficiency_criteria (JSON arrays) — extract the checklist items as basis
+       for Yes/No confirmation questions
+  C. Stage 1 XLSX, Sheet 5 (UX_Design_Readiness):
+       input_type, required_fields_upload_spec, ai_auto_actions_on_upload
+
+OUTPUT SPECIFICATION — CSV (UTF-8)
+
+File name pattern: {FRAMEWORK}_{VERSION}_evaluation_questions.csv
+  Example: SWIFT_CSCF2026_evaluation_questions.csv
+           SOC2_2024_evaluation_questions.csv
+           PCIDSS_v4_evaluation_questions.csv
+
+COLUMN DEFINITIONS (17 columns, produce in this exact order):
+
+  1. id               [string — UUID v4]
+     Generate a unique UUID v4 for every row. Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+     Must be unique across the entire CSV. Never reuse.
+     Generate fresh — do not copy UUIDs from examples.
+
+  2. evidence_item_id [string]
+     The item_code from Stage 1 Sheet 1 (e.g. A1, B3, C2).
+     All questions for the same evidence item share the same evidence_item_id.
+
+  3. question_key     [string — snake_case identifier]
+     Unique machine-readable key for this question WITHIN its evidence item.
+     Rules:
+       - snake_case only (lowercase, underscores, no spaces or special chars)
+       - Descriptive and self-documenting (not "q1", "field1")
+       - Unique within the evidence item block (not globally — same key can
+         appear in different evidence items if semantically identical)
+       - 2–6 words: verb_noun_qualifier pattern preferred
+     Examples: evidence_document | diagram_date | internet_exposure_confirmation |
+               zone_boundary_description | bridging_servers_shown |
+               known_gaps_and_plan | hardening_baseline_name | review_performed_by
+
+  4. label            [string — user-facing question text]
+     The question or field label shown to the user. Write in plain language.
+     Rules:
+       - For file uploads: "{Evidence Item Name} Upload"
+       - For date fields:  "{What it is} (must be within last {N} months)"
+       - For select:       Direct question ending in "?" (e.g. "Is there any...")
+       - For textarea:     Action instruction (e.g. "Describe how...", "If YES —
+                           provide justification and...")
+       - For text:         Field name as instruction (e.g. "Review performed by
+                           (name and role)")
+       - For spreadsheet:  "{Evidence Item Name}" (the table title)
+       Aim for clarity over brevity. A user seeing only this label must understand
+       exactly what to provide.
+
+  5. question_type    [string — one of 6 values]
+     Exactly one of:
+       file          Upload input for documents (PDF, images, spreadsheets, diagrams)
+       date          Date picker (ISO 8601 YYYY-MM-DD format)
+       select        Dropdown or radio buttons (from options list)
+       textarea      Multi-line free text
+       text          Single-line free text
+       spreadsheet   Structured table with defined column schema (JSON in options)
+
+  6. required         [boolean string]
+     "True" or "False"
+     Rules:
+       - file:          Always "False" (upload is encouraged but platform may allow
+                        late submission; never block submission on file alone)
+       - date:          "True" if the date is a compliance requirement; else "False"
+       - select:        "True" for all binary compliance confirmations
+       - textarea:      "False" for justifications (conditional on prior answer);
+                        "True" only if explicitly required for all respondents
+       - text:          "True" for identifiers, reviewers, version numbers
+       - spreadsheet:   "True" if the inventory/table IS the primary evidence
+
+  7. placeholder      [string or empty]
+     Helper text shown inside the input field before the user types.
+     Rules:
+       - file:          Leave empty (nan)
+       - date:          "YYYY-MM-DD"
+       - select:        Leave empty (nan) — options cover it
+       - textarea:      Example of good answer in format "e.g. ..."
+                        Example: "e.g. No direct internet path exists; proxy used with
+                        whitelist and IDS monitoring."
+       - text:          Example value "e.g. John Smith, Network Security Manager"
+       - spreadsheet:   Leave empty (nan)
+
+  8. options          [string — JSON array]
+     For select:       JSON array of string options. Always include all expected
+                       answers including unknown/not-applicable.
+                       Standard sets:
+                         Binary compliant:   ["Yes", "No", "Unknown"]
+                         Presence confirm:   ["Confirmed", "Partial", "Not present"]
+                         Status:             ["Compliant", "Non-compliant", "In progress", "N/A"]
+                         Built-in account:   ["Disabled", "Renamed", "Active (justify below)"]
+     For spreadsheet:  JSON array of column definition objects:
+                       [{"key":"col_key","type":"text","label":"Column Label",
+                         "options":[],"required":true}, ...]
+                       Column types: "text" | "select" | "date" | "number" | "boolean"
+     For all others:   "[]" (empty JSON array — not null, not empty string)
+
+  9. sort_order       [integer — 0-indexed]
+     Position of this question within its evidence_item_id block.
+     Start at 0 for the first question of each evidence item.
+     Increment by 1. No gaps. Restart at 0 for each new evidence_item_id.
+     Ordering convention within a block:
+       0:   Primary file upload (always first if evidence is a document)
+       1:   Date/version/metadata fields
+       2-N: Binary Yes/No confirmation questions (derived from sufficiency criteria)
+       N+1: Conditional justification textareas (follow their triggering Yes/No)
+       Last-2: Structured description / summary textarea
+       Last-1: Known gaps and remediation plan textarea
+       (Spreadsheet evidence: spreadsheet at 1, then confirmation questions after)
+
+  10. control_id      [string or empty]
+      Leave empty (nan) for all rows. This column exists for future use where
+      questions are scoped to a specific control. Currently unused.
+
+  11. rows            [integer or empty]
+      For textarea questions ONLY: number of visible rows in the text box.
+      Standard values: 3 (short response) | 4 (medium) | 6 (detailed narrative)
+      For all other question types: leave empty (nan)
+
+  12. accept          [string or empty]
+      For file questions ONLY: comma-separated list of accepted MIME extensions.
+      Build from evidence_types_permitted in Stage 1:
+        Diagrams/images:        .pdf,.png,.jpg,.jpeg,.vsdx,.drawio,.svg,.pptx
+        Spreadsheets/inventory: .xlsx,.xls,.csv
+        Policy documents:       .pdf,.docx,.doc
+        Configuration files:    .pdf,.txt,.xml,.json,.conf
+        Audit reports:          .pdf,.xlsx,.csv
+        Mixed (diagram + doc):  .pdf,.png,.jpg,.jpeg,.vsdx,.drawio,.svg,.xlsx
+      For all other question types: leave empty (nan)
+      NOTE: For textarea, this column stores the integer row count instead
+            (historical schema quirk — match this behavior exactly)
+
+  13. upload_label    [string or empty]
+      For file questions ONLY: detailed instruction text shown below the upload button.
+      Write a full description of:
+        - What exactly to upload
+        - Accepted formats listed in plain language
+        - What the document must contain or show
+        - Any recency requirements (e.g. "dated within last 12 months")
+      Aim for 2–4 sentences. 40–80 words.
+      For all other question types: leave empty (nan)
+
+  14. cscf_version    [string]
+      Framework version tag for this row. Use a consistent tag across all rows.
+      Format: "{VERSION}v" — examples: "2026v", "v4", "2024v", "2022v"
+      For new frameworks, use "{YEAR}v" where YEAR is the publication year.
+
+  15. created_at      [string — ISO 8601 timestamp]
+      Generation timestamp for this row.
+      Format: YYYY-MM-DDTHH:MM:SS.ffffffZ
+      Use the actual generation date/time. All rows in one generation run share
+      the same timestamp.
+
+  16. guide           [string]
+      Short help text (1–2 sentences) shown as a tooltip or help icon next to
+      the question. Purpose: help a non-expert understand what is expected.
+      Rules:
+        - file:        "Upload [what it is] ([format spec]) showing [key content]."
+        - date:        "Enter the [date description] — it must [constraint]."
+        - select:      "Confirm whether [condition] — '[expected answer]' is the
+                        expected compliant answer."
+        - textarea:    "Required only if [condition] — [what to include in the answer]."
+        - text:        "State the [field description]."
+        - spreadsheet: "Fill in every [item type] row — [key fields] are required."
+      Keep under 30 words. Plain language. No jargon.
+
+  17. Evidence Required  [string — category label]
+      Human-readable category name for the type of evidence this question collects.
+      Use exactly one of these standard values:
+        Document/File Upload
+        Date confirmation
+        Configuration state confirmation (Yes/No/Status)
+        Free-text narrative / explanation
+        Structured Inventory/Spreadsheet
+        Short text / identifier / value
+
+QUESTION BLOCK DESIGN RULES
+
+For each evidence item, design its question block following this structure:
+
+PATTERN A — Document/Diagram evidence (e.g. network diagram, policy document):
+  [0] file       — Upload the primary document
+  [1] date       — Document date/version (required: True)
+  [2] select     — Key binary confirmation derived from first sufficiency criterion
+  [3] textarea   — Justification if [2] is "Yes" or "Unknown" (required: False)
+  [4] select     — Second key binary confirmation
+  [5] textarea   — Description/detail textarea for the main topic
+  ... additional select+textarea pairs per sufficiency criterion ...
+  [N-1] textarea — Known gaps and remediation plan (required: False)
+
+PATTERN B — Inventory/Spreadsheet evidence (e.g. component inventory):
+  [0] file       — Upload as file (optional alternative)
+  [1] spreadsheet — Primary structured data entry table (required: True)
+  [2] select     — Completeness confirmation
+  [3] select     — Additional binary checks from sufficiency criteria
+  ... continue ...
+  [N-1] textarea — Known gaps and remediation plan
+
+PATTERN C — Configuration/Log evidence:
+  [0] file       — Upload configuration file or log export
+  [1] date       — Date of configuration review
+  [2] text       — Tool/system name and version
+  [3] select     — Binary checks from sufficiency criteria
+  [4] textarea   — Deviations and justifications
+  [N-1] textarea — Known gaps
+
+DERIVING QUESTIONS FROM SUFFICIENCY CRITERIA:
+  Each sufficiency criterion in Stage 2 should become one of:
+    - A select question (for binary YES/NO facts: "Is X configured?" "Are Y present?")
+    - A textarea question (for descriptions: "Describe how X is implemented")
+    - A text question (for single values: "Reviewer name", "Version number")
+  Do NOT create redundant questions for criteria already covered by the file upload.
+  Do NOT ask users to re-state what should be visible in the uploaded document —
+  only ask for confirmation of facts the document may not fully convey.
+
+SPREADSHEET COLUMN DESIGN (for spreadsheet question type):
+  The options field for spreadsheet questions contains a JSON array of column definitions.
+  Each column definition object must have:
+    {
+      "key":      "snake_case_column_key",
+      "type":     "text" | "select" | "date" | "number" | "boolean",
+      "label":    "Column Header Label",
+      "options":  [] (or array of strings for select type),
+      "required": true | false
+    }
+  Design columns to capture exactly what the sufficiency criteria require.
+  Example for a component inventory:
+    [
+      {"key":"hostname","type":"text","label":"Hostname","options":[],"required":true},
+      {"key":"ip_address","type":"text","label":"IP Address","options":[],"required":true},
+      {"key":"os_version","type":"text","label":"OS Version","options":[],"required":true},
+      {"key":"function","type":"select","label":"Function / Role",
+       "options":["Messaging Interface","Communication Interface","Operator PC",
+                  "Connector","Bridging Server","HSM","Jump Server","Other"],
+       "required":true},
+      {"key":"physical_virtual","type":"select","label":"Physical or Virtual",
+       "options":["Physical","Virtual"],"required":true},
+      {"key":"third_party_managed","type":"boolean","label":"Third-Party Managed",
+       "options":[],"required":true}
+    ]
+
+OUTPUT FORMAT RULES
+  - Encoding: UTF-8
+  - Delimiter: comma
+  - All string values: enclosed in double quotes if they contain commas or newlines
+  - First row: column headers (exact names as listed above)
+  - No blank rows between evidence item blocks
+  - Sort by: evidence_item_id (A1, A2, A3 ... B1, B2 ...) then sort_order (0, 1, 2 ...)
+  - JSON in options/accept: valid JSON, no line breaks within the cell value
+  - Boolean values: "True" or "False" (capital T/F, not true/false)
+  - Empty/null values: use empty string "" (not "nan", not "null", not "N/A")
+    Exception: the existing schema uses "nan" — match the existing schema exactly.
+               Represent absent values as: nan (no quotes in the raw CSV)
+  - Total rows: typically 8–16 questions per evidence item × number of evidence items
+    A 54-item framework should yield approximately 400–600 question rows total
+
+EXAMPLE ROWS (evidence item A1 — 12 questions):
+
+id,evidence_item_id,question_key,label,question_type,required,placeholder,options,sort_order,control_id,rows,accept,upload_label,cscf_version,created_at,guide,Evidence Required
+
+{UUID},A1,evidence_document,Network Architecture Diagram Upload,file,False,nan,[],0,nan,nan,".pdf,.png,.jpg,.jpeg,.vsdx,.drawio,.svg,.pptx","Upload your SWIFT secure zone network architecture diagram. Accepted formats: PDF, PNG, Visio (.vsdx), draw.io, PowerPoint, SVG. The diagram must show: zone boundaries, firewalls, all SWIFT components, back-office paths, and operator PC classification. Diagram must be dated within the last 12 months.",2026v,{TIMESTAMP},"Upload a dated network diagram (PDF/Visio/PNG) showing the SWIFT secure zone boundary, all in-scope components, firewalls, and data-flow arrows.",Document/File Upload
+
+{UUID},A1,diagram_date,"Diagram version / date (must be within last 12 months)",date,True,YYYY-MM-DD,[],1,nan,nan,nan,nan,2026v,{TIMESTAMP},"Enter the version date of the diagram — it must fall within the last 12 months.",Date confirmation
+
+{UUID},A1,internet_exposure_confirmation,"Is there any direct internet path from any system inside the secure zone?",select,True,nan,"[""No"",""Yes"",""Unknown""]",2,nan,nan,nan,nan,2026v,{TIMESTAMP},"Confirm whether any system inside the secure zone has a path to the internet — 'No' is the expected compliant answer.",Configuration state confirmation (Yes/No/Status)
+
+{UUID},A1,internet_exposure_justification,"If YES — provide business/technical justification and compensating controls",textarea,False,"e.g. No direct internet path exists; proxy used with whitelist and IDS monitoring.",[],3,nan,4,nan,nan,2026v,{TIMESTAMP},"Required only if answer above is Yes or Unknown — state the business reason, compensating controls, and relevant firewall rule references.",Free-text narrative / explanation
+
+{UUID},A1,zone_boundary_description,"Describe how the secure zone boundary is drawn and protected",textarea,False,"e.g. Dedicated network segment with stateful firewall at all entry/exit points, documented in Visio diagram v2.3 dated 2025-11-01.",[],4,nan,4,nan,nan,2026v,{TIMESTAMP},"Describe the physical and logical separation of the SWIFT secure zone.",Free-text narrative / explanation
+
+{UUID},A1,swift_components_visible,"Confirm all SWIFT components are visible inside the zone",select,True,nan,"[""Confirmed"",""Partial"",""Not present""]",5,nan,nan,nan,nan,2026v,{TIMESTAMP},"Confirm whether the diagram shows all in-scope SWIFT components inside the secure zone.",Configuration state confirmation (Yes/No/Status)
+
+{UUID},A1,bridging_servers_shown,"Are bridging servers identified with network placement on the diagram? (v2026)",select,True,nan,"[""Yes"",""No"",""N/A – no bridging servers in scope""]",6,nan,nan,nan,nan,2026v,{TIMESTAMP},"Confirm bridging servers appear on the diagram if they exist in your environment.",Configuration state confirmation (Yes/No/Status)
+
+{UUID},A1,customer_connector_shown,"Are customer client connectors shown and labelled? (v2026 mandatory scope)",select,True,nan,"[""Yes"",""No"",""N/A – architecture does not include customer connectors""]",7,nan,nan,nan,nan,2026v,{TIMESTAMP},"Customer client connectors are mandatory in-scope as of v2026. Confirm they are labeled on the diagram.",Configuration state confirmation (Yes/No/Status)
+
+{UUID},A1,protocol_encryption_notes,"Protocol/encryption annotations on data flows — clarification or gaps",textarea,False,"e.g. TLS 1.2 annotated on all external data flows; internal flows use dedicated MPLS circuit.",[],8,nan,4,nan,nan,2026v,{TIMESTAMP},"Describe the protocol and encryption annotations visible on data flow arrows, or note any that are missing.",Free-text narrative / explanation
+
+{UUID},A1,backoffice_path_summary,"Back-office connectivity summary (v2026 — now mandatory under 2.4)",textarea,False,"e.g. Back-office connection via dedicated leased line through bridging server BS-01; no shared infrastructure.",[],9,nan,4,nan,nan,2026v,{TIMESTAMP},"Summarise how back-office systems connect to the SWIFT secure zone, including bridging server roles.",Free-text narrative / explanation
+
+{UUID},A1,connector_zone_statement,"Customer connector zone boundary description (A1 architecture type only)",textarea,False,"e.g. Customer client connectors are placed in a separate sub-zone of the SWIFT environment, shown in Section 3 of the diagram.",[],10,nan,4,nan,nan,2026v,{TIMESTAMP},"Describe the connector zone placement if applicable to your architecture.",Free-text narrative / explanation
+
+{UUID},A1,known_gaps_and_plan,"Known documentation gaps and remediation plan",textarea,False,"e.g. Bridging server BS-02 not yet labeled on diagram — will be updated by 2026-04-30 per change request CR-1042.",[],11,nan,4,nan,nan,2026v,{TIMESTAMP},"List any known gaps in this evidence and your plan to remediate them before assessment.",Free-text narrative / explanation
+
+QUALITY GATES — verify before output:
+  ✓ Every evidence_item_id from Stage 1 Sheet 1 appears at least once
+  ✓ sort_order starts at 0 and increments by exactly 1 within each evidence_item_id
+  ✓ All UUIDs are unique across the file
+  ✓ Every evidence_item_id block starts with a file OR spreadsheet question at sort_order 0 or 1
+  ✓ Every evidence_item_id block ends with a "known_gaps" textarea question
+  ✓ All JSON in options column is syntactically valid
+  ✓ question_type is one of exactly: file | date | select | textarea | spreadsheet | text
+  ✓ required is exactly "True" or "False" — not "true"/"false" or "yes"/"no"
+  ✓ rows column is populated for all textarea rows; empty (nan) for all others
+  ✓ accept column is populated for all file rows; nan for all others
+  ✓ upload_label is populated for all file rows; nan for all others
+  ✓ Evidence Required value is one of the 6 standard categories
+  ✓ Total row count is reasonable: 8–16 questions per evidence item

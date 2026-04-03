@@ -58,7 +58,7 @@ class CanonicalEvidenceItem(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     priority: Mapped[str] = mapped_column(String(20), nullable=False, server_default="medium")
-    evidence_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    evidence_type: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     reduction_note: Mapped[str | None] = mapped_column(Text)
     control_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
