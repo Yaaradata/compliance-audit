@@ -135,8 +135,17 @@ def save_gcp_context(
     db: Session = Depends(get_db),
 ) -> dict:
     """
-    Save GCP project ID and team member email, then check IAM policy for a direct ``user:email`` binding
-    (does not expand Google Groups).
+    Save GCP project ID and team member email — **no IAM call here**.
+
+    IAM verification always happens after the user completes **Sign in with Google** (OAuth callback).
+    The IAM policy is read with **the signed-in user's** credentials, so customers never need to add
+    the API server's service account to their GCP project.
+
+    Flow:
+      1. POST /context  → save project + email, return next_step=google_oauth
+      2. POST /auth/oauth/start → get Google auth URL
+      3. User signs in with Google
+      4. GET /auth/oauth/callback → store refresh token, read IAM as the signed-in user
     """
     try:
         row = save_gcp_context_with_access_email(
@@ -150,59 +159,26 @@ def save_gcp_context(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    pid = resolve_project_id(db, scope.tenant_id, scope.cycle_id, scope.user_id)
-    creds, qp = resolve_optional_user_credentials_or_adc(db, scope.tenant_id, scope.cycle_id, scope.user_id)
-    iam_payload: dict
-    try:
-        with gcp_user_credentials_scope(creds, qp):
-            iam_payload = check_user_email_in_project_iam(pid, body.access_verification_email)
-    except Exception as e:
-        logger.exception("IAM email check failed after save")
-        d = f"Could not read IAM policy: {e}. Ensure the API identity has resourcemanager.projects.getIamPolicy on the project."
-        store_iam_access_check_result(db, row, verified=False, detail=d)
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid authorization: cannot read this project's IAM policy. Check the project ID and that credentials can call resourcemanager.projects.getIamPolicy.",
-        ) from e
+    # Reset any previous IAM / connect state so the UI shows the correct next step.
+    store_iam_access_check_result(db, row, verified=False, detail=None)
 
-    ok = bool(iam_payload.get("ok"))
-    found = bool(iam_payload.get("found"))
-    detail = (iam_payload.get("detail") or "").strip() or "IAM check completed."
-    roles = list(iam_payload.get("roles") or [])
-
-    if not ok:
-        store_iam_access_check_result(db, row, verified=False, detail=detail)
-        raise HTTPException(status_code=403, detail=f"Invalid authorization: {detail}")
-
-    store_iam_access_check_result(db, row, verified=found, detail=detail)
-
-    if not found:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Invalid authorization: this email has no direct user:… binding on the project IAM policy "
-                "(access via Google Groups only is not verified). Use an email that appears on the policy, or ask a "
-                "project admin to grant a role to this user."
-            ),
+    oauth_on = gcp_oauth_env_configured()
+    if oauth_on:
+        next_msg = (
+            "Project and team email saved. Next, sign in with Google — "
+            "we verify the team email has a role on the project using your own Google account."
         )
-
-    # Policy read succeeded and team email is directly bound — same as POST /credentials/test.
-    mark_connect_api_test_passed(db, scope.tenant_id, scope.cycle_id, scope.user_id)
-
-    if gcp_oauth_env_configured():
-        return {
-            "ok": True,
-            "message": "Project and email verified. Continue with Sign in with Google; we confirm API access after sign-in.",
-            "iam_access_verified": True,
-            "iam_access_detail": detail,
-            "iam_roles": roles,
-        }
+    else:
+        next_msg = (
+            "Project and team email saved. Sign in with Google to verify access and enable evidence collection."
+        )
     return {
         "ok": True,
-        "message": "Project and email verified. You can open the dashboard.",
-        "iam_access_verified": True,
-        "iam_access_detail": detail,
-        "iam_roles": roles,
+        "message": next_msg,
+        "iam_access_verified": False,
+        "iam_access_detail": None,
+        "iam_roles": [],
+        "next_step": "google_oauth",
     }
 
 
@@ -210,16 +186,16 @@ def save_gcp_context(
 def gcp_oauth_start(scope: GcpScope = Depends(get_effective_gcp_scope), db: Session = Depends(get_db)) -> dict:
     """Returns Google authorization URL; user must have saved project id first."""
     if not gcp_oauth_env_configured():
+        logger.warning(
+            "GCP OAuth start: env not configured — set GOOGLE_OAUTH_CLIENT_ID, "
+            "GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI in backend/.env and restart uvicorn."
+        )
         raise HTTPException(status_code=400, detail="Google OAuth is not configured on this server.")
     try:
         row, state = begin_oauth_state(db, scope.tenant_id, scope.cycle_id, scope.user_id)
     except ValueError as e:
+        logger.warning("GCP OAuth start rejected: %s", e)
         raise HTTPException(status_code=400, detail=str(e)) from e
-    if row.iam_access_verified is not True:
-        raise HTTPException(
-            status_code=400,
-            detail="Save and verify project and team email on the Connect page first. A direct user IAM binding is required before Google sign-in.",
-        )
     try:
         url = authorization_url(state)
     except Exception as e:
@@ -248,21 +224,40 @@ def gcp_oauth_callback(
             return RedirectResponse(url=_frontend_oauth_error_url("could_not_read_email"))
         complete_oauth(db, row, refresh_token=rt, google_user_email=email)
         row = get_row(db, row.tenant_id, row.cycle_id, row.user_id)
-        try:
-            pid = resolve_project_id(db, row.tenant_id, row.cycle_id, row.user_id)
-            creds, qp = resolve_optional_user_credentials(db, row.tenant_id, row.cycle_id, row.user_id)
-            acc = (row.access_verification_email or "").strip() if row else ""
-            with gcp_user_credentials_scope(creds, qp):
-                iam_payload = check_user_email_in_project_iam(pid, acc)
-            if iam_payload.get("ok") and iam_payload.get("found"):
-                detail = (iam_payload.get("detail") or "").strip() or None
-                store_iam_access_check_result(db, row, verified=True, detail=detail)
-                mark_connect_api_test_passed(db, row.tenant_id, row.cycle_id, row.user_id)
-            else:
-                d = (iam_payload.get("detail") or "Could not verify team email on project IAM.").strip()
-                store_iam_access_check_result(db, row, verified=False, detail=d)
-        except Exception as ex:
-            logger.warning("GCP OAuth connected but IAM verify failed: %s", ex)
+        # Verify IAM with the just-signed-in user's credentials — never ADC / service account.
+        pid = (row.gcp_project_id or "").strip() if row else ""
+        acc = (row.access_verification_email or "").strip() if row else ""
+        if pid and acc:
+            try:
+                user_creds, qp = resolve_optional_user_credentials(db, row.tenant_id, row.cycle_id, row.user_id)
+                with gcp_user_credentials_scope(user_creds, qp):
+                    iam_payload = check_user_email_in_project_iam(pid, acc)
+                if iam_payload.get("ok") and iam_payload.get("found"):
+                    detail = (iam_payload.get("detail") or "").strip() or None
+                    store_iam_access_check_result(db, row, verified=True, detail=detail)
+                    mark_connect_api_test_passed(db, row.tenant_id, row.cycle_id, row.user_id)
+                    logger.info("GCP OAuth IAM verify OK: project=%s email=%s", pid, acc)
+                else:
+                    d = (iam_payload.get("detail") or (
+                        f"The email {acc!r} has no direct user:… binding on project {pid!r}. "
+                        "Ask a project admin to grant this email a role on the project, then reconnect."
+                    )).strip()
+                    store_iam_access_check_result(db, row, verified=False, detail=d)
+                    logger.warning("GCP OAuth IAM check: email not found project=%s email=%s", pid, acc)
+                    return RedirectResponse(url=_frontend_oauth_error_url(d))
+            except Exception as ex:
+                err_msg = str(ex)
+                logger.warning("GCP OAuth connected but IAM verify failed project=%s: %s", pid, err_msg)
+                try:
+                    store_iam_access_check_result(
+                        db, row, verified=False, detail=err_msg[:8000]
+                    )
+                except Exception:
+                    pass
+                return RedirectResponse(url=_frontend_oauth_error_url(
+                    f"Signed in successfully, but could not read IAM on project {pid!r}. "
+                    "Make sure the signed-in Google account has at least Viewer access on that project."
+                ))
     except Exception as e:
         logger.exception("GCP OAuth callback failed")
         return RedirectResponse(url=_frontend_oauth_error_url(str(e)))

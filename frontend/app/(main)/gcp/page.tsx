@@ -346,17 +346,15 @@ export default function GcpConnectPage() {
     );
   }
 
-  const needsGoogleOnly = oauthEnabled && projectSaved && !googleEmail;
+  // After saving project + email, always prompt for Google sign-in regardless of oauthEnabled flag.
+  // IAM is checked in the OAuth callback using the signed-in user's credentials — never ADC/SA.
+  const needsGoogleOnly = projectSaved && !googleEmail;
 
   return (
     <>
       <AwsPageHeader
         title="Connect"
-        subtitle={
-          oauthEnabled
-            ? "Enter project ID and team member email (we check the project IAM policy). Then sign in with Google."
-            : "Enter project ID and team member email. We verify a direct user:… binding on the project IAM policy (groups are not expanded)."
-        }
+        subtitle="Save the GCP project ID and team member email, then sign in with Google. We check IAM using your Google account — you never need to add this app's service account to your project."
       />
       <div className="w-full max-w-4xl mx-auto space-y-6">
         {!activeCycleId && (
@@ -391,11 +389,12 @@ export default function GcpConnectPage() {
             </div>
 
             {!needsGoogleOnly ? (
+              /* Step 1: Enter project ID + team email */
               <>
                 <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-                  Use the <strong>project ID</strong> and the <strong>Google account email</strong> of the team member whose access
-                  you want to confirm. We read the project IAM policy and look for a direct <code className="text-xs">user:email</code>{" "}
-                  binding (access via Google Groups only is not verified here).
+                  Enter the <strong>GCP project ID</strong> and the <strong>team member email</strong>{" "}
+                  you want to confirm. After saving, sign in with Google — IAM is checked using your
+                  Google account, so no service account needs to be added to the customer project.
                 </p>
                 <label className="block text-xs font-medium" style={{ color: "var(--foreground-muted)" }}>
                   GCP project ID
@@ -438,14 +437,16 @@ export default function GcpConnectPage() {
                   className={awsButtonPrimaryClass}
                 >
                   {savingProject ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {savingProject ? "Saving…" : "Save and verify IAM access"}
+                  {savingProject ? "Saving…" : "Save and continue"}
                 </button>
               </>
             ) : (
+              /* Step 2: Sign in with Google to verify IAM */
               <>
                 <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-                  Project <span className="font-mono font-medium">{projectId}</span> is saved. Sign in with Google so the
-                  platform can call GCP APIs as you.
+                  Project <span className="font-mono font-medium">{projectId}</span> saved.{" "}
+                  Sign in with a Google account that has access to that project — we read the IAM policy
+                  as <strong>you</strong> to confirm <span className="font-mono text-xs">{accessVerificationEmail}</span> has a role.
                 </p>
                 <button
                   type="button"
@@ -456,6 +457,14 @@ export default function GcpConnectPage() {
                   {startingOauth ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {startingOauth ? "Redirecting…" : "Sign in with Google"}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => { setProjectSaved(false); setGoogleEmail(null); }}
+                  className="text-xs underline mt-1"
+                  style={{ color: "var(--foreground-muted)", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  Change project or email
+                </button>
               </>
             )}
           </section>
@@ -465,15 +474,14 @@ export default function GcpConnectPage() {
               How it works
             </h2>
             <ol className="list-decimal list-inside space-y-1.5 text-xs sm:text-sm" style={{ color: "var(--foreground-muted)" }}>
-              <li>Enter project ID and team email, then save — we check IAM for a direct user binding.</li>
-              {oauthEnabled ? (
-                <li>Complete Google sign-in so your account can read Security Command Center, Compute, IAM, Logging, and related APIs.</li>
-              ) : (
-                <li>
-                  Ensure the API server has ADC (e.g. <code className="text-xs font-mono">GOOGLE_APPLICATION_CREDENTIALS</code> or
-                  workload identity) with access to that project.
-                </li>
-              )}
+              <li>
+                Save the GCP project ID and the team member email (must appear as a direct{" "}
+                <code className="text-xs font-mono">user:email</code> on the project IAM policy).
+              </li>
+              <li>
+                Sign in with Google. We read the IAM policy <strong>as you</strong>, confirm the team
+                email has a role on the project. No service account from this app needs access to your project.
+              </li>
               <li>
                 After verification succeeds, open <strong>Dashboard</strong> and run <strong>Fetch GCP evidence</strong> (you may
                 be taken there automatically when ready).

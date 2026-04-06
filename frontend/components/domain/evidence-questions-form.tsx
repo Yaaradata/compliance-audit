@@ -68,11 +68,6 @@ function cloudBrand(p: CloudAssistProvider): string {
   return "AWS";
 }
 
-function defaultCloudGapHint(provider: CloudAssistProvider): string {
-  const b = cloudBrand(provider);
-  return `No value could be derived from the collected ${b} evidence for this field. Run ${b} collection for this evidence item or answer manually.`;
-}
-
 /** Resolved text for the (i) control plus whether it came from the model’s `gaps` map (API / persisted `__ai_gap`). */
 export type AwsGapTooltip = {
   text: string;
@@ -80,7 +75,7 @@ export type AwsGapTooltip = {
   fromLlmGap: boolean;
 };
 
-/** Context for the (i) “why no AI value” control — avoids hiding it when suggest round never completes (e.g. locked submission). */
+/** API `suggestion_gaps` / draft `__ai_gap` plus UI flags (used only to merge gaps; generic tooltips are disabled). */
 export type AwsGapContext = {
   gaps?: Record<string, string>;
   roundDone?: boolean;
@@ -91,38 +86,16 @@ export type AwsGapContext = {
 
 function resolveAwsGapExplanation(
   questionKey: string,
-  questionType: string,
+  _questionType: string,
   _currentValue: string,
   opts: AwsGapContext
 ): AwsGapTooltip {
-  const provider = opts.cloudAssistProvider ?? "aws";
-  const brand = cloudBrand(provider);
   const custom = (opts.gaps?.[questionKey] ?? "").trim();
   if (custom) {
     return { text: custom, fromLlmGap: true };
   }
-  if (opts.suggestLoading) {
-    return { text: "A suggestion for this field is still being generated.", fromLlmGap: false };
-  }
-  if (opts.disabled) {
-    return {
-      text: `This submission is read-only. No new ${brand} suggestion is applied here; if the field is empty, no value was stored or it was cleared. Enter a value only if your workflow allows edits.`,
-      fromLlmGap: false,
-    };
-  }
-  if (!opts.roundDone) {
-    return {
-      text: `${brand} suggestions have not finished loading yet. Wait a few seconds or click the ${brand} button at the top of this panel to re-run auto-fill.`,
-      fromLlmGap: false,
-    };
-  }
-  if (questionType === "select") {
-    return {
-      text: `${defaultCloudGapHint(provider)} The model may also decline to pick an option when evidence is ambiguous or the choices do not match ${brand} data.`,
-      fromLlmGap: false,
-    };
-  }
-  return { text: defaultCloudGapHint(provider), fromLlmGap: false };
+  // No generic “run collection / evidence ambiguous” copy — (i) only when the model returns a gap string.
+  return { text: "", fromLlmGap: false };
 }
 
 function hasMeaningfulAiValue(questionType: string, value: string): boolean {
@@ -173,8 +146,11 @@ function buildAwsGapTooltip(
     const v = (raw ?? "").trim();
     const opts = input.options ?? [];
     if (v && opts.length > 0 && !opts.includes(v)) {
+      const prefix =
+        "The saved value does not match any current dropdown option (options or evidence config may have changed). Choose a valid option.";
+      const extra = (base.text ?? "").trim();
       return {
-        text: `The saved value does not match any current dropdown option (options or evidence config may have changed). Choose a valid option. ${base.text}`,
+        text: extra ? `${prefix} ${extra}` : prefix,
         fromLlmGap: base.fromLlmGap,
       };
     }
@@ -195,6 +171,7 @@ function AwsDataGapInfo({
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLSpanElement>(null);
+  const body = (tooltip.text ?? "").trim();
 
   useEffect(() => {
     if (!open) return;
@@ -212,6 +189,8 @@ function AwsDataGapInfo({
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  if (!body) return null;
 
   return (
     <span ref={rootRef} className="relative inline-flex items-center ml-0.5 align-middle shrink-0">
@@ -525,8 +504,10 @@ function DualTabField({
   const assistBrand = cloudBrand(cloudAssistProvider);
   const [activeTab, setActiveTab] = useState<"ai" | "human">("ai");
   const aiEmpty = awsFieldLooksUnfilled(input, question, aiValue);
-  const showGapInfo = Boolean(activeTab === "ai" && aiEmpty && !awsGapContext.suggestLoading);
   const gapTooltip = buildAwsGapTooltip(question.question_key, question, input, aiValue, awsGapContext);
+  const showGapInfo = Boolean(
+    activeTab === "ai" && aiEmpty && !awsGapContext.suggestLoading && (gapTooltip.text ?? "").trim()
+  );
 
   const ctlSwift =
     "w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--blue)] focus:ring-2 focus:ring-[var(--blue)]/15 disabled:opacity-60";
@@ -668,15 +649,6 @@ function DualTabField({
                 {showGapInfo && (
                   <div className="flex flex-wrap items-center gap-2 mb-1.5">
                     <AwsDataGapInfo tooltip={gapTooltip} swift={swift} assistBrand={assistBrand} />
-                    <span
-                      className={
-                        swift
-                          ? "text-[10px] text-[var(--text-muted)]"
-                          : "text-[10px] text-slate-500 dark:text-slate-400"
-                      }
-                    >
-                      {`No option chosen from ${assistBrand} — tap (i) for why`}
-                    </span>
                   </div>
                 )}
                 {renderInput(aiValue, onChangeAi, true)}
@@ -939,8 +911,10 @@ function DualTabSpreadsheet({
   const assistBrand = cloudBrand(cloudAssistProvider);
   const [activeTab, setActiveTab] = useState<"ai" | "human">("ai");
   const aiEmpty = !hasMeaningfulAiValue("spreadsheet", aiValue);
-  const showGapInfo = Boolean(activeTab === "ai" && aiEmpty && !awsGapContext.suggestLoading);
   const gapTooltip = resolveAwsGapExplanation(question.question_key, "spreadsheet", aiValue, awsGapContext);
+  const showGapInfo = Boolean(
+    activeTab === "ai" && aiEmpty && !awsGapContext.suggestLoading && (gapTooltip.text ?? "").trim()
+  );
 
   return (
     <div className="min-w-0" role="group" aria-label={question.label}>
@@ -1305,6 +1279,7 @@ export function EvidenceQuestionsForm({
               sheetVal,
               makeAwsGapContext(q)
             );
+            const showSheetGapIcon = showSheetGap && (sheetGapTooltip.text ?? "").trim();
             return (
               <div key={q.id} className="rounded-lg" role="group" aria-label={q.label}>
                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
@@ -1318,9 +1293,9 @@ export function EvidenceQuestionsForm({
                   >
                     {`${assistBrand}-assisted — editable`}
                   </span>
-                  {showSheetGap && (
+                  {showSheetGapIcon ? (
                     <AwsDataGapInfo tooltip={sheetGapTooltip} swift={swift} assistBrand={assistBrand} />
-                  )}
+                  ) : null}
                 </div>
                 <SpreadsheetQuestionRenderer
                   question={q}
@@ -1410,6 +1385,8 @@ export function EvidenceQuestionsForm({
         const awsGapTooltipPayload = showAwsGapInfo
           ? buildAwsGapTooltip(q.question_key, q, input, mainVal, makeAwsGapContext(q))
           : null;
+        const gapForIcon =
+          awsGapTooltipPayload && (awsGapTooltipPayload.text ?? "").trim() ? awsGapTooltipPayload : null;
 
         return (
           <div
@@ -1444,8 +1421,8 @@ export function EvidenceQuestionsForm({
               fieldFeedbackHint={fieldFeedback?.[q.question_key]}
               disabled={disabled}
               afterLabel={
-                awsGapTooltipPayload ? (
-                  <AwsDataGapInfo tooltip={awsGapTooltipPayload} swift={swift} assistBrand={assistBrand} />
+                gapForIcon ? (
+                  <AwsDataGapInfo tooltip={gapForIcon} swift={swift} assistBrand={assistBrand} />
                 ) : undefined
               }
             />

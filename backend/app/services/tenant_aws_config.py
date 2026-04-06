@@ -123,11 +123,15 @@ def get_aws_session(role_arn: str, external_id: str, region: str = "us-east-1"):
 
 
 def _get_fernet():
-    """Lazy Fernet instance; requires TENANT_AWS_ENCRYPTION_KEY (32-byte base64)."""
+    """Lazy Fernet instance; requires TENANT_AWS_ENCRYPTION_KEY (32-byte base64).
+
+    Despite the name, this key encrypts all sensitive tenant data at rest (AWS role creds,
+    GCP OAuth refresh tokens, Azure secrets, etc.). It is not an AWS account credential.
+    """
     key = (settings.TENANT_AWS_ENCRYPTION_KEY or "").strip()
     if not key:
         raise ValueError(
-            "TENANT_AWS_ENCRYPTION_KEY is required to store tenant AWS credentials. "
+            "TENANT_AWS_ENCRYPTION_KEY is required to encrypt stored secrets (AWS connect, GCP OAuth tokens, Azure secrets). "
             "Generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )
     try:

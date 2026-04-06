@@ -33,11 +33,16 @@ def build_flow():
     redirect = (settings.GOOGLE_OAUTH_REDIRECT_URI or "").strip()
     if not redirect:
         raise ValueError("GOOGLE_OAUTH_REDIRECT_URI is not set.")
-    return Flow.from_client_config(
+    flow = Flow.from_client_config(
         _client_config(),
         scopes=GCP_OAUTH_SCOPES,
         redirect_uri=redirect,
     )
+    # PKCE ties the auth request to one Flow instance; we build a fresh Flow in
+    # exchange_code_for_credentials, so Google would get (invalid_grant) Missing code verifier.
+    # Web clients with client_secret do not require PKCE.
+    flow.autogenerate_code_verifier = False
+    return flow
 
 
 def authorization_url(state: str) -> str:
@@ -52,13 +57,7 @@ def authorization_url(state: str) -> str:
 
 
 def exchange_code_for_credentials(code: str) -> Any:
-    from google_auth_oauthlib.flow import Flow
-
-    flow = Flow.from_client_config(
-        _client_config(),
-        scopes=GCP_OAUTH_SCOPES,
-        redirect_uri=(settings.GOOGLE_OAUTH_REDIRECT_URI or "").strip(),
-    )
+    flow = build_flow()
     flow.fetch_token(code=(code or "").strip())
     return flow.credentials
 

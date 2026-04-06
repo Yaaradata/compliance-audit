@@ -131,9 +131,7 @@ def store_iam_access_check_result(
 def begin_oauth_state(db: Session, tenant_id: UUID, cycle_id: UUID, user_id: UUID) -> tuple[CycleUserGcpConfig, str]:
     row = get_or_create_row(db, tenant_id, cycle_id, user_id)
     if not (row.gcp_project_id or "").strip():
-        raise ValueError("Save a GCP project ID before starting Google sign-in.")
-    if not (row.access_verification_email or "").strip():
-        raise ValueError("Save a team member email on the Connect page before starting Google sign-in.")
+        raise ValueError("Save the GCP project ID and team email on the Connect page before signing in with Google.")
     state = secrets.token_urlsafe(48)
     row.oauth_state = state
     row.oauth_state_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
