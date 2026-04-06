@@ -160,6 +160,8 @@ export function EvidenceWorkspace({
   const [azureConnected, setAzureConnected] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<CloudProvider>(routeProvider);
   const autoFilledItemsRef = useRef<Set<string>>(new Set());
+  /** Bumps when starting a new cloud-suggest or switching items — only that generation may clear `awsSuggestLoading` in `finally`. */
+  const cloudSuggestGenerationRef = useRef(0);
   useEffect(() => {
     setSelectedProvider(routeProvider);
   }, [routeProvider]);
@@ -268,6 +270,8 @@ export function EvidenceWorkspace({
     if (currentItem) {
       if (prevItemIdRef.current !== currentItem.id) {
         prevItemIdRef.current = currentItem.id;
+        cloudSuggestGenerationRef.current += 1;
+        setAwsSuggestLoading(false);
         setFocusedQuestionGuide(null);
         setFocusedQuestionLabel(null);
         setGuideAtBottom(false);
@@ -376,12 +380,18 @@ export function EvidenceWorkspace({
       setAwsSuggestRoundDone(false);
       return;
     }
+    const generation = ++cloudSuggestGenerationRef.current;
     setAwsSuggestLoading(true);
     setAwsSuggestRoundDone(false);
     setAwsSuggestError(null);
     setAwsSuggestMessage(null);
     setAiSuggestions({});
     setAwsSuggestionGaps({});
+    const finishSuggestUi = () => {
+      if (cloudSuggestGenerationRef.current !== generation) return;
+      setAwsSuggestLoading(false);
+      setAwsSuggestRoundDone(true);
+    };
     try {
       // Bypass Next.js /api/v1 rewrite — the dev proxy times out (~30s) while Vertex can take minutes.
       const res = await api.postDirect<{
@@ -398,6 +408,7 @@ export function EvidenceWorkspace({
         {},
         CLOUD_SUGGEST_FETCH_TIMEOUT_MS,
       );
+      if (cloudSuggestGenerationRef.current !== generation) return;
       const sugg = res.suggestions ?? {};
       const sources = res.question_sources ?? {};
       const gaps = res.suggestion_gaps ?? {};
@@ -454,10 +465,11 @@ export function EvidenceWorkspace({
         else runPersist();
       }
     } catch (e: unknown) {
-      setAwsSuggestError(formatCloudSuggestFetchError(e));
+      if (cloudSuggestGenerationRef.current === generation) {
+        setAwsSuggestError(formatCloudSuggestFetchError(e));
+      }
     } finally {
-      setAwsSuggestLoading(false);
-      setAwsSuggestRoundDone(true);
+      finishSuggestUi();
     }
   }, [
     cycleId,

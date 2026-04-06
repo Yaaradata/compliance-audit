@@ -1041,6 +1041,12 @@ def _cloud_autofill_suggest(
     Load `evidence_based_questions` for the item, filter by provider (evidence_source + aws_* / gcs_* / azure_*),
     fetch scoped rows from `swift_2026.evidence` with matching cloud_provider, call Vertex autofill.
     """
+    import time as _time
+    _t0 = _time.monotonic()
+    _tag = f"[cloud-suggest][{cloud_provider.upper()}]"
+
+    logger.info("%s START item=%s cycle=%s user=%s", _tag, item_id, cycle_id, user.email)
+
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user, db)
 
@@ -1058,6 +1064,7 @@ def _cloud_autofill_suggest(
     if user.tenant_id is None:
         raise HTTPException(status_code=400, detail="User has no tenant context")
 
+    logger.info("%s step 1/5: loading questions from DB ...", _tag)
     questions_orm = (
         db.query(EvidenceBasedQuestion)
         .filter(EvidenceBasedQuestion.evidence_item_id == item_upper)
@@ -1078,6 +1085,8 @@ def _cloud_autofill_suggest(
         eligible_payload.append(_build_llm_question_payload(q, cloud_provider))
         question_sources[q.question_key] = src_raw.strip()
 
+    logger.info("%s step 1/5: %d questions total, %d eligible for LLM", _tag, len(questions_orm), len(eligible_payload))
+
     if not eligible_payload:
         ai_service.log_suggest_from_cloud_skip(
             "no_eligible_questions",
@@ -1097,6 +1106,7 @@ def _cloud_autofill_suggest(
             ),
         )
 
+    logger.info("%s step 2/5: loading evidence rows from swift_2026.evidence ...", _tag)
     ensure_aws_schema()
     evidence_rows = aws_evidence_service.get_evidence_for_item_code(
         aws_db,
@@ -1107,7 +1117,12 @@ def _cloud_autofill_suggest(
         limit=settings.LLM_EVIDENCE_FETCH_LIMIT,
         cloud_provider=cloud_provider,
     )
+    logger.info("%s step 2/5: %d evidence rows fetched", _tag, len(evidence_rows))
+
+    logger.info("%s step 3/5: building evidence bundle for LLM ...", _tag)
     bundle = aws_evidence_service.build_aws_evidence_bundle_for_llm(evidence_rows)
+    logger.info("%s step 3/5: bundle has %d chunks", _tag, len(bundle))
+
     if not bundle:
         scoped = aws_evidence_service.scoped_evidence_provider_counts_for_item(
             aws_db,
@@ -1140,6 +1155,7 @@ def _cloud_autofill_suggest(
             len(evidence_rows),
         )
 
+    logger.info("%s step 4/5: calling Vertex AI (this may take 1-3 min) ...", _tag)
     try:
         if cloud_provider == "aws":
             llm_out = ai_service.suggest_answers_from_aws_evidence(
@@ -1165,10 +1181,16 @@ def _cloud_autofill_suggest(
         suggestions = llm_out.get("suggestions") or {}
         suggestion_gaps = llm_out.get("gaps") or {}
     except ValueError as e:
+        logger.error("%s step 4/5: FAILED (ValueError) elapsed=%.1fs — %s", _tag, _time.monotonic() - _t0, e)
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        logger.exception("cloud autofill suggest failed provider=%s", cloud_provider)
+        logger.exception("%s step 4/5: FAILED elapsed=%.1fs — %s", _tag, _time.monotonic() - _t0, e)
         raise HTTPException(status_code=502, detail=f"LLM error: {e}") from e
+
+    logger.info(
+        "%s step 5/5: DONE elapsed=%.1fs suggestions=%d gaps=%d",
+        _tag, _time.monotonic() - _t0, len(suggestions), len(suggestion_gaps),
+    )
 
     return AwsEvidenceSuggestResponse(
         suggestions=suggestions,

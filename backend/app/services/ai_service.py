@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from pathlib import Path
 from typing import Any
 
@@ -90,18 +91,27 @@ _model: GenerativeModel | None = None
 
 
 def _get_model() -> GenerativeModel:
+    """Initialise Vertex AI using Google ADC and return the cached model.
+
+    Uses ``GOOGLE_CLOUD_PROJECT`` and ``VERTEX_AI_LOCATION`` from settings.
+    Credentials come from ``gcloud auth application-default login`` (ADC).
+    """
     global _model
     if _model is None:
         project = settings.GOOGLE_CLOUD_PROJECT
         if not project:
             raise ValueError(
-                "GOOGLE_CLOUD_PROJECT is not set. Set it in .env or environment to use Vertex AI."
+                "GOOGLE_CLOUD_PROJECT is not set. Add GOOGLE_CLOUD_PROJECT=<your-project-id> to backend/.env."
             )
+
+        _ai_emit("INFO", "vertex_init", f"project={project} location={settings.VERTEX_AI_LOCATION} model={settings.VERTEX_AI_MODEL}")
+        t0 = time.monotonic()
         vertexai.init(
             project=project,
             location=settings.VERTEX_AI_LOCATION,
         )
         _model = GenerativeModel(settings.VERTEX_AI_MODEL)
+        _ai_emit("INFO", "vertex_init", f"ok elapsed_s={time.monotonic() - t0:.1f}")
     return _model
 
 
@@ -864,6 +874,22 @@ def suggest_answers_from_azure_evidence(
     )
 
 
+_vertex_thread_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="vertex")
+
+
+def _generate_with_timeout(model: GenerativeModel, parts: list, gen_config, timeout_s: int):
+    """Run model.generate_content in a thread with a hard timeout so the request never hangs."""
+    future = _vertex_thread_pool.submit(model.generate_content, parts, generation_config=gen_config)
+    try:
+        return future.result(timeout=timeout_s)
+    except FuturesTimeoutError:
+        future.cancel()
+        raise TimeoutError(
+            f"Vertex AI generate_content did not respond in {timeout_s}s. "
+            "Check your network, credentials, and Google Cloud project quotas."
+        )
+
+
 def suggest_answers_from_cloud_evidence(
     *,
     evidence_item_id: str,
@@ -961,15 +987,18 @@ def suggest_answers_from_cloud_evidence(
     response = None
     for attempt in range(max_retries + 1):
         try:
+            timeout_s = settings.VERTEX_GENERATE_TIMEOUT_S
             _ai_emit(
                 "INFO",
                 log_op,
-                "vertex_generate_content_start (blocks until Google API returns — watch elapsed_s on next line)",
+                f"vertex_generate_content_start timeout={timeout_s}s (blocks until Google API returns — watch elapsed_s on next line)",
             )
             t_vertex = time.monotonic()
-            response = model.generate_content(
+            response = _generate_with_timeout(
+                model,
                 [Part.from_text(prompt)],
-                generation_config=suggest_gen_cfg,
+                suggest_gen_cfg,
+                timeout_s,
             )
             elapsed = time.monotonic() - t_vertex
             _ai_emit(

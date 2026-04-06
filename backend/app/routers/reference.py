@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
-from ..dependencies import get_db, get_db_ref, get_current_user
+from ..dependencies import get_db, get_db_ref, get_ref_db_for_cycle, RefDbForCycle, get_current_user
 from ..models.tenant import User
 from ..models.assessment import AssessmentCycle, ControlApplicability
 from ..services import storage_service
@@ -239,14 +239,13 @@ def get_evidence_item(
 @router.get("/evidence-items/{item_id}/questions", response_model=list[EvidenceQuestionOut])
 def get_evidence_item_questions(
     item_id: str,
-    cycle_id: UUID = Query(..., description="Required to resolve schema (swift_2025 or swift_2026) for questions."),
-    db: Session = Depends(get_db_ref),
+    ref: RefDbForCycle = Depends(get_ref_db_for_cycle),
     user: User = Depends(get_current_user),
 ):
     """Return evidence_based_questions for this evidence item. Schema resolved from cycle_id."""
-    _ensure_ref_cycle_access(cycle_id, user, db)
+    _ensure_ref_cycle_access(ref.cycle_id, user, ref.db)
     questions = (
-        db.query(EvidenceBasedQuestion)
+        ref.db.query(EvidenceBasedQuestion)
         .filter(EvidenceBasedQuestion.evidence_item_id == item_id.upper())
         .order_by(EvidenceBasedQuestion.sort_order, EvidenceBasedQuestion.question_key)
         .all()
@@ -257,14 +256,13 @@ def get_evidence_item_questions(
 @router.get("/evidence-items/{item_id}/form-metadata", response_model=EvidenceFormMetadataOut)
 def get_evidence_item_form_metadata(
     item_id: str,
-    cycle_id: UUID = Query(..., description="Required to resolve schema for questions."),
-    db: Session = Depends(get_db_ref),
+    ref: RefDbForCycle = Depends(get_ref_db_for_cycle),
     user: User = Depends(get_current_user),
 ):
     """Return form metadata (labels, key order, spreadsheet column labels) from evidence_based_questions."""
-    _ensure_ref_cycle_access(cycle_id, user, db)
+    _ensure_ref_cycle_access(ref.cycle_id, user, ref.db)
     questions = (
-        db.query(EvidenceBasedQuestion)
+        ref.db.query(EvidenceBasedQuestion)
         .filter(EvidenceBasedQuestion.evidence_item_id == item_id.upper())
         .order_by(EvidenceBasedQuestion.sort_order, EvidenceBasedQuestion.question_key)
         .all()

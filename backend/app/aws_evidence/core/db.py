@@ -45,8 +45,21 @@ def _run_sql_file(conn, filepath: Path) -> None:
     conn.commit()
 
 
+_schema_ensured = False
+
+
 def ensure_schema() -> None:
-    """Create schema swift_2026 and run migrations so all tables exist."""
+    """Create schema swift_2026 and run migrations so all tables exist.
+
+    Runs only once per process — subsequent calls are no-ops.  The heavy
+    UPDATE that backfills ``cloud_provider`` from ``collector_runs`` would
+    lock the evidence table for seconds on a remote DB; doing that on
+    every AWS-click request caused the "step 2/5" hang.
+    """
+    global _schema_ensured
+    if _schema_ensured:
+        return
+
     with engine.connect() as conn:
         conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SWIFT_SCHEMA}"))
         conn.commit()
@@ -55,7 +68,6 @@ def ensure_schema() -> None:
         if path.exists():
             with engine.connect() as conn:
                 _run_sql_file(conn, path)
-    # Ensure error_message and tenant_id exist (in case migrations didn't run or failed)
     with engine.connect() as conn:
         conn.execute(text(
             f"ALTER TABLE {SWIFT_SCHEMA}.collector_runs ADD COLUMN IF NOT EXISTS error_message TEXT NULL"
@@ -78,7 +90,6 @@ def ensure_schema() -> None:
               AND (e.cloud_provider IS NULL OR e.cloud_provider = '')
             """
         ))
-        # evidence_based_questions lives in swift_2026 but is created by separate SQL migrations (not _MIGRATIONS above).
         conn.execute(
             text(
                 """
@@ -99,6 +110,8 @@ $ebq_azure$;
             )
         )
         conn.commit()
+
+    _schema_ensured = True
 
 
 def get_db():

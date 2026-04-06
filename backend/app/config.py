@@ -28,11 +28,17 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     GOOGLE_CLOUD_PROJECT: str | None = None
     VERTEX_AI_LOCATION: str = "us-central1"
+    # Path to a service-account JSON key used exclusively for Vertex AI (LLM inference).
+    # When set, Vertex auth uses this key instead of ADC / workload identity.
+    # GCP evidence collection uses its own per-cycle user OAuth and does NOT read this.
+    VERTEX_AI_SERVICE_ACCOUNT_KEY: str = ""
     # suggest-from-aws/gcp/azure: cap rows + JSON size sent to Vertex (huge prompts stall for many minutes).
     LLM_EVIDENCE_FETCH_LIMIT: int = 80
     LLM_EVIDENCE_BUNDLE_MAX_CHARS: int = 120_000
     LLM_EVIDENCE_ROW_JSON_MAX_CHARS: int = 14_000
     LLM_SUGGEST_MAX_OUTPUT_TOKENS: int = 8192
+    # Hard timeout (seconds) for a single model.generate_content() call.
+    VERTEX_GENERATE_TIMEOUT_S: int = 300
     # SWIFT 2026 GCP evidence (test/setup): project to scan using Application Default Credentials.
     GCP_EVIDENCE_PROJECT_ID: str | None = None
     # Optional: path to GCP_Evidence_CollectionforSWIFT_v2026_Updated.xlsx for structured / workbook APIs.

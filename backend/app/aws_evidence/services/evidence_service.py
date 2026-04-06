@@ -62,6 +62,21 @@ def _apply_evidence_exclude_cloud_provider(q, exclude: str | None):
     return q.filter(or_(Evidence.cloud_provider.is_(None), Evidence.cloud_provider != exclude))
 
 
+def _apply_evidence_cloud_provider_filter_for_autofill(q, cloud_provider: str | None):
+    """
+    Evidence rows for Vertex autofill (per-item).
+
+    For **aws**, include ``cloud_provider IS NULL`` rows: legacy collectors wrote evidence before
+    denormalization, or backfill did not run; those rows are AWS-only in practice. For **gcp** /
+    **azure**, require an explicit match so NULL rows are not mis-attributed.
+    """
+    if not cloud_provider:
+        return q
+    if cloud_provider == "aws":
+        return q.filter(or_(Evidence.cloud_provider == "aws", Evidence.cloud_provider.is_(None)))
+    return q.filter(Evidence.cloud_provider == cloud_provider)
+
+
 def get_runs(
     db: Session,
     limit: int = 50,
@@ -200,7 +215,7 @@ def get_evidence_for_item_code(
     code = (item_code or "").strip().upper()
     q = db.query(Evidence).filter(Evidence.item_code == code)
     q = _apply_scope_filter(q, Evidence, tenant_id, cycle_id, user_id)
-    q = _apply_evidence_cloud_provider_filter(q, cloud_provider)
+    q = _apply_evidence_cloud_provider_filter_for_autofill(q, cloud_provider)
     return q.order_by(desc(Evidence.collected_at)).limit(limit).all()
 
 

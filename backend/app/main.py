@@ -1,7 +1,14 @@
 import asyncio
 import logging
+import sys
 import warnings
 from contextlib import asynccontextmanager
+
+# Windows: default ProactorEventLoop + abrupt client disconnects (browser abort, timeout) can raise
+# ConnectionResetError in _ProactorBasePipeTransport._call_connection_lost during socket.shutdown.
+# Selector policy matches Linux/macOS behavior and avoids noisy asyncio ERROR logs (WinError 10054).
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # Suppress noisy Google Auth warning when using user credentials (e.g. gcloud auth application-default login).
 # For production, use a service account key; then signed URLs work and this warning does not apply.

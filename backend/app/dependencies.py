@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Generator
 from uuid import UUID
 
@@ -73,6 +74,27 @@ def get_db_ref(
         schema = _resolve_schema_for_cycle(db, cycle_id)
         db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
     yield db
+
+
+@dataclass(frozen=True)
+class RefDbForCycle:
+    """Scoped session + cycle id for /ref routes that must read ``swift_2025`` / ``swift_2026`` tables."""
+
+    cycle_id: UUID
+    db: Session
+
+
+def get_ref_db_for_cycle(
+    cycle_id: UUID = Query(..., description="Resolves framework schema (swift_2025 vs swift_2026)."),
+    db: Session = Depends(get_db),
+) -> Generator[RefDbForCycle, None, None]:
+    """
+    Single ``cycle_id`` query param (no duplicate declarations on the route). Use as
+    ``ref: RefDbForCycle = Depends(get_ref_db_for_cycle)`` so ``search_path`` is always set.
+    """
+    schema = _resolve_schema_for_cycle(db, cycle_id)
+    db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
+    yield RefDbForCycle(cycle_id=cycle_id, db=db)
 
 
 def get_current_user(
