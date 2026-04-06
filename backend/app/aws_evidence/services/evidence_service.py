@@ -2,11 +2,13 @@
 from datetime import datetime
 import json
 import uuid
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc, func, or_, text
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.aws_evidence.core import config
 from app.aws_evidence.core.db import ensure_schema
 from app.aws_evidence.core.hash_utils import sha256_bytes
@@ -23,6 +25,23 @@ def _apply_scope_filter(q, model, tenant_id: UUID | None, cycle_id: UUID | None,
         q = q.filter(model.user_id == user_id)
     return q
 from app.services.storage_service import upload as storage_upload
+
+
+def _truncate_payload_for_llm(payload: Any, max_chars: int) -> Any:
+    """Shrink a single collector payload so one huge snapshot cannot dominate the Vertex prompt."""
+    if payload is None:
+        return None
+    try:
+        raw = json.dumps(payload, default=str)
+    except Exception:
+        raw = str(payload)
+    if len(raw) <= max_chars:
+        return payload
+    return {
+        "_llm_truncated": True,
+        "_original_json_chars": len(raw),
+        "_preview": raw[: max(0, max_chars - 120)],
+    }
 
 
 def _apply_evidence_cloud_provider_filter(q, cloud_provider: str | None):
@@ -185,13 +204,73 @@ def get_evidence_for_item_code(
     return q.order_by(desc(Evidence.collected_at)).limit(limit).all()
 
 
+def scoped_evidence_provider_counts_for_item(
+    db: Session,
+    item_code: str,
+    tenant_id: UUID | None = None,
+    cycle_id: UUID | None = None,
+    user_id: UUID | None = None,
+) -> dict[str, int]:
+    """
+    Scoped row counts by ``cloud_provider`` for one evidence item (diagnostics when autofill finds no rows).
+    """
+    code = (item_code or "").strip().upper()
+    base = db.query(Evidence).filter(Evidence.item_code == code)
+    base = _apply_scope_filter(base, Evidence, tenant_id, cycle_id, user_id)
+    total = base.count()
+    gcp_n = (
+        _apply_scope_filter(
+            db.query(Evidence).filter(Evidence.item_code == code, Evidence.cloud_provider == "gcp"),
+            Evidence,
+            tenant_id,
+            cycle_id,
+            user_id,
+        ).count()
+    )
+    aws_n = (
+        _apply_scope_filter(
+            db.query(Evidence).filter(Evidence.item_code == code, Evidence.cloud_provider == "aws"),
+            Evidence,
+            tenant_id,
+            cycle_id,
+            user_id,
+        ).count()
+    )
+    azure_n = (
+        _apply_scope_filter(
+            db.query(Evidence).filter(Evidence.item_code == code, Evidence.cloud_provider == "azure"),
+            Evidence,
+            tenant_id,
+            cycle_id,
+            user_id,
+        ).count()
+    )
+    null_n = (
+        _apply_scope_filter(
+            db.query(Evidence).filter(Evidence.item_code == code, Evidence.cloud_provider.is_(None)),
+            Evidence,
+            tenant_id,
+            cycle_id,
+            user_id,
+        ).count()
+    )
+    return {"total": total, "gcp": gcp_n, "aws": aws_n, "azure": azure_n, "cloud_provider_null": null_n}
+
+
 def build_aws_evidence_bundle_for_llm(
     rows: list,
-    max_chars: int = 120_000,
+    max_chars: int | None = None,
+    row_json_max_chars: int | None = None,
 ) -> list[dict]:
     """
-    Deduplicate by file_hash (same snapshot reused for many control rows) and serialize response_json for prompts.
+    Serialize collector rows for Vertex autofill (AWS or GCP): ``response_json`` plus stable metadata.
+
+    Deduplicates identical payloads via ``file_hash`` (same snapshot reused across controls).
+    Each chunk includes ``cloud_provider`` and ``item_code`` from the DB so prompts stay
+    provider-accurate when both clouds share one schema.
     """
+    cap = max_chars if max_chars is not None else settings.LLM_EVIDENCE_BUNDLE_MAX_CHARS
+    row_cap = row_json_max_chars if row_json_max_chars is not None else settings.LLM_EVIDENCE_ROW_JSON_MAX_CHARS
     seen_hashes: set[str] = set()
     bundle: list[dict] = []
     for e in rows or []:
@@ -206,10 +285,14 @@ def build_aws_evidence_bundle_for_llm(
                 payload = json.loads(payload)
             except Exception:
                 payload = {"_truncated_text": (payload or "")[:8000]}
+        payload = _truncate_payload_for_llm(payload, row_cap)
         bundle.append(
             {
                 "evidence_id": str(getattr(e, "evidence_id", "") or ""),
+                "run_id": str(getattr(e, "run_id", "") or ""),
+                "item_code": getattr(e, "item_code", None),
                 "control_id": getattr(e, "control_id", None),
+                "cloud_provider": getattr(e, "cloud_provider", None),
                 "source_system": getattr(e, "source_system", None),
                 "evidence_type": getattr(e, "evidence_type", None),
                 "collected_at": e.collected_at.isoformat() if getattr(e, "collected_at", None) else None,
@@ -218,11 +301,19 @@ def build_aws_evidence_bundle_for_llm(
         )
     # Cap total serialized size
     text = json.dumps(bundle, default=str)
-    while len(text) > max_chars and len(bundle) > 1:
+    while len(text) > cap and len(bundle) > 1:
         bundle = bundle[:-1]
         text = json.dumps(bundle, default=str)
-    if len(text) > max_chars and bundle:
-        bundle[0]["response_json"] = {"_note": "truncated", "_partial": str(bundle[0].get("response_json"))[: max_chars // 2]}
+    if len(text) > cap and bundle:
+        rj = bundle[0].get("response_json")
+        try:
+            partial = json.dumps(rj, default=str) if not isinstance(rj, str) else rj
+        except Exception:
+            partial = str(rj)
+        bundle[0]["response_json"] = {
+            "_note": "truncated",
+            "_partial": partial[: max(cap // 2, 8_000)],
+        }
         bundle = bundle[:1]
     return bundle
 

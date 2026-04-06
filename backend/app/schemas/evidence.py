@@ -109,4 +109,5 @@ class AwsEvidenceSuggestResponse(BaseModel):
     question_sources: dict[str, str] = {}
     aws_evidence_bundle_count: int = 0
     aws_evidence_row_count: int = 0
+    cloud_provider: str | None = None
     message: str | None = None

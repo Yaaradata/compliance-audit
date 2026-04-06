@@ -5,6 +5,7 @@
 export const CLOUD_EVIDENCE_API = {
   aws: "/cloud/aws",
   gcp: "/cloud/gcp",
+  azure: "/cloud/azure",
 } as const;
 
 export type CloudEvidenceProvider = keyof typeof CLOUD_EVIDENCE_API;

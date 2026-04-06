@@ -9,6 +9,9 @@ from pathlib import Path
 from uuid import UUID
 
 from app.aws_evidence.core.db import SessionLocal, ensure_schema
+from app.database import SessionLocal as CoreSessionLocal
+from app.gcp_evidence.credentials_context import gcp_user_credentials_scope
+from app.gcp_evidence.services.gcp_credentials_resolver import resolve_optional_user_credentials
 from app.aws_evidence.core.hash_utils import sha256_bytes
 from app.aws_evidence.core.json_utils import sanitize_for_jsonb
 from app.aws_evidence.models import CollectorRun, Evidence
@@ -165,6 +168,12 @@ def run_all_gcp_collectors(
     if not project_id:
         raise ValueError("GCP project_id is required")
 
+    core_db = CoreSessionLocal()
+    try:
+        creds, qp = resolve_optional_user_credentials(core_db, tenant_id, cycle_id, user_id)
+    finally:
+        core_db.close()
+
     ensure_schema()
     db = SessionLocal()
     run_id = uuid.uuid4()
@@ -183,7 +192,8 @@ def run_all_gcp_collectors(
     db.commit()
 
     try:
-        _execute_gcp_collection_run(db, run_id, tenant_id, cycle_id, user_id, project_id)
+        with gcp_user_credentials_scope(creds, qp):
+            _execute_gcp_collection_run(db, run_id, tenant_id, cycle_id, user_id, project_id)
     finally:
         db.close()
 
@@ -205,6 +215,12 @@ def run_all_gcp_collectors_structured(
     if not project_id:
         raise ValueError("GCP project_id is required")
 
+    core_db = CoreSessionLocal()
+    try:
+        creds, qp = resolve_optional_user_credentials(core_db, tenant_id, cycle_id, user_id)
+    finally:
+        core_db.close()
+
     ensure_schema()
     workbook_rows = _load_workbook_rows()
     db = SessionLocal()
@@ -224,9 +240,10 @@ def run_all_gcp_collectors_structured(
     db.commit()
 
     try:
-        errors, outcomes, _, _ = _execute_gcp_collection_run(
-            db, run_id, tenant_id, cycle_id, user_id, project_id
-        )
+        with gcp_user_credentials_scope(creds, qp):
+            errors, outcomes, _, _ = _execute_gcp_collection_run(
+                db, run_id, tenant_id, cycle_id, user_id, project_id
+            )
         if workbook_rows:
             results = build_standard_evidence_results(workbook_rows, {k: v for k, v in outcomes.items()})
         else:

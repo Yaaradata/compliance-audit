@@ -64,6 +64,15 @@ export function IconGCP({ className }: { className?: string } = {}) {
   );
 }
 
+export function IconAzure({ className }: { className?: string } = {}) {
+  return (
+    <svg className={svgClass(className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 3.5L6 17h4.2l1.5-2.7h4.8L18 17h3L13.5 3.5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.2 17L13.5 11l3.3 6" />
+    </svg>
+  );
+}
+
 export function IconAdmin({ className }: { className?: string } = {}) {
   return (
     <svg className={svgClass(className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>

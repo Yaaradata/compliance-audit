@@ -65,6 +65,9 @@ COLUMN_ALIASES = {
     "AWS Services": "aws_services",
     "Question-Level AWS Sources": "question_level_aws_sources",
     "Reason / Rationale": "reason_rationale",
+    "Azure Auto Level": "azure_auto_level",
+    "Azure Services": "azure_services",
+    "Question-Level Azure Sources": "question_level_azure_sources",
 }
 
 OPTIONAL_EMPTY_COLUMNS = {
@@ -186,6 +189,12 @@ def build_payload(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "question_level_aws_sources": to_text(row["question_level_aws_sources"]),
                     "reason_rationale": to_text(row["reason_rationale"]),
                     "answers": to_text(row.get("answers")),
+                    "gcs_auto_level": to_text(row.get("gcs_auto_level")),
+                    "gcs_services": to_text(row.get("gcs_services")),
+                    "question_level_gcs_sources": to_text(row.get("question_level_gcs_sources")),
+                    "azure_auto_level": to_text(row.get("azure_auto_level")),
+                    "azure_services": to_text(row.get("azure_services")),
+                    "question_level_azure_sources": to_text(row.get("question_level_azure_sources")),
                 }
             )
         except Exception as exc:
@@ -232,6 +241,12 @@ def run(csv_path: Path, truncate_first: bool) -> int:
                 "question_level_aws_sources",
                 "reason_rationale",
                 "answers",
+                "gcs_auto_level",
+                "gcs_services",
+                "question_level_gcs_sources",
+                "azure_auto_level",
+                "azure_services",
+                "question_level_azure_sources",
             ]
             insert_columns = [c for c in ordered_columns if c in existing_columns]
             cast_types = {

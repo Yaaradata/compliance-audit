@@ -22,12 +22,50 @@ export type GcpEvidenceRow = CloudEvidenceRow;
 
 export interface GcpConfigResponse {
   configured: boolean;
+  /** When true, user may open GCP dashboard / evidence; not gated by strict team-email IAM binding. */
+  dashboard_unlocked?: boolean;
   project_id: string | null;
+  connection_mode?: "oauth" | "adc";
+  oauth_enabled?: boolean;
+  google_user_email?: string | null;
+  /** True when project id was saved for this cycle (OAuth flow may still need Google sign-in). */
+  project_saved?: boolean;
+  /** Team member email used for IAM policy check (direct user: binding). */
+  access_verification_email?: string | null;
+  iam_access_verified?: boolean | null;
+  iam_access_detail?: string | null;
+  iam_check_complete?: boolean;
+  connect_api_test_passed?: boolean;
 }
 
 export function getGcpConfig(cycleId?: string | null): Promise<GcpConfigResponse> {
   const qs = scopeQuery(cycleId);
   return api.get<GcpConfigResponse>(`${PREFIX}/config${qs}`);
+}
+
+export function saveGcpProjectContext(
+  cycleId: string | null | undefined,
+  gcp_project_id: string,
+  access_verification_email: string
+): Promise<{
+  ok: boolean;
+  message?: string;
+  iam_access_verified?: boolean;
+  iam_access_detail?: string;
+  iam_roles?: string[];
+}> {
+  return api.post(
+    `${PREFIX}/context${scopeQuery(cycleId)}`,
+    { gcp_project_id, access_verification_email }
+  );
+}
+
+export function startGcpOAuth(cycleId?: string | null): Promise<{ authorization_url: string }> {
+  return api.post<{ authorization_url: string }>(`${PREFIX}/auth/oauth/start${scopeQuery(cycleId)}`, {});
+}
+
+export function disconnectGcpOAuth(cycleId?: string | null): Promise<{ ok: boolean }> {
+  return api.post<{ ok: boolean }>(`${PREFIX}/auth/oauth/disconnect${scopeQuery(cycleId)}`, {});
 }
 
 export function testGcpCredentials(cycleId?: string | null): Promise<{ ok: boolean; project_id?: string; message?: string }> {
@@ -64,8 +102,8 @@ export function getGcpEvidenceContent(evidenceId: string, cycleId?: string | nul
 
 export function deleteAllGcpEvidence(
   cycleId?: string | null
-): Promise<{ deleted_evidence: number; deleted_runs: number }> {
-  return api.del<{ deleted_evidence: number; deleted_runs: number }>(
+): Promise<{ deleted_evidence: number; deleted_runs: number; connect_config_cleared?: boolean }> {
+  return api.del<{ deleted_evidence: number; deleted_runs: number; connect_config_cleared?: boolean }>(
     `${PREFIX}/evidence${scopeQuery(cycleId)}`
   );
 }

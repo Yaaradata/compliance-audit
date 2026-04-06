@@ -71,7 +71,7 @@ def get_db_ref(
     """
     if cycle_id is not None:
         schema = _resolve_schema_for_cycle(db, cycle_id)
-        db.execute(text(f"SET search_path TO core, {schema!r}, public"))
+        db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
     yield db
 
 
@@ -120,8 +120,7 @@ def get_db_for_review(
             schemas_to_try.append(s)
 
     for schema in schemas_to_try:
-        # Use literal schema name (we control the value) so search_path sees a proper identifier
-        db.execute(text(f"SET search_path TO core, {schema!r}, public"))
+        db.execute(text("SET search_path TO core, :s, public"), {"s": schema})
         review = db.query(ReviewAssignment).filter(ReviewAssignment.id == review_id).first()
         if review is not None:
             sub = db.query(EvidenceSubmission).filter(EvidenceSubmission.id == review.submission_id).first()

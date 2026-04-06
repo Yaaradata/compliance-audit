@@ -35,6 +35,7 @@ function primaryNavHrefAllowed(href: string): boolean {
     href.startsWith("/evidence") ||
     href.startsWith("/aws") ||
     href.startsWith("/gcp") ||
+    href.startsWith("/azure") ||
     href.startsWith("/users-groups") ||
     href.startsWith("/review") ||
     href.startsWith("/approval") ||
@@ -74,7 +75,7 @@ function filterNavBySearch(items: NavItem[], q: string): NavItem[] {
         const ql = q.toLowerCase();
         const hit =
           item.label.toLowerCase().includes(ql) ||
-          ["cloud", "aws", "gcp", "amazon", "google", "evidence"].some((k) => ql.includes(k));
+          ["cloud", "aws", "gcp", "azure", "amazon", "google", "microsoft", "evidence"].some((k) => ql.includes(k));
         return hit ? item : null;
       }
       if (!isNavGroup(item)) {
@@ -172,12 +173,17 @@ export function AppSidebar() {
   const base = cycleId ? `/cycles/${cycleId}` : "";
   const q = searchQuery.trim().toLowerCase();
   const navItemsFiltered = useMemo(() => filterNavBySearch(navItems, q), [navItems, q]);
-  // Cloud evidence UIs stay at /aws/* and /gcp/* (not under /cycles/...) so APIs stay provider-specific.
-  const isCloudWorkspacePath = Boolean(pathname?.startsWith("/aws") || pathname?.startsWith("/gcp"));
+  // Cloud evidence UIs stay outside /cycles/* so provider APIs stay independent.
+  const isCloudWorkspacePath = Boolean(
+    pathname?.startsWith("/aws") ||
+      pathname?.startsWith("/gcp") ||
+      pathname?.startsWith("/azure")
+  );
   const navHref = (item: { href: string }) => {
     if (!base) return item.href;
     if (item.href === "/aws") return "/aws";
     if (item.href === "/gcp") return "/gcp";
+    if (item.href === "/azure") return "/azure";
     if (item.href === "/dashboard") return hasCycleInPath || isCloudWorkspacePath ? `${base}/dashboard` : "/dashboard";
     if (item.href.startsWith("/evidence")) return item.href.replace("/evidence", `${base}/evidence`);
     if (item.href.startsWith("/review")) return `${base}/review`;

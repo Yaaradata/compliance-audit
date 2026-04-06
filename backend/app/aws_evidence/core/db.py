@@ -1,13 +1,15 @@
 """SQLAlchemy engine and session for the SWIFT AWS evidence schema."""
 from pathlib import Path
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from .config import get_database_url, SWIFT_SCHEMA
+from app.database import engine
 
+from .config import SWIFT_SCHEMA
 
-engine = create_engine(get_database_url(), pool_pre_ping=True)
+# Use the main FastAPI engine so GCP/AWS evidence routes share one connection pool
+# (defaults on a second engine were pool_size=5 / max_overflow=10 and exhausted under concurrent dashboard calls).
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -76,6 +78,26 @@ def ensure_schema() -> None:
               AND (e.cloud_provider IS NULL OR e.cloud_provider = '')
             """
         ))
+        # evidence_based_questions lives in swift_2026 but is created by separate SQL migrations (not _MIGRATIONS above).
+        conn.execute(
+            text(
+                """
+DO $ebq_azure$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'swift_2026' AND table_name = 'evidence_based_questions'
+  ) THEN
+    ALTER TABLE swift_2026.evidence_based_questions
+      ADD COLUMN IF NOT EXISTS azure_auto_level TEXT,
+      ADD COLUMN IF NOT EXISTS azure_services TEXT,
+      ADD COLUMN IF NOT EXISTS question_level_azure_sources TEXT;
+  END IF;
+END
+$ebq_azure$;
+"""
+            )
+        )
         conn.commit()
 
 

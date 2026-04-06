@@ -19,6 +19,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const isCycleRoute = pathname?.startsWith("/cycles/");
   const isAwsRoute = pathname?.startsWith("/aws");
   const isGcpRoute = pathname?.startsWith("/gcp");
+  const isAzureRoute = pathname?.startsWith("/azure");
   const isHomeDashboard = pathname === "/dashboard";
 
   const urlCycleId = pathname?.match(/^\/cycles\/([^/]+)/)?.[1];
@@ -64,6 +65,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
     const isAwsPage = pathname?.startsWith("/aws") && effectiveRole === "it_sme";
     const isGcpPage = pathname?.startsWith("/gcp") && effectiveRole === "it_sme";
+    const isAzurePage = pathname?.startsWith("/azure") && effectiveRole === "it_sme";
     const isUsersGroupsPage = pathname?.startsWith("/users-groups");
     const canAccessUsersGroups = (effectiveRole === "compliance_officer" || effectiveRole === "tenant_admin") && isUsersGroupsPage;
     const isAssessmentsPage = pathname?.startsWith("/assessments");
@@ -73,6 +75,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       !isCycleRoute &&
       !isAwsPage &&
       !isGcpPage &&
+      !isAzurePage &&
       !canAccessUsersGroups &&
       !isAssessmentsPage &&
       !isHomeDashboard
@@ -88,7 +91,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/assessments/new");
       return;
     }
-    if (activeCycleId && !isCycleRoute && pathname && !isAwsPage && !isGcpPage) {
+    if (pathname?.startsWith("/azure") && effectiveRole !== "it_sme" && effectiveCycleRole !== undefined) {
+      router.replace(activeCycleId ? `/cycles/${activeCycleId}/dashboard` : "/assessments/new");
+      return;
+    }
+    if (activeCycleId && !isCycleRoute && pathname && !isAwsPage && !isGcpPage && !isAzurePage) {
       if (pathname.startsWith("/domains/")) {
         const rest = pathname.slice("/domains/".length);
         router.replace(`/cycles/${activeCycleId}/domains/${rest}`);
@@ -115,6 +122,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const renderRole = effectiveTenantRole;
   const allowAwsWithoutCycle = pathname?.startsWith("/aws") && renderRole === "it_sme";
   const allowGcpWithoutCycle = pathname?.startsWith("/gcp") && renderRole === "it_sme";
+  const allowAzureWithoutCycle = pathname?.startsWith("/azure") && renderRole === "it_sme";
   const allowUsersGroups = pathname?.startsWith("/users-groups") && (renderRole === "compliance_officer" || renderRole === "tenant_admin");
   const allowAssessmentsPage = pathname?.startsWith("/assessments");
   const allowHomeDashboard = pathname === "/dashboard";
@@ -125,6 +133,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     !isCycleRoute &&
     !allowAwsWithoutCycle &&
     !allowGcpWithoutCycle &&
+    !allowAzureWithoutCycle &&
     !allowUsersGroups &&
     !allowAssessmentsPage &&
     !allowHomeDashboard
@@ -150,8 +159,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     role === "internal_reviewer_l1" ||
     role === "internal_reviewer_l2" ||
     role === "external_assessor";
-  /** Cycle, AWS, and GCP workspaces keep the sidebar for consistent navigation (same as /cycles/...). */
-  const showSidebar = isCycleRoute || isAwsRoute || isGcpRoute
+  /** Cycle and cloud evidence workspaces keep the sidebar for consistent navigation. */
+  const showSidebar = isCycleRoute || isAwsRoute || isGcpRoute || isAzureRoute
     ? true
     : !hideSidebarOutsideCycleForRole && (!isHomeDashboard || role === "compliance_officer");
 

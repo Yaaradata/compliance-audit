@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { IconAWS, IconGCP, IconLayers } from "@/components/layout/sidebar-nav-icons";
+import { IconAWS, IconAzure, IconGCP, IconLayers } from "@/components/layout/sidebar-nav-icons";
 
 const CLOSE_DELAY_MS = 220;
 
@@ -14,6 +14,8 @@ export function SidebarCloudEvidence(props: {
   hoverEnabled: boolean;
   awsHref: string;
   gcpHref: string;
+  /** Reserved for when Azure evidence leaves "coming soon". */
+  azureHref?: string;
   onOpenChange?: (open: boolean) => void;
 }) {
   const { label, sidebarOpen, hoverEnabled, awsHref, gcpHref, onOpenChange } = props;
@@ -103,7 +105,8 @@ export function SidebarCloudEvidence(props: {
 
   const isAwsActive = Boolean(pathname?.startsWith("/aws"));
   const isGcpActive = Boolean(pathname?.startsWith("/gcp"));
-  const isParentActive = isAwsActive || isGcpActive;
+  const isAzureActive = Boolean(pathname?.startsWith("/azure"));
+  const isParentActive = isAwsActive || isGcpActive || isAzureActive;
 
   const triggerCls = `flex w-full items-center gap-3 rounded-xl py-2.5 text-sm font-medium outline-none transition-all duration-200 hover:bg-(--sidebar-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--sidebar-active-text) min-w-0 border-0 cursor-pointer text-left ${
     sidebarOpen ? "px-3" : "px-3 justify-center"
@@ -226,6 +229,26 @@ export function SidebarCloudEvidence(props: {
               </span>
               <span className="truncate">GCP Evidence</span>
             </Link>
+            <div
+              role="menuitem"
+              aria-disabled
+              className={`${linkCls} cursor-not-allowed opacity-75`}
+              style={{
+                color: "var(--sidebar-text-muted)",
+                backgroundColor: "transparent",
+              }}
+              title="Azure evidence — coming soon"
+            >
+              <span style={{ color: "inherit", opacity: 0.85 }}>
+                <IconAzure className="w-5 h-5" />
+              </span>
+              <span className="truncate flex-1 min-w-0">Azure Evidence</span>
+              <span
+                className="shrink-0 whitespace-nowrap rounded-md border border-orange-500/40 bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-semibold leading-tight text-orange-500 dark:text-orange-400"
+              >
+                Coming Soon
+              </span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

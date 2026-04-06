@@ -44,6 +44,8 @@ from .database import (
     ensure_control_scoping_columns,
     ensure_notes_notifications_tables,
     ensure_tenant_aws_config_table,
+    ensure_cycle_user_gcp_config_table,
+    ensure_cycle_user_azure_config_table,
     ensure_evidence_submission_history_table,
     ensure_review_hold_enum,
     ensure_user_group_name,
@@ -52,6 +54,8 @@ from .database import (
     ensure_cycle_role_assignments,
     ensure_cycle_evidence_assignments,
     ensure_artifact_registry_schema,
+    ensure_swift_2025_evidence_questions_azure_columns,
+    ensure_swift_2026_evidence_questions_azure_columns,
 )
 from .aws_evidence.core.db import ensure_schema as ensure_aws_evidence_schema
 from .routers import (
@@ -74,6 +78,7 @@ from .routers import (
     notifications,
     aws,
     gcp,
+    azure,
     compliance,
     artifact_registry,
     demo,
@@ -87,6 +92,8 @@ def _run_startup_migrations_sync() -> None:
         ensure_control_scoping_columns()
         ensure_notes_notifications_tables()
         ensure_tenant_aws_config_table()
+        ensure_cycle_user_gcp_config_table()
+        ensure_cycle_user_azure_config_table()
         ensure_evidence_submission_history_table()
         ensure_review_hold_enum()
         ensure_user_group_name()
@@ -95,7 +102,10 @@ def _run_startup_migrations_sync() -> None:
         ensure_cycle_role_assignments()
         ensure_cycle_evidence_assignments()
         ensure_artifact_registry_schema()
-        ensure_aws_evidence_schema()  # swift_2026 schema + migrations (collector_runs, evidence, etc.)
+        ensure_swift_2025_evidence_questions_azure_columns()
+        # swift_2026 schema must exist before altering evidence_based_questions (Azure columns also applied inside ensure_aws_evidence_schema).
+        ensure_aws_evidence_schema()  # swift_2026 schema + migrations (collector_runs, evidence, ebq Azure cols if table exists)
+        ensure_swift_2026_evidence_questions_azure_columns()
         logger.info("Startup migrations completed successfully.")
     except Exception:
         logger.exception("Startup migrations failed (API is up; fix DB/config and redeploy or retry).")
@@ -146,6 +156,7 @@ PREFIX = "/api/v1"
 # Separated HTTP namespaces: AWS vs GCP evidence APIs (no shared /aws vs /gcp root path).
 CLOUD_AWS_API_PREFIX = f"{PREFIX}/cloud/aws"
 CLOUD_GCP_API_PREFIX = f"{PREFIX}/cloud/gcp"
+CLOUD_AZURE_API_PREFIX = f"{PREFIX}/cloud/azure"
 
 app.include_router(auth.router,          prefix=PREFIX, tags=["auth"])
 app.include_router(compliance.router,   prefix=PREFIX)
@@ -171,6 +182,7 @@ app.include_router(reference.router, prefix=PREFIX)
 app.include_router(audit_log.router,    prefix=PREFIX, tags=["audit-log"])
 app.include_router(aws.router, prefix=CLOUD_AWS_API_PREFIX, tags=["cloud-aws-evidence"])
 app.include_router(gcp.router, prefix=CLOUD_GCP_API_PREFIX, tags=["cloud-gcp-evidence"])
+app.include_router(azure.router, prefix=CLOUD_AZURE_API_PREFIX, tags=["cloud-azure-evidence"])
 app.include_router(artifact_registry.router, prefix=PREFIX, tags=["artifact-registry"])
 app.include_router(demo.router,             prefix=PREFIX, tags=["demo"])
 

@@ -1,0 +1,9 @@
+pandas>=2.0.0
+openpyxl>=3.1.0
+# Vertex AI — same stack as backend (app.services.ai_service)
+google-cloud-aiplatform>=1.38.0
+python-dotenv>=1.0.0
+# LangChain 1.x agent (create_agent); orchestrator: ChatVertexAI (Gemini) + GOOGLE_CLOUD_PROJECT
+langchain>=1.0.0,<2.0.0
+langchain-core>=1.2.0,<2.0.0
+langchain-google-vertexai>=2.0.0

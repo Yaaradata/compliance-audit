@@ -1,6 +1,8 @@
 from .tenant import Tenant, User
 from .tenant_aws_config import TenantAwsConfig
 from .cycle_user_aws_config import CycleUserAwsConfig
+from .cycle_user_gcp_config import CycleUserGcpConfig
+from .cycle_user_azure_config import CycleUserAzureConfig
 from .framework import AuditFramework, Control, EvidenceDomain, CanonicalEvidenceItem, ItemControlMapping, EvidenceSufficiencyMatrix, CrossDomainDependency
 from .assessment import AssessmentCycle, CyclePhaseDeadline, ControlApplicability, EvidenceSubmission, EvidenceAttachment, EvidenceSubmissionHistory
 from .review import ReviewerChecklist, ReviewAssignment, ReviewComment
@@ -20,7 +22,7 @@ from .artifact_registry import (
 )
 
 __all__ = [
-    "Tenant", "User", "TenantAwsConfig", "CycleUserAwsConfig",
+    "Tenant", "User", "TenantAwsConfig", "CycleUserAwsConfig", "CycleUserGcpConfig", "CycleUserAzureConfig",
     "AuditFramework", "Control", "EvidenceDomain", "CanonicalEvidenceItem", "ItemControlMapping", "EvidenceSufficiencyMatrix", "CrossDomainDependency",
     "AssessmentCycle", "CyclePhaseDeadline", "ControlApplicability", "EvidenceSubmission", "EvidenceAttachment", "EvidenceSubmissionHistory",
     "ReviewerChecklist", "ReviewAssignment", "ReviewComment",

@@ -14,8 +14,9 @@ SCHEMA = "swift_2025"
 engine = create_engine(
     settings.database_url,
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=max(5, settings.DB_POOL_SIZE),
+    max_overflow=max(0, settings.DB_MAX_OVERFLOW),
+    pool_timeout=max(10, settings.DB_POOL_TIMEOUT),
     pool_recycle=300,
     echo=False,
 )
@@ -268,6 +269,96 @@ def ensure_tenant_aws_config_table():
         logger.warning("Could not ensure tenant_aws_config table (core.tenants may not exist yet): %s", e)
 
 
+def ensure_cycle_user_gcp_config_table():
+    """Create core.cycle_user_gcp_config for per-cycle Google OAuth + target project."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE SCHEMA IF NOT EXISTS core"))
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS core.cycle_user_gcp_config (
+                        tenant_id UUID NOT NULL REFERENCES core.tenants(id) ON DELETE CASCADE,
+                        cycle_id UUID NOT NULL REFERENCES core.assessment_cycles(id) ON DELETE CASCADE,
+                        user_id UUID NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
+                        gcp_project_id VARCHAR(255) NOT NULL DEFAULT '',
+                        google_user_email VARCHAR(320),
+                        encrypted_refresh_token TEXT,
+                        oauth_state VARCHAR(128),
+                        oauth_state_expires_at TIMESTAMPTZ,
+                        connected_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        PRIMARY KEY (tenant_id, cycle_id, user_id)
+                    )
+                    """
+                )
+            )
+            # Older DBs may have an incomplete table (CREATE IF NOT EXISTS skipped). Add every column before indexes.
+            for ddl in (
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS gcp_project_id VARCHAR(255) NOT NULL DEFAULT ''",
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS google_user_email VARCHAR(320)",
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS encrypted_refresh_token TEXT",
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS oauth_state VARCHAR(128)",
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS oauth_state_expires_at TIMESTAMPTZ",
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS connected_at TIMESTAMPTZ",
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS access_verification_email VARCHAR(320)",
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS iam_access_verified BOOLEAN",
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS iam_access_checked_at TIMESTAMPTZ",
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS iam_access_detail TEXT",
+                "ALTER TABLE core.cycle_user_gcp_config ADD COLUMN IF NOT EXISTS connect_api_test_passed_at TIMESTAMPTZ",
+            ):
+                conn.execute(text(ddl))
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_cycle_user_gcp_oauth_state "
+                    "ON core.cycle_user_gcp_config (oauth_state) WHERE oauth_state IS NOT NULL"
+                )
+            )
+            conn.commit()
+        logger.info("cycle_user_gcp_config table ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure cycle_user_gcp_config table: %s", e)
+
+
+def ensure_cycle_user_azure_config_table():
+    """Create core.cycle_user_azure_config for per-cycle Azure subscription + optional SP secret."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE SCHEMA IF NOT EXISTS core"))
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS core.cycle_user_azure_config (
+                        tenant_id UUID NOT NULL REFERENCES core.tenants(id) ON DELETE CASCADE,
+                        cycle_id UUID NOT NULL REFERENCES core.assessment_cycles(id) ON DELETE CASCADE,
+                        user_id UUID NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
+                        azure_subscription_id VARCHAR(64) NOT NULL DEFAULT '',
+                        azure_tenant_id VARCHAR(64) NOT NULL DEFAULT '',
+                        azure_client_id VARCHAR(128),
+                        encrypted_client_secret TEXT,
+                        connect_api_test_passed_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        PRIMARY KEY (tenant_id, cycle_id, user_id)
+                    )
+                    """
+                )
+            )
+            for ddl in (
+                "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS azure_subscription_id VARCHAR(64) NOT NULL DEFAULT ''",
+                "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS azure_tenant_id VARCHAR(64) NOT NULL DEFAULT ''",
+                "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS azure_client_id VARCHAR(128)",
+                "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS encrypted_client_secret TEXT",
+                "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS connect_api_test_passed_at TIMESTAMPTZ",
+            ):
+                conn.execute(text(ddl))
+            conn.commit()
+        logger.info("cycle_user_azure_config table ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure cycle_user_azure_config table: %s", e)
+
+
 def ensure_evidence_submission_history_table():
     """
     Create evidence_submission_history table if it does not exist.
@@ -467,3 +558,61 @@ def ensure_artifact_registry_schema():
         logger.info("artifact_registry schema ensured.")
     except Exception as e:
         logger.warning("Could not ensure artifact_registry schema: %s", e)
+
+
+def ensure_swift_2025_evidence_questions_azure_columns():
+    """Add Azure mapping columns to swift_2025.evidence_based_questions (idempotent). Safe if table missing."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    """
+DO $ebq_azure_2025$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'swift_2025' AND table_name = 'evidence_based_questions'
+  ) THEN
+    ALTER TABLE swift_2025.evidence_based_questions
+      ADD COLUMN IF NOT EXISTS azure_auto_level TEXT,
+      ADD COLUMN IF NOT EXISTS azure_services TEXT,
+      ADD COLUMN IF NOT EXISTS question_level_azure_sources TEXT;
+  END IF;
+END
+$ebq_azure_2025$;
+"""
+                )
+            )
+            conn.commit()
+        logger.info("swift_2025.evidence_based_questions Azure columns ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure swift_2025 evidence_based_questions Azure columns: %s", e)
+
+
+def ensure_swift_2026_evidence_questions_azure_columns():
+    """Add Azure mapping columns to swift_2026.evidence_based_questions (idempotent). Safe if table missing."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    """
+DO $ebq_azure_app$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'swift_2026' AND table_name = 'evidence_based_questions'
+  ) THEN
+    ALTER TABLE swift_2026.evidence_based_questions
+      ADD COLUMN IF NOT EXISTS azure_auto_level TEXT,
+      ADD COLUMN IF NOT EXISTS azure_services TEXT,
+      ADD COLUMN IF NOT EXISTS question_level_azure_sources TEXT;
+  END IF;
+END
+$ebq_azure_app$;
+"""
+                )
+            )
+            conn.commit()
+        logger.info("swift_2026.evidence_based_questions Azure columns ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure swift_2026 evidence_based_questions Azure columns: %s", e)

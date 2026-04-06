@@ -675,6 +675,16 @@ export function RunHistoryVisualsPlotly({
     });
     return new Map(byTime.map((r, i) => [r.run_id, `Run ${i + 1}`]));
   }, [runs]);
+  /** Runtime timestamp index for reliable latest-run detection. */
+  const runTimeMsById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of runs) {
+      const ts = r.ended_at ?? r.execution_time ?? r.in_time ?? "";
+      const ms = ts ? new Date(ts).getTime() : Number.NaN;
+      map.set(r.run_id, Number.isFinite(ms) ? ms : 0);
+    }
+    return map;
+  }, [runs]);
   const collectorSources = useMemo(() => {
     const byLabel = new Map<
       string,
@@ -810,9 +820,11 @@ export function RunHistoryVisualsPlotly({
       setSourceCompareError((prev) => ({ ...prev, [label]: null }));
       try {
         const runMeta = [...runEvidenceByRun].sort((a, b) => {
-          const ta = a.at ?? "";
-          const tb = b.at ?? "";
-          return tb.localeCompare(ta); // latest first
+          const ta = runTimeMsById.get(a.runId) ?? 0;
+          const tb = runTimeMsById.get(b.runId) ?? 0;
+          if (ta !== tb) return tb - ta;
+          // Tie-breaker by evidence timestamp if run times are equal/missing.
+          return (b.at ?? "").localeCompare(a.at ?? "");
         });
         const latestRunId = runMeta[0]?.runId ?? null;
         const payloads = await Promise.all(
@@ -829,8 +841,9 @@ export function RunHistoryVisualsPlotly({
           isCurrent: latestRunId ? m.runId === latestRunId : idx === 0,
         }));
         const fieldKeys = Array.from(new Set(payloads.flatMap((p) => Object.keys(p.content)))).sort();
-        const currentRunId = runColumns[0]?.runId;
-        const previousRunId = runColumns[1]?.runId;
+        const currentRunId = runColumns.find((c) => c.isCurrent)?.runId ?? runColumns[0]?.runId;
+        const currentIdx = runColumns.findIndex((c) => c.runId === currentRunId);
+        const previousRunId = currentIdx >= 0 ? runColumns[currentIdx + 1]?.runId : runColumns[1]?.runId;
         const rows = fieldKeys.map((field) => {
           const valuesByRun: Record<string, string> = {};
           for (const p of payloads) valuesByRun[p.runId] = p.content[field] ?? "—";
@@ -849,7 +862,7 @@ export function RunHistoryVisualsPlotly({
         setSourceCompareLoading((prev) => ({ ...prev, [label]: false }));
       }
     },
-    [loadEvidenceContent, runLabelMap, sourceCompareData]
+    [loadEvidenceContent, runLabelMap, runTimeMsById, sourceCompareData]
   );
 
   const toggleSourceDropdown = useCallback(
@@ -1410,28 +1423,13 @@ export function RunHistoryVisualsPlotly({
                               </span>
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap" style={{ color: "var(--foreground)" }}>
-                              <span
-                                className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold bg-[var(--muted)] hover:bg-[var(--card-glow-border)] transition-colors"
-                                style={{ color: "var(--foreground)" }}
-                              >
-                                {row.service}
-                              </span>
+                              {row.service}
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap" style={{ color: "var(--foreground)" }}>
-                              <span
-                                className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold bg-[var(--muted)] hover:bg-[var(--card-glow-border)] transition-colors"
-                                style={{ color: "var(--foreground)" }}
-                              >
-                                {row.operation}
-                              </span>
+                              {row.operation}
                             </td>
                             <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>
-                              <span
-                                className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-[var(--muted)] hover:bg-[var(--card-glow-border)] transition-colors"
-                                style={{ color: "var(--foreground)" }}
-                              >
-                                {row.purpose}
-                              </span>
+                              {row.purpose}
                             </td>
                           </tr>
                         ))}
@@ -1497,23 +1495,20 @@ export function RunHistoryVisualsPlotly({
                               </td>
                               {sourceCompareData[source.label].runColumns.map((c, idx, arr) => {
                                 const currentVal = r.valuesByRun[c.runId] ?? "—";
-                                const prevVal = idx === 0 && arr[1] ? (r.valuesByRun[arr[1].runId] ?? "—") : null;
-                                const changedCell = idx === 0 && prevVal !== null && currentVal !== prevVal;
+                                const valuesAcrossRuns = arr.map((col) => r.valuesByRun[col.runId] ?? "—");
+                                const hasDifference = new Set(valuesAcrossRuns).size > 1;
                                 return (
                                   <td
                                     key={`${source.label}-row-${r.field}-${c.runId}`}
                                     className="px-3 py-2 align-top break-words"
                                     style={{
                                       color: "var(--foreground)",
-                                      background: "transparent",
+                                      background: hasDifference
+                                        ? "color-mix(in srgb, var(--card-glow-border) 50%, #f59e0b22)"
+                                        : "transparent",
                                     }}
                                   >
-                                    <span
-                                      className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-[var(--muted)] hover:bg-[var(--card-glow-border)] transition-colors"
-                                      style={{ color: "var(--foreground)" }}
-                                    >
-                                      {currentVal}
-                                    </span>
+                                    {currentVal}
                                   </td>
                                 );
                               })}

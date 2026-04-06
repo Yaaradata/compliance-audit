@@ -819,18 +819,27 @@ export function EvidenceDisplayReadOnly({
   const swift = visualVariant === "swiftReview";
   const [questions, setQuestions] = useState<EvidenceQuestion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [questionsLoadError, setQuestionsLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!evidenceItemId || !cycleId) {
       setQuestions([]);
+      setQuestionsLoadError(null);
       setLoading(false);
       return;
     }
     setLoading(true);
+    setQuestionsLoadError(null);
     api
       .get<EvidenceQuestion[]>(`/ref/evidence-items/${evidenceItemId}/questions?cycle_id=${cycleId}`)
-      .then((data) => setQuestions(data))
-      .catch(() => setQuestions([]))
+      .then((data) => {
+        setQuestions(data);
+        setQuestionsLoadError(null);
+      })
+      .catch((e: unknown) => {
+        setQuestions([]);
+        setQuestionsLoadError(e instanceof Error ? e.message : "Failed to load questions");
+      })
       .finally(() => setLoading(false));
   }, [evidenceItemId, cycleId]);
 
@@ -867,7 +876,11 @@ export function EvidenceDisplayReadOnly({
   if (questions.length === 0) {
     return (
       <div className={swift ? "py-8 text-center text-sm text-[var(--text-secondary)]" : "py-8 text-center text-sm text-slate-600"}>
-        No questions configured for this evidence item.
+        {questionsLoadError ? (
+          <span className="text-red-600">{questionsLoadError}</span>
+        ) : (
+          "No questions configured for this evidence item."
+        )}
       </div>
     );
   }

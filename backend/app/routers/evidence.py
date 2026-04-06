@@ -2,6 +2,8 @@ from uuid import UUID
 import json
 import logging
 from datetime import datetime, timezone
+from collections import Counter
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
@@ -23,6 +25,7 @@ from ..schemas.evidence import (
     AiCriterionResultOut,
     AwsEvidenceSuggestResponse,
 )
+from app.config import settings
 from app.aws_evidence.core.db import ensure_schema as ensure_aws_schema, get_swift_evidence_db
 from app.aws_evidence.services import evidence_service as aws_evidence_service
 from ..services import ai_service
@@ -44,16 +47,135 @@ _CONTROL_ID_ALL = "ALL"
 _AWS_LLM_FILL_TYPES = frozenset({"text", "textarea", "select", "date", "checkbox", "multiselect", "spreadsheet"})
 
 
-def _evidence_source_allows_aws_llm(evidence_source: str | None) -> bool:
-    """True when classification is AWS-only or AWS+Human (excludes Human-only)."""
-    s = " ".join((evidence_source or "").split()).strip().lower()
-    if not s:
+def _source_tokens(evidence_source: str | None) -> list[str]:
+    raw = (evidence_source or "").strip().lower()
+    if not raw:
+        return []
+    normalized = raw.replace(" and ", ",").replace("/", ",").replace("|", ",").replace(";", ",")
+    return [p.strip() for p in normalized.split(",") if p.strip()]
+
+
+def _evidence_source_allows_cloud_llm(evidence_source: str | None, cloud_provider: str) -> bool:
+    """True when source is provider-only or provider+human (excludes human-only)."""
+    tokens = _source_tokens(" ".join((evidence_source or "").split()))
+    provider = (cloud_provider or "").strip().lower()
+    if provider not in {"aws", "gcp", "azure"}:
         return False
-    if s == "aws":
-        return True
-    if s.startswith("aws") and "human" in s:
-        return True
+    if provider == "aws":
+        aliases = ["aws"]
+    elif provider == "azure":
+        aliases = ["azure"]
+    else:
+        aliases = ["gcp", "gcs"]
+    if not tokens:
+        return False
+    for token in tokens:
+        if any(token == alias for alias in aliases):
+            return True
+        if any(token.startswith(alias) for alias in aliases) and "human" in token:
+            return True
     return False
+
+
+def _build_llm_question_payload(q: EvidenceBasedQuestion, cloud_provider: str) -> dict[str, Any]:
+    """Shape sent to Vertex: form fields plus DB mapping columns for the active provider (AWS vs GCP)."""
+    qtype = (q.question_type or "").strip().lower()
+    opts = q.options if isinstance(q.options, list) else []
+    if qtype == "spreadsheet":
+        payload_opts = opts
+    elif opts and qtype in ("select", "multiselect"):
+        payload_opts = [str(x) for x in opts]
+    else:
+        payload_opts = []
+    out: dict[str, Any] = {
+        "question_key": q.question_key,
+        "label": q.label,
+        "question_type": q.question_type,
+        "options": payload_opts,
+        "guide": (q.guide or "")[:4000],
+        "evidence_source": (getattr(q, "evidence_source", None) or "").strip(),
+        "collection_method": ((getattr(q, "collection_method", None) or "").strip())[:2000],
+        "evidence_required_raw": ((getattr(q, "evidence_required_raw", None) or "").strip())[:4000],
+        "reason_rationale": ((getattr(q, "reason_rationale", None) or "").strip())[:4000],
+    }
+    if cloud_provider == "aws":
+        out["aws_auto_level"] = (getattr(q, "aws_auto_level", None) or "").strip()
+        out["aws_services"] = (getattr(q, "aws_services", None) or "").strip()
+        out["question_level_aws_sources"] = (getattr(q, "question_level_aws_sources", None) or "").strip()
+    elif cloud_provider == "azure":
+        out["azure_auto_level"] = (getattr(q, "azure_auto_level", None) or "").strip()
+        out["azure_services"] = (getattr(q, "azure_services", None) or "").strip()
+        out["question_level_azure_sources"] = (getattr(q, "question_level_azure_sources", None) or "").strip()
+    else:
+        out["gcs_auto_level"] = (getattr(q, "gcs_auto_level", None) or "").strip()
+        out["gcs_services"] = (getattr(q, "gcs_services", None) or "").strip()
+        out["question_level_gcs_sources"] = (getattr(q, "question_level_gcs_sources", None) or "").strip()
+    return out
+
+
+def _question_has_provider_mapping(q: EvidenceBasedQuestion, cloud_provider: str) -> bool:
+    provider = (cloud_provider or "").strip().lower()
+    if provider == "aws":
+        vals = (
+            getattr(q, "aws_auto_level", None),
+            getattr(q, "aws_services", None),
+            getattr(q, "question_level_aws_sources", None),
+        )
+    elif provider == "gcp":
+        vals = (
+            getattr(q, "gcs_auto_level", None),
+            getattr(q, "gcs_services", None),
+            getattr(q, "question_level_gcs_sources", None),
+        )
+    elif provider == "azure":
+        vals = (
+            getattr(q, "azure_auto_level", None),
+            getattr(q, "azure_services", None),
+            getattr(q, "question_level_azure_sources", None),
+        )
+    else:
+        return False
+    return any(str(v or "").strip() for v in vals)
+
+
+def _extract_cloud_error_summary(rows: list, cloud_provider: str) -> str | None:
+    """Return a short summary when all provider evidence rows are collector-error payloads."""
+    if not rows:
+        return None
+    errors: list[str] = []
+    collectors: list[str] = []
+    for r in rows:
+        payload = getattr(r, "response_json", None)
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except Exception:
+                payload = {}
+        if not isinstance(payload, dict):
+            continue
+        err = str(payload.get("error") or "").strip()
+        if err:
+            errors.append(err)
+            collectors.append(str(payload.get("collector") or getattr(r, "source_system", "") or "unknown"))
+    if not errors or len(errors) != len(rows):
+        return None
+    collector_counts = Counter([c for c in collectors if c])
+    top_collectors = ", ".join([f"{name} ({count})" for name, count in collector_counts.most_common(3)])
+    joined = " ".join(errors).lower()
+    if "service_disabled" in joined or "has not been used in project" in joined or "enable it by visiting" in joined:
+        return (
+            f"All {cloud_provider.upper()} evidence rows for this item are collector errors (likely API(s) disabled). "
+            f"Top failing collectors: {top_collectors or 'unknown'}. Enable required GCP APIs and rerun collection."
+        )
+    if "permission denied" in joined or "403" in joined:
+        return (
+            f"All {cloud_provider.upper()} evidence rows for this item are collector errors (permission denied). "
+            f"Top failing collectors: {top_collectors or 'unknown'}. Grant collector IAM roles and rerun collection."
+        )
+    return (
+        f"All {cloud_provider.upper()} evidence rows for this item are collector errors. "
+        f"Top failing collectors: {top_collectors or 'unknown'}. Rerun collection after fixing collector errors."
+    )
 
 
 def _require_cycle_access(cycle: AssessmentCycle | None, user: User, db: Session) -> None:
@@ -906,21 +1028,18 @@ def _recalculate_control_sufficiency(
         _sync_to_control_applicability(db, cycle_id, control_id, score, status)
 
 
-@router.post(
-    "/assessments/{cycle_id}/evidence-items/{item_id}/suggest-from-aws",
-    response_model=AwsEvidenceSuggestResponse,
-)
-def suggest_evidence_fields_from_aws(
+def _cloud_autofill_suggest(
+    *,
     cycle_id: UUID,
     item_id: str,
-    db: Session = Depends(get_db_scoped),
-    aws_db: Session = Depends(get_swift_evidence_db),
-    user: User = Depends(get_current_user),
-):
+    cloud_provider: Literal["aws", "gcp", "azure"],
+    db: Session,
+    aws_db: Session,
+    user: User,
+) -> AwsEvidenceSuggestResponse:
     """
-    For the current user + cycle, load scoped rows from swift_2026.evidence for this evidence item,
-    then ask Vertex AI to suggest answers only for form questions whose evidence_source is
-    AWS or AWS + Human (excludes file/spreadsheet types).
+    Load `evidence_based_questions` for the item, filter by provider (evidence_source + aws_* / gcs_* / azure_*),
+    fetch scoped rows from `swift_2026.evidence` with matching cloud_provider, call Vertex autofill.
     """
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
     _require_cycle_access(cycle, user, db)
@@ -949,33 +1068,20 @@ def suggest_evidence_fields_from_aws(
     question_sources: dict[str, str] = {}
     for q in questions_orm:
         src_raw = getattr(q, "evidence_source", None) or ""
-        if not _evidence_source_allows_aws_llm(src_raw):
+        source_match = _evidence_source_allows_cloud_llm(src_raw, cloud_provider)
+        mapping_match = _question_has_provider_mapping(q, cloud_provider)
+        if not source_match and not mapping_match:
             continue
         qtype = (q.question_type or "").strip().lower()
         if qtype not in _AWS_LLM_FILL_TYPES:
             continue
-        opts = q.options if isinstance(q.options, list) else []
-        if qtype == "spreadsheet":
-            payload_opts = opts
-        elif opts and qtype in ("select", "multiselect"):
-            payload_opts = [str(x) for x in opts]
-        else:
-            payload_opts = []
-        eligible_payload.append(
-            {
-                "question_key": q.question_key,
-                "label": q.label,
-                "question_type": q.question_type,
-                "options": payload_opts,
-                "guide": (q.guide or "")[:4000],
-            }
-        )
+        eligible_payload.append(_build_llm_question_payload(q, cloud_provider))
         question_sources[q.question_key] = src_raw.strip()
 
     if not eligible_payload:
-        ai_service.log_suggest_from_aws_skip(
+        ai_service.log_suggest_from_cloud_skip(
             "no_eligible_questions",
-            f"item={item_upper} (no AWS / AWS+Human LLM-fillable fields for this item)",
+            f"item={item_upper} provider={cloud_provider} (no provider-matching LLM-fillable fields)",
         )
         return AwsEvidenceSuggestResponse(
             suggestions={},
@@ -984,23 +1090,36 @@ def suggest_evidence_fields_from_aws(
             question_sources={},
             aws_evidence_bundle_count=0,
             aws_evidence_row_count=0,
-            message="No questions with evidence_source AWS or AWS + Human (or no LLM-fillable field types) for this item.",
+            cloud_provider=cloud_provider,
+            message=(
+                f"No questions eligible for {cloud_provider.upper()} autofill "
+                f"(evidence_source / aws_* or gcs_* or azure_* mapping, and LLM-fillable types) for this item."
+            ),
         )
 
     ensure_aws_schema()
-    aws_rows = aws_evidence_service.get_evidence_for_item_code(
+    evidence_rows = aws_evidence_service.get_evidence_for_item_code(
         aws_db,
         item_upper,
         tenant_id=user.tenant_id,
         cycle_id=cycle_id,
         user_id=user.id,
-        limit=120,
+        limit=settings.LLM_EVIDENCE_FETCH_LIMIT,
+        cloud_provider=cloud_provider,
     )
-    bundle = aws_evidence_service.build_aws_evidence_bundle_for_llm(aws_rows)
+    bundle = aws_evidence_service.build_aws_evidence_bundle_for_llm(evidence_rows)
     if not bundle:
-        ai_service.log_suggest_from_aws_skip(
-            "no_aws_evidence_bundle",
-            f"item={item_upper} raw_rows={len(aws_rows)} (run AWS collection / collectors for this item)",
+        scoped = aws_evidence_service.scoped_evidence_provider_counts_for_item(
+            aws_db,
+            item_upper,
+            tenant_id=user.tenant_id,
+            cycle_id=cycle_id,
+            user_id=user.id,
+        )
+        ai_service.log_suggest_from_cloud_skip(
+            "no_evidence_bundle",
+            f"item={item_upper} provider={cloud_provider} raw_rows={len(evidence_rows)} scoped_counts={scoped} "
+            f"(run {cloud_provider.upper()} collectors for this cycle; if scoped_counts shows rows for another provider, use that provider or re-collect)",
         )
         return AwsEvidenceSuggestResponse(
             suggestions={},
@@ -1008,25 +1127,48 @@ def suggest_evidence_fields_from_aws(
             question_keys_attempted=[p["question_key"] for p in eligible_payload],
             question_sources=question_sources,
             aws_evidence_bundle_count=0,
-            aws_evidence_row_count=len(aws_rows),
-            message="No AWS collector evidence found for this cycle and user. Run AWS collection first.",
+            aws_evidence_row_count=len(evidence_rows),
+            cloud_provider=cloud_provider,
+            message=f"No {cloud_provider.upper()} collector evidence found for this cycle and user. Run {cloud_provider.upper()} collection first.",
+        )
+    collector_warning = _extract_cloud_error_summary(evidence_rows, cloud_provider)
+    if collector_warning:
+        logger.info(
+            "cloud autofill: evidence rows are collector errors but continuing to LLM item=%s provider=%s rows=%s",
+            item_upper,
+            cloud_provider,
+            len(evidence_rows),
         )
 
     try:
-        llm_out = ai_service.suggest_answers_from_aws_evidence(
-            evidence_item_id=item_upper,
-            questions=eligible_payload,
-            aws_evidence_bundle=bundle,
-        )
+        if cloud_provider == "aws":
+            llm_out = ai_service.suggest_answers_from_aws_evidence(
+                evidence_item_id=item_upper,
+                questions=eligible_payload,
+                aws_evidence_bundle=bundle,
+                collector_warning=collector_warning,
+            )
+        elif cloud_provider == "azure":
+            llm_out = ai_service.suggest_answers_from_azure_evidence(
+                evidence_item_id=item_upper,
+                questions=eligible_payload,
+                azure_evidence_bundle=bundle,
+                collector_warning=collector_warning,
+            )
+        else:
+            llm_out = ai_service.suggest_answers_from_gcp_evidence(
+                evidence_item_id=item_upper,
+                questions=eligible_payload,
+                gcp_evidence_bundle=bundle,
+                collector_warning=collector_warning,
+            )
         suggestions = llm_out.get("suggestions") or {}
         suggestion_gaps = llm_out.get("gaps") or {}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        logger.exception("suggest-from-aws failed")
+        logger.exception("cloud autofill suggest failed provider=%s", cloud_provider)
         raise HTTPException(status_code=502, detail=f"LLM error: {e}") from e
-
-    # Do not write AWS auto-fill metadata into Artifact Registry until user submits evidence.
 
     return AwsEvidenceSuggestResponse(
         suggestions=suggestions,
@@ -1034,10 +1176,92 @@ def suggest_evidence_fields_from_aws(
         question_keys_attempted=[p["question_key"] for p in eligible_payload],
         question_sources=question_sources,
         aws_evidence_bundle_count=len(bundle),
-        aws_evidence_row_count=len(aws_rows),
-        message=None,
+        aws_evidence_row_count=len(evidence_rows),
+        cloud_provider=cloud_provider,
+        message=collector_warning,
     )
 
+
+@router.post(
+    "/assessments/{cycle_id}/evidence-items/{item_id}/suggest-from-aws",
+    response_model=AwsEvidenceSuggestResponse,
+)
+def suggest_evidence_fields_from_aws(
+    cycle_id: UUID,
+    item_id: str,
+    provider: str | None = Query(
+        None,
+        description="Optional. Default aws. Use gcp for legacy clients; prefer POST .../suggest-from-gcp.",
+        pattern="^(aws|gcp)$",
+    ),
+    db: Session = Depends(get_db_scoped),
+    aws_db: Session = Depends(get_swift_evidence_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Autofill from **AWS** collector evidence (`cloud_provider=aws` in `swift_2026.evidence`).
+    Question rows use `evidence_source` + `aws_auto_level`, `aws_services`, `question_level_aws_sources`.
+    Optional `?provider=gcp` delegates to GCP (legacy); prefer `/suggest-from-gcp`.
+    """
+    p: Literal["aws", "gcp"] = "gcp" if (provider or "").strip().lower() == "gcp" else "aws"
+    return _cloud_autofill_suggest(
+        cycle_id=cycle_id,
+        item_id=item_id,
+        cloud_provider=p,
+        db=db,
+        aws_db=aws_db,
+        user=user,
+    )
+
+
+@router.post(
+    "/assessments/{cycle_id}/evidence-items/{item_id}/suggest-from-gcp",
+    response_model=AwsEvidenceSuggestResponse,
+)
+def suggest_evidence_fields_from_gcp(
+    cycle_id: UUID,
+    item_id: str,
+    db: Session = Depends(get_db_scoped),
+    aws_db: Session = Depends(get_swift_evidence_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Autofill from **GCP** collector evidence (`cloud_provider=gcp` in `swift_2026.evidence`).
+    Question rows use `evidence_source` + `gcs_auto_level`, `gcs_services`, `question_level_gcs_sources`.
+    """
+    return _cloud_autofill_suggest(
+        cycle_id=cycle_id,
+        item_id=item_id,
+        cloud_provider="gcp",
+        db=db,
+        aws_db=aws_db,
+        user=user,
+    )
+
+
+@router.post(
+    "/assessments/{cycle_id}/evidence-items/{item_id}/suggest-from-azure",
+    response_model=AwsEvidenceSuggestResponse,
+)
+def suggest_evidence_fields_from_azure(
+    cycle_id: UUID,
+    item_id: str,
+    db: Session = Depends(get_db_scoped),
+    aws_db: Session = Depends(get_swift_evidence_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Autofill from **Azure** collector evidence (`cloud_provider=azure` in `swift_2026.evidence`).
+    Question rows use `evidence_source` + `azure_auto_level`, `azure_services`, `question_level_azure_sources`.
+    """
+    return _cloud_autofill_suggest(
+        cycle_id=cycle_id,
+        item_id=item_id,
+        cloud_provider="azure",
+        db=db,
+        aws_db=aws_db,
+        user=user,
+    )
 
 
 @router.post("/assessments/{cycle_id}/evidence/evaluate", response_model=EvaluateEvidenceResponse)

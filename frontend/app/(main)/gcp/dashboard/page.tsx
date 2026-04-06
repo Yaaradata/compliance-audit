@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect, useCallback, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
   getGcpRuns,
@@ -10,6 +10,7 @@ import {
   fetchGcpEvidence,
   getGcpRunDetail,
   getGcpEvidenceContent,
+  getGcpConfig,
   GCP_EVIDENCE_LIST_MAX,
   type GcpRun,
   type GcpEvidenceRow,
@@ -45,6 +46,7 @@ function isCollectRecoveryComplete(
 }
 
 function GcpDashboardPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { activeCycleId } = useAuth();
   const focusKey = searchParams.get("controlKey");
@@ -100,6 +102,16 @@ function GcpDashboardPageContent() {
       load();
     });
   }, [load]);
+
+  useEffect(() => {
+    if (!activeCycleId) return;
+    getGcpConfig(activeCycleId).then((c) => {
+      const ok = typeof c.dashboard_unlocked === "boolean" ? c.dashboard_unlocked : c.configured;
+      if (!ok) {
+        router.replace("/gcp");
+      }
+    });
+  }, [activeCycleId, router]);
 
   useEffect(() => {
     return () => {

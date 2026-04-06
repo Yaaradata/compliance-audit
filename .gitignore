@@ -1,5 +1,6 @@
 # Backend
 backend/.env
+cloud-coding-agent/.env
 backend/venv/
 backend/uploads/
 backend/sql/_load_evidence_2026_dry_run.sql

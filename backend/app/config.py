@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     DB_USER_APP: str = "compliance-audit"
     DB_PASSWORD: str = ""
     DB_SSL: bool = False
+    # SQLAlchemy QueuePool (single shared engine for app + swift_2026 evidence). Raise if many parallel API calls (e.g. GCP dashboard).
+    DB_POOL_SIZE: int = 15
+    DB_MAX_OVERFLOW: int = 30
+    DB_POOL_TIMEOUT: int = 60
     # Cloud Run: set to instance connection name (e.g. project:region:instance) to use Unix socket
     CLOUD_SQL_INSTANCE: str | None = None
 
@@ -20,18 +24,34 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_MINUTES: int = 1440
 
     VERTEX_AI_MODEL: str = "gemini-2.5-flash-lite"
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o-mini"
     GOOGLE_CLOUD_PROJECT: str | None = None
     VERTEX_AI_LOCATION: str = "us-central1"
+    # suggest-from-aws/gcp/azure: cap rows + JSON size sent to Vertex (huge prompts stall for many minutes).
+    LLM_EVIDENCE_FETCH_LIMIT: int = 80
+    LLM_EVIDENCE_BUNDLE_MAX_CHARS: int = 120_000
+    LLM_EVIDENCE_ROW_JSON_MAX_CHARS: int = 14_000
+    LLM_SUGGEST_MAX_OUTPUT_TOKENS: int = 8192
     # SWIFT 2026 GCP evidence (test/setup): project to scan using Application Default Credentials.
     GCP_EVIDENCE_PROJECT_ID: str | None = None
     # Optional: path to GCP_Evidence_CollectionforSWIFT_v2026_Updated.xlsx for structured / workbook APIs.
     GCP_EVIDENCE_WORKBOOK_PATH: str | None = None
+    # Optional: path to Azure_Evidence_Collection_SWIFT_v2026.xlsx (reference for operators).
+    AZURE_EVIDENCE_WORKBOOK_PATH: str | None = None
+    # Optional global service principal when cycle-level secret is not stored (same as Azure CLI env vars).
+    AZURE_TENANT_ID: str = ""
+    AZURE_CLIENT_ID: str = ""
+    AZURE_CLIENT_SECRET: str = ""
 
     GCS_BUCKET_NAME: str = ""
     GCS_PREFIX: str = "compliance-audit"
     STORAGE_BACKEND: str = "gcs"
 
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000", "https://compliance-audit.vercel.app"]
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "https://compliance-audit.vercel.app",
+    ]
 
     # Optional: upstream SWIFT AWS Evidence service base URL (e.g. http://127.0.0.1:8001)
     SWIFT_AWS_BASE_URL: str | None = None
@@ -41,6 +61,16 @@ class Settings(BaseSettings):
 
     # Fixed External ID used when connecting via Role ARN (no per-tenant ID in UI). Tenant role trust policy must use this value. Default: Swift-Audit
     AWS_ASSUME_ROLE_EXTERNAL_ID: str = "Swift-Audit"
+
+    # Google OAuth for per-user GCP API access (optional). When client id is set, Connect UI requires project + Google sign-in.
+    GOOGLE_OAUTH_CLIENT_ID: str = ""
+    GOOGLE_OAUTH_CLIENT_SECRET: str = ""
+    # Exact redirect URI registered in Google Cloud Console (e.g. http://127.0.0.1:8000/api/v1/cloud/gcp/auth/oauth/callback)
+    GOOGLE_OAUTH_REDIRECT_URI: str = ""
+    # Browser redirect after OAuth completes (defaults to first CORS origin + /gcp?gcp_oauth=success)
+    GCP_OAUTH_FRONTEND_REDIRECT_URL: str = ""
+    # If true, GCP Connect stays "not configured" until IAM check finds a direct user:email on the project (groups not expanded).
+    GCP_REQUIRE_IAM_USER_FOUND_FOR_CONNECT: bool = False
 
     model_config = {
         "env_file": str(_env_file),

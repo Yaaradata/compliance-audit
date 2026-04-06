@@ -112,9 +112,9 @@ class ApiClient {
   }
 
   /**
-   * POST via Next.js proxy (same origin) with a long timeout. Use for slow
-   * operations so the request goes through the proxy and does not require
-   * the browser to reach NEXT_PUBLIC_BACKEND_URL directly.
+   * POST via Next.js proxy (same origin). Fine for fast calls; **do not** use for
+   * multi-minute work — the dev/proxy hop often times out (~30s) even when
+   * `timeoutMs` is larger. For Vertex / LLM, use `postDirect` instead.
    */
   async postViaProxy<T>(path: string, body?: unknown, timeoutMs = 120_000): Promise<T> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };

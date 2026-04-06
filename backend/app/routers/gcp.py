@@ -1,12 +1,15 @@
-"""GCP evidence collection (SWIFT 2026) using backend env project + Application Default Credentials."""
+"""GCP evidence collection (SWIFT 2026): env ADC, or per-cycle Google OAuth + project id."""
 import json
 import logging
 from dataclasses import dataclass
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from google.api_core import exceptions as gcp_exceptions
 from google.cloud.resourcemanager_v3 import ProjectsClient
+from pydantic import BaseModel
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -31,7 +34,27 @@ from app.aws_evidence.services import (
 )
 from app.config import settings
 from app.constants import PLATFORM_ADMIN_ROLES
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_db
+from app.gcp_evidence.credentials_context import gcp_user_credentials_scope
+from app.gcp_evidence.services.gcp_credentials_resolver import (
+    resolve_optional_user_credentials,
+    resolve_optional_user_credentials_or_adc,
+    resolve_project_id,
+)
+from app.services.cycle_user_gcp_config import (
+    begin_oauth_state,
+    clear_oauth_connection,
+    complete_oauth,
+    delete_cycle_user_gcp_config,
+    gcp_oauth_env_configured,
+    get_row,
+    get_row_by_oauth_state,
+    mark_connect_api_test_passed,
+    save_gcp_context_with_access_email,
+    store_iam_access_check_result,
+)
+from app.services.gcp_iam_email_check import check_user_email_in_project_iam
+from app.services.gcp_google_oauth import authorization_url, email_from_credentials, exchange_code_for_credentials
 from app.gcp_evidence.collectors import COLLECTORS as GCP_COLLECTORS
 from app.gcp_evidence.collectors.gcp_api_catalog import (
     COLLECTOR_GCP_APIS,
@@ -79,49 +102,306 @@ def get_effective_gcp_scope(
     return GcpScope(tenant_id=tenant_id, cycle_id=cycle_id, user_id=user.id)
 
 
-def _project_id() -> str:
-    pid = (settings.GCP_EVIDENCE_PROJECT_ID or "").strip()
-    if not pid:
-        raise HTTPException(
-            status_code=503,
-            detail="GCP evidence is not configured. Set GCP_EVIDENCE_PROJECT_ID in backend environment and use ADC (e.g. GOOGLE_APPLICATION_CREDENTIALS or gcloud auth application-default login).",
+def _frontend_oauth_success_url() -> str:
+    custom = (settings.GCP_OAUTH_FRONTEND_REDIRECT_URL or "").strip()
+    if custom:
+        sep = "&" if "?" in custom else "?"
+        return f"{custom}{sep}gcp_oauth=success"
+    origins = settings.CORS_ORIGINS or []
+    base = origins[0].rstrip("/") if origins else "http://localhost:3000"
+    return f"{base}/gcp?gcp_oauth=success"
+
+
+def _frontend_oauth_error_url(message: str) -> str:
+    q = quote(message[:500], safe="")
+    custom = (settings.GCP_OAUTH_FRONTEND_REDIRECT_URL or "").strip()
+    if custom:
+        sep = "&" if "?" in custom else "?"
+        return f"{custom}{sep}gcp_oauth=error&message={q}"
+    origins = settings.CORS_ORIGINS or []
+    base = origins[0].rstrip("/") if origins else "http://localhost:3000"
+    return f"{base}/gcp?gcp_oauth=error&message={q}"
+
+
+class GcpContextBody(BaseModel):
+    gcp_project_id: str
+    access_verification_email: str
+
+
+@router.post("/context")
+def save_gcp_context(
+    body: GcpContextBody,
+    scope: GcpScope = Depends(get_effective_gcp_scope),
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    Save GCP project ID and team member email, then check IAM policy for a direct ``user:email`` binding
+    (does not expand Google Groups).
+    """
+    try:
+        row = save_gcp_context_with_access_email(
+            db,
+            scope.tenant_id,
+            scope.cycle_id,
+            scope.user_id,
+            body.gcp_project_id,
+            body.access_verification_email,
         )
-    return pid
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
+    pid = resolve_project_id(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    creds, qp = resolve_optional_user_credentials_or_adc(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    iam_payload: dict
+    try:
+        with gcp_user_credentials_scope(creds, qp):
+            iam_payload = check_user_email_in_project_iam(pid, body.access_verification_email)
+    except Exception as e:
+        logger.exception("IAM email check failed after save")
+        d = f"Could not read IAM policy: {e}. Ensure the API identity has resourcemanager.projects.getIamPolicy on the project."
+        store_iam_access_check_result(db, row, verified=False, detail=d)
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid authorization: cannot read this project's IAM policy. Check the project ID and that credentials can call resourcemanager.projects.getIamPolicy.",
+        ) from e
 
-@router.get("/config")
-def gcp_config_public(scope: GcpScope = Depends(get_effective_gcp_scope)) -> dict:
-    """Non-secret: whether collection is configured and which project id (from env)."""
-    _ = scope
-    pid = (settings.GCP_EVIDENCE_PROJECT_ID or "").strip()
+    ok = bool(iam_payload.get("ok"))
+    found = bool(iam_payload.get("found"))
+    detail = (iam_payload.get("detail") or "").strip() or "IAM check completed."
+    roles = list(iam_payload.get("roles") or [])
+
+    if not ok:
+        store_iam_access_check_result(db, row, verified=False, detail=detail)
+        raise HTTPException(status_code=403, detail=f"Invalid authorization: {detail}")
+
+    store_iam_access_check_result(db, row, verified=found, detail=detail)
+
+    if not found:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Invalid authorization: this email has no direct user:… binding on the project IAM policy "
+                "(access via Google Groups only is not verified). Use an email that appears on the policy, or ask a "
+                "project admin to grant a role to this user."
+            ),
+        )
+
+    # Policy read succeeded and team email is directly bound — same as POST /credentials/test.
+    mark_connect_api_test_passed(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+
+    if gcp_oauth_env_configured():
+        return {
+            "ok": True,
+            "message": "Project and email verified. Continue with Sign in with Google; we confirm API access after sign-in.",
+            "iam_access_verified": True,
+            "iam_access_detail": detail,
+            "iam_roles": roles,
+        }
     return {
-        "configured": bool(pid),
-        "project_id": pid if pid else None,
+        "ok": True,
+        "message": "Project and email verified. You can open the dashboard.",
+        "iam_access_verified": True,
+        "iam_access_detail": detail,
+        "iam_roles": roles,
     }
 
 
-@router.post("/credentials/test")
-def test_gcp_access(scope: GcpScope = Depends(get_effective_gcp_scope)) -> dict:
-    _ = scope
-    pid = _project_id()
+@router.post("/auth/oauth/start")
+def gcp_oauth_start(scope: GcpScope = Depends(get_effective_gcp_scope), db: Session = Depends(get_db)) -> dict:
+    """Returns Google authorization URL; user must have saved project id first."""
+    if not gcp_oauth_env_configured():
+        raise HTTPException(status_code=400, detail="Google OAuth is not configured on this server.")
     try:
-        client = ProjectsClient()
-        client.get_iam_policy(request={"resource": f"projects/{pid}"})
-        return {"ok": True, "project_id": pid, "message": "Can read project IAM policy with current credentials."}
+        row, state = begin_oauth_state(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    if row.iam_access_verified is not True:
+        raise HTTPException(
+            status_code=400,
+            detail="Save and verify project and team email on the Connect page first. A direct user IAM binding is required before Google sign-in.",
+        )
+    try:
+        url = authorization_url(state)
+    except Exception as e:
+        logger.exception("GCP OAuth URL build failed")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {"authorization_url": url}
+
+
+@router.get("/auth/oauth/callback")
+def gcp_oauth_callback(
+    code: str = Query(""),
+    state: str = Query(""),
+    db: Session = Depends(get_db),
+):
+    """OAuth redirect target (no Bearer token; validated via state)."""
+    row = get_row_by_oauth_state(db, state)
+    if not row:
+        return RedirectResponse(url=_frontend_oauth_error_url("invalid_or_expired_state"))
+    try:
+        creds = exchange_code_for_credentials(code)
+        rt = getattr(creds, "refresh_token", None) or ""
+        if not rt:
+            return RedirectResponse(url=_frontend_oauth_error_url("no_refresh_token_re_consent"))
+        email = email_from_credentials(creds)
+        if not email:
+            return RedirectResponse(url=_frontend_oauth_error_url("could_not_read_email"))
+        complete_oauth(db, row, refresh_token=rt, google_user_email=email)
+        row = get_row(db, row.tenant_id, row.cycle_id, row.user_id)
+        try:
+            pid = resolve_project_id(db, row.tenant_id, row.cycle_id, row.user_id)
+            creds, qp = resolve_optional_user_credentials(db, row.tenant_id, row.cycle_id, row.user_id)
+            acc = (row.access_verification_email or "").strip() if row else ""
+            with gcp_user_credentials_scope(creds, qp):
+                iam_payload = check_user_email_in_project_iam(pid, acc)
+            if iam_payload.get("ok") and iam_payload.get("found"):
+                detail = (iam_payload.get("detail") or "").strip() or None
+                store_iam_access_check_result(db, row, verified=True, detail=detail)
+                mark_connect_api_test_passed(db, row.tenant_id, row.cycle_id, row.user_id)
+            else:
+                d = (iam_payload.get("detail") or "Could not verify team email on project IAM.").strip()
+                store_iam_access_check_result(db, row, verified=False, detail=d)
+        except Exception as ex:
+            logger.warning("GCP OAuth connected but IAM verify failed: %s", ex)
+    except Exception as e:
+        logger.exception("GCP OAuth callback failed")
+        return RedirectResponse(url=_frontend_oauth_error_url(str(e)))
+    return RedirectResponse(url=_frontend_oauth_success_url())
+
+
+@router.post("/auth/oauth/disconnect")
+def gcp_oauth_disconnect(scope: GcpScope = Depends(get_effective_gcp_scope), db: Session = Depends(get_db)) -> dict:
+    if not gcp_oauth_env_configured():
+        return {"ok": True, "message": "OAuth mode not enabled."}
+    clear_oauth_connection(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    return {"ok": True}
+
+
+@router.get("/config")
+def gcp_config_public(scope: GcpScope = Depends(get_effective_gcp_scope), db: Session = Depends(get_db)) -> dict:
+    """Non-secret: project, team email, IAM check result, OAuth status."""
+    row = get_row(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    oauth_on = gcp_oauth_env_configured()
+    row_pid = (row.gcp_project_id or "").strip() if row else ""
+    acc_em = (row.access_verification_email or "").strip() if row else ""
+    iam_done = bool(row and row.iam_access_checked_at is not None) if row else False
+    test_done = bool(row and row.connect_api_test_passed_at is not None) if row else False
+
+    def _access_fields() -> dict:
+        if not row:
+            return {
+                "access_verification_email": None,
+                "iam_access_verified": None,
+                "iam_access_detail": None,
+            }
+        return {
+            "access_verification_email": acc_em or None,
+            "iam_access_verified": row.iam_access_verified,
+            "iam_access_detail": (row.iam_access_detail or "").strip() or None,
+        }
+
+    strict_iam = bool(getattr(settings, "GCP_REQUIRE_IAM_USER_FOUND_FOR_CONNECT", False))
+
+    def _gate_configured_by_iam(configured: bool) -> bool:
+        """When strict mode is on, team email must have a direct user:… binding on the project IAM policy."""
+        if not strict_iam or not row or not acc_em:
+            return configured
+        if row.iam_access_verified is not True:
+            return False
+        return configured
+
+    def _connect_ready_base() -> bool:
+        return bool(row and row_pid and acc_em and iam_done and test_done)
+
+    if oauth_on:
+        has_oauth_tokens = bool(
+            row
+            and row_pid
+            and acc_em
+            and (row.google_user_email or "").strip()
+            and (row.encrypted_refresh_token or "").strip()
+        )
+        connect_ready = bool(has_oauth_tokens and _connect_ready_base())
+        configured = _gate_configured_by_iam(connect_ready)
+        out = {
+            "configured": configured,
+            # True when project + email + IAM check ran + test passed (+ OAuth tokens if OAuth). Not gated by strict user:email IAM.
+            "dashboard_unlocked": connect_ready,
+            "project_id": row_pid or None,
+            "connection_mode": "oauth",
+            "oauth_enabled": True,
+            "google_user_email": (row.google_user_email or "").strip() or None if row else None,
+            "project_saved": bool(row_pid and acc_em),
+            "iam_check_complete": iam_done,
+            "connect_api_test_passed": test_done,
+            "iam_strict_required": strict_iam,
+        }
+        out.update(_access_fields())
+        return out
+
+    connect_ready = _connect_ready_base()
+    configured = _gate_configured_by_iam(connect_ready)
+    out = {
+        "configured": configured,
+        "dashboard_unlocked": connect_ready,
+        "project_id": row_pid or None,
+        "connection_mode": "adc",
+        "oauth_enabled": False,
+        "google_user_email": None,
+        "project_saved": bool(row_pid and acc_em) if row else False,
+        "iam_check_complete": iam_done,
+        "connect_api_test_passed": test_done,
+        "iam_strict_required": strict_iam,
+    }
+    out.update(_access_fields())
+    return out
+
+
+@router.post("/credentials/test")
+def test_gcp_access(scope: GcpScope = Depends(get_effective_gcp_scope), db: Session = Depends(get_db)) -> dict:
+    row = get_row(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    if not row or not (row.access_verification_email or "").strip():
+        raise HTTPException(status_code=400, detail="Save project ID and team email on the Connect page first.")
+    pid = resolve_project_id(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    creds, qp = resolve_optional_user_credentials(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    try:
+        with gcp_user_credentials_scope(creds, qp):
+            iam_payload = check_user_email_in_project_iam(pid, row.access_verification_email)
     except gcp_exceptions.PermissionDenied as e:
         raise HTTPException(
             status_code=403,
-            detail=f"Permission denied for project {pid}: {e.message}. Grant roles/resourcemanager.projectIamViewer (or broader) to the runtime service account.",
+            detail=f"Invalid authorization: permission denied for project {pid}: {e.message}.",
         ) from e
     except Exception as e:
         logger.exception("GCP test connection failed")
         raise HTTPException(status_code=502, detail=str(e)) from e
 
+    if not iam_payload.get("ok"):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Invalid authorization: {iam_payload.get('detail') or 'Could not read IAM policy.'}",
+        )
+    if not iam_payload.get("found"):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Invalid authorization: this email has no direct user:… binding on the project IAM policy "
+                "(access via Google Groups only is not verified)."
+            ),
+        )
+    detail = (iam_payload.get("detail") or "").strip() or None
+    store_iam_access_check_result(db, row, verified=True, detail=detail)
+    mark_connect_api_test_passed(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    return {"ok": True, "project_id": pid, "message": "Team email verified on project IAM policy."}
+
 
 @router.post("/runs/collect")
-def trigger_gcp_collect(scope: GcpScope = Depends(get_effective_gcp_scope)) -> dict:
-    """Run all GCP collectors; credentials from ADC, project from GCP_EVIDENCE_PROJECT_ID."""
-    pid = _project_id()
+def trigger_gcp_collect(
+    scope: GcpScope = Depends(get_effective_gcp_scope),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Run all GCP collectors (ADC or per-cycle user OAuth)."""
+    pid = resolve_project_id(db, scope.tenant_id, scope.cycle_id, scope.user_id)
     try:
         run_id = run_all_gcp_collectors(
             tenant_id=scope.tenant_id,
@@ -141,12 +421,15 @@ def trigger_gcp_collect(scope: GcpScope = Depends(get_effective_gcp_scope)) -> d
 
 
 @router.post("/runs/collect-structured")
-def trigger_gcp_collect_structured(scope: GcpScope = Depends(get_effective_gcp_scope)) -> dict:
+def trigger_gcp_collect_structured(
+    scope: GcpScope = Depends(get_effective_gcp_scope),
+    db: Session = Depends(get_db),
+) -> dict:
     """
     Run all collectors (same DB persistence as /runs/collect) and return workbook-aligned
     StandardEvidenceResult rows (PASS | FAIL | ERROR) for each evidence item in the Excel mapping.
     """
-    pid = _project_id()
+    pid = resolve_project_id(db, scope.tenant_id, scope.cycle_id, scope.user_id)
     try:
         run_id, results, collector_errors = run_all_gcp_collectors_structured(
             tenant_id=scope.tenant_id,
@@ -213,12 +496,16 @@ def gcp_workbook_mapping(scope: GcpScope = Depends(get_effective_gcp_scope)) -> 
 
 
 @router.get("/validation/precheck")
-def gcp_validation_precheck(scope: GcpScope = Depends(get_effective_gcp_scope)) -> dict:
+def gcp_validation_precheck(
+    scope: GcpScope = Depends(get_effective_gcp_scope),
+    db: Session = Depends(get_db),
+) -> dict:
     """Credential and permission checks before collection (non-fatal; structured)."""
-    _ = scope
-    pid = _project_id()
+    pid = resolve_project_id(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    creds, qp = resolve_optional_user_credentials(db, scope.tenant_id, scope.cycle_id, scope.user_id)
     try:
-        return precheck_gcp_collection(pid)
+        with gcp_user_credentials_scope(creds, qp):
+            return precheck_gcp_collection(pid)
     except Exception as exc:
         logger.exception("GCP precheck failed")
         raise HTTPException(status_code=502, detail=str(exc)) from exc
@@ -347,8 +634,9 @@ def list_gcp_evidence(
 def delete_all_gcp_evidence_for_cycle(
     scope: GcpScope = Depends(get_effective_gcp_scope),
     db: Session = Depends(get_swift_evidence_db),
+    core_db: Session = Depends(get_db),
 ) -> dict:
-    """Remove all GCP collector runs and evidence rows for this tenant, cycle, and user (same scope as list/collect)."""
+    """Remove all GCP collector runs and evidence rows; clears Connect config so project + email + test must be redone."""
     result = delete_all_evidence_and_runs_for_tenant(
         db,
         tenant_id=scope.tenant_id,
@@ -356,9 +644,11 @@ def delete_all_gcp_evidence_for_cycle(
         user_id=scope.user_id,
         cloud_provider="gcp",
     )
+    delete_cycle_user_gcp_config(core_db, scope.tenant_id, scope.cycle_id, scope.user_id)
     return {
         "deleted_evidence": result["deleted_evidence"],
         "deleted_runs": result["deleted_runs"],
+        "connect_config_cleared": True,
     }
 
 

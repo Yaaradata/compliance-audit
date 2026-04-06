@@ -1,31 +1,59 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
 import { ArtifactReusePanel } from "@/components/domain/artifact-reuse-panel";
 import { api, demoAutofill } from "@/lib/api";
 import { getAwsCredentialsForCycle } from "@/lib/aws-api";
+import { getAzureConfig } from "@/lib/azure-api";
 import type { EvidenceItem, DomainConfig } from "@/lib/types";
 import type { AiEvaluationResult as AiEvalResultType } from "@/lib/types";
 import type { EvaluationEditsMap } from "../../../../../domain/ai-evaluation-result";
 import { evaluationRequiredFieldsHintClassName } from "@/lib/evidence-evaluation-validation";
 
+/** When true, Azure evidence is not offered in UI (sidebar + connect flows show "coming soon"). */
+const AZURE_EVIDENCE_COMING_SOON = true;
+
+type CloudProvider = "aws" | "gcp" | "azure";
+
+function providerDisplayName(p: CloudProvider): string {
+  if (p === "gcp") return "GCP";
+  if (p === "azure") return "Azure";
+  return "AWS";
+}
+
+function suggestFromCloudPath(provider: CloudProvider): string {
+  if (provider === "gcp") return "suggest-from-gcp";
+  if (provider === "azure") return "suggest-from-azure";
+  return "suggest-from-aws";
+}
+
+/** Browser fetch abort (Vertex + large evidence JSON can exceed shorter limits). */
+const CLOUD_SUGGEST_FETCH_TIMEOUT_MS = 600_000;
+
+function formatCloudSuggestFetchError(e: unknown): string {
+  if (e instanceof DOMException && (e.name === "TimeoutError" || e.name === "AbortError")) {
+    return (
+      "Request timed out while waiting for the cloud autofill response. " +
+      "Large evidence bundles or Vertex latency can exceed a few minutes — try again, or narrow scope and retry."
+    );
+  }
+  const msg = e instanceof Error ? e.message : String(e);
+  if (/signal timed out|The operation was aborted|aborted|timeout/i.test(msg)) {
+    return (
+      "Request timed out while waiting for the cloud autofill response. " +
+      "Large evidence bundles or Vertex latency can exceed a few minutes — try again, or narrow scope and retry."
+    );
+  }
+  return msg;
+}
+
 /** Submission is locked for IT SME editing after submit/approve. */
 function isSubmissionAwsLocked(status: string | undefined): boolean {
   const s = (status ?? "").toLowerCase();
   return s === "submitted" || s === "approved" || s === "in_review";
-}
-
-/** User already has saved AWS/LLM snapshot in form_data — do not auto-call suggest again. */
-function itemHasPersistedAwsSnapshot(fd: Record<string, string>): boolean {
-  for (const [k, v] of Object.entries(fd)) {
-    if (!(v ?? "").trim()) continue;
-    if (k.endsWith("__ai_origin")) return true;
-    if (k.endsWith("__ai") && !k.endsWith("__ai_origin")) return true;
-  }
-  return false;
 }
 
 /** Aligns with backend `_aws_suggestion_value_is_usable`: `[]` spreadsheet is not a real fill (gaps explain why). */
@@ -104,6 +132,12 @@ export function EvidenceWorkspace({
   cscfVersion?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const routeProvider: CloudProvider = pathname?.includes("/gcp")
+    ? "gcp"
+    : pathname?.includes("/azure")
+      ? "azure"
+      : "aws";
   const [notesRefresh, setNotesRefresh] = useState(0);
   const [reuseApplied, setReuseApplied] = useState(false);
   const effectiveNotesRefresh = (notesRefreshTrigger ?? 0) + notesRefresh;
@@ -115,13 +149,46 @@ export function EvidenceWorkspace({
   const [awsSuggestLoading, setAwsSuggestLoading] = useState(false);
   const [awsSuggestMessage, setAwsSuggestMessage] = useState<string | null>(null);
   const [awsSuggestError, setAwsSuggestError] = useState<string | null>(null);
-  const [awsSuggestRoundDone, setAwsSuggestRoundDone] = useState(false);
+  /** True until user runs a suggest (then false while loading, true in finally). No auto-suggest on load. */
+  const [awsSuggestRoundDone, setAwsSuggestRoundDone] = useState(true);
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, string>>({});
   const [awsSuggestionGaps, setAwsSuggestionGaps] = useState<Record<string, string>>({});
   const [questionSources, setQuestionSources] = useState<Record<string, string>>({});
   const [awsConnectionChecked, setAwsConnectionChecked] = useState(false);
   const [awsConnected, setAwsConnected] = useState(false);
+  const [azureConnectionChecked, setAzureConnectionChecked] = useState(false);
+  const [azureConnected, setAzureConnected] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<CloudProvider>(routeProvider);
   const autoFilledItemsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    setSelectedProvider(routeProvider);
+  }, [routeProvider]);
+
+  const providerLabel = providerDisplayName(selectedProvider);
+  const connectionsReady = awsConnectionChecked && azureConnectionChecked;
+  const canUseSelectedProvider =
+    selectedProvider === "gcp"
+      ? true
+      : selectedProvider === "azure"
+        ? !AZURE_EVIDENCE_COMING_SOON && azureConnected
+        : awsConnected;
+
+  const sourceMatchesProvider = useCallback((srcRaw: string, provider: CloudProvider): boolean => {
+    const tokens = srcRaw
+      .trim()
+      .toLowerCase()
+      .replace(" and ", ",")
+      .replaceAll("/", ",")
+      .replaceAll("|", ",")
+      .replaceAll(";", ",")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const aliases =
+      provider === "aws" ? ["aws"] : provider === "gcp" ? ["gcp", "gcs"] : ["azure"];
+    return tokens.some((t) => aliases.some((a) => t.startsWith(a)) && t.includes("human"));
+  }, []);
+
   const evidenceScrollRef = useRef<HTMLDivElement>(null);
   const guidanceContentRef = useRef<HTMLDivElement>(null);
   const focusedQuestionElementRef = useRef<HTMLElement | null>(null);
@@ -210,7 +277,8 @@ export function EvidenceWorkspace({
         setAwsSuggestError(null);
         setAiSuggestions({});
         setAwsSuggestionGaps({});
-        setAwsSuggestRoundDone(false);
+        /* No automatic suggest on load — user must click AWS or GCP; round "done" until they do. */
+        setAwsSuggestRoundDone(true);
         setQuestionSources({});
         setDemoAutofillDone(false);
         setDemoAutofillError(null);
@@ -259,54 +327,91 @@ export function EvidenceWorkspace({
     if (!cycleId) {
       setAwsConnected(false);
       setAwsConnectionChecked(true);
+      setAzureConnected(false);
+      setAzureConnectionChecked(true);
       return;
     }
-    setAwsConnectionChecked(false);
-    getAwsCredentialsForCycle(cycleId)
-      .then((cfg) => setAwsConnected(Boolean(cfg?.has_config)))
-      .catch(() => setAwsConnected(false))
-      .finally(() => setAwsConnectionChecked(true));
-  }, [cycleId]);
+    if (routeProvider === "gcp") {
+      // GCP mode does not require the AWS connectivity pre-check gate for the AWS button.
+      setAwsConnected(true);
+      setAwsConnectionChecked(true);
+    } else {
+      setAwsConnectionChecked(false);
+      getAwsCredentialsForCycle(cycleId)
+        .then((cfg) => setAwsConnected(Boolean(cfg?.has_config)))
+        .catch(() => setAwsConnected(false))
+        .finally(() => setAwsConnectionChecked(true));
+    }
+    if (AZURE_EVIDENCE_COMING_SOON) {
+      setAzureConnected(false);
+      setAzureConnectionChecked(true);
+    } else {
+      setAzureConnectionChecked(false);
+      getAzureConfig(cycleId)
+        .then((c) => setAzureConnected(Boolean(c?.configured)))
+        .catch(() => setAzureConnected(false))
+        .finally(() => setAzureConnectionChecked(true));
+    }
+  }, [cycleId, routeProvider]);
 
-  const handleSuggestFromAws = useCallback(async (itemId?: string) => {
+  const handleSuggestFromAws = useCallback(async (provider: CloudProvider, itemId?: string) => {
     const targetItem = itemId ?? currentItem?.id;
     if (!cycleId || !targetItem) return;
     if (isSubmissionAwsLocked(submissionStatus)) return;
-    if (!awsConnected) {
+    if (provider === "aws" && !awsConnected) {
       setAwsSuggestError(null);
       setAwsSuggestMessage("AWS is not connected for this cycle. Connect to AWS first.");
       setAwsSuggestRoundDone(false);
       return;
     }
+    if (provider === "azure" && AZURE_EVIDENCE_COMING_SOON) {
+      setAwsSuggestError(null);
+      setAwsSuggestMessage("Azure evidence is coming soon.");
+      setAwsSuggestRoundDone(false);
+      return;
+    }
+    if (provider === "azure" && !azureConnected) {
+      setAwsSuggestError(null);
+      setAwsSuggestMessage("Azure is not connected for this cycle. Connect to Azure first.");
+      setAwsSuggestRoundDone(false);
+      return;
+    }
     setAwsSuggestLoading(true);
+    setAwsSuggestRoundDone(false);
     setAwsSuggestError(null);
     setAwsSuggestMessage(null);
     setAiSuggestions({});
     setAwsSuggestionGaps({});
     try {
-      const res = await api.postViaProxy<{
+      // Bypass Next.js /api/v1 rewrite — the dev proxy times out (~30s) while Vertex can take minutes.
+      const res = await api.postDirect<{
         suggestions: Record<string, string>;
         suggestion_gaps?: Record<string, string>;
         question_keys_attempted: string[];
         question_sources: Record<string, string>;
         aws_evidence_bundle_count: number;
         aws_evidence_row_count: number;
+        cloud_provider?: string;
         message?: string | null;
-      }>(`/assessments/${cycleId}/evidence-items/${targetItem}/suggest-from-aws`, {}, 180_000);
+      }>(
+        `/assessments/${cycleId}/evidence-items/${targetItem}/${suggestFromCloudPath(provider)}`,
+        {},
+        CLOUD_SUGGEST_FETCH_TIMEOUT_MS,
+      );
       const sugg = res.suggestions ?? {};
       const sources = res.question_sources ?? {};
       const gaps = res.suggestion_gaps ?? {};
       setQuestionSources(sources);
       setAiSuggestions(sugg);
       setAwsSuggestionGaps(gaps);
-      autoFilledItemsRef.current.add(targetItem);
+      autoFilledItemsRef.current.add(`${provider}:${targetItem}`);
 
       Object.keys(sugg).forEach((k) => {
         const val = sugg[k] ?? "";
         onItemFormChange(`${k}__ai_origin`, val);
         const src = (sources[k] ?? "").trim().toLowerCase();
-        const isAwsPlusHuman = src.startsWith("aws") && src.includes("human");
-        if (isAwsPlusHuman) {
+        const isCloudPlusHuman = sourceMatchesProvider(src, provider);
+        if (isCloudPlusHuman) {
           onItemFormChange(`${k}__ai`, val);
         } else {
           onItemFormChange(k, val);
@@ -322,49 +427,49 @@ export function EvidenceWorkspace({
         onItemFormChange(`${k}__ai_gap`, (gaps[k] ?? "").trim());
       });
       const filledCount = Object.keys(sugg).filter((k) => awsSuggestionCountsAsFilled(sugg[k])).length;
-      if (filledCount > 0) {
-        await onEnsureSubmission(targetItem);
-        onItemFormBlur();
-      }
       if (res.message) setAwsSuggestMessage(res.message);
       else if (filledCount > 0) {
-        setAwsSuggestMessage(`Filled ${filledCount} field(s) from AWS evidence (${res.aws_evidence_bundle_count} snapshot(s)).`);
+        setAwsSuggestMessage(
+          `Filled ${filledCount} field(s) from ${providerDisplayName(provider)} evidence (${res.aws_evidence_bundle_count} snapshot(s)).`,
+        );
       } else {
-        setAwsSuggestMessage("No usable values returned — see (i) hints per field or check AWS collection / evidence_source.");
+        setAwsSuggestMessage(
+          `No usable values returned — see (i) hints per field or check ${providerDisplayName(provider)} collection / evidence_source.`,
+        );
+      }
+      // Do not await submission/blur here: ensureSubmission uses open-ended fetch; if it hangs, `finally`
+      // never ran and the UI stayed on "Generating…" forever. Persist after clearing the suggest spinner.
+      if (filledCount > 0) {
+        const runPersist = () => {
+          void (async () => {
+            try {
+              await onEnsureSubmission(targetItem);
+              await Promise.resolve(onItemFormBlur());
+            } catch {
+              /* best-effort save */
+            }
+          })();
+        };
+        if (typeof window !== "undefined") window.setTimeout(runPersist, 0);
+        else runPersist();
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Request failed";
-      setAwsSuggestError(msg);
+      setAwsSuggestError(formatCloudSuggestFetchError(e));
     } finally {
       setAwsSuggestLoading(false);
       setAwsSuggestRoundDone(true);
     }
-  }, [cycleId, currentItem?.id, submissionStatus, onItemFormChange, onEnsureSubmission, onItemFormBlur, awsConnected]);
-
-  useEffect(() => {
-    if (!cycleId || !currentItem) return;
-
-    if (!awsConnected) {
-      setAwsSuggestLoading(false);
-      setAwsSuggestRoundDone(false);
-      return;
-    }
-
-    if (evidenceFormLocked) {
-      autoFilledItemsRef.current.add(currentItem.id);
-      return;
-    }
-
-    if (itemHasPersistedAwsSnapshot(itemFormData)) {
-      autoFilledItemsRef.current.add(currentItem.id);
-      setAwsSuggestRoundDone(true);
-      return;
-    }
-
-    if (autoFilledItemsRef.current.has(currentItem.id)) return;
-
-    handleSuggestFromAws(currentItem.id);
-  }, [cycleId, currentItem?.id, submissionStatus, itemFormData, evidenceFormLocked, handleSuggestFromAws, awsConnected]);
+  }, [
+    cycleId,
+    currentItem?.id,
+    submissionStatus,
+    onItemFormChange,
+    onEnsureSubmission,
+    onItemFormBlur,
+    awsConnected,
+    azureConnected,
+    sourceMatchesProvider,
+  ]);
 
   if (!currentItem) {
     return (
@@ -403,45 +508,93 @@ export function EvidenceWorkspace({
           )}
           <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between rounded-lg border border-(--border) bg-(--surface) px-3 py-2.5">
             <div className="text-[11px] text-(--foreground-muted) min-w-0">
-              {!awsConnectionChecked ? (
+              {!connectionsReady ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="inline-block size-3.5 border-2 border-slate-300 border-t-sky-600 rounded-full animate-spin" />
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">Checking AWS connection…</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Checking cloud connections…</span>
                 </span>
-              ) : !awsConnected ? (
+              ) : !canUseSelectedProvider ? (
                 <>
-                  <span className="font-semibold text-foreground">AWS-assisted answers</span>
+                  <span className="font-semibold text-foreground">Cloud-assisted answers</span>
                   {" — "}
-                  Connect to AWS for this cycle to enable auto-fill suggestions.
+                  {`Connect ${providerLabel} for this cycle to enable auto-fill (or pick another provider).`}
                 </>
               ) : awsSuggestLoading ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="inline-block size-3.5 border-2 border-sky-300 border-t-sky-600 rounded-full animate-spin" />
-                  <span className="font-semibold text-sky-700 dark:text-sky-300">Auto-filling from AWS evidence…</span>
+                  <span className="font-semibold text-sky-700 dark:text-sky-300">{`Auto-filling from ${providerLabel} evidence…`}</span>
                 </span>
               ) : (
                 <>
-                  <span className="font-semibold text-foreground">AWS-assisted answers</span>
+                  <span className="font-semibold text-foreground">Cloud-assisted answers</span>
                   {" — "}
-                  Auto-fills questions where evidence_source is AWS or AWS + Human.
+                  Click AWS, GCP, or Azure to auto-fill from that provider&apos;s collected evidence (nothing runs until you choose).
                 </>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (!awsConnected) {
-                  router.push("/aws");
-                  return;
+            <div className="shrink-0 inline-flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedProvider("aws");
+                  if (!awsConnected) {
+                    router.push("/aws");
+                    return;
+                  }
+                  autoFilledItemsRef.current.delete(`aws:${currentItem.id}`);
+                  handleSuggestFromAws("aws", currentItem.id);
+                }}
+                disabled={awsSuggestLoading || evidenceFormLocked || !awsConnectionChecked}
+                className={`inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${selectedProvider === "aws" ? "border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300" : "border-(--border) bg-background text-foreground hover:bg-(--muted)/40"} disabled:opacity-50`}
+              >
+                {!awsConnected ? "Connect AWS" : awsSuggestLoading && selectedProvider === "aws" ? "Generating…" : "AWS"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedProvider("gcp");
+                  autoFilledItemsRef.current.delete(`gcp:${currentItem.id}`);
+                  handleSuggestFromAws("gcp", currentItem.id);
+                }}
+                disabled={awsSuggestLoading || evidenceFormLocked}
+                className={`inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${selectedProvider === "gcp" ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" : "border-(--border) bg-background text-foreground hover:bg-(--muted)/40"} disabled:opacity-50`}
+              >
+                {awsSuggestLoading && selectedProvider === "gcp" ? "Generating…" : "GCP"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedProvider("azure");
+                  if (AZURE_EVIDENCE_COMING_SOON) {
+                    setAwsSuggestError(null);
+                    setAwsSuggestMessage("Azure evidence is coming soon.");
+                    return;
+                  }
+                  if (!azureConnected) {
+                    router.push("/azure");
+                    return;
+                  }
+                  autoFilledItemsRef.current.delete(`azure:${currentItem.id}`);
+                  handleSuggestFromAws("azure", currentItem.id);
+                }}
+                disabled={
+                  awsSuggestLoading ||
+                  evidenceFormLocked ||
+                  !azureConnectionChecked ||
+                  AZURE_EVIDENCE_COMING_SOON
                 }
-                autoFilledItemsRef.current.delete(currentItem.id);
-                handleSuggestFromAws(currentItem.id);
-              }}
-              disabled={awsSuggestLoading || evidenceFormLocked || !awsConnectionChecked}
-              className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg border border-(--border) bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-(--muted)/40 disabled:opacity-50"
-            >
-              {!awsConnected ? "Connect to AWS" : awsSuggestLoading ? "Generating…" : "Re-generate AWS suggestions"}
-            </button>
+                title={AZURE_EVIDENCE_COMING_SOON ? "Coming soon" : undefined}
+                className={`inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${selectedProvider === "azure" ? "border-blue-600 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-700" : "border-(--border) bg-background text-foreground hover:bg-(--muted)/40"} disabled:opacity-50`}
+              >
+                {AZURE_EVIDENCE_COMING_SOON
+                  ? "Coming soon"
+                  : !azureConnected
+                    ? "Connect Azure"
+                    : awsSuggestLoading && selectedProvider === "azure"
+                      ? "Generating…"
+                      : "Azure"}
+              </button>
+            </div>
             {awsSuggestError && (
               <p className="text-[11px] text-red-600 w-full">{awsSuggestError}</p>
             )}
@@ -469,7 +622,8 @@ export function EvidenceWorkspace({
             awsSuggestRoundDone={awsSuggestRoundDone}
             visualVariant="swiftReview"
             fileRefreshTrigger={fileRefreshTrigger}
-            awsAssistanceEnabled={awsConnectionChecked && awsConnected}
+            awsAssistanceEnabled={connectionsReady && canUseSelectedProvider}
+            cloudAssistProvider={selectedProvider}
           />
 
           {aiEvaluationError && !aiEvaluationResult && (

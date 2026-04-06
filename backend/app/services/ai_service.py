@@ -8,8 +8,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-import vertexai  # type: ignore[import-untyped]
-from vertexai.generative_models import GenerativeModel, Part  # type: ignore[import-untyped]
+import vertexai 
+from vertexai.generative_models import GenerativeModel, Part, GenerationConfig
 
 from ..config import settings
 
@@ -19,6 +19,7 @@ _PROMPT_DIR = Path(__file__).resolve().parent.parent / "Prompt"
 _PROMPT_FILE = _PROMPT_DIR / "evidence_evaluation_V1.txt"
 _REPORT_PROMPT_FILE = _PROMPT_DIR / "report_generation_V1.txt"
 _AWS_AUTOFILL_PROMPT_FILE = _PROMPT_DIR / "aws_autofill_V1.txt"
+_GCP_AUTOFILL_PROMPT_FILE = _PROMPT_DIR / "gcp_autofill_V1.txt"
 _loaded_prompt_template: str | None = None
 _AI_LOG_PREVIEW_CHARS = 8000
 # Max chars of raw model text printed to CMD (full JSON can be huge). Override with env AI_LOG_RAW_MAX_CHARS.
@@ -671,6 +672,12 @@ def _load_aws_autofill_prompt_template() -> str:
     return _AWS_AUTOFILL_PROMPT_FILE.read_text(encoding="utf-8")
 
 
+def _load_gcp_autofill_prompt_template() -> str:
+    if not _GCP_AUTOFILL_PROMPT_FILE.is_file():
+        raise FileNotFoundError(f"GCP autofill prompt file not found: {_GCP_AUTOFILL_PROMPT_FILE}")
+    return _GCP_AUTOFILL_PROMPT_FILE.read_text(encoding="utf-8")
+
+
 def generate_report_section(snapshot: dict, section_key: str) -> str:
     """Generate a single report section via Vertex AI.
 
@@ -759,8 +766,8 @@ def generate_report_section(snapshot: dict, section_key: str) -> str:
 
 
 _DEFAULT_SUGGESTION_GAP = (
-    "The AWS snapshots for this cycle do not contain a clear signal for this field, or the relevant "
-    "collector has not been run yet. Run AWS collection for this CSCF item or answer manually."
+    "The cloud snapshots for this cycle do not contain a clear signal for this field, or the relevant "
+    "collector has not been run yet. Run collection for this CSCF item or answer manually."
 )
 
 
@@ -793,10 +800,19 @@ def _aws_suggestion_value_is_usable(question_type: str, raw: str | None) -> bool
 
 def log_suggest_from_aws_skip(reason: str, detail: str = "") -> None:
     """Call from HTTP layer when suggest-from-aws returns without calling Vertex (visible in uvicorn terminal)."""
+    log_suggest_from_cloud_skip(reason, detail, cloud_provider="aws")
+
+
+def log_suggest_from_cloud_skip(
+    reason: str, detail: str = "", *, cloud_provider: str | None = None
+) -> None:
+    """Call from HTTP layer when cloud autofill returns without calling Vertex."""
     msg = f"skip_llm reason={reason}"
     if detail:
         msg = f"{msg} | {detail}"
-    _ai_emit("WARN", "suggest_answers_from_aws_evidence", msg)
+    if cloud_provider:
+        msg = f"{msg} | provider={cloud_provider}"
+    _ai_emit("WARN", "suggest_cloud_autofill", msg)
 
 
 def suggest_answers_from_aws_evidence(
@@ -804,66 +820,162 @@ def suggest_answers_from_aws_evidence(
     evidence_item_id: str,
     questions: list[dict],
     aws_evidence_bundle: list[dict],
+    collector_warning: str | None = None,
+) -> dict[str, Any]:
+    return suggest_answers_from_cloud_evidence(
+        evidence_item_id=evidence_item_id,
+        questions=questions,
+        evidence_bundle=aws_evidence_bundle,
+        cloud_provider="aws",
+        collector_warning=collector_warning,
+    )
+
+
+def suggest_answers_from_gcp_evidence(
+    *,
+    evidence_item_id: str,
+    questions: list[dict],
+    gcp_evidence_bundle: list[dict],
+    collector_warning: str | None = None,
+) -> dict[str, Any]:
+    return suggest_answers_from_cloud_evidence(
+        evidence_item_id=evidence_item_id,
+        questions=questions,
+        evidence_bundle=gcp_evidence_bundle,
+        cloud_provider="gcp",
+        collector_warning=collector_warning,
+    )
+
+
+def suggest_answers_from_azure_evidence(
+    *,
+    evidence_item_id: str,
+    questions: list[dict],
+    azure_evidence_bundle: list[dict],
+    collector_warning: str | None = None,
+) -> dict[str, Any]:
+    """Same pipeline as GCP autofill (JSON evidence bundle); uses GCP-oriented prompt for Azure Resource Graph payloads."""
+    return suggest_answers_from_cloud_evidence(
+        evidence_item_id=evidence_item_id,
+        questions=questions,
+        evidence_bundle=azure_evidence_bundle,
+        cloud_provider="azure",
+        collector_warning=collector_warning,
+    )
+
+
+def suggest_answers_from_cloud_evidence(
+    *,
+    evidence_item_id: str,
+    questions: list[dict],
+    evidence_bundle: list[dict],
+    cloud_provider: str = "aws",
+    collector_warning: str | None = None,
 ) -> dict[str, Any]:
     """
-    Use Vertex AI to map AWS collector JSON into form question_key -> string answers.
-    `questions`: list of {question_key, label, question_type, options, guide}.
+    Use Vertex AI to map cloud collector JSON into form question_key -> string answers.
+    Provider selects ``aws_autofill`` vs ``gcp_autofill`` prompt templates (Azure uses the GCP template).
+    `questions`: list built by the evidence router (includes mapping columns per provider).
 
     Returns a dict: ``{"suggestions": {question_key: str, ...}, "gaps": {question_key: str, ...}}``.
     ``gaps`` explains empty answers (missing or unmappable evidence).
     """
     if not questions:
         return {"suggestions": {}, "gaps": {}}
-    if not aws_evidence_bundle:
+    if not evidence_bundle:
         return {"suggestions": {}, "gaps": {}}
+    provider = (cloud_provider or "aws").strip().lower()
+    if provider not in {"aws", "gcp", "azure"}:
+        raise ValueError("Unsupported cloud provider. Use 'aws', 'gcp', or 'azure'.")
 
+    log_op = {
+        "aws": "suggest_answers_from_aws_evidence",
+        "gcp": "suggest_answers_from_gcp_evidence",
+        "azure": "suggest_answers_from_azure_evidence",
+    }[provider]
     try:
         model = _get_model()
     except Exception as init_err:
-        _ai_emit("ERROR", "suggest_answers_from_aws_evidence", f"init_failed: {init_err}")
-        logger.exception("Vertex AI init failed (suggest-from-aws)")
+        _ai_emit("ERROR", log_op, f"init_failed: {init_err}")
+        logger.exception("Vertex AI init failed (suggest-from-cloud)")
         raise ValueError(
             "Vertex AI is not available. Set GOOGLE_CLOUD_PROJECT and credentials."
         ) from init_err
 
-    q_json = json.dumps(questions, indent=2, default=str)
-    ev_json = json.dumps(aws_evidence_bundle, indent=2, default=str)
-
-    prompt_template = _load_aws_autofill_prompt_template()
-    prompt = prompt_template.format(
-        evidence_item_id=evidence_item_id,
-        aws_evidence_json=ev_json,
-        questions_json=q_json,
+    # Compact JSON: indented dumps balloon token count and slow Vertex.
+    _jc = lambda obj: json.dumps(obj, default=str, separators=(",", ":"))
+    q_json = _jc(questions)
+    ev_json = _jc(evidence_bundle)
+    prompt_template = (
+        _load_aws_autofill_prompt_template()
+        if provider == "aws"
+        else _load_gcp_autofill_prompt_template()
     )
+    # AWS template uses {aws_evidence_json}; GCP/Azure use {cloud_evidence_json}. Python str.format()
+    # rejects unexpected keyword arguments — passing both caused TypeError and HTTP 500 on suggest-from-gcp.
+    if provider == "aws":
+        prompt = prompt_template.format(
+            evidence_item_id=evidence_item_id,
+            aws_evidence_json=ev_json,
+            questions_json=q_json,
+        )
+    else:
+        prompt = prompt_template.format(
+            evidence_item_id=evidence_item_id,
+            cloud_evidence_json=ev_json,
+            questions_json=q_json,
+        )
     prompt += (
         "\n\n## RUNTIME — RESPONSE RULES (do not echo this section)\n"
         "- Output one JSON object only; keys exactly `answers` and `gaps`.\n"
         "- Every listed question_key must appear in `answers` (string values).\n"
         "- Empty strings need a one-line reason in `gaps` under the same key.\n"
     )
+    cw = (collector_warning or "").strip()
+    if cw:
+        prompt += (
+            "\n\n## COLLECTOR STATUS (runtime — do not echo this section)\n"
+            f"Summary: {cw}\n"
+            "The evidence JSON may contain only collector error payloads. Do not invent facts. "
+            "If errors prevent mapping, leave answers empty and explain in `gaps` (API disabled, IAM, project config, etc.).\n"
+        )
     _ai_emit(
         "INFO",
-        "suggest_answers_from_aws_evidence",
-        f"start item={evidence_item_id} questions={len(questions)} evidence_chunks={len(aws_evidence_bundle)} "
+        log_op,
+        f"start provider={provider} item={evidence_item_id} questions={len(questions)} evidence_chunks={len(evidence_bundle)} "
         f"model={settings.VERTEX_AI_MODEL} prompt_chars={len(prompt)} "
         "| console: this Python/uvicorn process (not Next.js npm run dev)",
     )
     _ai_emit(
         "INFO",
-        "suggest_answers_from_aws_evidence",
+        log_op,
         "prompt_preview (truncated):\n" + _preview_text(prompt, min(_AI_LOG_PREVIEW_CHARS, 12_000)),
     )
 
+    suggest_gen_cfg = GenerationConfig(
+        temperature=0.2,
+        max_output_tokens=settings.LLM_SUGGEST_MAX_OUTPUT_TOKENS,
+    )
     max_retries = 3
     last_err: Exception | None = None
     response = None
     for attempt in range(max_retries + 1):
         try:
-            response = model.generate_content([Part.from_text(prompt)])
             _ai_emit(
                 "INFO",
-                "suggest_answers_from_aws_evidence",
-                f"vertex_ok attempt={attempt + 1}/{max_retries + 1}",
+                log_op,
+                "vertex_generate_content_start (blocks until Google API returns — watch elapsed_s on next line)",
+            )
+            t_vertex = time.monotonic()
+            response = model.generate_content(
+                [Part.from_text(prompt)],
+                generation_config=suggest_gen_cfg,
+            )
+            elapsed = time.monotonic() - t_vertex
+            _ai_emit(
+                "INFO",
+                log_op,
+                f"vertex_ok attempt={attempt + 1}/{max_retries + 1} elapsed_s={elapsed:.1f}",
             )
             break
         except Exception as api_err:
@@ -880,7 +992,7 @@ def suggest_answers_from_aws_evidence(
                 wait = min(2**attempt * 5, 60)
                 _ai_emit(
                     "WARN",
-                    "suggest_answers_from_aws_evidence",
+                    log_op,
                     f"rate_limit retry in {wait}s attempt={attempt + 1}/{max_retries + 1} err={err_msg[:240]}",
                 )
                 time.sleep(wait)
@@ -888,7 +1000,7 @@ def suggest_answers_from_aws_evidence(
             if is_rate_limit:
                 _ai_emit(
                     "ERROR",
-                    "suggest_answers_from_aws_evidence",
+                    log_op,
                     f"rate_limit exhausted: {err_msg[:400]}",
                 )
                 raise ValueError(
@@ -896,28 +1008,30 @@ def suggest_answers_from_aws_evidence(
                 ) from api_err
             _ai_emit(
                 "ERROR",
-                "suggest_answers_from_aws_evidence",
+                log_op,
                 f"generate_content failed: {err_type}: {err_msg[:500]}",
             )
-            raise ValueError(f"Vertex AI API error (suggest-from-aws): {api_err}") from api_err
+            raise ValueError(
+                f"Vertex AI API error (suggest-from-{provider}): {api_err}"
+            ) from api_err
     else:
         raise ValueError(f"Vertex AI failed after {max_retries + 1} attempts: {last_err}")
 
     text = _get_response_text(response)
     if not (text and text.strip()):
-        _ai_emit("ERROR", "suggest_answers_from_aws_evidence", "empty_model_text")
-        raise ValueError("Vertex AI returned empty text for suggest-from-aws.")
-    _log_ai_response("suggest_answers_from_aws_evidence", text)
+        _ai_emit("ERROR", log_op, "empty_model_text")
+        raise ValueError(f"Vertex AI returned empty text for suggest-from-{provider}.")
+    _log_ai_response(log_op, text)
 
     try:
         parsed = _parse_ai_response(text)
     except (json.JSONDecodeError, ValueError) as e:
-        _ai_emit("ERROR", "suggest_answers_from_aws_evidence", f"json_parse_failed: {e}")
+        _ai_emit("ERROR", log_op, f"json_parse_failed: {e}")
         raise ValueError(f"Model returned invalid JSON: {e}") from e
     if not isinstance(parsed, dict):
-        _ai_emit("ERROR", "suggest_answers_from_aws_evidence", "response_not_json_object")
+        _ai_emit("ERROR", log_op, "response_not_json_object")
         raise ValueError("Model response was not a JSON object.")
-    _ai_emit("INFO", "suggest_answers_from_aws_evidence", "parse_ok")
+    _ai_emit("INFO", log_op, "parse_ok")
 
     allowed = {q["question_key"] for q in questions if q.get("question_key")}
     gaps_raw: dict[str, str] = {}
@@ -967,12 +1081,12 @@ def suggest_answers_from_aws_evidence(
     }
     _ai_emit(
         "INFO",
-        "suggest_answers_from_aws_evidence",
+        log_op,
         "result_summary:\n" + json.dumps(summary_obj, indent=2, ensure_ascii=False),
     )
     _ai_emit(
         "INFO",
-        "suggest_answers_from_aws_evidence",
+        log_op,
         f"done item={evidence_item_id} answered={filled} gaps={len(gaps)}",
     )
     return {"suggestions": out, "gaps": gaps}

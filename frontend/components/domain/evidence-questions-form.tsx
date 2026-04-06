@@ -19,6 +19,9 @@ interface SpreadsheetColumn {
   options?: string[];
 }
 
+/** Matches the cloud-assisted suggest button (AWS / GCP / Azure) in the evidence workspace. */
+export type CloudAssistProvider = "aws" | "gcp" | "azure";
+
 export interface EvidenceQuestionsFormProps {
   evidenceItemId: string;
   cycleId: string;
@@ -49,17 +52,26 @@ export interface EvidenceQuestionsFormProps {
   /** Increment to force CompactDropzone to re-fetch the file list from the server. */
   fileRefreshTrigger?: number;
   /**
-   * When false (AWS not linked for this cycle, or connection check still running), questions tagged AWS/AWS+Human
-   * render as plain human fields: no AI badge, no dual tabs, no “AWS-assisted…” copy, no gap (i) tooltips or loading spinners.
-   * The parent banner explains connecting to AWS; field-level AWS chrome appears only after this is true.
+   * When false (cloud not linked for this cycle, or connection check still running), questions tagged for that cloud
+   * render as plain human fields: no AI badge, no dual tabs, no cloud-assisted copy, no gap (i) tooltips or loading spinners.
    */
   awsAssistanceEnabled?: boolean;
+  /** Drives field labels and gap hints (“AWS” vs “GCP”) to match the selected suggest-from provider. */
+  cloudAssistProvider?: CloudAssistProvider;
 }
 
 export type EvidenceFormVisualVariant = "default" | "swiftReview";
 
-const DEFAULT_AWS_GAP_HINT =
-  "No value could be derived from the collected AWS evidence for this field. Run AWS collection for this evidence item or answer manually.";
+function cloudBrand(p: CloudAssistProvider): string {
+  if (p === "gcp") return "GCP";
+  if (p === "azure") return "Azure";
+  return "AWS";
+}
+
+function defaultCloudGapHint(provider: CloudAssistProvider): string {
+  const b = cloudBrand(provider);
+  return `No value could be derived from the collected ${b} evidence for this field. Run ${b} collection for this evidence item or answer manually.`;
+}
 
 /** Resolved text for the (i) control plus whether it came from the model’s `gaps` map (API / persisted `__ai_gap`). */
 export type AwsGapTooltip = {
@@ -74,6 +86,7 @@ export type AwsGapContext = {
   roundDone?: boolean;
   suggestLoading?: boolean;
   disabled?: boolean;
+  cloudAssistProvider?: CloudAssistProvider;
 };
 
 function resolveAwsGapExplanation(
@@ -82,6 +95,8 @@ function resolveAwsGapExplanation(
   _currentValue: string,
   opts: AwsGapContext
 ): AwsGapTooltip {
+  const provider = opts.cloudAssistProvider ?? "aws";
+  const brand = cloudBrand(provider);
   const custom = (opts.gaps?.[questionKey] ?? "").trim();
   if (custom) {
     return { text: custom, fromLlmGap: true };
@@ -91,24 +106,23 @@ function resolveAwsGapExplanation(
   }
   if (opts.disabled) {
     return {
-      text:
-        "This submission is read-only. No new AWS suggestion is applied here; if the field is empty, no value was stored or it was cleared. Enter a value only if your workflow allows edits.",
+      text: `This submission is read-only. No new ${brand} suggestion is applied here; if the field is empty, no value was stored or it was cleared. Enter a value only if your workflow allows edits.`,
       fromLlmGap: false,
     };
   }
   if (!opts.roundDone) {
     return {
-      text: 'AWS suggestions have not finished loading yet. Wait a few seconds or click “Re-generate AWS suggestions” at the top of this panel.',
+      text: `${brand} suggestions have not finished loading yet. Wait a few seconds or click the ${brand} button at the top of this panel to re-run auto-fill.`,
       fromLlmGap: false,
     };
   }
   if (questionType === "select") {
     return {
-      text: `${DEFAULT_AWS_GAP_HINT} The model may also decline to pick an option when evidence is ambiguous or the choices do not match AWS data.`,
+      text: `${defaultCloudGapHint(provider)} The model may also decline to pick an option when evidence is ambiguous or the choices do not match ${brand} data.`,
       fromLlmGap: false,
     };
   }
-  return { text: DEFAULT_AWS_GAP_HINT, fromLlmGap: false };
+  return { text: defaultCloudGapHint(provider), fromLlmGap: false };
 }
 
 function hasMeaningfulAiValue(questionType: string, value: string): boolean {
@@ -168,7 +182,16 @@ function buildAwsGapTooltip(
   return base;
 }
 
-function AwsDataGapInfo({ tooltip, swift }: { tooltip: AwsGapTooltip; swift?: boolean }) {
+function AwsDataGapInfo({
+  tooltip,
+  swift,
+  assistBrand,
+}: {
+  tooltip: AwsGapTooltip;
+  swift?: boolean;
+  /** "AWS" or "GCP" for accessible name */
+  assistBrand: string;
+}) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLSpanElement>(null);
@@ -201,7 +224,7 @@ function AwsDataGapInfo({ tooltip, swift }: { tooltip: AwsGapTooltip; swift?: bo
         }
         aria-label={
           tooltip.fromLlmGap
-            ? "Model gap explanation — why AWS-assisted suggestion is empty"
+            ? `Model gap explanation — why ${assistBrand}-assisted suggestion is empty`
             : "Why is there no AI suggestion for this field?"
         }
         aria-expanded={open}
@@ -273,30 +296,91 @@ function AwsDataGapInfo({ tooltip, swift }: { tooltip: AwsGapTooltip; swift?: bo
   );
 }
 
+function sourceTokens(src: string | null | undefined): string[] {
+  if (!src) return [];
+  return src
+    .trim()
+    .toLowerCase()
+    .replace(" and ", ",")
+    .replaceAll("/", ",")
+    .replaceAll("|", ",")
+    .replaceAll(";", ",")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
 function isAwsSource(src: string | null | undefined): boolean {
-  if (!src) return false;
-  const s = src.trim().toLowerCase();
-  return s === "aws" || (s.startsWith("aws") && s.includes("human"));
+  return sourceTokens(src).some((t) => t === "aws" || t.startsWith("aws"));
 }
 
 function isAwsPlusHuman(src: string | null | undefined): boolean {
-  if (!src) return false;
-  const s = src.trim().toLowerCase();
-  return s.startsWith("aws") && s.includes("human");
+  return sourceTokens(src).some((t) => t.startsWith("aws") && t.includes("human"));
 }
 
 function isAwsOnly(src: string | null | undefined): boolean {
-  if (!src) return false;
-  const s = src.trim().toLowerCase();
-  return s === "aws";
+  const tokens = sourceTokens(src);
+  return tokens.some((t) => t === "aws") && !tokens.some((t) => t.startsWith("aws") && t.includes("human"));
 }
 
-/** Strip AWS evidence_source for UI when assistance is off → single human field, no AWS chrome. */
+function isGcpOrGcsToken(t: string): boolean {
+  return t === "gcp" || t.startsWith("gcp") || t === "gcs" || t.startsWith("gcs");
+}
+
+function isGcpSource(src: string | null | undefined): boolean {
+  return sourceTokens(src).some(isGcpOrGcsToken);
+}
+
+function isGcpPlusHuman(src: string | null | undefined): boolean {
+  return sourceTokens(src).some((t) => isGcpOrGcsToken(t) && t.includes("human"));
+}
+
+function isGcpOnly(src: string | null | undefined): boolean {
+  const tokens = sourceTokens(src);
+  return tokens.some((t) => t === "gcp" || t === "gcs") && !tokens.some((t) => isGcpOrGcsToken(t) && t.includes("human"));
+}
+
+function isAzureToken(t: string): boolean {
+  return t === "azure" || t.startsWith("azure");
+}
+
+function isAzureSource(src: string | null | undefined): boolean {
+  return sourceTokens(src).some(isAzureToken);
+}
+
+function isAzurePlusHuman(src: string | null | undefined): boolean {
+  return sourceTokens(src).some((t) => isAzureToken(t) && t.includes("human"));
+}
+
+function isAzureOnly(src: string | null | undefined): boolean {
+  const tokens = sourceTokens(src);
+  return tokens.some(isAzureToken) && !tokens.some((t) => isAzureToken(t) && t.includes("human"));
+}
+
+function isCloudPlusHuman(src: string | null | undefined, provider: CloudAssistProvider): boolean {
+  if (provider === "gcp") return isGcpPlusHuman(src);
+  if (provider === "azure") return isAzurePlusHuman(src);
+  return isAwsPlusHuman(src);
+}
+
+function isCloudOnly(src: string | null | undefined, provider: CloudAssistProvider): boolean {
+  if (provider === "gcp") return isGcpOnly(src);
+  if (provider === "azure") return isAzureOnly(src);
+  return isAwsOnly(src);
+}
+
+function isCloudSource(src: string | null | undefined, provider: CloudAssistProvider): boolean {
+  if (provider === "gcp") return isGcpSource(src);
+  if (provider === "azure") return isAzureSource(src);
+  return isAwsSource(src);
+}
+
+/** Strip cloud-evidence source for UI when assistance is off → single human field, no AI chrome. */
 function evidenceSourceForFieldUi(src: string | null | undefined, awsAssistanceEnabled: boolean): string | null {
   if (awsAssistanceEnabled) return src ?? null;
   if (!src) return null;
-  const s = src.trim().toLowerCase();
-  if (s === "aws" || (s.startsWith("aws") && s.includes("human"))) return null;
+  if (sourceTokens(src).some((t) => t.startsWith("aws") || t.startsWith("gcp") || t.startsWith("gcs") || t.startsWith("azure")))
+    return null;
   return src;
 }
 
@@ -366,8 +450,20 @@ function AiBadge({ swift }: { swift?: boolean }) {
   );
 }
 
-/** Amber “AWS + Human” chip — matches evidence review readonly. */
-function AwsHumanChip({ swift }: { swift: boolean }) {
+/** Amber cloud + Human chip — matches evidence review readonly. */
+function CloudHumanChip({ swift, provider }: { swift: boolean; provider: CloudAssistProvider }) {
+  const label =
+    provider === "gcp"
+      ? swift
+        ? "GCP + HUMAN"
+        : "GCP + Human"
+      : provider === "azure"
+        ? swift
+          ? "AZURE + HUMAN"
+          : "Azure + Human"
+        : swift
+          ? "AWS + HUMAN"
+          : "AWS + Human";
   return (
     <span
       className={
@@ -376,7 +472,7 @@ function AwsHumanChip({ swift }: { swift: boolean }) {
           : "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
       }
     >
-      {swift ? "AWS + HUMAN" : "AWS + Human"}
+      {label}
     </span>
   );
 }
@@ -409,6 +505,7 @@ function DualTabField({
   fieldFeedbackHint,
   disabled,
   awsGapContext,
+  cloudAssistProvider,
   visualVariant = "default",
 }: {
   question: EvidenceQuestion;
@@ -421,9 +518,11 @@ function DualTabField({
   fieldFeedbackHint?: string | null;
   disabled?: boolean;
   awsGapContext: AwsGapContext;
+  cloudAssistProvider: CloudAssistProvider;
   visualVariant?: EvidenceFormVisualVariant;
 }) {
   const swift = visualVariant === "swiftReview";
+  const assistBrand = cloudBrand(cloudAssistProvider);
   const [activeTab, setActiveTab] = useState<"ai" | "human">("ai");
   const aiEmpty = awsFieldLooksUnfilled(input, question, aiValue);
   const showGapInfo = Boolean(activeTab === "ai" && aiEmpty && !awsGapContext.suggestLoading);
@@ -520,7 +619,7 @@ function DualTabField({
         >
           {question.label} {question.required && <span className="text-red-500">*</span>}
         </label>
-        <AwsHumanChip swift={swift} />
+        <CloudHumanChip swift={swift} provider={cloudAssistProvider} />
         <FieldAINote text={fieldFeedbackHint} fieldLabel={question.label} variant="inline" />
       </div>
       <div className="flex gap-0.5 mt-1">
@@ -558,15 +657,17 @@ function DualTabField({
                     : "text-[10px] font-medium text-slate-600 dark:text-slate-400"
                 }
               >
-                Suggested from AWS evidence — editable in this tab
+                {`Suggested from ${assistBrand} evidence — editable in this tab`}
               </span>
-              {showGapInfo && input.type !== "select" && <AwsDataGapInfo tooltip={gapTooltip} swift={swift} />}
+              {showGapInfo && input.type !== "select" && (
+                <AwsDataGapInfo tooltip={gapTooltip} swift={swift} assistBrand={assistBrand} />
+              )}
             </div>
             {input.type === "select" ? (
               <div>
                 {showGapInfo && (
                   <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                    <AwsDataGapInfo tooltip={gapTooltip} swift={swift} />
+                    <AwsDataGapInfo tooltip={gapTooltip} swift={swift} assistBrand={assistBrand} />
                     <span
                       className={
                         swift
@@ -574,7 +675,7 @@ function DualTabField({
                           : "text-[10px] text-slate-500 dark:text-slate-400"
                       }
                     >
-                      No option chosen from AWS — tap (i) for why
+                      {`No option chosen from ${assistBrand} — tap (i) for why`}
                     </span>
                   </div>
                 )}
@@ -818,6 +919,7 @@ function DualTabSpreadsheet({
   fieldFeedbackHint,
   onFocus,
   awsGapContext,
+  cloudAssistProvider,
   visualVariant = "default",
 }: {
   question: EvidenceQuestion;
@@ -830,9 +932,11 @@ function DualTabSpreadsheet({
   fieldFeedbackHint?: string | null;
   onFocus?: (e: React.FocusEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => void;
   awsGapContext: AwsGapContext;
+  cloudAssistProvider: CloudAssistProvider;
   visualVariant?: EvidenceFormVisualVariant;
 }) {
   const swift = visualVariant === "swiftReview";
+  const assistBrand = cloudBrand(cloudAssistProvider);
   const [activeTab, setActiveTab] = useState<"ai" | "human">("ai");
   const aiEmpty = !hasMeaningfulAiValue("spreadsheet", aiValue);
   const showGapInfo = Boolean(activeTab === "ai" && aiEmpty && !awsGapContext.suggestLoading);
@@ -848,7 +952,7 @@ function DualTabSpreadsheet({
         >
           {question.label} {question.required && <span className="text-red-500">*</span>}
         </label>
-        <AwsHumanChip swift={swift} />
+        <CloudHumanChip swift={swift} provider={cloudAssistProvider} />
         <FieldAINote text={fieldFeedbackHint} fieldLabel={question.label} variant="inline" />
       </div>
       <div className="flex gap-0.5 mt-1">
@@ -882,9 +986,9 @@ function DualTabSpreadsheet({
                     : "text-[10px] font-medium text-slate-600 dark:text-slate-400"
                 }
               >
-                Suggested from AWS evidence — editable in this tab
+                {`Suggested from ${assistBrand} evidence — editable in this tab`}
               </span>
-              {showGapInfo && <AwsDataGapInfo tooltip={gapTooltip} swift={swift} />}
+              {showGapInfo && <AwsDataGapInfo tooltip={gapTooltip} swift={swift} assistBrand={assistBrand} />}
             </div>
             <SpreadsheetQuestionRenderer
               question={question}
@@ -943,22 +1047,33 @@ export function EvidenceQuestionsForm({
   visualVariant = "default",
   fileRefreshTrigger = 0,
   awsAssistanceEnabled = true,
+  cloudAssistProvider = "aws",
 }: EvidenceQuestionsFormProps) {
   const swift = visualVariant === "swiftReview";
+  const assistBrand = cloudBrand(cloudAssistProvider);
   const [questions, setQuestions] = useState<EvidenceQuestion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [questionsLoadError, setQuestionsLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!evidenceItemId || !cycleId) {
       setQuestions([]);
+      setQuestionsLoadError(null);
       setLoading(false);
       return;
     }
     setLoading(true);
+    setQuestionsLoadError(null);
     api
       .get<EvidenceQuestion[]>(`/ref/evidence-items/${evidenceItemId}/questions?cycle_id=${cycleId}`)
-      .then((data) => setQuestions(data))
-      .catch(() => setQuestions([]))
+      .then((data) => {
+        setQuestions(data);
+        setQuestionsLoadError(null);
+      })
+      .catch((e: unknown) => {
+        setQuestions([]);
+        setQuestionsLoadError(e instanceof Error ? e.message : "Failed to load questions");
+      })
       .finally(() => setLoading(false));
   }, [evidenceItemId, cycleId]);
 
@@ -1009,9 +1124,9 @@ export function EvidenceQuestionsForm({
     (q: EvidenceQuestion): boolean => {
       if (!awsAssistanceEnabled || !aiSuggestLoading) return false;
       const raw = getEffectiveSource(q);
-      return isAwsSource(raw);
+      return isCloudSource(raw, cloudAssistProvider);
     },
-    [aiSuggestLoading, getEffectiveSource, awsAssistanceEnabled]
+    [aiSuggestLoading, getEffectiveSource, awsAssistanceEnabled, cloudAssistProvider]
   );
 
   /** Per-question gap text: non-empty `suggestion_gaps` from API wins; else persisted `__ai_gap` from form draft. */
@@ -1037,8 +1152,9 @@ export function EvidenceQuestionsForm({
       roundDone: awsSuggestRoundDone,
       suggestLoading: shouldShowSpinner(q),
       disabled,
+      cloudAssistProvider,
     }),
-    [persistedAwsGaps, awsSuggestRoundDone, shouldShowSpinner, disabled]
+    [persistedAwsGaps, awsSuggestRoundDone, shouldShowSpinner, disabled, cloudAssistProvider]
   );
 
   if (loading) {
@@ -1067,7 +1183,13 @@ export function EvidenceQuestionsForm({
           swift ? "py-8 text-center text-sm text-[var(--text-secondary)]" : "py-8 text-center text-sm text-gray-500"
         }
       >
-        No questions configured for this evidence item. Ensure the database is seeded with evidence_based_questions.
+        {questionsLoadError ? (
+          <span className={swift ? "text-red-600" : "text-red-600"}>{questionsLoadError}</span>
+        ) : (
+          <>
+            No questions configured for this evidence item. Ensure the database is seeded with evidence_based_questions.
+          </>
+        )}
       </div>
     );
     return swift ? (
@@ -1111,7 +1233,7 @@ export function EvidenceQuestionsForm({
                 >
                   {fileLabel}
                 </label>
-                {isAwsSource(src) && <AiBadge swift={swift} />}
+                {isCloudSource(src, cloudAssistProvider) && <AiBadge swift={swift} />}
                 <FieldAINote text={fieldFeedback?.[q.question_key]} fieldLabel={q.label} variant="inline" />
               </div>
               <CompactDropzone
@@ -1128,8 +1250,8 @@ export function EvidenceQuestionsForm({
         if (q.question_type === "spreadsheet") {
           const handleSpreadsheetFocus = (e: React.FocusEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) =>
             onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget, isLastQuestion);
-          const spreadsheetIsAwsHuman = isAwsPlusHuman(src);
-          const spreadsheetIsAws = isAwsOnly(src);
+          const spreadsheetIsCloudHuman = isCloudPlusHuman(src, cloudAssistProvider);
+          const spreadsheetIsCloudOnly = isCloudOnly(src, cloudAssistProvider);
           const spreadsheetShowSpinner = shouldShowSpinner(q);
 
           if (spreadsheetShowSpinner) {
@@ -1143,15 +1265,15 @@ export function EvidenceQuestionsForm({
                   >
                     {q.label} {q.required && <span className="text-red-500">*</span>}
                   </label>
-                  {spreadsheetIsAwsHuman && <AwsHumanChip swift={swift} />}
-                  {spreadsheetIsAws && <AiBadge swift={swift} />}
+                  {spreadsheetIsCloudHuman && <CloudHumanChip swift={swift} provider={cloudAssistProvider} />}
+                  {spreadsheetIsCloudOnly && <AiBadge swift={swift} />}
                 </div>
                 <AiFieldSpinner swift={swift} />
               </div>
             );
           }
 
-          if (spreadsheetIsAwsHuman) {
+          if (spreadsheetIsCloudHuman) {
             const aiKey = `${q.question_key}__ai`;
             return (
               <DualTabSpreadsheet
@@ -1166,12 +1288,13 @@ export function EvidenceQuestionsForm({
                 fieldFeedbackHint={fieldFeedback?.[q.question_key]}
                 onFocus={handleSpreadsheetFocus}
                 awsGapContext={makeAwsGapContext(q)}
+                cloudAssistProvider={cloudAssistProvider}
                 visualVariant={visualVariant}
               />
             );
           }
 
-          if (spreadsheetIsAws) {
+          if (spreadsheetIsCloudOnly) {
             const sheetVal = formData[q.question_key] ?? "";
             const showSheetGap =
               !spreadsheetShowSpinner && !hasMeaningfulAiValue("spreadsheet", sheetVal);
@@ -1193,9 +1316,11 @@ export function EvidenceQuestionsForm({
                         : "text-[10px] font-medium text-slate-600 dark:text-slate-400"
                     }
                   >
-                    AWS-assisted — editable
+                    {`${assistBrand}-assisted — editable`}
                   </span>
-                  {showSheetGap && <AwsDataGapInfo tooltip={sheetGapTooltip} swift={swift} />}
+                  {showSheetGap && (
+                    <AwsDataGapInfo tooltip={sheetGapTooltip} swift={swift} assistBrand={assistBrand} />
+                  )}
                 </div>
                 <SpreadsheetQuestionRenderer
                   question={q}
@@ -1237,15 +1362,17 @@ export function EvidenceQuestionsForm({
                 >
                   {q.label} {q.required && <span className="text-red-500">*</span>}
                 </label>
-                {isAwsPlusHuman(src) && <AwsHumanChip swift={swift} />}
-                {isAwsOnly(src) && <AiBadge swift={swift} />}
+                {isCloudPlusHuman(src, cloudAssistProvider) && (
+                  <CloudHumanChip swift={swift} provider={cloudAssistProvider} />
+                )}
+                {isCloudOnly(src, cloudAssistProvider) && <AiBadge swift={swift} />}
               </div>
               <AiFieldSpinner swift={swift} />
             </div>
           );
         }
 
-        if (isAwsPlusHuman(src)) {
+        if (isCloudPlusHuman(src, cloudAssistProvider)) {
           const input = questionToInput(q);
           const aiKey = `${q.question_key}__ai`;
           const handleFocus = (e: React.FocusEvent | React.MouseEvent) =>
@@ -1263,6 +1390,7 @@ export function EvidenceQuestionsForm({
                 fieldFeedbackHint={fieldFeedback?.[q.question_key]}
                 disabled={disabled}
                 awsGapContext={makeAwsGapContext(q)}
+                cloudAssistProvider={cloudAssistProvider}
                 visualVariant={visualVariant}
               />
             </div>
@@ -1276,9 +1404,9 @@ export function EvidenceQuestionsForm({
         const handleFocus = (e: React.FocusEvent | React.MouseEvent) =>
           onQuestionFocus?.(q.question_key, getQuestionGuide(q), q.label, e.currentTarget as HTMLElement, isLastQuestion);
 
-        const isAws = isAwsOnly(src);
+        const isCloudAssisted = isCloudOnly(src, cloudAssistProvider);
         const mainVal = formData[q.question_key] ?? "";
-        const showAwsGapInfo = isAws && !showSpinner && awsFieldLooksUnfilled(input, q, mainVal);
+        const showAwsGapInfo = isCloudAssisted && !showSpinner && awsFieldLooksUnfilled(input, q, mainVal);
         const awsGapTooltipPayload = showAwsGapInfo
           ? buildAwsGapTooltip(q.question_key, q, input, mainVal, makeAwsGapContext(q))
           : null;
@@ -1292,8 +1420,8 @@ export function EvidenceQuestionsForm({
             role="group"
             aria-label={q.label}
           >
-            {/* Always show for AWS-only fields (gating on value hid the badge for empty selects until first change → flicker) */}
-            {isAws && (
+            {/* Always show for cloud-assisted-only fields (gating on value hid the badge for empty selects until first change → flicker) */}
+            {isCloudAssisted && (
               <div className="flex flex-wrap items-center gap-1.5 mb-1">
                 <AiBadge swift={swift} />
                 <span
@@ -1303,7 +1431,7 @@ export function EvidenceQuestionsForm({
                       : "text-[10px] font-medium text-slate-600 dark:text-slate-400"
                   }
                 >
-                  AWS-assisted from collected evidence — editable
+                  {`${assistBrand}-assisted from collected evidence — editable`}
                 </span>
               </div>
             )}
@@ -1315,7 +1443,11 @@ export function EvidenceQuestionsForm({
               onFileUpload={markFileUploaded}
               fieldFeedbackHint={fieldFeedback?.[q.question_key]}
               disabled={disabled}
-              afterLabel={awsGapTooltipPayload ? <AwsDataGapInfo tooltip={awsGapTooltipPayload} swift={swift} /> : undefined}
+              afterLabel={
+                awsGapTooltipPayload ? (
+                  <AwsDataGapInfo tooltip={awsGapTooltipPayload} swift={swift} assistBrand={assistBrand} />
+                ) : undefined
+              }
             />
           </div>
         );
