@@ -211,7 +211,7 @@ const SOURCE_API_MAP: Record<string, string[]> = {
   gcp_ids: ["ids.endpoints.list", "compute.regions.list"],
   inventory: ["cloudasset.assets.searchAllResources", "compute.instances.aggregatedList", "sqladmin.instances.list"],
   gcp_inventory: ["cloudasset.assets.searchAllResources", "compute.instances.aggregatedList", "sqladmin.instances.list"],
-  iam: ["iam.googleapis.com/v1"],
+  iam_googleapis: ["iam.googleapis.com/v1"],
   iam_admin: ["iam.googleapis.com/v1"],
   marketplace: ["cloudcommerceconsumerprocurement.googleapis.com/v1"],
   apis: ["serviceusage.googleapis.com/v1"],
@@ -219,7 +219,7 @@ const SOURCE_API_MAP: Record<string, string[]> = {
   vertex_ai: ["aiplatform.googleapis.com/v1"],
   compute_engine: ["compute.googleapis.com/v1"],
   kubernetes_engine: ["container.googleapis.com/v1"],
-  cloud_storage: ["storage.googleapis.com/storage/v1"],
+  cloud_storage_googleapis: ["storage.googleapis.com/storage/v1"],
   security: ["securitycenter.googleapis.com/v1"],
   bigquery: ["bigquery.googleapis.com/v2"],
   monitoring: ["monitoring.googleapis.com/v3"],
@@ -1328,15 +1328,17 @@ export function RunHistoryVisualsPlotly({
               <div
                 key={source.label}
                 className="group rounded-xl border text-left"
-                style={{
-                  "--card-glow": source.tone.glow,
-                  "--card-glow-strong": `${source.tone.border}22`,
-                  "--card-glow-border": source.tone.bg,
-                  "--card-accent": source.tone.border,
-                  background: "var(--card)",
-                  boxShadow: "none",
-                  borderColor: "var(--border)",
-                }}
+                style={
+                  {
+                    "--card-glow": source.tone.glow,
+                    "--card-glow-strong": `${source.tone.border}22`,
+                    "--card-glow-border": source.tone.bg,
+                    "--card-accent": source.tone.border,
+                    background: "var(--card)",
+                    boxShadow: "none",
+                    borderColor: "var(--border)",
+                  } as CSSProperties
+                }
               >
               <button
                 type="button"
