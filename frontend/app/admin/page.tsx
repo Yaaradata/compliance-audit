@@ -135,6 +135,7 @@ export default function AdminPage() {
         <aside className="w-52 flex flex-col shrink-0 p-3 border-r" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
           <nav className="flex flex-col gap-0.5">
             <Link href="/admin" className="nav-item flex items-center gap-2 px-3 py-2 text-xs font-semibold nav-item-active">Bank Onboarding</Link>
+            <Link href="/admin/compliance-pipeline" className="nav-item flex items-center gap-2 px-3 py-2 text-xs" style={{ color: "var(--foreground-muted)" }}>New Compliance</Link>
             <Link href="/dashboard" className="nav-item flex items-center gap-2 px-3 py-2 text-xs" style={{ color: "var(--foreground-muted)" }}>Dashboard</Link>
           </nav>
           <div className="mt-4 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
@@ -144,6 +145,20 @@ export default function AdminPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto">
             <h1 className="text-xl font-bold mb-6" style={{ color: "var(--foreground)" }}>Bank onboarding</h1>
+
+            <div className="card rounded-xl p-4 mb-6 border" style={{ borderColor: "var(--border)" }}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Need to onboard a new compliance framework?</h2>
+                  <p className="text-xs mt-1" style={{ color: "var(--foreground-muted)" }}>
+                    Use the New Compliance flow to upload a PDF, run Stage 1/2/3, review outputs, and chat with AI.
+                  </p>
+                </div>
+                <Link href="/admin/compliance-pipeline" className="btn-primary px-3 py-1.5 text-xs whitespace-nowrap">
+                  Go to New Compliance
+                </Link>
+              </div>
+            </div>
 
             <form onSubmit={handleAddTenant} className="card rounded-xl p-6 mb-8">
               <h2 className="font-semibold text-slate-900 mb-4">Onboard a new bank (tenant)</h2>

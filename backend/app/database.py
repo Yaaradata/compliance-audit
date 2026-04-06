@@ -536,6 +536,32 @@ def ensure_cycle_evidence_assignments():
         logger.warning("Could not ensure cycle_evidence_assignments: %s", e)
 
 
+def ensure_compliance_pipelines_table():
+    """Create core.compliance_pipelines if it does not exist. Idempotent."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\""))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS core.compliance_pipelines (
+                    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    name              VARCHAR(255) NOT NULL,
+                    schema_name       VARCHAR(50)  NOT NULL UNIQUE,
+                    pdf_storage_path  VARCHAR(1000),
+                    status            VARCHAR(30)  NOT NULL DEFAULT 'created',
+                    current_stage     INTEGER      NOT NULL DEFAULT 0,
+                    created_by        UUID REFERENCES core.users(id),
+                    created_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+                    updated_at        TIMESTAMPTZ  NOT NULL DEFAULT now()
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_cp_status ON core.compliance_pipelines(status)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_cp_created_by ON core.compliance_pipelines(created_by)"))
+            conn.commit()
+        logger.info("compliance_pipelines table ensured.")
+    except Exception as e:
+        logger.warning("Could not ensure compliance_pipelines table: %s", e)
+
+
 def ensure_artifact_registry_schema():
     """
     Create/upgrade artifact_registry schema from SQL migration script.

@@ -56,6 +56,7 @@ from .database import (
     ensure_artifact_registry_schema,
     ensure_swift_2025_evidence_questions_azure_columns,
     ensure_swift_2026_evidence_questions_azure_columns,
+    ensure_compliance_pipelines_table,
 )
 from .aws_evidence.core.db import ensure_schema as ensure_aws_evidence_schema
 from .routers import (
@@ -83,6 +84,7 @@ from .routers import (
     artifact_registry,
     demo,
 )
+from .compliance_pipeline.router import router as compliance_pipeline_router
 
 
 def _run_startup_migrations_sync() -> None:
@@ -102,6 +104,7 @@ def _run_startup_migrations_sync() -> None:
         ensure_cycle_role_assignments()
         ensure_cycle_evidence_assignments()
         ensure_artifact_registry_schema()
+        ensure_compliance_pipelines_table()
         ensure_swift_2025_evidence_questions_azure_columns()
         # swift_2026 schema must exist before altering evidence_based_questions (Azure columns also applied inside ensure_aws_evidence_schema).
         ensure_aws_evidence_schema()  # swift_2026 schema + migrations (collector_runs, evidence, ebq Azure cols if table exists)
@@ -184,6 +187,7 @@ app.include_router(aws.router, prefix=CLOUD_AWS_API_PREFIX, tags=["cloud-aws-evi
 app.include_router(gcp.router, prefix=CLOUD_GCP_API_PREFIX, tags=["cloud-gcp-evidence"])
 app.include_router(azure.router, prefix=CLOUD_AZURE_API_PREFIX, tags=["cloud-azure-evidence"])
 app.include_router(artifact_registry.router, prefix=PREFIX, tags=["artifact-registry"])
+app.include_router(compliance_pipeline_router, prefix=PREFIX, tags=["compliance-pipeline"])
 app.include_router(demo.router,             prefix=PREFIX, tags=["demo"])
 
 

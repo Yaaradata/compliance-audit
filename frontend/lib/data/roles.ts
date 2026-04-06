@@ -54,10 +54,12 @@ export function getNavForRole(role: UserRole | string | null | undefined): NavIt
 export const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   admin: [
     { href: "/admin", label: "Bank Onboarding" },
+    { href: "/admin/compliance-pipeline", label: "New Compliance" },
     { href: "/admin/tenants", label: "Tenants" },
   ],
   platform_admin: [
     { href: "/admin", label: "Bank Onboarding" },
+    { href: "/admin/compliance-pipeline", label: "New Compliance" },
     { href: "/admin/tenants", label: "Tenants" },
   ],
   tenant_admin: [
