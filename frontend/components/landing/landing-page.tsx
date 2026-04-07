@@ -42,7 +42,7 @@ export function LandingPage() {
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
             <div className="text-2xl mb-3">👥</div>
             <h2 className="font-semibold text-slate-900 mb-2">Role-based access</h2>
-            <p className="text-sm text-slate-600">Platform admin, compliance officer, IT SME, reviewers, assessors, and approvers—each sees the right workflows.</p>
+            <p className="text-sm text-slate-600">Platform admin, compliance officer, evidence collection, reviewers, assessors, and approvers—each sees the right workflows.</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
             <div className="text-2xl mb-3">🏦</div>

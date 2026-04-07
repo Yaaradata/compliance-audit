@@ -203,7 +203,40 @@ def _applicable_control_ids_for_cycle(db: Session, cycle_id: UUID) -> set[str]:
     return applicable
 
 
-def _submission_to_out(sub: EvidenceSubmission, db: Session | None = None) -> SubmissionOut:
+def _submitter_name_map(db: Session, subs: list[EvidenceSubmission]) -> dict[UUID, str]:
+    """Batch-load display names for submission submitters."""
+    ids = {s.submitted_by for s in subs if s.submitted_by}
+    if not ids:
+        return {}
+    out: dict[UUID, str] = {}
+    for u in db.query(User).filter(User.id.in_(ids)).all():
+        label = (u.name or "").strip() or (u.email or "").strip()
+        if label:
+            out[u.id] = label
+    return out
+
+
+def _resolve_submitter_name(
+    submitted_by: UUID | None,
+    db: Session | None,
+    submitter_names: dict[UUID, str] | None,
+) -> str | None:
+    if not submitted_by:
+        return None
+    if submitter_names is not None and submitted_by in submitter_names:
+        return submitter_names[submitted_by]
+    if db:
+        u = db.query(User).filter(User.id == submitted_by).first()
+        if u:
+            return (u.name or "").strip() or (u.email or "").strip() or None
+    return None
+
+
+def _submission_to_out(
+    sub: EvidenceSubmission,
+    db: Session | None = None,
+    submitter_names: dict[UUID, str] | None = None,
+) -> SubmissionOut:
     """Build SubmissionOut with last_evaluation from stored evaluation_result.
     If db is provided, status is returned as display value (e.g. in_review_L2) for API."""
     last_evaluation = None
@@ -221,11 +254,14 @@ def _submission_to_out(sub: EvidenceSubmission, db: Session | None = None) -> Su
         else sub.status
     )
     evaluation_edits = getattr(sub, "evaluation_edits", None) or {}
+    submitter_name = _resolve_submitter_name(sub.submitted_by, db, submitter_names)
     return SubmissionOut(
         id=sub.id,
         cycle_id=sub.cycle_id,
         evidence_item_id=sub.evidence_item_id,
         submitted_by=sub.submitted_by,
+        submitted_at=sub.submitted_at,
+        submitted_by_name=submitter_name,
         status=status_val,
         scope_key=sub.scope_key,
         form_data=sub.form_data or {},
@@ -265,7 +301,8 @@ def list_evidence(
         if assigned is not None and assigned:
             subs = [s for s in subs if (s.evidence_item_id or "").strip().upper() in assigned]
 
-    return [_submission_to_out(s, db) for s in subs]
+    names = _submitter_name_map(db, subs)
+    return [_submission_to_out(s, db, names) for s in subs]
 
 
 EVIDENCE_WRITE_ROLES = ("compliance_officer", "it_sme", "admin", "tenant_admin")

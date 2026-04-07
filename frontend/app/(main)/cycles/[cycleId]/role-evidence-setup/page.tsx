@@ -47,7 +47,7 @@ interface EvidenceAssignment {
 }
 
 const ROLE_DEFS = [
-  { id: "it_sme", label: "IT Expert", short: "IT Expert", desc: "Uploads and submits evidence", cardClass: "bg-blue-100 border border-blue-200" },
+  { id: "it_sme", label: "Evidence Collection", short: "Evidence Collection", desc: "Uploads and submits evidence", cardClass: "bg-blue-100 border border-blue-200" },
   { id: "internal_reviewer_l1", label: "L1", short: "L1", desc: "First-level review of evidence", cardClass: "bg-emerald-100 border border-emerald-200" },
   { id: "internal_reviewer_l2", label: "L2", short: "L2", desc: "Second-level review and validation", cardClass: "bg-violet-100 border border-violet-200" },
   { id: "external_assessor", label: "Approver", short: "Approver", desc: "Final independent approval (external only)", cardClass: "bg-amber-100 border border-amber-200" },
@@ -221,7 +221,7 @@ export default function RoleEvidenceSetupPage() {
     setEvidenceDateRanges(next);
   }, [evidenceAssignments, evidenceItems]);
 
-  /** True when every role (IT Expert, L1, L2, Approver) has at least one person or group assigned. */
+  /** True when every role (Evidence Collection, L1, L2, Approver) has at least one person or group assigned. */
   const allRolesFilled = useMemo(() => {
     return ROLE_DEFS.every((r) => {
       const a = assignmentsByRole[r.id] || { groups: [], users: [] };
@@ -587,7 +587,7 @@ export default function RoleEvidenceSetupPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Role & Evidence Assignment</h1>
           <p className="text-sm text-slate-600 mt-1">
-            Assign groups and users to roles for this audit cycle. Then assign evidence items to IT Experts.
+            Assign groups and users to roles for this audit cycle. Then assign evidence items to Evidence Collections.
           </p>
           <p className="text-sm text-slate-600 mt-2">
             Cycle: <span className="font-semibold text-slate-900">{cycle.label}</span>
@@ -801,7 +801,7 @@ export default function RoleEvidenceSetupPage() {
           <>
             {smeOptions.groups.length === 0 && smeOptions.users.length === 0 && (
               <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
-                Assign IT Experts in Step 1 before assigning evidence items.
+                Assign Evidence Collections in Step 1 before assigning evidence items.
               </div>
             )}
 
@@ -813,7 +813,7 @@ export default function RoleEvidenceSetupPage() {
                 <p className="text-xs text-slate-600 mt-0.5">
                   {evidenceAssignmentView === "domain"
                     ? "Set start and end dates per domain (applied to every item in that domain). Use bulk actions or assign experts per domain."
-                    : "Adjust dates and IT Experts for each evidence code (A1, A2, …)."}
+                    : "Adjust dates and Evidence Collections for each evidence code (A1, A2, …)."}
                 </p>
               </div>
               <button
@@ -873,7 +873,7 @@ export default function RoleEvidenceSetupPage() {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Items</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Start date</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">End date</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">IT Expert assigned</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Evidence Collection assigned</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -967,7 +967,7 @@ export default function RoleEvidenceSetupPage() {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Domain</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Start date</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">End date</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">IT Expert assigned</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Evidence Collection assigned</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1146,7 +1146,7 @@ function BulkAssignAllEvidenceButton({
           style={{ top: popupPos.top, left: popupPos.left }}
         >
           <div className="px-3 py-2 text-xs font-medium text-slate-600 border-b border-slate-200 bg-slate-100">
-            Assign one IT Expert to all evidence items
+            Assign one Evidence Collection to all evidence items
           </div>
           <div className="flex border-b border-slate-200 bg-slate-50">
             <button
@@ -1176,7 +1176,7 @@ function BulkAssignAllEvidenceButton({
           <div className="max-h-48 overflow-y-auto p-1">
             {view === "groups" &&
               (filteredGroups.length === 0 ? (
-                <p className="py-4 text-center text-xs text-slate-500">No IT Expert groups</p>
+                <p className="py-4 text-center text-xs text-slate-500">No Evidence Collection groups</p>
               ) : (
                 filteredGroups.map((g) => (
                   <button
@@ -1191,7 +1191,7 @@ function BulkAssignAllEvidenceButton({
               ))}
             {view === "users" &&
               (filteredUsers.length === 0 ? (
-                <p className="py-4 text-center text-xs text-slate-500">No IT Expert users</p>
+                <p className="py-4 text-center text-xs text-slate-500">No Evidence Collection users</p>
               ) : (
                 filteredUsers.map((u) => (
                   <button
@@ -1293,9 +1293,9 @@ function BulkAssignDomainButton({
       !assignedGroupsSet.has(g) &&
       g.toLowerCase().includes(q.toLowerCase())
   );
-  // IT Expert individuals should include:
-  // 1) directly assigned IT Expert users
-  // 2) users that belong to IT Expert-assigned groups
+  // Evidence Collection individuals should include:
+  // 1) directly assigned Evidence Collection users
+  // 2) users that belong to Evidence Collection-assigned groups
   const smeUserIds = new Set<string>([
     ...smeOptions.users,
     ...users
@@ -1317,12 +1317,12 @@ function BulkAssignDomainButton({
 
   const groupsEmptyMessage =
     !hasUnassignedGroupLeft && smeOptions.groups.length > 0
-      ? "All IT Expert groups are already assigned for this domain."
-      : "No IT Expert groups";
+      ? "All Evidence Collection groups are already assigned for this domain."
+      : "No Evidence Collection groups";
   const usersEmptyMessage =
     !hasUnassignedUserLeft && smeUserIds.size > 0
-      ? "All IT Expert users are already assigned for this domain."
-      : "No IT Expert users";
+      ? "All Evidence Collection users are already assigned for this domain."
+      : "No Evidence Collection users";
 
   return (
     <div ref={ref} className="relative inline-block">
@@ -1341,7 +1341,7 @@ function BulkAssignDomainButton({
           style={{ top: popupPos.top, left: popupPos.left }}
         >
           <div className="px-3 py-2 text-xs font-medium text-slate-600 border-b border-slate-200 bg-slate-100">
-            Assign one IT Expert to all items in Domain {domainId}: {domainName}
+            Assign one Evidence Collection to all items in Domain {domainId}: {domainName}
           </div>
           <div className="flex border-b border-slate-200 bg-slate-50">
             <button
@@ -1499,9 +1499,9 @@ function EvidencePicker({
       !assignedGroupSet.has(g) &&
       g.toLowerCase().includes(q.toLowerCase())
   );
-  // IT Expert individuals should include:
-  // 1) directly assigned IT Expert users
-  // 2) users that belong to IT Expert-assigned groups
+  // Evidence Collection individuals should include:
+  // 1) directly assigned Evidence Collection users
+  // 2) users that belong to Evidence Collection-assigned groups
   const smeUserIds = new Set<string>([
     ...smeOptions.users,
     ...users
@@ -1522,12 +1522,12 @@ function EvidencePicker({
   );
   const groupsEmptyMessage =
     !hasUnassignedGroupLeft && smeOptions.groups.length > 0
-      ? "All IT Expert groups are already assigned to this item."
-      : "No IT Expert groups";
+      ? "All Evidence Collection groups are already assigned to this item."
+      : "No Evidence Collection groups";
   const usersEmptyMessage =
     !hasUnassignedUserLeft && smeUserIds.size > 0
-      ? "All IT Expert users are already assigned to this item."
-      : "No IT Expert users";
+      ? "All Evidence Collection users are already assigned to this item."
+      : "No Evidence Collection users";
 
   return (
     <div ref={ref} className="relative">

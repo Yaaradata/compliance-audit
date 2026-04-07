@@ -30,6 +30,8 @@ export interface EvidenceWorkspaceProps {
   onSubmitForReview?: () => void;
   submitForReviewLoading?: boolean;
   submissionStatus?: string;
+  submittedAt?: string | null;
+  submittedByName?: string | null;
   aiEvaluationError?: string | null;
   evaluationState: "idle" | "loading" | "done";
   itemFormData: Record<string, string>;

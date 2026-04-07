@@ -6,7 +6,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ROLE_LABELS } from "@/lib/data/roles";
 import type { UserRole } from "@/lib/types";
 
-/** Demo credentials for role-based flow: Compliance → IT Expert → L1 → L2 → Approver */
+/** Demo credentials for role-based flow: Compliance → Evidence Collection → L1 → L2 → Approver */
 const DEMO_CREDENTIALS: { email: string; password: string; role: UserRole; step: number }[] = [
   { email: "ranjith.bk@yaaralabs.ai", password: "Ranjith154@$#", role: "compliance_officer", step: 1 },
   { email: "itsme@gmail.com",         password: "12345678",       role: "it_sme",              step: 2 },
@@ -131,7 +131,7 @@ export default function DemoPage() {
           Role-based demo
         </h1>
         <p className="text-sm mb-6" style={{ color: "var(--foreground-muted)" }}>
-          Click &quot;Login as this role&quot; to open the login page in a new tab with credentials pre-filled. Flow: Compliance Officer → Evidence Uploader (IT SME) → L1 → L2 → Approver
+          Click &quot;Login as this role&quot; to open the login page in a new tab with credentials pre-filled. Flow: Compliance Officer → Evidence Collection (IT) → L1 Review → L2/External Review → Approver
         </p>
         <div className="space-y-2">
           {DEMO_CREDENTIALS.map((c) => (

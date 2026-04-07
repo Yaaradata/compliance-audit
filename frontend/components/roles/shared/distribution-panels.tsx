@@ -207,7 +207,7 @@ type ItExpertVisualizationPanelProps = {
   visualCycleId: string | null;
   onVisualCycleChange: (cycleId: string | null) => void;
   assignedInsights: CycleInsight[];
-  /** Defaults: IT Expert-specific copy. */
+  /** Defaults: Evidence Collection-specific copy. */
   heading?: string;
   subheading?: string;
 };
@@ -217,7 +217,7 @@ export function ItExpertVisualizationPanel({
   visualCycleId,
   onVisualCycleChange,
   assignedInsights,
-  heading = "IT Expert Visualization",
+  heading = "Evidence Collection Visualization",
   subheading = "Evidence and review distribution",
 }: ItExpertVisualizationPanelProps) {
   const v = visualization;

@@ -36,6 +36,8 @@ export interface DomainWorkspaceLayoutProps {
   onSubmitForReview?: () => void;
   submitForReviewLoading?: boolean;
   submissionStatus?: string;
+  submittedAt?: string | null;
+  submittedByName?: string | null;
   aiEvaluationError?: string | null;
   itemFormData: Record<string, string>;
   onItemFormChange: (key: string, value: string) => void;
@@ -70,6 +72,8 @@ export function DomainWorkspaceLayout({
   onSubmitForReview,
   submitForReviewLoading,
   submissionStatus,
+  submittedAt,
+  submittedByName,
   aiEvaluationError,
   itemFormData,
   onItemFormChange,
@@ -140,6 +144,8 @@ export function DomainWorkspaceLayout({
             onSubmitForReview={onSubmitForReview}
             submitForReviewLoading={submitForReviewLoading}
             submissionStatus={submissionStatus}
+            submittedAt={submittedAt}
+            submittedByName={submittedByName}
             aiEvaluationError={aiEvaluationError}
             evaluationState={evaluationState}
             itemFormData={itemFormData}

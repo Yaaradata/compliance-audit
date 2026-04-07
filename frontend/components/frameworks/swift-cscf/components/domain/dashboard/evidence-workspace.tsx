@@ -50,7 +50,7 @@ function formatCloudSuggestFetchError(e: unknown): string {
   return msg;
 }
 
-/** Submission is locked for IT SME editing after submit/approve. */
+/** Submission is locked for Evidence Collection editing after submit/approve. */
 function isSubmissionAwsLocked(status: string | undefined): boolean {
   const s = (status ?? "").toLowerCase();
   return s === "submitted" || s === "approved" || s === "in_review";
@@ -93,6 +93,8 @@ export function EvidenceWorkspace({
   onSubmitForReview,
   submitForReviewLoading,
   submissionStatus,
+  submittedAt,
+  submittedByName,
   aiEvaluationError,
   evaluationState,
   itemFormData,
@@ -120,6 +122,8 @@ export function EvidenceWorkspace({
   onSubmitForReview?: () => void;
   submitForReviewLoading?: boolean;
   submissionStatus?: string;
+  submittedAt?: string | null;
+  submittedByName?: string | null;
   aiEvaluationError?: string | null;
   evaluationState: "idle" | "loading" | "done";
   itemFormData: Record<string, string>;
@@ -644,7 +648,20 @@ export function EvidenceWorkspace({
             </p>
           )}
 
-          {!aiEvaluationResult && (
+          {evidenceFormLocked && !aiEvaluationResult ? (
+            <div className="py-3 px-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-center">
+              <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                Submitted for review
+              </p>
+              {(submittedAt || (submittedByName ?? "").trim()) && (
+                <p className="text-xs text-blue-600 dark:text-blue-300 mt-1.5 leading-relaxed">
+                  {submittedAt
+                    ? `On ${new Date(submittedAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}${(submittedByName ?? "").trim() ? ` by ${(submittedByName ?? "").trim()}` : ""}`
+                    : `By ${(submittedByName ?? "").trim()}`}
+                </p>
+              )}
+            </div>
+          ) : !aiEvaluationResult && !evidenceFormLocked ? (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-2xl border border-(--border) bg-gradient-to-br from-background to-background/80 shadow-md hover:shadow-lg transition-shadow duration-200">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-foreground">Run AI Evaluation</p>
@@ -666,7 +683,7 @@ export function EvidenceWorkspace({
                 + Run AI Evaluation
               </button>
             </div>
-          )}
+          ) : null}
         </>
       );
     }
@@ -781,6 +798,8 @@ export function EvidenceWorkspace({
                       currentItemId={currentItem.id}
                       visualVariant="swiftReview"
                       hideAiHint={false}
+                      submittedAt={submittedAt}
+                      submittedByName={submittedByName}
                     />
                   </div>
                 ) : (

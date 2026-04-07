@@ -40,7 +40,7 @@ export default function AdminPage() {
   const TENANT_ROLES = [
     { value: "compliance_officer", label: "Compliance Officer" },
     { value: "tenant_admin", label: "Tenant Admin" },
-    { value: "it_sme", label: "IT SME" },
+    { value: "it_sme", label: "Evidence Collection" },
     { value: "internal_reviewer_l1", label: "Internal Reviewer (L1)" },
     { value: "internal_reviewer_l2", label: "Internal Reviewer (L2)" },
     { value: "external_assessor", label: "Approver" },

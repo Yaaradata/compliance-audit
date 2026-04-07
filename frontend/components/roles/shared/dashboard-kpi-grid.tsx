@@ -50,7 +50,7 @@ type StatKpiArticleGridProps = {
   columnsClassName?: string;
 };
 
-/** KPI stats as non-link articles (e.g. IT Expert). */
+/** KPI stats as non-link articles (e.g. Evidence Collection). */
 export function StatKpiArticleGrid({
   items,
   loading,

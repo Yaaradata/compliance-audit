@@ -6,7 +6,7 @@ import type { UserRole } from "@/lib/types";
 
 type HomeDashboardRoleContextValue = {
   /**
-   * When `user.role` is null but /dashboard probed per-cycle `/my-role` and found IT SME or L1/L2/L3,
+   * When `user.role` is null but /dashboard probed per-cycle `/my-role` and found Evidence Collection or L1/L2/L3,
    * this mirrors that role so layout, sidebar, and routing match globally-assigned users.
    */
   homeDerivedRole: UserRole | null;

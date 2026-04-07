@@ -50,6 +50,8 @@ interface ApiSubmission {
   id: string;
   evidence_item_id: string;
   status: string;
+  submitted_at?: string | null;
+  submitted_by_name?: string | null;
   form_data: Record<string, string>;
   completion_pct: number;
   last_evaluation?: {
@@ -154,6 +156,8 @@ export default function CycleDomainPage() {
   const [selectedControlId, setSelectedControlId] = useState<string | null>(null);
   const [submitForReviewLoading, setSubmitForReviewLoading] = useState(false);
   const [submissionStatusMap, setSubmissionStatusMap] = useState<Record<string, string>>({});
+  const [submittedAtMap, setSubmittedAtMap] = useState<Record<string, string | null>>({});
+  const [submittedByNameMap, setSubmittedByNameMap] = useState<Record<string, string | null>>({});
   const [evaluationEditsByItem, setEvaluationEditsByItem] = useState<Record<string, EvaluationEditsMap>>({});
   const [schemaName, setSchemaName] = useState<string | null>(null);
 
@@ -213,6 +217,8 @@ export default function CycleDomainPage() {
         const data: Record<string, string> = {};
         const sMap: Record<string, string> = {};
         const statusMap: Record<string, string> = {};
+        const subAtMap: Record<string, string | null> = {};
+        const subByNameMap: Record<string, string | null> = {};
         const evalByItem: Record<string, AiEvalResultType> = {};
         const completionByItem: Record<string, number> = {};
         const editsByItem: Record<string, EvaluationEditsMap> = {};
@@ -230,6 +236,8 @@ export default function CycleDomainPage() {
           if (preferred) {
             sMap[evidenceItemId] = preferred.id;
             statusMap[evidenceItemId] = preferred.status;
+            subAtMap[evidenceItemId] = preferred.submitted_at ?? null;
+            subByNameMap[evidenceItemId] = preferred.submitted_by_name ?? null;
           }
         });
         subs.forEach((s) => {
@@ -289,6 +297,8 @@ export default function CycleDomainPage() {
         setFormData(data);
         setSubmissionMap(sMap);
         setSubmissionStatusMap(statusMap);
+        setSubmittedAtMap(subAtMap);
+        setSubmittedByNameMap(subByNameMap);
         setLastEvaluationByItem(evalByItem);
         setCompletionPctByItem(completionByItem);
 
@@ -417,15 +427,21 @@ export default function CycleDomainPage() {
       });
       const sMap: Record<string, string> = {};
       const statusMap: Record<string, string> = {};
+      const subAtMap: Record<string, string | null> = {};
+      const subByNameMap: Record<string, string | null> = {};
       byItem.forEach((list, evidenceItemId) => {
         const preferred = list.find((s) => isNonDraft(s.status)) ?? list[0];
         if (preferred) {
           sMap[evidenceItemId] = preferred.id;
           statusMap[evidenceItemId] = preferred.status;
+          subAtMap[evidenceItemId] = preferred.submitted_at ?? null;
+          subByNameMap[evidenceItemId] = preferred.submitted_by_name ?? null;
         }
       });
       setSubmissionMap((prev) => ({ ...prev, ...sMap }));
       setSubmissionStatusMap((prev) => ({ ...prev, ...statusMap }));
+      setSubmittedAtMap((prev) => ({ ...prev, ...subAtMap }));
+      setSubmittedByNameMap((prev) => ({ ...prev, ...subByNameMap }));
     } catch { /* ignore */ }
   }, [cycleId, domainId]);
 
@@ -438,11 +454,15 @@ export default function CycleDomainPage() {
       const edits = evaluationEditsByItem[currentItem.id] ?? {};
       await api.post(`/assessments/${cycleId}/evidence/${subId}/submit`, { evaluation_edits: edits });
       setSubmissionStatusMap((prev) => ({ ...prev, [currentItem.id]: "submitted" }));
+      setSubmittedAtMap((prev) => ({ ...prev, [currentItem.id]: new Date().toISOString() }));
+      const submitter =
+        (user?.name && user.name.trim()) || (user?.email && user.email.trim()) || null;
+      setSubmittedByNameMap((prev) => ({ ...prev, [currentItem.id]: submitter }));
       await refetchSubmissions();
       if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch { /* ignore */ }
     setSubmitForReviewLoading(false);
-  }, [currentItem, cycleId, submissionMap, evaluationEditsByItem, refetchSubmissions]);
+  }, [currentItem, cycleId, submissionMap, evaluationEditsByItem, refetchSubmissions, user]);
 
   // API: POST /assessments/:cycleId/evidence/evaluate { evidence_item_id, submission_id }
   // Backend uses submission form_data + attachments for AI. Save form data first so evaluation uses latest.
@@ -638,6 +658,8 @@ export default function CycleDomainPage() {
         onSubmitForReview={handleSubmitForReview}
         submitForReviewLoading={submitForReviewLoading}
         submissionStatus={currentItem ? submissionStatusMap[currentItem.id] : undefined}
+        submittedAt={currentItem ? submittedAtMap[currentItem.id] : undefined}
+        submittedByName={currentItem ? submittedByNameMap[currentItem.id] : undefined}
         aiEvaluationError={aiEvaluationError}
         itemFormData={itemFormData}
         onItemFormChange={handleItemFormChange}

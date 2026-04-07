@@ -151,7 +151,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return <>{children}</>;
   }
 
-  // Role-based route protection: cycle role when active; else global JWT role or home-derived IT SME
+  // Role-based route protection: cycle role when active; else global JWT role or home-derived Evidence Collection
   const role = effectiveTenantRole;
   /** Outside cycle/AWS, some roles use a minimal shell (e.g. home dashboard without nav). */
   const hideSidebarOutsideCycleForRole =

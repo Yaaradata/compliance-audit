@@ -308,7 +308,7 @@ export function RoleHomeDashboard({
             Next steps
           </h2>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--foreground-muted)" }}>
-            When you are assigned as IT Expert or reviewer on a cycle, this page will show your role-specific command center
+            When you are assigned as Evidence Collection or reviewer on a cycle, this page will show your role-specific command center
             (same layout as Compliance Officer). Until then, use assessment cycles to join a SWIFT CSCF assessment.
           </p>
           <div className="mt-4">

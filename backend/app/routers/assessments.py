@@ -296,6 +296,9 @@ def delete_cycle(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: Use
     automatically; DB rows for those runs are still deleted.
     """
     cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    if not cycle:
+        # Idempotent: already gone (duplicate delete, stale UI, or race). Avoid 404 noise in logs.
+        return None
     _require_cycle_access(cycle, user, db)
 
     # Hard delete requires clearing immutable audit rows first for this cycle.

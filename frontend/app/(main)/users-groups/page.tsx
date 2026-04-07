@@ -36,7 +36,7 @@ interface NewUserForm {
 // ─── Constants ───
 /** Display labels for roles. */
 const ROLE_DISPLAY: Record<string, string> = {
-  it_sme: "IT Expert",
+  it_sme: "Evidence Collection",
   internal_reviewer_l1: "L1",
   internal_reviewer_l2: "L2",
   external_assessor: "Approver",

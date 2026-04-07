@@ -32,7 +32,7 @@ interface AiEvaluationResultProps {
   visualVariant?: "default" | "swiftReview";
   /** Show embedded "AI evaluation results" title in swift variant. */
   showTitle?: boolean;
-  /** IT SME only: render Re-evaluate and Submit buttons inside the Sufficiency & criteria box. */
+  /** Evidence Collection only: render Re-evaluate and Submit buttons inside the Sufficiency & criteria box. */
   onReEvaluate?: () => void;
   onSubmitForReview?: () => void;
   evaluationState?: "idle" | "loading" | "done";
@@ -41,6 +41,10 @@ interface AiEvaluationResultProps {
   aiEvaluationLoading?: boolean;
   configColor?: string;
   currentItemId?: string;
+  /** ISO time from submission (server or optimistic after submit). */
+  submittedAt?: string | null;
+  /** Display name of user who submitted for review. */
+  submittedByName?: string | null;
 }
 
 type CriterionWithSection = AiCriterionResult & { section: "sufficiency_results" | "criteria" };
@@ -806,6 +810,8 @@ function AiEvaluationResultTabs({
   aiEvaluationLoading,
   configColor,
   currentItemId,
+  submittedAt,
+  submittedByName,
   visualVariant = "default",
   showTitle = true,
 }: {
@@ -825,6 +831,8 @@ function AiEvaluationResultTabs({
   aiEvaluationLoading?: boolean;
   configColor?: string;
   currentItemId?: string;
+  submittedAt?: string | null;
+  submittedByName?: string | null;
   visualVariant?: "default" | "swiftReview";
   showTitle?: boolean;
 }) {
@@ -902,10 +910,14 @@ function AiEvaluationResultTabs({
     [onEdit, result, evaluationEdits]
   );
 
-  /** IT SME only: Re-evaluate, Submit, and status badges — rendered inside each tab. Always show when callbacks exist, including after submission. */
+  /** Evidence Collection only: Re-evaluate, Submit, and status badges — rendered inside each tab. Always show when callbacks exist, including after submission. */
   const renderActionButtons = () => {
     if (!onReEvaluate && !onSubmitForReview) return null;
-    const isSubmitted = submissionStatus === "submitted" || submissionStatus === "in_review_L2" || submissionStatus === "in_review_L3";
+    const st = (submissionStatus ?? "").toLowerCase();
+    const isSubmitted =
+      st === "submitted" ||
+      st === "in_review" ||
+      st.startsWith("in_review");
     const isApproved = submissionStatus === "approved";
     const canEdit = !isSubmitted && !isApproved;
 
@@ -949,8 +961,15 @@ function AiEvaluationResultTabs({
         )}
         {/* Submitted for review: show after user submits */}
         {isSubmitted && (
-          <div className="py-2.5 px-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-sm text-center font-medium">
-            Submitted for review
+          <div className="py-2.5 px-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-sm text-center">
+            <p className="font-semibold">Submitted for review</p>
+            {(submittedAt || (submittedByName ?? "").trim()) && (
+              <p className="text-xs font-normal mt-1.5 text-blue-700/95 dark:text-blue-300/95 leading-relaxed">
+                {submittedAt
+                  ? `On ${new Date(submittedAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}${(submittedByName ?? "").trim() ? ` by ${(submittedByName ?? "").trim()}` : ""}`
+                  : `By ${(submittedByName ?? "").trim()}`}
+              </p>
+            )}
           </div>
         )}
         {/* Evidence approved: show when reviewer approves */}
@@ -1224,6 +1243,8 @@ export function AiEvaluationResult({
   aiEvaluationLoading,
   configColor,
   currentItemId,
+  submittedAt,
+  submittedByName,
   showTitle = true,
 }: AiEvaluationResultProps) {
   const swift = visualVariant === "swiftReview";
@@ -1300,6 +1321,8 @@ export function AiEvaluationResult({
       aiEvaluationLoading={aiEvaluationLoading}
       configColor={configColor}
       currentItemId={currentItemId}
+      submittedAt={submittedAt}
+      submittedByName={submittedByName}
       showTitle={showTitle}
     />
   );

@@ -69,7 +69,7 @@ export default function DashboardHomePage() {
   const [insights, setInsights] = useState<CycleInsight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(true);
   /**
-   * When JWT `user.role` is null, probe /my-role across cycles to derive IT SME or L1/L2/L3 (same as CO-style dashboards).
+   * When JWT `user.role` is null, probe /my-role across cycles to derive Evidence Collection or L1/L2/L3 (same as CO-style dashboards).
    * `undefined` = still probing; `null` = probed, no role; otherwise derived tenant role for home + routing.
    */
   const [derivedCycleRole, setDerivedCycleRole] = useState<UserRole | null | undefined>(undefined);
@@ -131,7 +131,7 @@ export default function DashboardHomePage() {
 
   /**
    * Single effect with a fixed dependency tuple length [user, cycles, cyclesLoading, derivedCycleRole]
-   * for probe + insights load (matches IT SME / reviewer derivation when global role is null).
+   * for probe + insights load (matches Evidence Collection / reviewer derivation when global role is null).
    */
   useEffect(() => {
     if (!user) {

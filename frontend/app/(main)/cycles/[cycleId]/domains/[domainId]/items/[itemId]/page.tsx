@@ -105,7 +105,7 @@ export default function CycleItemIntakePage() {
   const itemId = (params.itemId as string)?.toUpperCase();
   const domainStyle = DOMAIN_COLORS[domainId] || DOMAIN_COLORS.A;
 
-  /** IT SME uses domain page with ?item= and only the evidence form; redirect immediately. */
+  /** Evidence Collection uses domain page with ?item= and only the evidence form; redirect immediately. */
   useEffect(() => {
     if (role === "it_sme" && cycleId && domainId && itemId) {
       router.replace(`/cycles/${cycleId}/domains/${domainId}?item=${encodeURIComponent(itemId)}`);

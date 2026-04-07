@@ -96,7 +96,7 @@ export function addMonths(d: Date, delta: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + delta, 1);
 }
 
-/** Normalize API role strings for comparison (e.g. IT Expert → it_sme). */
+/** Normalize API role strings for comparison (e.g. Evidence Collection → it_sme). */
 export function normalizeRoleForCycle(role?: string | null): string | null {
   const v = (role ?? "").trim().toLowerCase();
   if (!v) return null;
@@ -118,7 +118,7 @@ export function reviewerTierExpectedRole(tier: ReviewerHomeTier): (typeof REVIEW
   return "external_assessor";
 }
 
-/** When JWT role is null, pick a single tenant role from per-cycle /my-role (IT SME first, then L1 → L2 → L3). */
+/** When JWT role is null, pick a single tenant role from per-cycle /my-role (Evidence Collection first, then L1 → L2 → L3). */
 const DERIVED_HOME_ROLE_PRIORITY: UserRole[] = [
   "it_sme",
   "internal_reviewer_l1",

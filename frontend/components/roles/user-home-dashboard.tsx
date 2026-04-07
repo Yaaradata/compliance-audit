@@ -54,7 +54,7 @@ type CycleCardRow = {
 };
 
 function roleBadge(role: string | null) {
-  if (role === "it_sme") return { label: "IT Expert", cls: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" };
+  if (role === "it_sme") return { label: "Evidence Collection", cls: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" };
   if (role === "internal_reviewer_l1") return { label: "L1 Reviewer", cls: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" };
   if (role === "internal_reviewer_l2") return { label: "L2 Reviewer", cls: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300" };
   if (role === "external_assessor") return { label: "L3 Assessor", cls: "bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200" };
@@ -76,7 +76,7 @@ export function UserHomeDashboard({
 }: {
   user: User;
   cycles: AssessmentCycle[];
-  /** Tenant home role from /dashboard (JWT or derived). Drives IT Expert vs reviewer visualization. */
+  /** Tenant home role from /dashboard (JWT or derived). Drives Evidence Collection vs reviewer visualization. */
   homeRole: UserRole | null;
 }) {
   const { activeCycleId, setActiveCycleId } = useAuth();
@@ -231,7 +231,7 @@ export function UserHomeDashboard({
     [rows]
   );
   const isMixedContributorHome = hasItSmeAssignment && hasReviewerAssignment;
-  /** Full IT Expert chrome only when tenant role is IT and every assignment is IT — not when user is also a reviewer on other cycles. */
+  /** Full Evidence Collection chrome only when tenant role is IT and every assignment is IT — not when user is also a reviewer on other cycles. */
   const useItExpertExclusivePresentation = homeRole === "it_sme" && !hasReviewerAssignment;
 
   const inReviewKpiTotal = useMemo(() => {
@@ -486,7 +486,7 @@ export function UserHomeDashboard({
         greetingName={firstName}
         description={
           isMixedContributorHome
-            ? "You have different roles on different cycles (for example IT Expert on some and reviewer on others). Open a cycle below for the workspace that matches your assignment."
+            ? "You have different roles on different cycles (for example Evidence Collection on some and reviewer on others). Open a cycle below for the workspace that matches your assignment."
             : useItExpertExclusivePresentation
               ? "Upload and track evidence by cycle. Open a cycle below to continue collection, or switch assessments anytime."
               : "Your work changes by cycle. Pick a cycle below to jump into the correct workspace for your assigned role."
@@ -510,7 +510,7 @@ export function UserHomeDashboard({
             label: "Assigned cycles",
             value: String(accessible),
             sub: isMixedContributorHome
-              ? "Cycles where you have a role (IT Expert and/or reviewer)"
+              ? "Cycles where you have a role (Evidence Collection and/or reviewer)"
               : useItExpertExclusivePresentation
                 ? "Cycles where you have a role"
                 : "Cycles assigned to this user",
@@ -528,10 +528,10 @@ export function UserHomeDashboard({
             label: "Evidence uploaded",
             value: String(evidenceUploaded),
             sub: isMixedContributorHome
-              ? "Evidence items submitted on cycles where you are IT Expert"
+              ? "Evidence items submitted on cycles where you are Evidence Collection"
               : useItExpertExclusivePresentation
                 ? "Evidence items you have submitted"
-                : "Submissions uploaded by IT Expert",
+                : "Submissions uploaded by Evidence Collection",
             tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
           },
           {
@@ -566,7 +566,7 @@ export function UserHomeDashboard({
                   </span>
                   <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>
                     {isMixedContributorHome
-                      ? "IT Expert and reviewer cycles — filters apply to review queues"
+                      ? "Evidence Collection and reviewer cycles — filters apply to review queues"
                       : "Reviewer-focused cycle health view"}
                   </span>
                 </div>

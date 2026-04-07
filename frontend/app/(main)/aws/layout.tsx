@@ -23,7 +23,7 @@ export default function AwsLayout({ children }: { children: React.ReactNode }) {
           style={{ borderColor: "var(--border)" }}
         >
           <p className="text-sm" style={{ color: "var(--foreground-muted)" }}>
-            You do not have access to AWS evidence. Only IT Expert role can access this page.
+            You do not have access to AWS evidence. Only the Evidence Collection role can access this page.
           </p>
         </div>
       </div>

@@ -29,6 +29,9 @@ class SubmissionOut(BaseModel):
     cycle_id: UUID
     evidence_item_id: str
     submitted_by: UUID | None = None
+    submitted_at: datetime | None = None
+    """Display name of submitter (from core.users); only set when submitted_by is set."""
+    submitted_by_name: str | None = None
     status: str
     scope_key: str | None = None
     form_data: dict = {}
