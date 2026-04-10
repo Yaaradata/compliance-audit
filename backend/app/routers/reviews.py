@@ -3,6 +3,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -203,14 +204,25 @@ def _advance_submission_after_approve(
 
 def _sync_artifact_status_on_submission_approved(
     db: Session,
-    submission: EvidenceSubmission,
+    submission_id: UUID,
     user: User,
 ) -> None:
     """
     Keep Artifact Registry status aligned with final review outcome.
     When a submission becomes approved after L3, promote its artifact to approved
     so reuse candidates can discover it in later cycles.
+
+    Loads the submission by id after any prior commit. Using populate_existing avoids
+    touching an expired in-session instance that can raise ObjectDeletedError on .status.
     """
+    stmt = (
+        select(EvidenceSubmission)
+        .where(EvidenceSubmission.id == submission_id)
+        .execution_options(populate_existing=True)
+    )
+    submission = db.scalars(stmt).first()
+    if submission is None:
+        return
     if submission.status != evidence_status_svc.evidence_status_to_db("approved"):
         return
 
@@ -715,6 +727,9 @@ def update_review(
         raise HTTPException(status_code=400, detail="decision must be approve, return, or hold")
 
     next_review_id = next_review.id if next_review else None
+    # Capture PK before commit; after commit ORM instances are expired — accessing
+    # submission.status on the old reference can raise ObjectDeletedError on refresh.
+    submission_pk: UUID | None = submission.id if submission else None
     # Build response from in-memory state before commit; after commit the session
     # expires the instance and any attribute access can trigger a failing refresh.
     submission_status_display = (
@@ -742,8 +757,9 @@ def update_review(
         raise
 
     # If this approve transitioned submission to approved, sync artifact status too.
-    if req.decision == "approve" and submission:
-        _sync_artifact_status_on_submission_approved(db, submission, user)
+    # _sync loads by id with populate_existing so we never read an expired submission.
+    if req.decision == "approve" and submission_pk is not None:
+        _sync_artifact_status_on_submission_approved(db, submission_pk, user)
 
     out = ReviewOut.model_validate(out_data)
     return UpdateReviewResponse(review=out, next_review_id=next_review_id)

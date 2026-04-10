@@ -592,7 +592,21 @@ export function InlineEvidenceDetail({
         )}
       </div>
 
-      {/* Action bar — Return, Hold, Approve (also when status is hold: reviewer can approve or return) */}
+      {/* Action bar — Return, Hold, Approve; after approval, green Approved control */}
+      {canAction && review.status === "approved" && (
+        <div className="border-t border-(--border) pt-3 flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled
+              aria-label="You approved this review"
+              className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/40 cursor-default"
+            >
+              ✓ Approved
+            </button>
+          </div>
+        </div>
+      )}
       {canAction && (review.status === "assigned" || review.status === "hold") && (
         <div className="border-t border-(--border) pt-3 flex flex-col gap-2">
           {checklistTotal > 0 && checklistChecked < checklistTotal && (
@@ -1283,85 +1297,122 @@ export function EvidenceDetailModal({
               </section>
             </div>
 
-            {/* Decision buttons: below Comments (inline) or in action bar (modal). Show when assigned or hold so reviewer can approve or return. */}
-            {canAction && (review.status === "assigned" || review.status === "hold") && inline && (
+            {/* Decision buttons: below Comments (inline). After approval, show green Approved control. */}
+            {canAction &&
+              inline &&
+              (review.status === "approved" || review.status === "assigned" || review.status === "hold") && (
               <div className="px-6 pb-8 pt-2">
-                <div className="grid grid-cols-3 gap-3 max-w-2xl">
-                  <button
-                    type="button"
-                    onClick={() => handleAction("return")}
-                    disabled={actioning}
-                    className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border transition-all ${actionType === "return" ? "bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-100 dark:shadow-rose-900/30" : "bg-(--surface) border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:shadow-sm"}`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-                    Return
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAction("hold")}
-                    disabled={actioning}
-                    aria-pressed={review.status === "hold"}
-                    className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border transition-all ${
-                      actionType === "hold" || review.status === "hold"
-                        ? "bg-slate-500 border-slate-500 text-white shadow-lg shadow-slate-100 dark:shadow-slate-900/30"
-                        : "bg-(--surface) border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 hover:shadow-sm"
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Hold
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowApproveDialog(true)}
-                    disabled={actioning}
-                    className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border transition-all ${actionType === "approve" ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-emerald-900/30" : "bg-(--surface) border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:shadow-sm"}`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                    Approve
-                  </button>
-                </div>
+                {review.status === "approved" ? (
+                  <div className="max-w-xs">
+                    <button
+                      type="button"
+                      disabled
+                      aria-label="You approved this review"
+                      className="flex w-full items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-lg shadow-emerald-100 dark:shadow-emerald-900/30 ring-2 ring-emerald-500/40 cursor-default"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      Approved
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3 max-w-2xl">
+                    <button
+                      type="button"
+                      onClick={() => handleAction("return")}
+                      disabled={actioning}
+                      className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border transition-all ${actionType === "return" ? "bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-100 dark:shadow-rose-900/30" : "bg-(--surface) border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:shadow-sm"}`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                      Return
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAction("hold")}
+                      disabled={actioning}
+                      aria-pressed={review.status === "hold"}
+                      className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border transition-all ${
+                        actionType === "hold" || review.status === "hold"
+                          ? "bg-slate-500 border-slate-500 text-white shadow-lg shadow-slate-100 dark:shadow-slate-900/30"
+                          : "bg-(--surface) border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 hover:shadow-sm"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      Hold
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowApproveDialog(true)}
+                      disabled={actioning}
+                      className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border transition-all ${actionType === "approve" ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-emerald-900/30" : "bg-(--surface) border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:shadow-sm"}`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      Approve
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Action bar — at bottom of scroll (modal only). Show when assigned or hold so reviewer can approve or return. */}
-            {canAction && (review.status === "assigned" || review.status === "hold") && !inline && (
+            {/* Action bar — at bottom of scroll (modal only). After approval, green Approved control. */}
+            {canAction &&
+              !inline &&
+              (review.status === "approved" || review.status === "assigned" || review.status === "hold") && (
               <div className="border-t border-(--border)/80 pt-8 flex flex-col gap-3">
-                {checklistTotal > 0 && checklistChecked < checklistTotal && (
-                  <div className="px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
-                    {checklistChecked}/{checklistTotal} checklist items verified
+                {review.status === "approved" ? (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      disabled
+                      aria-label="You approved this review"
+                      className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-emerald-600 text-white shadow-md ring-2 ring-emerald-500/40 cursor-default"
+                    >
+                      ✓ Approved
+                    </button>
                   </div>
+                ) : (
+                  <>
+                    {checklistTotal > 0 && checklistChecked < checklistTotal && (
+                      <div className="px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
+                        {checklistChecked}/{checklistTotal} checklist items verified
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleAction("return")}
+                        disabled={actioning}
+                        className="px-5 py-2.5 text-sm font-semibold rounded-lg border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 bg-(--surface) disabled:opacity-60"
+                      >
+                        Return
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAction("hold")}
+                        disabled={actioning}
+                        aria-pressed={review.status === "hold"}
+                        className={`px-5 py-2.5 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-60 ${
+                          review.status === "hold"
+                            ? "bg-slate-500 border-slate-500 text-white shadow-md"
+                            : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 bg-(--surface)"
+                        }`}
+                      >
+                        Hold
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowApproveDialog(true)}
+                        disabled={actioning || (checklistTotal > 0 && checklistChecked < checklistTotal)}
+                        className={`px-5 py-2.5 text-sm font-semibold rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed ${
+                          actionType === "approve" && actioning
+                            ? "bg-emerald-600 ring-2 ring-emerald-400/60"
+                            : "bg-emerald-600 hover:bg-emerald-700"
+                        }`}
+                      >
+                        Approve
+                      </button>
+                    </div>
+                  </>
                 )}
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleAction("return")}
-                    disabled={actioning}
-                    className="px-5 py-2.5 text-sm font-semibold rounded-lg border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 bg-(--surface) disabled:opacity-60"
-                  >
-                    Return
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAction("hold")}
-                    disabled={actioning}
-                    aria-pressed={review.status === "hold"}
-                    className={`px-5 py-2.5 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-60 ${
-                      review.status === "hold"
-                        ? "bg-slate-500 border-slate-500 text-white shadow-md"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/20 bg-(--surface)"
-                    }`}
-                  >
-                    Hold
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowApproveDialog(true)}
-                    disabled={actioning || (checklistTotal > 0 && checklistChecked < checklistTotal)}
-                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Approve
-                  </button>
-                </div>
               </div>
             )}
 

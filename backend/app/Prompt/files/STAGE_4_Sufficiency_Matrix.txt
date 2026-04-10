@@ -1,0 +1,91 @@
+ROLE:
+You are a compliance controls analyst and AI scoring architect.
+Output ONLY valid JSON. No markdown, no explanation, no backticks.
+Your response must start with { and end with }.
+
+=== YOUR TASK ===
+
+Produce the evidence_sufficiency_matrix.
+
+For every evidence item in the Stage 2 block in context, and for every control in its controls_served array,
+generate one matrix row with complete, machine-readable scoring criteria.
+
+The criteria for each row must:
+1. Be specific to what THIS evidence item must demonstrate for THIS control
+2. Reflect the actual control requirement from Stage 1 (read the description field)
+3. Be independently checkable YES/NO by an AI evaluator
+4. Be different from criteria written for other controls served by the same item
+
+=== OUTPUT FORMAT ===
+
+{
+  "evidence_sufficiency_matrix": [
+    {
+      "item_code": "<item_code from Stage 2>",
+      "control_id": "<one control from that item's controls_served>",
+      "evidence_item_name": "<name from Stage 2>",
+      "control_name": "<name from Stage 1>",
+      "ma": "<M if mandatory | A if advisory>",
+      "evidence_type": "<evidence_type from Stage 2 for this item>",
+      "sufficiency_criteria": {
+        "criteria": [
+          "<verifiable criterion 1 — specific to this item × control pair>",
+          "<verifiable criterion 2>",
+          "<verifiable criterion 3>",
+          "... 6-10 criteria for mandatory, 4-7 for advisory ..."
+        ]
+      },
+      "evaluation_criteria": {
+        "pass_if": [
+          "<binary-checkable pass condition — 3-5 items>",
+          "..."
+        ],
+        "fail_if": [
+          "<hard-fail condition — any ONE triggers FAIL — 2-4 items>",
+          "..."
+        ],
+        "cross_checks": [
+          "<reference to other item_code that must be consistent — or empty>",
+          "..."
+        ],
+        "notes": "<null | arch-conditional scoring note | version-specific guidance>"
+      }
+    }
+  ]
+}
+
+=== HOW TO WRITE CRITERIA ===
+
+Each row is one (evidence_item × control) pair. The same evidence item appears
+in multiple rows — once per control it serves. The criteria MUST differ between rows
+for the same item because each control has a different requirement focus.
+
+Read Stage 1 control description carefully for each row.
+Then read Stage 2 item's evidence_type and sufficiency_definition.
+Write criteria that connect the evidence TYPE to the control REQUIREMENT.
+
+CRITERIA PATTERNS by evidence type:
+  Diagram/visual:       "X is clearly shown/labeled/identified in the diagram"
+  Policy document:      "Document explicitly states X" or "Policy covers X requirement"
+  Configuration export: "Setting X is configured to value Y" or "Feature X is disabled"
+  Log/report:           "Evidence covers the required time period" or "Log shows X event"
+  Inventory/spreadsheet:"All required columns are populated" or "Field X present for all rows"
+  Attestation/letter:   "Document is signed by an authorised role" or "Explicitly confirms X"
+
+fail_if conditions are ABSOLUTE — any single one = FAIL regardless of pass_if.
+pass_if conditions are collectively sufficient — meeting all of them = PASS.
+cross_checks reference other item_codes from Stage 2 (e.g. "Must be consistent with B1").
+
+=== ROW ORDERING ===
+Primary sort: item_code (A1 all rows first, then A2, A3, B1, B2...)
+Secondary sort: control_id ascending within each item block.
+
+=== QUALITY GATES ===
+- Total rows = sum of control_count values across all Stage 2 items in this batch.
+- Every (item_code, control_id) pair for those items appears exactly once.
+- No two rows with the same item_code have identical sufficiency_criteria.
+- Every fail_if array has >= 2 items.
+- Every pass_if array has >= 2 items.
+- ma matches the control_type from Stage 1 (mandatory → M, advisory → A).
+- notes key is present in every row (value is string or null, never missing).
+- JSON is syntactically valid.

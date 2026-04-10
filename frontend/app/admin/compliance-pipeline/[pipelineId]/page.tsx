@@ -7,8 +7,10 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { AppHeader } from "@/components/layout/app-header";
 import { StageStepper } from "@/components/compliance-pipeline/stage-stepper";
-import { StageChatPanel } from "@/components/compliance-pipeline/stage-chat-panel";
-import { PipelineStageViewer } from "@/components/compliance-pipeline/pipeline-stage-viewer";
+import {
+  PipelineStageViewer,
+  type PipelineStageViewerHandle,
+} from "@/components/compliance-pipeline/pipeline-stage-viewer";
 
 interface Pipeline {
   id: string;
@@ -16,7 +18,7 @@ interface Pipeline {
   schema_name: string;
   status: string;
   current_stage: number;
-  /** Highest stage tab (1–4) allowed from confirmed outputs; independent of `status` after failures. */
+  /** Highest stage tab (1–6) allowed from confirmed outputs; independent of `status` after failures. */
   max_nav_stage: number;
   pdf_storage_path: string | null;
   created_at: string;
@@ -51,9 +53,12 @@ interface StageValidation {
 
 const ACTIVE_STAGE_STORAGE_KEY = "compliance-pipeline-active-stage";
 
+/** Stages whose re-run uses repair context; send current draft so validation + LLM match the UI. */
+const RUN_STAGE_DRAFT_STAGES = new Set([1, 2, 4, 5]);
+
 /** Try to load stage output whenever it might exist — do not gate on `failed` or `finalizing` (outputs remain in DB). */
 function shouldFetchPipelineStageOutput(pipeline: Pipeline, activeStage: number): boolean {
-  if (activeStage < 1 || activeStage > 3) return false;
+  if (activeStage < 1 || activeStage > 5) return false;
   if (pipeline.status === "created") return false;
   if (pipeline.status === `stage_${activeStage}_running`) return false;
   return true;
@@ -65,7 +70,7 @@ function readSavedActiveStage(pipelineId: string): number | null {
     const raw = sessionStorage.getItem(`${ACTIVE_STAGE_STORAGE_KEY}:${pipelineId}`);
     if (!raw) return null;
     const n = parseInt(raw, 10);
-    if (Number.isFinite(n) && n >= 1 && n <= 4) return n;
+    if (Number.isFinite(n) && n >= 1 && n <= 6) return n;
   } catch {
     /* ignore */
   }
@@ -89,10 +94,10 @@ export default function PipelineWorkspacePage() {
   const [confirming, setConfirming] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showChat, setShowChat] = useState(true);
   const [editedSinceLoad, setEditedSinceLoad] = useState(false);
   const [hadIssuesInCurrentOutput, setHadIssuesInCurrentOutput] = useState(false);
   const initialStageSet = useRef(false);
+  const stageViewerRef = useRef<PipelineStageViewerHandle>(null);
 
   useEffect(() => {
     if (user && !isPlatformAdmin) router.replace("/dashboard");
@@ -106,7 +111,7 @@ export default function PipelineWorkspacePage() {
       if (!initialStageSet.current) {
         const fromServer = p.current_stage > 0 ? p.current_stage : 1;
         const saved = readSavedActiveStage(pipelineId);
-        const stage = saved ?? (fromServer >= 1 && fromServer <= 4 ? fromServer : 1);
+        const stage = saved ?? (fromServer >= 1 && fromServer <= 6 ? fromServer : 1);
         setActiveStage(stage);
         initialStageSet.current = true;
       }
@@ -124,7 +129,7 @@ export default function PipelineWorkspacePage() {
   /** Keep visible tab within allowed range when `max_nav_stage` updates (e.g. after confirm or failed finalize). */
   useEffect(() => {
     if (!pipeline) return;
-    const max = Math.min(4, Math.max(1, pipeline.max_nav_stage ?? 1));
+    const max = Math.min(6, Math.max(1, pipeline.max_nav_stage ?? 1));
     setActiveStage((s) => (s > max ? max : s));
   }, [pipeline?.id, pipeline?.max_nav_stage]);
 
@@ -147,7 +152,7 @@ export default function PipelineWorkspacePage() {
   }, [pipelineId]);
 
   const loadStageValidation = useCallback(async (stage: number) => {
-    if (stage < 1 || stage > 3) {
+    if (stage < 1 || stage > 5) {
       setStageValidation(null);
       setValidationLoading(false);
       return;
@@ -184,7 +189,9 @@ export default function PipelineWorkspacePage() {
   }, [activeStage, pipeline, loadStageOutput]);
 
   useEffect(() => {
-    if (!stageOutput || activeStage < 1 || activeStage > 3) {
+    // Guard against stale output from previous tab: only validate when the loaded
+    // output row belongs to the currently active stage.
+    if (!stageOutput || stageOutput.stage !== activeStage || activeStage < 1 || activeStage > 5) {
       setStageValidation(null);
       setHadIssuesInCurrentOutput(false);
       setValidationLoading(false);
@@ -213,8 +220,22 @@ export default function PipelineWorkspacePage() {
     setRunning(true);
     setError(null);
     try {
-      // Stage runs can take several minutes (model generation + retry for strict JSON output).
-      await api.postDirect(`/compliance-pipeline/${pipelineId}/run-stage/${activeStage}`, {}, 90_000);
+      const runBody: { output_data?: Record<string, unknown> } = {};
+      if (stageOutput && RUN_STAGE_DRAFT_STAGES.has(activeStage)) {
+        const snap = stageViewerRef.current?.getOutputDataForRun();
+        if (snap && !snap.ok) {
+          setError(`Cannot run stage: ${snap.error}. Fix JSON or switch to Table view.`);
+          return;
+        }
+        if (snap?.ok) {
+          runBody.output_data = snap.data;
+        } else {
+          runBody.output_data = stageOutput.output_data as Record<string, unknown>;
+        }
+      }
+      // Persists draft in the same request when output_data is sent; worker then validates + repair-prompts the LLM.
+      await api.postDirect(`/compliance-pipeline/${pipelineId}/run-stage/${activeStage}`, runBody, 90_000);
+      setEditedSinceLoad(false);
       await loadPipeline();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Stage execution failed");
@@ -230,8 +251,8 @@ export default function PipelineWorkspacePage() {
       await api.post(`/compliance-pipeline/${pipelineId}/stage/${activeStage}/confirm`, {});
       await loadPipeline();
       await loadStageOutput(activeStage);
-      if (activeStage === 3) {
-        setActiveStage(4);
+      if (activeStage === 5) {
+        setActiveStage(6);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Confirm failed");
@@ -270,10 +291,10 @@ export default function PipelineWorkspacePage() {
     );
   }
 
-  const maxNavStage = Math.min(4, Math.max(1, pipeline.max_nav_stage ?? 1));
+  const maxNavStage = Math.min(6, Math.max(1, pipeline.max_nav_stage ?? 1));
 
   const handleStageClick = (stage: number) => {
-    if (stage >= 1 && stage <= 4 && stage <= maxNavStage) setActiveStage(stage);
+    if (stage >= 1 && stage <= 6 && stage <= maxNavStage) setActiveStage(stage);
   };
 
   const isFinalized = pipeline.status === "finalized";
@@ -281,7 +302,7 @@ export default function PipelineWorkspacePage() {
   const stageHasOutput = !!stageOutput;
   const stageIsConfirmed = stageOutput?.status === "confirmed";
   const isStageRunning = pipeline.status === `stage_${activeStage}_running`;
-  const canRun = !running && !isStageRunning && !isFinalized && activeStage <= 3;
+  const canRun = !running && !isStageRunning && !isFinalized && activeStage <= 5;
   const hasBlockingValidationIssues = (stageValidation?.blocking_issue_count ?? 0) > 0;
   const hasAnyValidationIssues = (stageValidation?.issues?.length ?? 0) > 0;
   const requiresEditBeforeConfirm = stageHasOutput && !stageIsConfirmed && hadIssuesInCurrentOutput;
@@ -306,7 +327,7 @@ export default function PipelineWorkspacePage() {
             ? "This output had issues earlier. Save at least one edit before confirm."
             : null;
   const canFinalize =
-    !isFinalized && !isFinalizing && !finalizing && maxNavStage >= 4;
+    !isFinalized && !isFinalizing && !finalizing && maxNavStage >= 6;
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--background)" }}>
@@ -336,8 +357,8 @@ export default function PipelineWorkspacePage() {
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        <div className={`flex-1 overflow-y-auto p-4 ${showChat ? "" : ""}`}>
-          {activeStage <= 3 ? (
+        <div className="flex-1 overflow-y-auto p-4">
+          {activeStage <= 5 ? (
             <>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-bold" style={{ color: "var(--foreground)" }}>
@@ -345,14 +366,6 @@ export default function PipelineWorkspacePage() {
                   {stageIsConfirmed && <span className="ml-2 text-emerald-600 text-xs font-normal">Confirmed</span>}
                 </h2>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowChat(!showChat)}
-                    className="px-2.5 py-1 rounded text-xs font-medium transition-colors hover:bg-slate-100"
-                    style={{ color: "var(--foreground-muted)" }}
-                  >
-                    {showChat ? "Hide Chat" : "Show Chat"}
-                  </button>
-
                   {!stageHasOutput && canRun && (
                     <button
                       onClick={handleRunStage}
@@ -421,6 +434,7 @@ export default function PipelineWorkspacePage() {
                       </p>
                       <p className={`text-xs mt-1 ${stageValidation.blocking_issue_count > 0 ? "text-red-700" : "text-amber-700"}`}>
                         If you proceed without fixing blocking issues, confirm/finalize can fail or create inconsistent mappings.
+                        Re-run Stage sends this validation list and the current draft to the model to repair and re-check the PDF.
                       </p>
                       <div className="mt-2 max-h-52 overflow-auto space-y-2">
                         {stageValidation.issues.map((issue, idx) => (
@@ -437,6 +451,7 @@ export default function PipelineWorkspacePage() {
                     </div>
                   )}
                   <PipelineStageViewer
+                    ref={stageViewerRef}
                     pipelineId={pipelineId}
                     stage={activeStage}
                     data={stageOutput.output_data}
@@ -456,7 +471,7 @@ export default function PipelineWorkspacePage() {
                   <p className="text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>No output yet</p>
                   <p className="text-xs mb-4" style={{ color: "var(--foreground-muted)" }}>
                     {activeStage === 1
-                      ? "Click \"Run Stage 1\" to extract the Canonical Evidence Model from the uploaded PDF."
+                      ? "Click \"Run Stage 1\" to extract domains and controls from the uploaded PDF."
                       : pipeline.status === "failed"
                         ? "Could not load this stage’s output (or none exists yet). Try refreshing, or select the stage in the stepper again."
                         : `Confirm Stage ${activeStage - 1} first, then run Stage ${activeStage}.`
@@ -483,7 +498,7 @@ export default function PipelineWorkspacePage() {
                 <>
                   <h3 className="text-sm font-bold mb-1" style={{ color: "var(--foreground)" }}>Finalize Pipeline</h3>
                   <p className="text-xs mb-4" style={{ color: "var(--foreground-muted)" }}>
-                    All 3 stages must be confirmed. This will create the full database schema and populate seed data.
+                    All 5 stages must be confirmed. This will create the full database schema and populate seed data.
                   </p>
                   <button
                     onClick={handleFinalize}
@@ -497,16 +512,6 @@ export default function PipelineWorkspacePage() {
             </div>
           )}
         </div>
-
-        {showChat && activeStage <= 3 && stageHasOutput && (
-          <div className="w-80 shrink-0">
-            <StageChatPanel
-              pipelineId={pipelineId}
-              stage={activeStage}
-              onOutputUpdated={() => loadStageOutput(activeStage)}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

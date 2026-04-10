@@ -1,10 +1,12 @@
 "use client";
 
 const STAGES = [
-  { num: 1, label: "Canonical Evidence Model", desc: "PDF to structured evidence catalog" },
-  { num: 2, label: "Sufficiency Matrix", desc: "Evidence-control scoring criteria" },
-  { num: 3, label: "Evaluation Questions", desc: "Form questions for evidence collection" },
-  { num: 4, label: "Finalize", desc: "Create schema & seed data" },
+  { num: 1, label: "Foundation Extraction", desc: "PDF to domains + controls" },
+  { num: 2, label: "Evidence Catalog", desc: "Generate canonical evidence items" },
+  { num: 3, label: "Mapping Layer", desc: "Algorithmic item–control mapping (no AI)" },
+  { num: 4, label: "Sufficiency Matrix", desc: "Evidence-control scoring criteria" },
+  { num: 5, label: "Question Bank", desc: "Form questions for evidence collection" },
+  { num: 6, label: "Finalize", desc: "Create schema & seed data" },
 ];
 
 type StepState = "locked" | "running" | "review" | "ready" | "completed";
@@ -12,7 +14,7 @@ type StepState = "locked" | "running" | "review" | "ready" | "completed";
 interface Props {
   /** Backend pipeline.current_stage (optional; reserved for future emphasis). */
   currentStage?: number;
-  /** Highest stage (1–4) user may open — from confirmed pipeline_stage_outputs. */
+  /** Highest stage (1–6) user may open — from confirmed pipeline_stage_outputs. */
   maxNavStage: number;
   status: string;
   onStageClick?: (stage: number) => void;
@@ -39,8 +41,8 @@ function stageState(stageNum: number, maxNavStage: number, status: string): Step
     return "review";
   }
 
-  if (stageNum === 4) {
-    return maxNavStage >= 4 ? "ready" : "locked";
+  if (stageNum === 6) {
+    return maxNavStage >= 6 ? "ready" : "locked";
   }
 
   if (stageNum < maxNavStage) {
@@ -51,7 +53,7 @@ function stageState(stageNum: number, maxNavStage: number, status: string): Step
 }
 
 export function StageStepper({ maxNavStage, status, onStageClick }: Props) {
-  const safeMax = Math.min(4, Math.max(1, maxNavStage || 1));
+  const safeMax = Math.min(6, Math.max(1, maxNavStage || 1));
 
   return (
     <div className="flex items-center gap-1 w-full">

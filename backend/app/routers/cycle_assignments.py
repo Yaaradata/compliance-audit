@@ -3,6 +3,7 @@ Cycle role and evidence assignment APIs.
 Compliance officer assigns groups/users to roles and evidence items per cycle.
 """
 
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -42,6 +43,38 @@ def _require_cycle_access(cycle: AssessmentCycle | None, user: User, db: Session
         raise HTTPException(status_code=404, detail="Assessment cycle not found")
     if user.tenant_id != cycle.tenant_id:
         raise HTTPException(status_code=403, detail="Access denied")
+
+
+def _effective_role_dates(
+    start: date | None,
+    end: date | None,
+    cycle: AssessmentCycle,
+    apply_cycle_if_missing: bool,
+) -> tuple[date | None, date | None]:
+    """Match chk_role_assignment_date_range: both NULL or both set with end >= start."""
+    s, e = start, end
+    if apply_cycle_if_missing and (s is None or e is None):
+        s = s or cycle.start_date
+        e = e or cycle.end_date
+    if s is not None and e is None:
+        e = cycle.end_date
+    if e is not None and s is None:
+        s = cycle.start_date
+    if (s is None) ^ (e is None):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Each role assignment needs both role_start_date and role_end_date, or both omitted. "
+                "If you send only one, the assessment cycle must have the other date set "
+                "(cycle start_date / end_date), or enable apply_cycle_dates_if_missing."
+            ),
+        )
+    if s is not None and e is not None and e < s:
+        raise HTTPException(
+            status_code=400,
+            detail="role_end_date must be on or after role_start_date.",
+        )
+    return s, e
 
 
 @router.get("/{cycle_id}/role-assignments")
@@ -97,17 +130,28 @@ def put_role_assignments(
                     detail=f"{name} is not marked as external. Only external assessors can be assigned to L3.",
                 )
 
-    # Build assignments for conflict check
+    resolved = [
+        (
+            a,
+            *_effective_role_dates(
+                a.role_start_date,
+                a.role_end_date,
+                cycle,
+                req.apply_cycle_dates_if_missing,
+            ),
+        )
+        for a in req.assignments
+    ]
     raw = [
         {
             "role": a.role,
             "assignment_type": a.assignment_type,
             "group_name": a.group_name,
             "user_id": a.user_id,
-            "role_start_date": a.role_start_date,
-            "role_end_date": a.role_end_date,
+            "role_start_date": eff_start,
+            "role_end_date": eff_end,
         }
-        for a in req.assignments
+        for a, eff_start, eff_end in resolved
     ]
     conflicts = detect_conflicts(db, cycle_id, raw)
     if conflicts:
@@ -121,12 +165,7 @@ def put_role_assignments(
 
     # Replace
     db.query(CycleRoleAssignment).filter(CycleRoleAssignment.cycle_id == cycle_id).delete()
-    for a in req.assignments:
-        effective_start_date = a.role_start_date
-        effective_end_date = a.role_end_date
-        if req.apply_cycle_dates_if_missing and (effective_start_date is None or effective_end_date is None):
-            effective_start_date = cycle.start_date
-            effective_end_date = cycle.end_date
+    for a, effective_start_date, effective_end_date in resolved:
         if a.assignment_type == "group" and a.group_name:
             db.add(
                 CycleRoleAssignment(

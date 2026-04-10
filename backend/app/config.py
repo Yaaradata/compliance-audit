@@ -73,7 +73,8 @@ class Settings(BaseSettings):
     GOOGLE_OAUTH_CLIENT_SECRET: str = ""
     # Exact redirect URI registered in Google Cloud Console (e.g. http://127.0.0.1:8000/api/v1/cloud/gcp/auth/oauth/callback)
     GOOGLE_OAUTH_REDIRECT_URI: str = ""
-    # Browser redirect after OAuth completes (defaults to first CORS origin + /gcp?gcp_oauth=success)
+    # Browser redirect after OAuth completes (path should be /gcp; query gcp_oauth= is appended).
+    # If empty: first non-localhost entry in CORS_ORIGINS, else first origin, else localhost.
     GCP_OAUTH_FRONTEND_REDIRECT_URL: str = ""
     # If true, GCP Connect stays "not configured" until IAM check finds a direct user:email on the project (groups not expanded).
     GCP_REQUIRE_IAM_USER_FOUND_FOR_CONNECT: bool = False

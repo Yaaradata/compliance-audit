@@ -7,7 +7,9 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 
 from ..dependencies import get_db, get_db_scoped, get_current_user, _resolve_schema_for_cycle
 from ..constants import CYCLE_SCOPED_ROLES, PLATFORM_ADMIN_ROLES, is_cycle_scoped
@@ -857,8 +859,44 @@ def _normalize_control_id_for_sufficiency(raw: object) -> str | None:
     """Canonical control_id for sufficiency_scores (AI/JSON may emit 1.1 as float or str)."""
     if raw is None:
         return None
-    s = str(raw).strip()
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, float):
+        s = format(raw, "g")
+    elif isinstance(raw, int):
+        s = str(raw)
+    else:
+        s = str(raw).strip()
     return s if s else None
+
+
+def _upsert_sufficiency_score(
+    db: Session,
+    cycle_id: UUID,
+    control_id: str,
+    overall_score: float,
+    status: str,
+) -> None:
+    """One row per (cycle_id, control_id). Upsert avoids duplicates when autoflush=False or parallel evaluate."""
+    now = datetime.now(timezone.utc)
+    tbl = SufficiencyScore.__table__
+    ins = pg_insert(tbl).values(
+        cycle_id=cycle_id,
+        control_id=control_id,
+        overall_score=overall_score,
+        status=status,
+        last_evaluated_at=now,
+    )
+    stmt = ins.on_conflict_do_update(
+        index_elements=[tbl.c.cycle_id, tbl.c.control_id],
+        set_={
+            "overall_score": ins.excluded.overall_score,
+            "status": ins.excluded.status,
+            "last_evaluated_at": ins.excluded.last_evaluated_at,
+            "updated_at": func.now(),
+        },
+    )
+    db.execute(stmt)
 
 
 def _sync_to_control_applicability(db: Session, cycle_id: UUID, control_id: str, score: float, status: str) -> None:
@@ -933,14 +971,6 @@ def _persist_per_control_scores(
     if not by_control:
         return
 
-    keys = list(by_control.keys())
-    existing_map: dict[str, SufficiencyScore] = {
-        s.control_id: s
-        for s in db.query(SufficiencyScore)
-        .filter(SufficiencyScore.cycle_id == cycle_id, SufficiencyScore.control_id.in_(keys))
-        .all()
-    }
-
     for ctrl in by_control.values():
         control_id = _normalize_control_id_for_sufficiency(ctrl.get("control_id"))
         if not control_id:
@@ -955,22 +985,7 @@ def _persist_per_control_scores(
             score = float(ctrl.get("score", 0) or 0)
 
         status = _score_to_status(score)
-        existing = existing_map.get(control_id)
-        if existing:
-            existing.overall_score = score
-            existing.status = status
-            existing.last_evaluated_at = datetime.utcnow()
-        else:
-            new_row = SufficiencyScore(
-                cycle_id=cycle_id,
-                control_id=control_id,
-                overall_score=score,
-                status=status,
-                last_evaluated_at=datetime.utcnow(),
-            )
-            db.add(new_row)
-            db.flush()
-            existing_map[control_id] = new_row
+        _upsert_sufficiency_score(db, cycle_id, control_id, score, status)
         _sync_to_control_applicability(db, cycle_id, control_id, score, status)
 
 
@@ -988,7 +1003,13 @@ def _recalculate_control_sufficiency(
         .filter(ItemControlMapping.evidence_item_id == evidence_item_id)
         .all()
     )
-    affected_control_ids = list({m.control_id for m in trigger_mappings})
+    affected_control_ids = sorted(
+        {
+            cid
+            for m in trigger_mappings
+            if (cid := _normalize_control_id_for_sufficiency(m.control_id))
+        }
+    )
     if not affected_control_ids:
         return
 
@@ -1000,16 +1021,6 @@ def _recalculate_control_sufficiency(
         for m in ms
     })
     subs_map = load_submissions_by_cycle_and_items(db, cycle_id, all_item_ids)
-
-    existing_scores = (
-        db.query(SufficiencyScore)
-        .filter(
-            SufficiencyScore.cycle_id == cycle_id,
-            SufficiencyScore.control_id.in_(affected_control_ids),
-        )
-        .all()
-    )
-    existing_scores_map = {s.control_id: s for s in existing_scores}
 
     for control_id in affected_control_ids:
         ctrl_mappings = all_mappings_map.get(control_id, [])
@@ -1046,22 +1057,7 @@ def _recalculate_control_sufficiency(
 
         status = _score_to_status(score)
 
-        existing = existing_scores_map.get(control_id)
-        if existing:
-            existing.overall_score = score
-            existing.status = status
-            existing.last_evaluated_at = datetime.utcnow()
-        else:
-            new_score = SufficiencyScore(
-                cycle_id=cycle_id,
-                control_id=control_id,
-                overall_score=score,
-                status=status,
-                last_evaluated_at=datetime.utcnow(),
-            )
-            db.add(new_score)
-            db.flush()
-            existing_scores_map[control_id] = new_score
+        _upsert_sufficiency_score(db, cycle_id, control_id, score, status)
         _sync_to_control_applicability(db, cycle_id, control_id, score, status)
 
 

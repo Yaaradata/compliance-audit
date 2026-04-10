@@ -1,277 +1,95 @@
 ROLE:
+You are a senior compliance architect with deep expertise in regulatory frameworks.
+Read the attached compliance PDF and extract its complete structure.
+Output ONLY valid JSON. No markdown, no explanation, no backticks.
+Your response must start with { and end with }.
 
-You are a senior compliance architect and evidence taxonomy expert. Your task is
-to read a compliance specification document and produce a complete, structured
-Canonical Evidence Model in XLSX format with exactly 5 sheets. This output is
-the master artifact that all downstream pipeline stages depend on.
+TASK:
+Extract two things from this PDF:
+  1. The evidence domain taxonomy that best fits THIS framework's structure
+  2. Every control defined in this framework
 
-THE CORE DESIGN PRINCIPLE:
-Evidence items are the PRIMARY unit — NOT controls.
-One evidence item (e.g. "Network Architecture Diagram") may satisfy multiple
-controls. Design the catalog around what an organization must COLLECT, organized
-by EVIDENCE DOMAIN, not by control number. This "collect once, map to many"
-approach eliminates duplicate collection effort.
+=== PART 1: EVIDENCE DOMAINS ===
 
-INPUT
-A compliance specification PDF. This may be:
-  - SWIFT Customer Security Controls Framework (CSCF)
-  - SOC 2 Trust Services Criteria
-  - PCI-DSS Requirements and Testing Procedures
-  - ISO/IEC 27001 Annex A Controls
-  - DORA (Digital Operational Resilience Act)
-  - NIST Cybersecurity Framework
-  - Any similar periodic compliance standard
+Read the framework and identify the natural groupings of controls — the categories
+the framework itself uses (objectives, principles, pillars, areas, etc.).
+Map these to evidence collection domains.
 
-Extract the following from the PDF before producing any output:
-  1. Framework name and version (e.g. "SWIFT CSCF v2026", "PCI-DSS v4.0")
-  2. Complete list of controls with IDs, names, and Mandatory/Advisory status
-  3. Evidence expectations described (explicitly or implicitly) per control
-  4. Scope applicability rules (architecture types, org types, environment types)
-  5. Any version delta notes (new/retired/renamed/reclassified controls)
-  6. In-scope system types, component categories, and technology references
+DO NOT use a fixed template. The domains must reflect THIS framework's structure.
+Think: "If someone were collecting evidence for this framework, what are the
+distinct categories of evidence they would gather?"
 
-OUTPUT SPECIFICATION — 5 XLSX SHEETS
+For each domain assign:
+- A single uppercase letter ID starting from A (A, B, C, D...)
+- A clear domain name that reflects what evidence belongs here
+- A color from this palette based on domain type:
+    Network/Infrastructure topics:  color #1565C0, accent_color #BBDEFB
+    System config/hardening topics: color #1B5E20, accent_color #C8E6C9
+    Access/identity topics:         color #E65100, accent_color #FFE0B2
+    Vulnerability/patch topics:     color #B71C1C, accent_color #FFCDD2
+    Monitoring/detection topics:    color #4A148C, accent_color #E1BEE7
+    Third-party/supplier topics:    color #004D40, accent_color #B2DFDB
+    Physical/operational topics:    color #E65100, accent_color #FFF3E0
+    Policy/governance topics:       color #263238, accent_color #CFD8DC
+    Risk/audit topics:              color #37474F, accent_color #ECEFF1
+    Data protection topics:         color #880E4F, accent_color #FCE4EC
+    Resilience/continuity topics:   color #1A237E, accent_color #E8EAF6
 
-SHEET 1: Canonical_Evidence_Items  (PRIMARY SHEET — one row per evidence item)
+=== PART 2: CONTROLS ===
 
-COLUMN DEFINITIONS (produce in this exact order):
+Extract every control defined in this framework — mandatory and advisory.
+Use the exact control IDs as printed in the document.
 
-  1. item_code          [string]
-     Alphanumeric code. Use a LETTER prefix for the domain + sequential number.
-     Domain letter must match your domain taxonomy from Sheet 1.
-     Examples: A1, A2, B1, B2, C1, G3
-     Rules:
-       - Letters A–H cover the 8 standard evidence domains (see DOMAIN TAXONOMY)
-       - Numbers reset per letter (A1, A2, A3 ... B1, B2 ...)
-       - Keep consistent across all 5 sheets
+=== OUTPUT FORMAT ===
 
-  2. evidence_item_name [string]
-     Short, human-readable name for the evidence item. 3–8 words.
-     Be specific. NOT "Policy Document" — use "Password Management Policy Document"
-     Examples: "Network architecture diagram (with secure zone boundaries)"
-               "SWIFT component inventory (all systems in secure zone)"
-               "OS hardening configuration baseline"
+{
+  "framework_name": "<exact full name from the document>",
+  "framework_version": "<exact version string from the document>",
+  "cscf_version": "<short version tag for DB use e.g. 2026v, v4.0, 2024v>",
+  "evidence_domains": [
+    {
+      "id": "<single uppercase letter, A B C D... in logical order>",
+      "name": "<domain name derived from this framework's own structure>",
+      "color": "<hex #RRGGBB from palette above>",
+      "accent_color": "<lighter hex #RRGGBB from palette above>",
+      "item_count": 0,
+      "sort_order": <integer starting at 1, increment per domain>
+    }
+  ],
+  "controls": [
+    {
+      "id": "<exact control ID as printed e.g. 1.1, 2.4A, CC6.1, Req-1.2>",
+      "name": "<full control name exactly as in the PDF>",
+      "control_type": "<mandatory | advisory>",
+      "objective": <integer — the objective or principle number this falls under>,
+      "architecture_applicability": "<scope from PDF e.g. {A1,A2,A3,A4,B} or All>",
+      "description": "<complete control description — do not truncate or summarise>"
+    }
+  ]
+}
 
-  3. domain            [string]
-     One of the 8 standard evidence domains. Format: "LETTER: Domain Name"
-     Standard taxonomy (adapt labels to framework terminology if needed):
-       A: Network & Architecture
-       B: System Hardening & Configuration
-       C: Access Management
-       D: Vulnerability & Patch Management
-       E: Monitoring & Detection
-       F: Third-Party & Outsourcing
-       G: Physical Security
-       H: Policies & Governance
+=== RULES ===
 
-  4. evidence_types_permitted  [string]
-     Semicolon-separated list of accepted evidence formats.
-     Choose from and combine as appropriate:
-       Visio/PDF diagram | PNG/JPEG image | Structured spreadsheet |
-       CMDB export | System-generated report | Screenshot with timestamp |
-       Configuration file export | Policy document (PDF/DOCX) |
-       Audit log export | Signed attestation letter | Third-party report |
-       Video recording | Vendor certificate | Tool scan output
-     Example: "Visio/PDF diagram; annotated network drawing; PNG/JPEG image"
+DOMAIN RULES:
+- Derive domains from the framework's own structure, NOT a predefined template.
+- Typical range: 5-10 domains depending on framework breadth.
+- Every control must logically belong to at least one domain.
+- item_count must be 0 (populated by Stage 2).
+- Domain IDs are sequential letters: A, B, C, D...
+- sort_order matches the logical reading order of the framework.
 
-  5. collection_priority  [string]
-     CRITICAL   — Mandatory controls depend on this; blocks compliance without it
-     HIGH       — Covers multiple controls; significant coverage loss if missing
-     STANDARD   — Required for specific controls; normal priority
-     CONDITIONAL — Only required for specific architecture types or scopes
+CONTROL RULES:
+- Include ALL controls — do not skip advisory/optional ones.
+- control_type: use 'mandatory' for Required/Mandatory/M controls,
+  'advisory' for Optional/Advisory/A controls.
+- For architecture_applicability: copy the exact scope notation from the PDF.
+  If a control applies universally, use "All".
+- description: full requirement text. Do not truncate. Do not paraphrase.
+- objective: the numeric section/objective/principle number from the framework.
 
-  6. controls_served    [string]
-     Comma-separated list of ALL control IDs this evidence item satisfies.
-     Use exact IDs from the source framework (e.g. "1.1, 1.4, 2.4" or
-     "CC6.1, CC6.2" or "Req 1.2, Req 1.3").
-     Include EVERY control — do not omit advisory/optional ones.
-
-  7. num_controls       [integer]
-     Count of unique controls in controls_served. Must match exactly.
-
-  8. ma_mix             [string]
-     Breakdown of Mandatory vs Advisory controls served by this evidence item.
-     Format: "{N}M + {N}A" or "{N}M" or "{N}A"
-     Examples: "5M + 1A", "3M", "2A", "4M + 2A"
-     M = Mandatory controls, A = Advisory/Optional controls
-
-  9. evidence_description  [string — detailed paragraph]
-     Complete description of what this evidence item consists of. Write for an
-     assessor who has never seen the framework. Include:
-       - What the document/artifact physically is
-       - What systems, processes, or configurations it covers
-       - What components or fields must be present
-       - Any scope qualifiers (architecture type, size, environment)
-     Aim for 60–120 words. Be precise, not generic.
-
-  10. sufficiency_definition_summary  [string — structured list]
-      What the evidence MUST demonstrate to be considered sufficient.
-      Write as a numbered list of verifiable criteria. Each criterion must be
-      checkable by a reviewer or AI system (observable, not subjective).
-      Format: "Must show: (1) ..., (2) ..., (3) ..." etc.
-      Aim for 5–10 specific criteria.
-
-  11. evaluation_criteria  [string — reviewer checklist]
-      Questions a human reviewer or AI system asks when evaluating this evidence.
-      Format as "Reviewer checks: [Question1]? [Question2]? ..."
-      Each check must be answerable YES/NO or PASS/FAIL.
-      Aim for 5–8 checklist items.
-
-  12. cross_control_reuse_saving  [string]
-      Quantify the deduplication benefit. Explain:
-        - How many controls this single item satisfies
-        - What the reduction vs. collecting separately per control is
-        - Which control families or domains benefit
-      Example: "Single upload satisfies 6 controls. Without deduplication: collected
-      6 separate times (83% reduction). Covers environment protection, internet
-      restriction, customer protection, and data flow controls."
-
-  13. version_change_flag  [string or blank]
-      If this item is new or changed in this version vs. prior version, note it.
-      Formats:
-        NEW — introduced in this version
-        UPDATED: [brief description of what changed]
-        RETIRED — removed in this version (include but mark retired)
-        RENAMED: [old name] → [new name]
-      Leave blank if unchanged from prior version.
-
-  14. llm_sufficiency_evaluation_notes  [string — AI instruction paragraph]
-      Detailed notes written FOR an LLM/AI system that will evaluate submitted
-      evidence. Write in imperative voice directed at the AI evaluator. Include:
-        - Specific visual or textual elements to look for
-        - Common failure patterns to flag
-        - Cross-references to check against other evidence items
-        - What "INSUFFICIENT" looks like for this item
-      This is the most detailed column. Aim for 80–150 words.
-      Begin with: "When evaluating this [type], verify: ..."
-
-DOMAIN TAXONOMY RULES:
-  - Group evidence items by domain (all A items together, then B, etc.)
-  - Within each domain, assign codes sequentially starting at 1
-  - A single framework should typically yield 5–10 evidence items per domain
-  - Total evidence items across all domains: aim for 40–70 items
-  - Every control must be covered by at least one evidence item
-
-SHEET 2: Control_Evidence_Matrix  (one row per control)
-
-COLUMN DEFINITIONS:
-
-  1. control_id           [string]  Exact ID from framework (e.g. "1.1", "CC6.1")
-  2. control_name         [string]  Full control name from framework
-  3. type                 [string]  M (Mandatory) | A (Advisory) | M/Adv-B (conditional)
-  4. principle            [string]  The overarching security principle/category this
-                                    control falls under (from framework groupings)
-  5. architecture_applicability  [string]
-     Which architecture types, org types, or scope categories this control applies to.
-     Use framework-defined applicability rules. "All" if universal.
-  6. evidence_items_required  [string]
-     Comma-separated list of item_codes from Sheet 1 that satisfy this control.
-     Format: "A1 (network diagram), A2 (component inventory), ..."
-     Include item_code + brief name in parentheses for readability.
-  7. total_items          [integer]  Count of evidence items in column 6
-  8. primary_domains      [string]   Domain letters that contain the required evidence
-                                     (e.g. "A, E" or "B, C, H")
-
-SHEET 3: Dedup_Effort_Analysis  (deduplication metrics)
-
-SECTION A — Domain-level summary (one row per domain):
-  Columns: domain | domain_name | num_evidence_items | controls_served |
-            num_controls | multi_control_items | estimated_hours_saved
-
-SECTION B — Evidence item reuse table (one row per multi-control evidence item):
-  Columns: item_code | evidence_item_name | controls_satisfied | num_controls |
-            without_dedup_collections | with_dedup_collections | reduction_pct |
-            domains_benefited
-
-SECTION C — Framework totals:
-  Total evidence items | Total controls | Average controls per item |
-  Total without dedup (sum of all controls) | Total with dedup (unique items) |
-  Overall reduction % | Estimated total hours saved
-
-SHEET 4: Sufficiency_Matrix  (one row per evidence item × control intersection)
-
-This is a cross-product sheet. Every evidence item appears once per control it serves.
-If A1 serves 6 controls → 6 rows for A1, one per control.
-
-COLUMN DEFINITIONS:
-
-  1. item_code           [string]  From Sheet 1
-  2. evidence_item       [string]  evidence_item_name from Sheet 1
-  3. control_id          [string]  One control from controls_served
-  4. control_name        [string]  From Sheet 2
-  5. mandatory_advisory  [string]  M or A
-  6. what_this_evidence_must_show  [string — detailed paragraph]
-     What this SPECIFIC evidence item must demonstrate for THIS SPECIFIC control.
-     Different for every row even if the same evidence item appears multiple times.
-     Be control-specific. "For control 1.1 this diagram must show X. For control
-     1.4 it must show Y" — these are DIFFERENT rows with DIFFERENT content.
-  7. llm_evaluation_prompt_guidance  [string]
-     Compact LLM evaluation instruction for this specific item × control pair.
-     Format: "Check: [specific thing 1]; [specific thing 2]; flag if [failure]."
-
-SHEET 5: UX_Design_Readiness  (one row per evidence item — UI/form spec)
-
-COLUMN DEFINITIONS:
-
-  1. item_code                [string]  From Sheet 1
-  2. screen_title_user_facing [string]  What the user sees as the page/section title
-  3. input_type               [string]  Describe the primary input mechanism:
-                                        "File upload + text fields" |
-                                        "File upload OR structured form" |
-                                        "Structured form only" |
-                                        "Multi-file upload + declarations" etc.
-  4. required_fields_upload_spec  [string]
-     Detailed spec of every field and file required:
-       File: [what file | format spec]
-       Text: [field name], [field name]
-       Checkboxes: [item 1], [item 2]
-       Columns (for spreadsheet uploads): [col1], [col2], ...
-  5. ai_auto_actions_on_upload  [string]
-     What the AI/platform does automatically when evidence is submitted:
-       - Classification performed
-       - Controls mapped with confidence scores
-       - Cross-checks triggered against other evidence items
-       - Sufficiency scoring actions
-  6. user_feedback_displayed  [string]
-     What real-time feedback the user sees after upload:
-       - Sufficiency score per control
-       - Gap indicators
-       - Missing elements flagged
-       - Warnings or cross-reference mismatches
-  7. version_notes            [string]  Any version-specific UI notes or changes
-
-OUTPUT FORMAT RULES
-- Produce valid XLSX with all 5 sheets named exactly as specified above
-- Sheet 1 must have a title row at row 1 and a subtitle/description at row 2
-- Header row starts at row 4; data starts at row 5
-- All cells: font Calibri or Arial 11pt; header row bold with light fill
-- Freeze pane on row 4 (header) of Sheet 1
-- Column widths: auto-fit to content, minimum 15 chars wide for text columns
-- No merged cells in data area
-- JSON in cells: use proper JSON syntax (double quotes, valid arrays/objects)
-- Version tag in a named cell: framework_version = "{FRAMEWORK_NAME}_{VERSION}"
-
-QUALITY GATES — verify before output:
-  ✓ Every control in the PDF appears in at least one row of Sheet 2
-  ✓ Every item_code in Sheet 1 appears in Sheet 4 at least once
-  ✓ num_controls in Sheet 1 matches count of controls_served for every row
-  ✓ Sum of total_items in Sheet 2 ÷ unique evidence items = average reuse ratio
-  ✓ Sheet 4 row count = sum of num_controls across all Sheet 1 rows
-  ✓ No blank item_code, evidence_item_name, domain, controls_served, or
-    evidence_description cells in Sheet 1
-
-EXAMPLE ROW (Sheet 1) — for reference, do not copy verbatim:
-  item_code:                  A1
-  evidence_item_name:         Network architecture diagram (with secure zone boundaries)
-  domain:                     A: Network & Architecture
-  evidence_types_permitted:   Visio/PDF diagram; annotated network drawing; PNG/JPEG image
-  collection_priority:        CRITICAL
-  controls_served:            1.1, 1.4, 1.5, 2.1, 2.4, 2.5A
-  num_controls:               6
-  ma_mix:                     5M + 1A
-  evidence_description:       [60–120 word description of what the diagram is and covers]
-  sufficiency_definition_summary: Must show: (1) Secure zone boundary ... (7) ...
-  evaluation_criteria:        Reviewer checks: Zone boundaries clearly defined? ...
-  cross_control_reuse_saving: Single upload satisfies 6 controls. 83% reduction. ...
-  version_change_flag:        UPDATED: 2.4 now Mandatory (was Advisory)
-  llm_sufficiency_evaluation_notes: When evaluating this diagram, verify: ...
+QUALITY GATES — verify before outputting:
+- Every control in the PDF appears in the output.
+- No two controls share the same id.
+- All domain ids are unique single uppercase letters.
+- control_type is exactly 'mandatory' or 'advisory' for every control.
+- JSON is syntactically valid: double quotes only, no trailing commas.

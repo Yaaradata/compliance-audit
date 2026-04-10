@@ -1,0 +1,5 @@
+Stage 3 (item–control mappings) is generated deterministically by the server from
+confirmed Stage 1 and Stage 2 JSON. This file is not sent to the language model.
+
+Mappings expand each evidence item's controls_served into one row per (item_code, control_id),
+with is_primary and weight computed by policy in Python.

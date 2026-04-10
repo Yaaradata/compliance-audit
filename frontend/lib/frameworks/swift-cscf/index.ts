@@ -8,7 +8,6 @@ export { DOMAIN_GRADIENTS, getDomainsForArchitecture } from "./domains";
 export {
   ARCHITECTURES,
   ARCHITECTURE_DIAGRAMS,
-  CSCF_V2026_CONTROLS,
   getArchitecture,
   getArchitecturesForSchema,
   getDiagramFolder,

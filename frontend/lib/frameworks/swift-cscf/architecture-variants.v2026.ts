@@ -6,7 +6,7 @@ import type { ArchitectureVariant } from "./architecture-variants.v2025";
  * Cycle `architecture_type` remains the parent id (e.g. A1); variant is UX context only.
  *
  * Mandatory/advisory control lists and domain applicability by CSCF version live in
- * `architectures.ts` (`ARCHITECTURES` for v2025, `CSCF_V2026_CONTROLS` + `getArchitecturesForSchema` for v2026).
+ * Control matrices for counts/domains: DB via `/architecture-catalog-counts` (per cycle schema).
  */
 export const ARCHITECTURE_VARIANTS_V2026: Record<string, ArchitectureVariant[]> = {
   A1: [

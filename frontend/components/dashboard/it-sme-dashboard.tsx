@@ -101,7 +101,6 @@ export function ITSmeDashboard({ cycleId }: { cycleId: string }) {
         mandatoryTotal={dashboard.mandatory_controls}
         completedItems={dashboard.evidence_items}
         totalItems={dashboard.total_evidence_items}
-        gaps={dashboard.gaps_identified}
         />
       </section>
       {(archMeta || fallbackArch) && (

@@ -1,6 +1,6 @@
 from uuid import UUID
 from datetime import date, datetime
-from pydantic import BaseModel, computed_field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
 
 # Phase keys for timeline (must match CYCLE_PHASES in models/assessment.py)
 PHASE_EVIDENCE_UPLOAD = "evidence_upload"
@@ -149,6 +149,28 @@ class ControlScopingUpdateItem(BaseModel):
 
 class ControlScopingUpdateRequest(BaseModel):
     decisions: list[ControlScopingUpdateItem]
+
+
+class ArchitectureCatalogCount(BaseModel):
+    """
+    One architecture slice of the framework `controls` catalog (active schema: swift_2025 or swift_2026).
+    """
+
+    mandatory: int = 0
+    advisory: int = 0
+    domain_ids: list[str] = Field(
+        default_factory=list,
+        description="Distinct evidence domain letters (A–H) from control ids for this architecture",
+    )
+
+
+class ArchitectureCatalogCountsOut(BaseModel):
+    """
+    Per-architecture data from `controls` for the cycle's framework schema via search_path.
+    Same inclusion rules as `control_applicability` generation (excludes synthetic ALL).
+    """
+
+    counts: dict[str, ArchitectureCatalogCount]
 
 
 class DashboardResponse(BaseModel):

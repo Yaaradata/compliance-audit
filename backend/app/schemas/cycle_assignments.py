@@ -2,7 +2,7 @@
 
 from uuid import UUID
 from datetime import date
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 CYCLE_ROLES = ("it_sme", "internal_reviewer_l1", "internal_reviewer_l2", "external_assessor")
 ASSIGNMENT_TYPES = ("group", "user")
@@ -30,15 +30,15 @@ class RoleAssignmentItem(BaseModel):
             raise ValueError(f"assignment_type must be one of: {ASSIGNMENT_TYPES}")
         return v
 
-    @field_validator("role_end_date")
-    @classmethod
-    def role_date_range_valid(cls, v: date | None, info) -> date | None:
-        start = info.data.get("role_start_date")
-        if (start and not v) or (v and not start):
-            raise ValueError("Both role_start_date and role_end_date must be provided together")
-        if start and v and v < start:
+    @model_validator(mode="after")
+    def role_end_on_or_after_start(self):
+        if (
+            self.role_start_date
+            and self.role_end_date
+            and self.role_end_date < self.role_start_date
+        ):
             raise ValueError("role_end_date must be on or after role_start_date")
-        return v
+        return self
 
 
 class RoleAssignmentsPut(BaseModel):

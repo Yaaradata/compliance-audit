@@ -1,71 +1,11 @@
 import type { Architecture } from "@/lib/types";
 
 /**
- * SWIFT CSCF v2025 — mandatory/advisory control applicability by architecture type.
- * Source: official CSCF v2025 matrix (effective 01 July 2024).
+ * SWIFT CSCF v2025 — architecture metadata (names, copy, domains, components).
+ * Mandatory/advisory *counts* for the UI come from the database (`/architecture-catalog-counts`);
+ * do not embed totals in `description`. `mandatoryControls` / `advisoryControls` stay empty here
+ * for v2025 so the app does not ship a second copy of the matrix (v2026 still merges IDs for domain lists).
  */
-
-const A1_MANDATORY: string[] = [
-  "1.1", "1.2", "1.3", "1.4",
-  "2.1", "2.2", "2.3", "2.6", "2.7", "2.8", "2.9", "2.10",
-  "3.1",
-  "4.1", "4.2",
-  "5.1", "5.2", "5.4",
-  "6.1", "6.2", "6.3", "6.4",
-  "7.1", "7.2",
-];
-
-const A2_MANDATORY: string[] = [
-  "1.1", "1.2", "1.3", "1.4",
-  "2.1", "2.2", "2.3", "2.6", "2.7", "2.8", "2.9", "2.10",
-  "3.1",
-  "4.1", "4.2",
-  "5.1", "5.2", "5.4",
-  "6.1", "6.2", "6.3", "6.4",
-  "7.1", "7.2",
-];
-
-const A3_MANDATORY: string[] = [
-  "1.1", "1.2", "1.3", "1.4",
-  "2.1", "2.2", "2.3", "2.6", "2.7", "2.8", "2.9", "2.10",
-  "3.1",
-  "4.1", "4.2",
-  "5.1", "5.2", "5.4",
-  "6.1", "6.2", "6.4",
-  "7.1", "7.2",
-];
-
-const A1_A2_A3_ADVISORY: string[] = [
-  "2.4A", "2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A",
-];
-
-const A4_MANDATORY: string[] = [
-  "1.2", "1.3", "1.4", "1.5",
-  "2.2", "2.3", "2.6", "2.7", "2.8", "2.9",
-  "3.1",
-  "4.1", "4.2",
-  "5.1", "5.2", "5.4",
-  "6.1", "6.2", "6.3", "6.4",
-  "7.1", "7.2",
-];
-
-const A4_ADVISORY: string[] = [
-  "2.4A", "2.5A", "2.11A", "5.3A", "6.5A", "7.3A", "7.4A",
-];
-
-const B_MANDATORY: string[] = [
-  "1.2", "1.3", "1.4",
-  "2.2", "2.3", "2.6", "2.7", "2.8", "2.9",
-  "3.1",
-  "4.1", "4.2",
-  "5.1", "5.2", "5.4",
-  "6.1", "6.4",
-  "7.1", "7.2",
-];
-
-const B_ADVISORY: string[] = [
-  "2.4A", "2.11A", "5.3A", "7.3A", "7.4A",
-];
 
 export const ARCHITECTURES_V2025: Architecture[] = [
   {
@@ -76,10 +16,9 @@ export const ARCHITECTURES_V2025: Architecture[] = [
       "User owns and operates all SWIFT infrastructure on-premises or in their own data centre. " +
       "Includes messaging interface (Alliance Access / Alliance Entry), communication interface " +
       "(SwiftNet Link / Alliance Connect), HSM, jump server, and dedicated operator PCs — all " +
-      "within a fully segregated secure zone. " +
-      "31 controls apply: 24 mandatory + 7 advisory. Control 1.5 is NOT applicable to A1.",
-    mandatoryControls: A1_MANDATORY,
-    advisoryControls: A1_A2_A3_ADVISORY,
+      "within a fully segregated secure zone. Control 1.5 is NOT applicable to A1.",
+    mandatoryControls: [],
+    advisoryControls: [],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
     cscfVersion: "2025",
     components: [
@@ -101,10 +40,9 @@ export const ARCHITECTURES_V2025: Architecture[] = [
       "communication interfaces on the user's behalf. The user still has local SWIFT-related " +
       "components (connector, operator PCs) in a secure zone but does not own the core " +
       "messaging/communication infrastructure. " +
-      "31 controls apply: 24 mandatory + 7 advisory — identical applicability to A1. " +
-      "Control 1.5 is NOT applicable to A2.",
-    mandatoryControls: A2_MANDATORY,
-    advisoryControls: A1_A2_A3_ADVISORY,
+      "Control applicability matches A1. Control 1.5 is NOT applicable to A2.",
+    mandatoryControls: [],
+    advisoryControls: [],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
     cscfVersion: "2025",
     components: [
@@ -123,11 +61,10 @@ export const ARCHITECTURES_V2025: Architecture[] = [
       "User connects to SWIFT using an application-level connector such as Alliance Lite2 within " +
       "their secure zone. No local messaging or communication interface — the connector handles " +
       "both roles. Lighter footprint than A1/A2 but still requires a secure zone. " +
-      "30 controls apply: 23 mandatory + 7 advisory. " +
       "Control 1.5 is NOT applicable to A3. " +
       "Control 6.3 (Database Integrity) is explicitly NOT applicable to A3.",
-    mandatoryControls: A3_MANDATORY,
-    advisoryControls: A1_A2_A3_ADVISORY,
+    mandatoryControls: [],
+    advisoryControls: [],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
     cscfVersion: "2025",
     components: [
@@ -146,10 +83,9 @@ export const ARCHITECTURES_V2025: Architecture[] = [
       "that connects to SWIFT directly or via a service provider. No local messaging or " +
       "communication interface. Under CSCF v2025, many former Type B users with A2A flows are " +
       "reclassified to A4. Control 1.5 (Customer Environment Protection) is newly mandatory; " +
-      "controls 1.1, 2.1, and 2.10 are not applicable. " +
-      "29 controls apply: 22 mandatory + 7 advisory.",
-    mandatoryControls: A4_MANDATORY,
-    advisoryControls: A4_ADVISORY,
+      "controls 1.1, 2.1, and 2.10 are not applicable.",
+    mandatoryControls: [],
+    advisoryControls: [],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
     cscfVersion: "2025",
     components: [
@@ -168,10 +104,9 @@ export const ARCHITECTURES_V2025: Architecture[] = [
       "graphical user interface (browser-based GUI) — no application-to-application flows. " +
       "Minimal control scope focused on operator PC security, access management, and governance. " +
       "Under CSCF v2025, organisations with A2A flows must reclassify to A4. " +
-      "23 controls apply: 18 mandatory + 5 advisory. " +
-      "Not applicable: 1.1, 1.5, 2.1, 2.5A, 2.10, 6.2, 6.3, 6.5A.",
-    mandatoryControls: B_MANDATORY,
-    advisoryControls: B_ADVISORY,
+      "Typical not-applicable controls for B include 1.1, 1.5, 2.1, 2.5A, 2.10, 6.2, 6.3, 6.5A — confirm against your official matrix.",
+    mandatoryControls: [],
+    advisoryControls: [],
     domainIds: ["A", "B", "C", "D", "E", "F", "G", "H"],
     cscfVersion: "2025",
     components: [

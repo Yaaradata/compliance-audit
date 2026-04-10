@@ -833,31 +833,6 @@ export default function RoleEvidenceSetupPage() {
                 onAssign={handleBulkAssignAllEvidence}
                 disabled={smeOptions.groups.length === 0 && smeOptions.users.length === 0}
               />
-              {Object.entries(DOMAIN_NAMES).map(([domainId, domainName]) => {
-                const count = evidenceItems.filter((e) => e.domain_id === domainId).length;
-                if (count === 0) return null;
-                const domainEaToolbar = getUniqueEvidenceAssignmentsForDomain(domainId);
-                const assignedGroupNamesToolbar = domainEaToolbar
-                  .filter((a) => a.assignment_type === "group" && a.group_name)
-                  .map((a) => a.group_name!);
-                const assignedUserIdsToolbar = domainEaToolbar
-                  .filter((a) => a.assignment_type === "user" && a.user_id)
-                  .map((a) => a.user_id!);
-                return (
-                  <BulkAssignDomainButton
-                    key={domainId}
-                    domainId={domainId}
-                    domainName={domainName}
-                    smeOptions={smeOptions}
-                    groups={groups}
-                    users={users}
-                    onAssign={handleBulkAssignByDomain}
-                    disabled={smeOptions.groups.length === 0 && smeOptions.users.length === 0}
-                    assignedGroupNames={assignedGroupNamesToolbar}
-                    assignedUserIds={assignedUserIdsToolbar}
-                  />
-                );
-              })}
             </div>
 
             <div className="rounded-xl bg-white shadow-md overflow-visible w-full min-w-0">

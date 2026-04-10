@@ -16,6 +16,10 @@ import { AppShell } from "@/app/app-shell";
 
 type WizardStep = "select-arch" | "select-variant" | "confirm";
 
+/** Per-architecture slice from GET /assessments/{cycleId}/architecture-catalog-counts (`controls` + cycle schema). */
+type ArchitectureCatalogRow = { mandatory: number; advisory: number; domain_ids: string[] };
+type ArchitectureCatalogCountsMap = Record<string, ArchitectureCatalogRow>;
+
 interface ControlScopingItem {
   control_id: string;
   control_name: string;
@@ -83,6 +87,10 @@ function SelectArchitectureInner() {
   const { user, isPlatformAdmin, setArchitecture, setActiveCycleId } = useAuth();
 
   const [schemaName, setSchemaName] = useState<CycleSchemaName | null>(null);
+  const [catalogCounts, setCatalogCounts] = useState<ArchitectureCatalogCountsMap | null>(null);
+  /** idle = not started; loading = in flight; ready = success; error = failed (show retry). */
+  const [catalogStatus, setCatalogStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [catalogRetryKey, setCatalogRetryKey] = useState(0);
   const [step, setStep] = useState<WizardStep>("select-arch");
   const [selectedArch, setSelectedArch] = useState<Architecture | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<ArchitectureVariant | null>(null);
@@ -100,12 +108,13 @@ function SelectArchitectureInner() {
 
   const is2026 = is2026Schema(schemaName);
 
+  /** Only use real schema once resolved — avoids one frame of v2025 defaults (undefined). */
   const architecturesList = useMemo(
-    () => getArchitecturesForSchema(schemaName ?? undefined),
+    () => (schemaName == null ? [] : getArchitecturesForSchema(schemaName)),
     [schemaName]
   );
   const architectureVariants = useMemo(
-    () => getArchitectureVariantsForSchema(schemaName ?? undefined),
+    () => (schemaName == null ? {} : getArchitectureVariantsForSchema(schemaName)),
     [schemaName]
   );
 
@@ -125,6 +134,7 @@ function SelectArchitectureInner() {
 
   useEffect(() => {
     if (!cycleId) return;
+    setSchemaName(null);
     api
       .get<{ schema_name?: CycleSchemaName | string | null }>(`/assessments/${cycleId}`)
       .then((c) => {
@@ -133,6 +143,67 @@ function SelectArchitectureInner() {
       })
       .catch(() => setSchemaName("swift_2025"));
   }, [cycleId]);
+
+  /**
+   * Load counts as soon as we have cycleId. Backend `get_db_scoped` sets search_path from the cycle,
+   * so counts match that cycle’s framework schema without waiting for client `schema_name`.
+   */
+  useEffect(() => {
+    if (!cycleId) {
+      setCatalogCounts(null);
+      setCatalogStatus("idle");
+      return;
+    }
+    setCatalogStatus("loading");
+    setCatalogCounts(null);
+    api
+      .get<{ counts: ArchitectureCatalogCountsMap }>(`/assessments/${cycleId}/architecture-catalog-counts`)
+      .then((res) => {
+        const c = res.counts;
+        if (c && typeof c === "object" && Object.keys(c).length > 0) {
+          setCatalogCounts(c);
+          setCatalogStatus("ready");
+        } else {
+          setCatalogCounts(null);
+          setCatalogStatus("error");
+        }
+      })
+      .catch(() => {
+        setCatalogCounts(null);
+        setCatalogStatus("error");
+      });
+  }, [cycleId, catalogRetryKey]);
+
+  const retryCatalogFetch = useCallback(() => {
+    setCatalogRetryKey((k) => k + 1);
+  }, []);
+
+  /** DB-only badge counts (step 1 is gated until these exist). */
+  const dbCountsFor = useCallback(
+    (archId: string) => catalogCounts?.[archId] ?? null,
+    [catalogCounts]
+  );
+
+  /** Domain letters (A–H) from DB for this architecture; fallback only if API row missing. */
+  const domainIdsForArchitecture = useCallback(
+    (archId: string, fallback: string[]) => catalogCounts?.[archId]?.domain_ids ?? fallback,
+    [catalogCounts]
+  );
+
+  const selectArchitectureStepReady =
+    Boolean(cycleId) && schemaName != null && catalogStatus === "ready" && catalogCounts != null;
+
+  /** Resolved CSCF label for UI copy once `schema_name` is known — never show both years at once. */
+  const cscfVersionLabel = schemaName == null ? null : is2026 ? "v2026" : "v2025";
+
+  const architectureStepStatusMessage =
+    schemaName == null
+      ? "Loading cycle framework…"
+      : catalogStatus === "idle" || catalogStatus === "loading"
+        ? `Loading CSCF ${cscfVersionLabel} control counts from the database…`
+        : catalogStatus === "error"
+          ? `Could not load CSCF ${cscfVersionLabel} control counts from the database.`
+          : "Loading…";
 
   const handleArchSelect = (arch: Architecture) => {
     setSelectedArch(arch);
@@ -317,9 +388,12 @@ function SelectArchitectureInner() {
 
   const arch = selectedArch;
   const variants = arch ? architectureVariants[arch.id] ?? [] : [];
-  const mandatoryCount = arch?.mandatoryControls.length ?? 0;
-  const advisoryCount = arch?.advisoryControls.length ?? 0;
-  const totalControls = mandatoryCount + advisoryCount;
+  const selectedDbRow = arch ? dbCountsFor(arch.id) : null;
+  const mandatoryCount = selectedDbRow?.mandatory ?? null;
+  const advisoryCount = selectedDbRow?.advisory ?? null;
+  const totalControls =
+    mandatoryCount != null && advisoryCount != null ? mandatoryCount + advisoryCount : null;
+  const selectedDomainIds = arch ? domainIdsForArchitecture(arch.id, arch.domainIds) : [];
 
   return (
     <AppShell>
@@ -334,12 +408,16 @@ function SelectArchitectureInner() {
             Select your SWIFT architecture type
           </h1>
           <p className="text-sm text-slate-600 mb-1">
-            {schemaName == null ? (
-              <span className="text-slate-500">Loading framework version…</span>
+            {!selectArchitectureStepReady ? (
+              <span className="text-slate-500">
+                {cscfVersionLabel == null
+                  ? "Loading your assessment framework…"
+                  : `Loading CSCF ${cscfVersionLabel} architecture options and control counts…`}
+              </span>
             ) : (
               <>
-                CSCF {is2026 ? "v2026" : "v2025"} defines 5 architecture types. Your selection determines which
-                mandatory and advisory controls apply to your assessment.
+                CSCF {cscfVersionLabel} defines 5 architecture types. Mandatory and advisory badge counts below come
+                from your cycle&apos;s CSCF {cscfVersionLabel} tables in the database.
               </>
             )}
           </p>
@@ -385,14 +463,45 @@ function SelectArchitectureInner() {
             })}
                       </div>
 
-          {/* Step 1 */}
+          {/* Step 1 — no architecture grid until schema + DB catalog are ready (no v2025 flash). */}
           {step === "select-arch" && (
             <div>
+              {!cycleId && (
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  Missing cycle. Open this page from your dashboard with a valid cycle link.
+                </p>
+              )}
+
+              {cycleId && !selectArchitectureStepReady && (
+                <div
+                  className="flex flex-col items-center justify-center py-16 px-4 gap-4 rounded-xl border border-slate-200 bg-white shadow-sm"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div
+                    className="h-9 w-9 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin shrink-0"
+                    aria-hidden
+                  />
+                  <div className="text-center max-w-md">
+                    <p className="text-sm font-medium text-slate-800">{architectureStepStatusMessage}</p>
+                    {schemaName != null && catalogStatus === "error" && (
+                      <button
+                        type="button"
+                        onClick={retryCatalogFetch}
+                        className="mt-3 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectArchitectureStepReady && (
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                 {architecturesList.map((a) => {
                   const pres = TYPE_PRESENTATION[a.id] ?? TYPE_PRESENTATION.A1;
-                  const m = a.mandatoryControls.length;
-                  const adv = a.advisoryControls.length;
+                  const row = dbCountsFor(a.id) ?? { mandatory: 0, advisory: 0 };
                   const vCount = architectureVariants[a.id]?.length ?? 0;
                   return (
                     <button
@@ -429,10 +538,10 @@ function SelectArchitectureInner() {
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
                         <div className="flex flex-wrap gap-1.5">
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100">
-                            {m} mandatory
+                            {row.mandatory} mandatory
                           </span>
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-100">
-                            {adv} advisory
+                            {row.advisory} advisory
                           </span>
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono">
@@ -443,8 +552,9 @@ function SelectArchitectureInner() {
                   );
                 })}
               </div>
+              )}
 
-              {schemaName != null && (
+              {schemaName != null && selectArchitectureStepReady && (
                 <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
                   {is2026 ? (
                     <>
@@ -489,8 +599,12 @@ function SelectArchitectureInner() {
                   <p className="text-xs text-slate-600">{arch.description}</p>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0 text-right">
-                  <span className="text-[10px] font-semibold text-red-700">{mandatoryCount} mandatory</span>
-                  <span className="text-[10px] font-semibold text-amber-800">{advisoryCount} advisory</span>
+                  <span className="text-[10px] font-semibold text-red-700">
+                    {mandatoryCount == null ? "—" : mandatoryCount} mandatory
+                  </span>
+                  <span className="text-[10px] font-semibold text-amber-800">
+                    {advisoryCount == null ? "—" : advisoryCount} advisory
+                  </span>
                 </div>
               </div>
 
@@ -517,7 +631,7 @@ function SelectArchitectureInner() {
                             </div>
                     <div className="mt-3 flex flex-wrap items-center gap-1.5">
                       <span className="text-[11px] text-slate-500">Domains:</span>
-                      {arch.domainIds.map((d) => (
+                      {selectedDomainIds.map((d) => (
                         <span
                           key={d}
                           className="w-6 h-6 rounded text-[10px] font-bold bg-slate-800 text-white flex items-center justify-center font-mono"
@@ -623,20 +737,26 @@ function SelectArchitectureInner() {
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                     <div className="rounded-lg border border-red-100 bg-red-50 p-3">
                       <div className="text-[11px] font-semibold text-red-700">Mandatory controls</div>
-                      <div className="mt-1 text-2xl font-bold text-red-800 font-mono">{mandatoryCount}</div>
+                      <div className="mt-1 text-2xl font-bold text-red-800 font-mono">
+                        {mandatoryCount == null ? "—" : mandatoryCount}
+                      </div>
                     </div>
                     <div className="rounded-lg border border-amber-100 bg-amber-50 p-3">
                       <div className="text-[11px] font-semibold text-amber-700">Advisory controls</div>
-                      <div className="mt-1 text-2xl font-bold text-amber-800 font-mono">{advisoryCount}</div>
+                      <div className="mt-1 text-2xl font-bold text-amber-800 font-mono">
+                        {advisoryCount == null ? "—" : advisoryCount}
+                      </div>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-white p-3">
                       <div className="text-[11px] font-semibold text-slate-600">Total controls</div>
-                      <div className="mt-1 text-2xl font-bold text-slate-900 font-mono">{totalControls}</div>
+                      <div className="mt-1 text-2xl font-bold text-slate-900 font-mono">
+                        {totalControls == null ? "—" : totalControls}
+                      </div>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-white p-3">
                       <div className="text-[11px] font-semibold text-slate-600">Domains in scope</div>
                       <div className="mt-2 flex flex-wrap gap-1">
-                        {arch.domainIds.map((d) => (
+                        {selectedDomainIds.map((d) => (
                           <span
                             key={d}
                             className="w-6 h-6 rounded text-[10px] font-bold bg-slate-800 text-white flex items-center justify-center font-mono"

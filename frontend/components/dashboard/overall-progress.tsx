@@ -6,7 +6,6 @@ interface OverallProgressProps {
   mandatoryTotal?: number;
   completedItems?: number;
   totalItems?: number;
-  gaps?: number;
 }
 
 export function OverallProgress({
@@ -15,7 +14,6 @@ export function OverallProgress({
   mandatoryTotal = 0,
   completedItems = 0,
   totalItems = 0,
-  gaps = 0,
 }: OverallProgressProps) {
   return (
     <div className="rounded-xl p-5 mb-5 text-white" style={{ background: "linear-gradient(135deg, #0c2340 0%, #1a5276 100%)" }}>
@@ -32,10 +30,6 @@ export function OverallProgress({
           <div className="text-center">
             <div className="text-xl font-bold">{completedItems}/{totalItems}</div>
             <div className="opacity-70 text-xs">Evidence Items</div>
-          </div>
-          <div className="text-center">
-            <div className="text-xl font-bold">{gaps}</div>
-            <div className="opacity-70 text-xs">Gaps Identified</div>
           </div>
         </div>
       </div>

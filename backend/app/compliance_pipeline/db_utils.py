@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -104,7 +106,35 @@ def _coerce_collection_priority(raw: Any) -> str:
         return "critical"
     if s in ("important", "major", "p1"):
         return "high"
+    if s in ("conditional",):
+        return "medium"
     return "medium"
+
+
+def _coerce_collection_model(raw: Any) -> str:
+    """Map redesign collection_model values to current enum values."""
+    s = str(raw or "").strip().lower()
+    if s in ("standard", "singleton"):
+        return "standard"
+    if s in ("per_system",):
+        return "per_system"
+    if s in ("per_quarter",):
+        return "per_quarter"
+    if s in ("per_vendor", "per_zone", "per_access_point"):
+        return "per_vendor"
+    return "standard"
+
+
+def _coerce_reuse_tier(raw: Any) -> str:
+    """Map redesign reuse tier values to current enum values."""
+    s = str(raw or "").strip().lower()
+    if s in ("foundational", "ultra_high", "high", "moderate", "control_specific"):
+        return s
+    if s in ("medium",):
+        return "moderate"
+    if s in ("low",):
+        return "control_specific"
+    return "control_specific"
 
 
 def _coerce_ma(raw: Any) -> str:
@@ -274,6 +304,29 @@ def ensure_dynamic_schema_text_columns(db: Session, schema_name: str) -> None:
             ALTER COLUMN description TYPE TEXT,
             ALTER COLUMN reduction_note TYPE TEXT
     """))
+    db.execute(text(f"""
+        ALTER TABLE IF EXISTS "{schema_name}".canonical_evidence_items
+            ADD COLUMN IF NOT EXISTS item_code TEXT
+    """))
+    db.execute(text(f"""
+        UPDATE "{schema_name}".canonical_evidence_items
+        SET item_code = id
+        WHERE item_code IS NULL OR item_code = ''
+    """))
+    db.execute(text(f"""
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'uq_pipeline_item_code'
+              AND conrelid = '"{schema_name}".canonical_evidence_items'::regclass
+          ) THEN
+            ALTER TABLE "{schema_name}".canonical_evidence_items
+              ADD CONSTRAINT uq_pipeline_item_code UNIQUE (item_code);
+          END IF;
+        END $$;
+    """))
 
     # Widen cscf_version in all tables within this dynamic schema (many are VARCHAR(10) in template DDL).
     # This keeps dynamic schemas resilient to long framework version labels from AI outputs.
@@ -302,10 +355,9 @@ def ensure_dynamic_schema_text_columns(db: Session, schema_name: str) -> None:
 
 
 def seed_stage1_data(db: Session, schema_name: str, data: dict) -> None:
-    """Insert Stage 1 output (controls, domains, evidence items, mappings) into the finalized schema."""
-    version_tag = data.get("framework_version", schema_name)
+    """Insert Stage 1 output (evidence_domains + controls) into finalized schema."""
+    version_tag = data.get("cscf_version") or data.get("framework_version", schema_name)
     inserted_control_ids: set[str] = set()
-    inserted_item_ids: set[str] = set()
 
     for domain in data.get("evidence_domains", []):
         db.execute(text(f"""
@@ -343,140 +395,309 @@ def seed_stage1_data(db: Session, schema_name: str, data: dict) -> None:
         })
         inserted_control_ids.add(control_id)
 
-    for item in data.get("canonical_evidence_items", []):
-        if not isinstance(item, dict) or "id" not in item or "domain_id" not in item or "name" not in item:
+    if len(inserted_control_ids) < 5:
+        logger.warning("Stage 1 inserted fewer than 5 controls in %s", schema_name)
+
+
+def seed_stage2_data(db: Session, schema_name: str, data: dict) -> None:
+    """Insert Stage 2 output (canonical evidence catalog) into finalized schema."""
+    version_tag = data.get("cscf_version") or data.get("framework_version", schema_name)
+    rows = data.get("canonical_evidence_items") or []
+    for item in rows:
+        if not isinstance(item, dict):
             continue
-        item_id = str(item.get("id") or "").strip()
+        item_code = str(item.get("item_code") or "").strip()
         domain_id = str(item.get("domain_id") or "").strip()
-        if not item_id or not domain_id:
+        if not item_code or not domain_id:
             continue
         priority = _coerce_collection_priority(item.get("priority", "medium"))
         db.execute(text(f"""
             INSERT INTO "{schema_name}".canonical_evidence_items
-                (id, domain_id, sort_order, name, priority, evidence_type, description,
-                 reduction_note, control_count, cscf_version)
-            VALUES (:id, :domain_id, :sort_order, :name, :priority, :evidence_type, :description,
-                    :reduction_note, :control_count, :version)
+                (id, item_code, domain_id, sort_order, name, priority, evidence_type, description,
+                 reduction_note, control_count, collection_model, reuse_tier, input_schema,
+                 sufficiency_dimensions, per_system, per_zone, per_quarter, per_access_point,
+                 is_advisory, is_conditional, conditional_note, evidence_description,
+                 sufficiency_definition, evaluation_criteria, cscf_version)
+            VALUES
+                (:id, :item_code, :domain_id, :sort_order, :name, :priority, :evidence_type, :description,
+                 :reduction_note, :control_count, :collection_model, :reuse_tier, CAST(:input_schema AS jsonb),
+                 CAST(:sufficiency_dimensions AS jsonb), :per_system, :per_zone, :per_quarter, :per_access_point,
+                 :is_advisory, :is_conditional, :conditional_note, :evidence_description,
+                 :sufficiency_definition, :evaluation_criteria, :version)
             ON CONFLICT (id) DO NOTHING
         """), {
-            "id": item_id, "domain_id": domain_id,
-            "sort_order": item.get("sort_order", 0), "name": item["name"],
+            "id": item_code,
+            "item_code": item_code,
+            "domain_id": domain_id,
+            "sort_order": item.get("sort_order", 0),
+            "name": item.get("name", item_code),
             "priority": priority,
             "evidence_type": item.get("evidence_type", "document"),
             "description": item.get("description", ""),
             "reduction_note": item.get("reduction_note"),
-            "control_count": item.get("control_count", 0),
+            "control_count": int(item.get("control_count", 0) or 0),
+            "collection_model": _coerce_collection_model(item.get("collection_model", "standard")),
+            "reuse_tier": _coerce_reuse_tier(item.get("reuse_tier", "control_specific")),
+            "input_schema": json.dumps(item.get("input_schema", {})),
+            "sufficiency_dimensions": json.dumps(item.get("sufficiency_dimensions", {})),
+            "per_system": bool(item.get("per_system", False)),
+            "per_zone": bool(item.get("per_zone", False)),
+            "per_quarter": bool(item.get("per_quarter", False)),
+            "per_access_point": bool(item.get("per_access_point", False)),
+            "is_advisory": bool(item.get("is_advisory", False)),
+            "is_conditional": bool(item.get("is_conditional", False)),
+            "conditional_note": item.get("conditional_note"),
+            "evidence_description": item.get("evidence_description"),
+            "sufficiency_definition": item.get("sufficiency_definition"),
+            "evaluation_criteria": item.get("evaluation_criteria"),
             "version": version_tag,
         })
-        inserted_item_ids.add(item_id)
 
-    for mapping in data.get("item_control_mappings", []):
+    db.execute(text(f"""
+        UPDATE "{schema_name}".evidence_domains d
+        SET item_count = x.cnt
+        FROM (
+            SELECT domain_id, COUNT(*)::int AS cnt
+            FROM "{schema_name}".canonical_evidence_items
+            GROUP BY domain_id
+        ) x
+        WHERE d.id = x.domain_id
+    """))
+
+
+def seed_stage3_data(db: Session, schema_name: str, data: dict) -> None:
+    """Insert Stage 3 output (item_control_mappings) into finalized schema."""
+    version_tag = data.get("cscf_version") or data.get("framework_version", schema_name)
+    rows = data.get("item_control_mappings") or []
+    for mapping in rows:
         if not isinstance(mapping, dict):
             continue
-        evidence_item_id = str(mapping.get("evidence_item_id") or "").strip()
+        item_code = str(mapping.get("evidence_item_code") or "").strip()
         control_id = str(mapping.get("control_id") or "").strip()
-        if not evidence_item_id or not control_id:
+        if not item_code or not control_id:
             continue
-        if evidence_item_id not in inserted_item_ids or control_id not in inserted_control_ids:
-            logger.warning(
-                "Skipping invalid item_control_mapping in %s: evidence_item_id=%s control_id=%s",
-                schema_name,
-                evidence_item_id,
-                control_id,
-            )
-            continue
-        db.execute(text(f"""
-            INSERT INTO "{schema_name}".item_control_mappings (evidence_item_id, control_id, is_primary, cscf_version)
-            VALUES (:evidence_item_id, :control_id, :is_primary, :version)
-            ON CONFLICT (evidence_item_id, control_id) DO NOTHING
-        """), {
-            "evidence_item_id": evidence_item_id,
+        map_id = mapping.get("id")
+        params = {
+            "evidence_item_id": item_code,
             "control_id": control_id,
-            "is_primary": mapping.get("is_primary", False),
+            "is_primary": bool(mapping.get("is_primary", True)),
+            "weight": mapping.get("weight", 1.0),
+            "sufficiency_requirement": mapping.get("sufficiency_requirement"),
             "version": version_tag,
-        })
+        }
+        if map_id:
+            params["id"] = str(map_id).strip()
+            db.execute(
+                text(f"""
+                INSERT INTO "{schema_name}".item_control_mappings
+                    (id, evidence_item_id, control_id, is_primary, weight, sufficiency_requirement, cscf_version)
+                VALUES
+                    (CAST(:id AS uuid), :evidence_item_id, :control_id, :is_primary, :weight, :sufficiency_requirement, :version)
+                ON CONFLICT (evidence_item_id, control_id) DO NOTHING
+            """),
+                params,
+            )
+        else:
+            db.execute(
+                text(f"""
+                INSERT INTO "{schema_name}".item_control_mappings
+                    (evidence_item_id, control_id, is_primary, weight, sufficiency_requirement, cscf_version)
+                VALUES
+                    (:evidence_item_id, :control_id, :is_primary, :weight, :sufficiency_requirement, :version)
+                ON CONFLICT (evidence_item_id, control_id) DO NOTHING
+            """),
+                params,
+            )
 
 
-def seed_stage2_data(db: Session, schema_name: str, data: dict) -> None:
-    """Insert Stage 2 output (sufficiency matrix) into the finalized schema."""
-    version_tag = data.get("framework_version", schema_name)
-    for row in data.get("sufficiency_matrix", []):
+def seed_stage4_data(db: Session, schema_name: str, data: dict) -> None:
+    """Insert Stage 4 output (evidence_sufficiency_matrix) into finalized schema."""
+    version_tag = data.get("cscf_version") or data.get("framework_version", schema_name)
+    rows = data.get("evidence_sufficiency_matrix") or []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        item_code = str(row.get("item_code") or "").strip()
+        control_id = str(row.get("control_id") or "").strip()
+        if not item_code or not control_id:
+            continue
         ma = _coerce_ma(row.get("ma", "M"))
         db.execute(text(f"""
             INSERT INTO "{schema_name}".evidence_sufficiency_matrix
                 (item_code, control_id, evidence_item_name, control_name, ma, evidence_type,
                  sufficiency_criteria, evaluation_criteria, cscf_version)
-            VALUES (:item_code, :control_id, :evidence_item_name, :control_name, :ma, :evidence_type,
-                    :sufficiency_criteria, :evaluation_criteria, :version)
+            VALUES
+                (:item_code, :control_id, :evidence_item_name, :control_name, :ma, :evidence_type,
+                 :sufficiency_criteria, :evaluation_criteria, :version)
             ON CONFLICT (item_code, control_id) DO NOTHING
         """), {
-            "item_code": row["item_code"], "control_id": row["control_id"],
+            "item_code": item_code,
+            "control_id": control_id,
             "evidence_item_name": row.get("evidence_item_name", ""),
             "control_name": row.get("control_name", ""),
             "ma": ma,
             "evidence_type": row.get("evidence_type", "document"),
-            "sufficiency_criteria": row.get("sufficiency_criteria", ""),
-            "evaluation_criteria": row.get("evaluation_criteria", ""),
+            "sufficiency_criteria": json.dumps(row.get("sufficiency_criteria", {})),
+            "evaluation_criteria": json.dumps(row.get("evaluation_criteria", {})),
             "version": version_tag,
         })
 
 
-def seed_stage3_data(db: Session, schema_name: str, data: dict) -> None:
-    """Insert Stage 3 output (evaluation questions) into the finalized schema."""
-    version_tag = data.get("framework_version", schema_name)
+def _coerce_question_created_at(val: Any) -> datetime | None:
+    """Bindable timestamp for evidence_based_questions.created_at, or None to use server now()."""
+    if val is None or val == "":
+        return None
+    if isinstance(val, datetime):
+        if val.tzinfo is None:
+            return val.replace(tzinfo=timezone.utc)
+        return val.astimezone(timezone.utc)
+    if isinstance(val, str):
+        s = val.strip()
+        if not s:
+            return None
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(s)
+        except ValueError:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    return None
+
+
+def _normalize_question_uuid(val: Any) -> str:
+    """
+    Stage 5 / LLM output may include malformed UUID strings (wrong segment length).
+    PostgreSQL rejects ::uuid on those before COALESCE can fall back — only pass valid UUIDs or ''.
+    """
+    if val is None:
+        return ""
+    if isinstance(val, uuid.UUID):
+        return str(val)
+    s = str(val).strip()
+    if not s:
+        return ""
+    try:
+        return str(uuid.UUID(s))
+    except ValueError:
+        logger.warning(
+            "evidence_based_questions: invalid id %r from pipeline output; will use uuid_generate_v4()",
+            s[:80],
+        )
+        return ""
+
+
+def seed_stage5_data(db: Session, schema_name: str, data: dict) -> None:
+    """Insert Stage 5 output (evidence_based_questions) into finalized schema."""
+    version_tag = data.get("cscf_version") or data.get("framework_version", schema_name)
 
     db.execute(text(f"""
         CREATE TABLE IF NOT EXISTS "{schema_name}".evidence_based_questions (
-            id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-            evidence_item_id  VARCHAR(5) NOT NULL,
-            question_key      VARCHAR(100) NOT NULL,
-            label             TEXT NOT NULL,
-            question_type     VARCHAR(20) NOT NULL,
-            required          BOOLEAN NOT NULL DEFAULT true,
-            placeholder       TEXT,
-            options           JSONB DEFAULT '[]',
-            sort_order        INTEGER NOT NULL DEFAULT 0,
-            control_id        VARCHAR(255),
-            rows              INTEGER,
-            accept            VARCHAR(255),
-            upload_label      VARCHAR(255),
-            cscf_version      VARCHAR(255) NOT NULL DEFAULT '{version_tag}',
-            created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-            guide             TEXT,
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            evidence_item_id VARCHAR(20) NOT NULL,
+            question_key VARCHAR(100) NOT NULL,
+            label TEXT NOT NULL,
+            question_type VARCHAR(20) NOT NULL,
+            required BOOLEAN NOT NULL DEFAULT true,
+            placeholder TEXT,
+            options JSONB DEFAULT '[]',
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            control_id VARCHAR(255),
+            rows INTEGER,
+            accept VARCHAR(255),
+            upload_label TEXT,
+            cscf_version VARCHAR(255) NOT NULL DEFAULT 'generated',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            guide TEXT,
+            show_when_question VARCHAR(100),
+            show_when_values JSONB DEFAULT '[]',
+            gcs_auto_level TEXT,
+            gcs_services JSONB DEFAULT '[]',
+            question_level_gcs_sources TEXT,
             evidence_required_raw TEXT,
-            evidence_source   TEXT,
-            collection_method TEXT
+            evidence_source TEXT,
+            collection_method TEXT,
+            aws_auto_level TEXT,
+            aws_services JSONB DEFAULT '[]',
+            question_level_aws_sources TEXT,
+            reason_rationale TEXT,
+            answers JSONB DEFAULT '{{}}',
+            azure_auto_level TEXT,
+            azure_services JSONB DEFAULT '[]',
+            question_level_azure_sources TEXT
         )
     """))
-    db.execute(
-        text(f"""
-            ALTER TABLE "{schema_name}".evidence_based_questions
-                ALTER COLUMN control_id TYPE VARCHAR(255),
-                ALTER COLUMN cscf_version TYPE VARCHAR(255)
-        """)
-    )
 
-    for q in data.get("evaluation_questions", []):
+    # Prior finalize attempts may have committed rows while later steps failed (e.g. mixed
+    # connection usage) or an admin retried finalize against the same schema. CREATE TABLE IF NOT EXISTS
+    # does not clear data — INSERT would hit duplicate PK on the same ids.
+    db.execute(text(f'DELETE FROM "{schema_name}".evidence_based_questions'))
+
+    used_question_ids: set[str] = set()
+    for q in data.get("evidence_based_questions", []):
+        if not isinstance(q, dict):
+            continue
+        qid = _normalize_question_uuid(q.get("id"))
+        if not qid:
+            qid = str(uuid.uuid4())
+        elif qid in used_question_ids:
+            logger.warning(
+                "evidence_based_questions: duplicate id %s in finalize payload; assigning new UUID",
+                qid,
+            )
+            qid = str(uuid.uuid4())
+        used_question_ids.add(qid)
+
         db.execute(text(f"""
             INSERT INTO "{schema_name}".evidence_based_questions
-                (evidence_item_id, question_key, label, question_type, required, placeholder,
-                 options, sort_order, control_id, accept, upload_label, guide, cscf_version)
-            VALUES (:evidence_item_id, :question_key, :label, :question_type, :required, :placeholder,
-                    :options, :sort_order, :control_id, :accept, :upload_label, :guide, :version)
+                (id, evidence_item_id, question_key, label, question_type, required, placeholder,
+                 options, sort_order, control_id, rows, accept, upload_label, cscf_version, created_at,
+                 guide, show_when_question, show_when_values, gcs_auto_level, gcs_services,
+                 question_level_gcs_sources, evidence_required_raw, evidence_source, collection_method,
+                 aws_auto_level, aws_services, question_level_aws_sources, reason_rationale, answers,
+                 azure_auto_level, azure_services, question_level_azure_sources)
+            VALUES
+                (COALESCE(NULLIF(:id, '')::uuid, uuid_generate_v4()), :evidence_item_id, :question_key, :label, :question_type, :required, :placeholder,
+                 CAST(:options AS jsonb), :sort_order, :control_id, :rows, :accept, :upload_label, :version, COALESCE(:created_at, now()),
+                 :guide, :show_when_question, CAST(:show_when_values AS jsonb), :gcs_auto_level, CAST(:gcs_services AS jsonb),
+                 :question_level_gcs_sources, :evidence_required_raw, :evidence_source, :collection_method,
+                 :aws_auto_level, CAST(:aws_services AS jsonb), :question_level_aws_sources, :reason_rationale, CAST(:answers AS jsonb),
+                 :azure_auto_level, CAST(:azure_services AS jsonb), :question_level_azure_sources)
         """), {
-            "evidence_item_id": q["evidence_item_id"],
-            "question_key": q["question_key"],
-            "label": q["label"],
+            "id": qid,
+            "evidence_item_id": q.get("evidence_item_id"),
+            "question_key": q.get("question_key"),
+            "label": q.get("label"),
             "question_type": q.get("question_type", "text"),
-            "required": q.get("required", True),
+            "required": bool(q.get("required", True)),
             "placeholder": q.get("placeholder"),
             "options": json.dumps(q.get("options", [])),
-            "sort_order": q.get("sort_order", 0),
+            "sort_order": int(q.get("sort_order", 0) or 0),
             "control_id": q.get("control_id"),
+            "rows": q.get("rows"),
             "accept": q.get("accept"),
             "upload_label": q.get("upload_label"),
+            "version": q.get("cscf_version") or version_tag,
+            "created_at": _coerce_question_created_at(q.get("created_at")),
             "guide": q.get("guide"),
-            "version": version_tag,
+            "show_when_question": q.get("show_when_question"),
+            "show_when_values": json.dumps(q.get("show_when_values", [])),
+            "gcs_auto_level": q.get("gcs_auto_level"),
+            "gcs_services": json.dumps(q.get("gcs_services", [])),
+            "question_level_gcs_sources": q.get("question_level_gcs_sources"),
+            "evidence_required_raw": q.get("evidence_required_raw"),
+            "evidence_source": q.get("evidence_source"),
+            "collection_method": q.get("collection_method"),
+            "aws_auto_level": q.get("aws_auto_level"),
+            "aws_services": json.dumps(q.get("aws_services", [])),
+            "question_level_aws_sources": q.get("question_level_aws_sources"),
+            "reason_rationale": q.get("reason_rationale"),
+            "answers": json.dumps(q.get("answers", {})),
+            "azure_auto_level": q.get("azure_auto_level"),
+            "azure_services": json.dumps(q.get("azure_services", [])),
+            "question_level_azure_sources": q.get("question_level_azure_sources"),
         })
 
 

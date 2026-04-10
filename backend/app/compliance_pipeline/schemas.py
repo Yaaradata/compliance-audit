@@ -18,6 +18,12 @@ class StageOutputUpdate(BaseModel):
     output_data: dict[str, Any]
 
 
+class RunStageRequest(BaseModel):
+    """Optional body for POST /run-stage/{n}. When output_data is set, persist as draft before the job starts (re-run uses it + fresh validation)."""
+
+    output_data: dict[str, Any] | None = None
+
+
 class ChatMessageIn(BaseModel):
     content: str = Field(..., min_length=1)
 
@@ -36,7 +42,7 @@ class PipelineOut(BaseModel):
     updated_at: datetime
     max_nav_stage: int = Field(
         1,
-        description="Highest stage tab (1–4) the user may open, from confirmed stage outputs.",
+        description="Highest stage tab (1–6) the user may open, from confirmed stage outputs.",
     )
 
     model_config = {"from_attributes": True}

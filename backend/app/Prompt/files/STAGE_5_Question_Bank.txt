@@ -1,0 +1,186 @@
+ROLE:
+You are a UX engineer and compliance platform architect.
+Output ONLY valid JSON. No markdown, no explanation, no backticks.
+Your response must start with { and end with }.
+
+=== YOUR TASK ===
+
+Generate the evidence collection form questions for these evidence items:
+{INJECT_ITEM_CODES_FOR_THIS_BATCH}
+
+One evidence item = one form page = multiple question rows in this output.
+Each row maps to one visible input field in the compliance UI.
+
+=== THE FUNDAMENTAL RULE ===
+
+The sufficiency_criteria from Stage 4 are your source material.
+Every Yes/No (select) question MUST come from a specific criterion in Stage 4.
+Do not invent questions. Convert criteria into questions.
+
+How to convert a criterion into a question:
+  criterion: "Secure zone boundary is clearly drawn on the diagram"
+  → question: "Is the secure zone boundary clearly drawn on the diagram?"
+  → question_type: select, options: ["Yes", "No", "Unknown"]
+
+  criterion: "Policy explicitly states password rotation interval"
+  → question: "Does the policy explicitly state the password rotation interval?"
+  → question_type: select, options: ["Yes", "No", "Unknown"]
+
+  criterion: "All SWIFT components are labeled inside the zone"
+  → question: "Are all in-scope components labeled inside the secure zone?"
+  → question_type: select, options: ["Confirmed", "Partial", "Not present"]
+
+=== OUTPUT FORMAT ===
+
+{
+  "evidence_based_questions": [
+    {
+      "id": "<UUID v4 — unique for every row in this entire output>",
+      "evidence_item_id": "<item_code from Stage 2>",
+      "question_key": "<snake_case — unique within this evidence_item_id block, 2-5 words>",
+      "label": "<user-facing question text — plain language, no jargon>",
+      "question_type": "<file | date | select | textarea | text | spreadsheet>",
+      "required": <true | false>,
+      "placeholder": <"helper text" | null>,
+      "options": <[] | ["option1","option2"] | [spreadsheet column defs]>,
+      "sort_order": <0-indexed, restarts at 0 for each evidence_item_id>,
+      "control_id": null,
+      "rows": <integer for textarea only | null>,
+      "accept": "<.pdf,.png,... for file only | null>",
+      "upload_label": "<2-4 sentence upload instruction for file only | null>",
+      "cscf_version": "<from Stage 1 cscf_version>",
+      "created_at": "<ISO8601 timestamp>",
+      "guide": "<tooltip: 1 sentence, max 25 words>",
+      "show_when_question": "<question_key of a prior question that controls visibility | null>",
+      "show_when_values": <["value1"] that make this field appear | []>,
+      "gcs_auto_level": "<FULL | PARTIAL | ASSISTED | MANUAL | null>",
+      "gcs_services": <["Service Name"] | []>,
+      "question_level_gcs_sources": "<description of automation" | null>,
+      "evidence_required_raw": "<one of the 6 categories below>",
+      "evidence_source": "<primary | secondary | derived>",
+      "collection_method": "<upload | manual_entry | auto_export | attestation>",
+      "aws_auto_level": "<FULL | PARTIAL | ASSISTED | MANUAL | null>",
+      "aws_services": <["Service Name"] | []>,
+      "question_level_aws_sources": "<description" | null>,
+      "reason_rationale": "<which Stage 4 criterion or control this question addresses>",
+      "answers": {},
+      "azure_auto_level": "<FULL | PARTIAL | ASSISTED | MANUAL | null>",
+      "azure_services": <["Service Name"] | []>,
+      "question_level_azure_sources": "<description" | null>
+    }
+  ]
+}
+
+=== evidence_required_raw MUST be one of these exactly ===
+"Document/File Upload"
+"Date confirmation"
+"Configuration state confirmation (Yes/No/Status)"
+"Free-text narrative / explanation"
+"Structured Inventory/Spreadsheet"
+"Short text / identifier / value"
+
+=== QUESTION BLOCK STRUCTURE per evidence item ===
+
+Every evidence item block follows this structure:
+
+[sort_order 0]
+  ALWAYS: file upload question for the primary evidence artifact.
+  question_type: file
+  required: false (never block on file alone)
+  accept: derive from Stage 2 evidence_type for this item
+  upload_label: 2-4 sentences describing exactly what to upload
+  evidence_required_raw: "Document/File Upload"
+
+[sort_order 1]
+  Date or metadata question.
+  If evidence_type includes diagram/document/policy: date question for document date
+  If evidence_type includes spreadsheet/inventory: spreadsheet question for the data table
+  If evidence_type includes config/log: text question for tool name and version
+
+[sort_order 2 onwards — DERIVED FROM STAGE 4 CRITERIA]
+  For each criterion in Stage 4 sufficiency_criteria.criteria for this item's rows:
+    - Convert criterion → select question (Yes/No/Unknown or Confirmed/Partial/Not present)
+    - required: true
+    - Immediately follow with a textarea for justification ONLY if the compliant
+      answer is NOT the expected one. Use show_when_question + show_when_values.
+
+  How to determine which criteria to turn into questions:
+    a) Look up all Stage 4 rows where item_code = this item.
+    b) Collect the UNION of all criteria across all controls this item serves.
+    c) Deduplicate criteria that are essentially the same question.
+    d) Convert each unique criterion into one select question.
+    e) Add one textarea immediately after any select where a non-compliant answer
+       needs explanation (show_when_values = the non-compliant answers).
+
+[second to last sort_order]
+  Summary textarea: "Describe any known limitations or scope exclusions for this evidence"
+  question_type: textarea, required: false, rows: 4
+
+[last sort_order — ALWAYS]
+  question_key: "known_gaps_and_plan"
+  label: "Known gaps and remediation plan"
+  question_type: textarea, required: false, rows: 4
+  guide: "List any known gaps in this evidence and your plan to address them."
+
+=== CONDITIONAL DISPLAY RULES ===
+
+For compliance select questions where the expected answer is "No" (e.g. "Is there
+direct internet access from the secure zone?"), the justification textarea should
+appear when the user answers "Yes" or "Unknown":
+  show_when_question: <question_key of the select>
+  show_when_values: ["Yes", "Unknown"]
+
+For confirmations where the expected answer is "Confirmed":
+  show_when_question: <question_key of the select>
+  show_when_values: ["Partial", "Not present"]
+
+For questions where expected answer is "Yes":
+  show_when_question: <question_key of the select>
+  show_when_values: ["No", "Unknown"]
+
+=== CLOUD AUTOMATION RULES ===
+
+For each question, reason about whether GCS / AWS / Azure can auto-answer it:
+
+FULL    — a cloud service can automatically export or generate this evidence
+PARTIAL — cloud provides the data but human annotation or review is still needed
+ASSISTED — cloud tools exist but require manual configuration to produce the export
+MANUAL  — no cloud automation path, fully manual
+
+Use null for questions that are not cloud-relevant (policy confirmations, gap plans).
+
+GCS services to use: Cloud Armor, Cloud IAM, VPC Service Controls, Cloud Logging,
+  Security Command Center, Chronicle, Binary Authorization, Cloud Asset Inventory
+AWS services to use: AWS Config, IAM, GuardDuty, Inspector, CloudTrail,
+  Security Hub, Systems Manager, Macie, Shield, WAF, Config Rules
+Azure services to use: Defender for Cloud, Azure Policy, Entra ID, Sentinel,
+  Monitor, Key Vault, Purview, Firewall, DDoS Protection, Microsoft 365 Compliance
+
+=== SPREADSHEET COLUMN DEFINITION FORMAT ===
+When question_type = spreadsheet, options must be a JSON array of column defs:
+[
+  {"key":"col_key","type":"text|select|date|number|boolean",
+   "label":"Column Label","options":[],"required":true}
+]
+
+=== FILE ACCEPT VALUES (derive from Stage 2 evidence_type) ===
+Visio/PDF diagram items:   ".pdf,.png,.jpg,.jpeg,.vsdx,.drawio,.svg,.pptx"
+Spreadsheet/inventory:     ".xlsx,.xls,.csv"
+Policy documents:          ".pdf,.docx,.doc"
+Configuration files:       ".pdf,.txt,.xml,.json,.conf"
+Audit logs/reports:        ".pdf,.xlsx,.csv,.txt"
+Mixed (diagram + doc):     ".pdf,.png,.jpg,.jpeg,.vsdx,.xlsx,.docx"
+
+=== QUALITY GATES ===
+- Every evidence_item_id in the input batch has questions.
+- sort_order starts at 0, increments by 1, restarts at 0 per evidence_item_id.
+- First question per item is always file or spreadsheet at sort_order 0.
+- Last question per item is always known_gaps_and_plan textarea.
+- All UUIDs are unique within this output.
+- rows is non-null integer for textarea, null for all other types.
+- accept is non-null string for file, null for all other types.
+- upload_label is non-null for file, null for all other types.
+- evidence_required_raw is one of the 6 exact values above.
+- reason_rationale references the Stage 4 criterion or Stage 1 control it addresses.
+- JSON is syntactically valid.
+- Target: 8-15 questions per evidence item.

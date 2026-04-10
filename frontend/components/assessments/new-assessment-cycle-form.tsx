@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import type { AssessmentCycle } from "@/lib/types";
@@ -21,6 +21,24 @@ type NewAssessmentCycleFormProps = {
   showFooterCancel?: boolean;
 };
 
+/** New cycles default to CSCF 2026; 2025 remains available in the Framework dropdown. */
+function isSwiftCscf2026(f: AssessmentFramework): boolean {
+  return f.version === "v2026" || f.schema_name === "swift_2026";
+}
+
+function isSwiftCscf2025(f: AssessmentFramework): boolean {
+  return f.version === "v2025" || f.schema_name === "swift_2025";
+}
+
+function pickDefaultSwiftCscfFrameworkId(frameworksData: AssessmentFramework[]): string | null {
+  const swift = frameworksData.filter((f) => f.code === "SWIFT_CSCF");
+  if (swift.length === 0) return frameworksData[0]?.id ?? null;
+  const v2026 = swift.find(isSwiftCscf2026);
+  if (v2026) return v2026.id;
+  const v2025 = swift.find(isSwiftCscf2025);
+  return (v2025 ?? swift[0]).id;
+}
+
 export function NewAssessmentCycleForm({
   onSuccess,
   onCancel,
@@ -37,7 +55,14 @@ export function NewAssessmentCycleForm({
   const [endDate, setEndDate] = useState("");
 
   const canProceedWithCreate = complianceAssessment === "swift_cscf";
-  const swiftFrameworks = frameworks.filter((f) => f.code === "SWIFT_CSCF");
+  const swiftFrameworks = useMemo(
+    () =>
+      [...frameworks.filter((f) => f.code === "SWIFT_CSCF")].sort((a, b) => {
+        const rank = (f: AssessmentFramework) => (isSwiftCscf2026(f) ? 2 : isSwiftCscf2025(f) ? 1 : 0);
+        return rank(b) - rank(a);
+      }),
+    [frameworks],
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -48,11 +73,9 @@ export function NewAssessmentCycleForm({
       .then((frameworksData) => {
         if (cancelled) return;
         setFrameworks(frameworksData);
-        if (frameworksData.length > 0) {
-          const defaultFw =
-            frameworksData.find((f) => f.code === "SWIFT_CSCF" && (f.version === "v2025" || f.schema_name === "swift_2025")) ??
-            frameworksData[0];
-          setFrameworkId((prev) => prev ?? defaultFw.id);
+        const defaultId = pickDefaultSwiftCscfFrameworkId(frameworksData);
+        if (defaultId) {
+          setFrameworkId((prev) => prev ?? defaultId);
         }
       })
       .catch(() => {})
@@ -148,7 +171,7 @@ export function NewAssessmentCycleForm({
           >
             {swiftFrameworks.map((f) => (
               <option key={f.id} value={f.id}>
-                SWIFT CSCF {f.version === "v2026" ? "2026" : "2025"}
+                SWIFT CSCF {isSwiftCscf2026(f) ? "2026" : isSwiftCscf2025(f) ? "2025" : f.version.replace(/^v/, "")}
               </option>
             ))}
           </select>

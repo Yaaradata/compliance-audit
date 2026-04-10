@@ -27,6 +27,7 @@ from ..schemas.assessment import (
     ROLE_TO_PHASE,
     DashboardResponse, DomainScore, ControlScore,
     ControlScopingItem, ControlScopingUpdateRequest,
+    ArchitectureCatalogCount, ArchitectureCatalogCountsOut,
     TIMELINE_PHASES,
 )
 from ..services.cycle_cleanup import delete_cycle_evidence_and_related
@@ -44,6 +45,8 @@ router = APIRouter(prefix="/assessments")
 GATE_TYPES = ["evidence_complete", "internal_review", "assessment_complete", "final_attestation"]
 # Synthetic control used only for ESM/scoping (e.g. A5). Excluded from dashboard and control lists like v2025.
 CONTROL_ID_ALL = "ALL"
+# SWIFT architecture options; must match select-architecture wizard IDs.
+_ARCHITECTURE_OPTION_IDS = ("A1", "A2", "A3", "A4", "B")
 
 
 def _attach_schema_name(cycle: AssessmentCycle, db: Session) -> None:
@@ -398,6 +401,71 @@ def get_control_scoping(cycle_id: UUID, db: Session = Depends(get_db_scoped), us
     return result
 
 
+def _domain_letter_from_control_id(control_id: str | None) -> str | None:
+    """Map control id (e.g. 1.4, 2.11A) to evidence domain letter A–H via numeric section prefix."""
+    if not control_id:
+        return None
+    cid = str(control_id).strip()
+    if "." not in cid:
+        return None
+    prefix = cid.split(".", 1)[0]
+    if not prefix.isdigit():
+        return None
+    n = int(prefix)
+    if 1 <= n <= 8:
+        return chr(ord("A") + n - 1)
+    return None
+
+
+def _catalog_control_counts_by_architecture(db: Session) -> dict[str, ArchitectureCatalogCount]:
+    """
+    Mandatory/advisory counts and distinct domain letters per architecture from `controls`
+    in the active framework schema. Mirrors _generate_control_applicability inclusion.
+    """
+    raw: dict[str, dict[str, int | set[str]]] = {
+        aid: {"mandatory": 0, "advisory": 0, "domains": set()} for aid in _ARCHITECTURE_OPTION_IDS
+    }
+    for ctrl in db.query(Control).all():
+        if (ctrl.id or "").strip().upper() == CONTROL_ID_ALL:
+            continue
+        arch_list = [str(x).strip() for x in (ctrl.architecture_applicability or []) if x is not None and str(x).strip()]
+        ctype = (ctrl.control_type or "").strip().lower()
+        dom = _domain_letter_from_control_id(ctrl.id)
+        for aid in _ARCHITECTURE_OPTION_IDS:
+            if aid not in arch_list:
+                continue
+            if dom:
+                raw[aid]["domains"].add(dom)
+            if ctype == "mandatory":
+                raw[aid]["mandatory"] += 1
+            elif ctype == "advisory":
+                raw[aid]["advisory"] += 1
+    return {
+        aid: ArchitectureCatalogCount(
+            mandatory=int(raw[aid]["mandatory"]),
+            advisory=int(raw[aid]["advisory"]),
+            domain_ids=sorted(raw[aid]["domains"]),
+        )
+        for aid in _ARCHITECTURE_OPTION_IDS
+    }
+
+
+@router.get("/{cycle_id}/architecture-catalog-counts", response_model=ArchitectureCatalogCountsOut)
+def architecture_catalog_counts(
+    cycle_id: UUID,
+    db: Session = Depends(get_db_scoped),
+    user: User = Depends(get_current_user),
+):
+    """
+    Mandatory/advisory counts per architecture from DB `controls` for this cycle's framework schema
+    (swift_2025 vs swift_2026 via search_path). Used by the architecture wizard instead of static TS arrays.
+    """
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+    counts = _catalog_control_counts_by_architecture(db)
+    return ArchitectureCatalogCountsOut(counts=counts)
+
+
 def _scoping_decision_applicable(ca: ControlApplicability) -> bool:
     """True if this control is in scope (only 'applicable' counts; not_applicable and risk_accepted are excluded)."""
     decision = getattr(ca, "scoping_decision", None) or "applicable"
@@ -614,6 +682,7 @@ def dashboard(cycle_id: UUID, db: Session = Depends(get_db_scoped), user: User =
     control_scores = []
     mandatory_count = 0
     gaps = []
+    # Only rows with scoping_decision == applicable feed scores, mandatory totals, and gaps_identified.
     for ca in cas:
         if (ca.control_id or "").strip().upper() == CONTROL_ID_ALL:
             continue

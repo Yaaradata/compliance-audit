@@ -21,7 +21,8 @@ export function StageChatPanel({ pipelineId, stage, onOutputUpdated }: Props) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const shouldStickToBottomRef = useRef(true);
 
   useEffect(() => {
     setLoading(true);
@@ -32,7 +33,27 @@ export function StageChatPanel({ pipelineId, stage, onOutputUpdated }: Props) {
   }, [pipelineId, stage]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = listRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      // If user scrolls away from bottom, stop auto-jumping.
+      shouldStickToBottomRef.current = distanceFromBottom <= 80;
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    if (!shouldStickToBottomRef.current) return;
+
+    // Scroll only the chat container, never the outer page.
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async () => {
@@ -85,7 +106,7 @@ export function StageChatPanel({ pipelineId, stage, onOutputUpdated }: Props) {
         AI Assistant — Stage {stage}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div ref={listRef} className="flex-1 overflow-y-auto p-3 space-y-3">
         {loading ? (
           <p className="text-xs text-center py-4" style={{ color: "var(--foreground-muted)" }}>Loading chat...</p>
         ) : messages.length === 0 ? (
@@ -112,7 +133,6 @@ export function StageChatPanel({ pipelineId, stage, onOutputUpdated }: Props) {
             </div>
           ))
         )}
-        <div ref={bottomRef} />
       </div>
 
       <div className="border-t p-2.5 flex gap-2" style={{ borderColor: "var(--border)" }}>

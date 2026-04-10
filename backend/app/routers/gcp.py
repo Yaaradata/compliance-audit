@@ -102,13 +102,24 @@ def get_effective_gcp_scope(
     return GcpScope(tenant_id=tenant_id, cycle_id=cycle_id, user_id=user.id)
 
 
+def _oauth_frontend_base_url() -> str:
+    """Base URL for /gcp after OAuth (no trailing slash). Not the Google redirect_uri."""
+    origins = [o.rstrip("/") for o in (settings.CORS_ORIGINS or []) if str(o).strip()]
+    if not origins:
+        return "http://localhost:3000"
+    local_prefixes = ("http://localhost", "http://127.0.0.1", "https://localhost", "https://127.0.0.1")
+    for o in origins:
+        if not o.lower().startswith(local_prefixes):
+            return o
+    return origins[0]
+
+
 def _frontend_oauth_success_url() -> str:
     custom = (settings.GCP_OAUTH_FRONTEND_REDIRECT_URL or "").strip()
     if custom:
         sep = "&" if "?" in custom else "?"
         return f"{custom}{sep}gcp_oauth=success"
-    origins = settings.CORS_ORIGINS or []
-    base = origins[0].rstrip("/") if origins else "http://localhost:3000"
+    base = _oauth_frontend_base_url()
     return f"{base}/gcp?gcp_oauth=success"
 
 
@@ -118,8 +129,7 @@ def _frontend_oauth_error_url(message: str) -> str:
     if custom:
         sep = "&" if "?" in custom else "?"
         return f"{custom}{sep}gcp_oauth=error&message={q}"
-    origins = settings.CORS_ORIGINS or []
-    base = origins[0].rstrip("/") if origins else "http://localhost:3000"
+    base = _oauth_frontend_base_url()
     return f"{base}/gcp?gcp_oauth=error&message={q}"
 
 
