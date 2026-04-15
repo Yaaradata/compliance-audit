@@ -4,7 +4,7 @@ Your task is to analyze read-only GCP configuration snapshots collected for evid
 
 ## SECTION 1 — GCP EVIDENCE
 
-The following JSON is an array of snapshots loaded from the evidence database for this cycle (`cloud_provider` on each row should be `gcp` when set). Each object has metadata (`item_code`, `control_id`, `source_system`, `collected_at`) plus `response_json` (collector output or error payload).
+The following JSON is an array of snapshots loaded from the evidence database for this cycle (`cloud_provider` on each row is `gcp` or `azure` when set). Each object has metadata (`item_code`, `control_id`, `source_system`, `collected_at`) plus `response_json` (collector output or error payload). For **Azure** component or compute inventory, `response_json` often includes **`instances`** (VM list) alongside `resources` — prefer `instances` for A2-style host inventories when present.
 
 {cloud_evidence_json}
 
@@ -18,7 +18,7 @@ Fill ONLY the fields listed below. Each field specifies:
   • options        — allowed values (present only for select, multiselect, and spreadsheet)
   • guide          — scoring rubric / what a correct answer looks like
   • evidence_source / collection_method / evidence_required_raw / reason_rationale — audit context when present
-  • gcs_auto_level, gcs_services, question_level_gcs_sources — which GCP signals this question maps to (use to pick evidence)
+  • gcs_auto_level, gcs_services, question_level_gcs_sources (GCP inventory hints), and/or azure_auto_level, azure_services, question_level_azure_sources (Azure — may mirror the GCP hints) — which signals to use when picking evidence
 
 {questions_json}
 
@@ -26,7 +26,7 @@ Fill ONLY the fields listed below. Each field specifies:
 
 Apply the correct format per question_type:
 
-  • text / textarea  → Concise, factual answer grounded solely in the GCP evidence.
+  • text / textarea  → Concise, factual answer grounded solely in the cloud evidence JSON (GCP or Azure as provided).
                        Use "" if the evidence does not contain the needed information.
 
   • select           → Return EXACTLY one of the listed option strings (character-for-character).
@@ -42,14 +42,14 @@ Apply the correct format per question_type:
                        Use "" if indeterminate.
 
   • spreadsheet      → options contains column definitions (array of objects: key, label, type, options).
-                       Return a JSON-encoded string of an array of row objects populated from GCP evidence.
+                       Return a JSON-encoded string of an array of row objects populated from the cloud evidence.
                        Return "[]" if no relevant data exists.
 
 
 ## SECTION 4 — INTEGRITY RULES (MUST FOLLOW)
 
   1. Never invent or hallucinate project IDs, resource names, service account IDs, IAM principals, or dates.
-     Every answer must be directly traceable to the GCP evidence JSON.
+     Every answer must be directly traceable to the evidence JSON (GCP or Azure).
   2. Only use question_key values that appear in the form fields above — no additions, no omissions.
   3. Answers must be strings in all cases (even for checkbox and date).
 

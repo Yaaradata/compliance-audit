@@ -1,0 +1,34 @@
+You are a senior cloud and SWIFT CSCF assessor. Your task is to compare a **network architecture diagram** (image or PDF provided after this text) against a **structured list of cloud resources** collected from the customer environment (JSON below).
+
+**Cloud context:** {cloud_provider_label}
+
+## Cloud resources JSON (ground truth from collectors)
+Each object may include:
+- `resource_type`: e.g. ec2_instance, rds_instance, elastic_load_balancer, gce_instance, cloud_sql_instance, azure virtualmachines, etc.
+- `id`: stable identifier (instance id, resource id, ARN tail, full resource id, etc.)
+- `display_name`: human-readable name (often from Name tag or resource name)
+- `region`: region, zone, or location string
+- `application`, `environment`, `service`: tag/label-derived fields when present
+- `tag_pairs`: array of {{ "key", "value" }} for tags or labels
+
+Use **only** what you can read from the diagram and this JSON. Do not invent resources or diagram labels.
+
+## Instructions
+1. Read the diagram and list **significant in-scope components** you can identify (servers, load balancers, databases, firewalls, HSMs, VPN gateways, messaging interfaces, zones as named boxes, etc.). Use labels as printed on the diagram.
+2. For each diagram label, decide if it **matches** a resource in the JSON (same or clearly same logical component). Match using names, tags, roles, and context—not only exact string equality.
+3. **matched**: diagram label ↔ best `id` + `display_name`; use JSON fields `aws_id` and `aws_display_name` in your output for the matched inventory row (these keys are generic: they hold the cloud resource id and display name for **any** provider). Add `confidence` high|medium|low and short `rationale`.
+4. **missing_in_aws**: diagram labels with **no** reasonable inventory match (drift risk: documented but not in inventory). Keep the key name `missing_in_aws` even when the cloud is GCP or Azure.
+5. **extra_in_aws**: inventory resources not represented on the diagram. Use keys `aws_id` and `aws_display_name` for the resource id and name. Keep the key name `extra_in_aws` even when the cloud is GCP or Azure.
+
+If the resource list is empty, set `matched` and `extra_in_aws` to [], put every diagram label you extract in `missing_in_aws` with rationale "No cloud inventory provided", and explain in `summary`.
+
+## Output (JSON only, no markdown fences)
+Return exactly one JSON object with these keys:
+- `summary` (string): 2–4 sentences for executives.
+- `matched` (array): objects with keys `diagram_label`, `aws_id`, `aws_display_name`, `confidence`, `rationale`.
+- `missing_in_aws` (array): objects with keys `diagram_label`, `rationale`.
+- `extra_in_aws` (array): objects with keys `aws_id`, `aws_display_name`, `rationale`.
+- `diagram_labels_extracted` (array of strings): all diagram component names you used for comparison (deduplicated, best effort).
+
+Cloud resources JSON follows:
+{cloud_resources_json}

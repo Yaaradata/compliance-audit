@@ -54,3 +54,21 @@ def query_object_array(
         return [], f"Resource Graph HTTP error: {e.message or e}"
     except Exception as e:
         return [], str(e)
+
+
+def query_resources_sample(
+    credential,
+    subscription_id: str,
+    *,
+    max_rows: int = 200,
+) -> tuple[list[dict[str, Any]], str | None]:
+    """
+    Subscription-wide Resource Graph sample used as collector fallback diagnostics.
+    Helps distinguish "no resources in subscription" from "collector type filter too strict".
+    """
+    sample_kql = """
+Resources
+| project id, name, type, resourceGroup, subscriptionId, location
+| take 500
+"""
+    return query_object_array(credential, subscription_id, sample_kql, max_rows=max_rows)

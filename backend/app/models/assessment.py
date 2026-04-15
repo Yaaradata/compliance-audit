@@ -143,7 +143,8 @@ class EvidenceSubmission(Base):
     ai_confidence: Mapped[float | None] = mapped_column(Numeric(5, 2))
     evaluation_result: Mapped[dict | None] = mapped_column(JSONB)
     evaluation_edits: Mapped[dict] = mapped_column(JSONB, server_default="{}")
-    """AI-generated 'what is required to make it correct' when evidence fails; shown in UI separately."""
+    # Per cloud_provider → attachment_id → last diagram-vs-inventory AI compare payload (for revisit).
+    diagram_cloud_compare_cache: Mapped[dict] = mapped_column(JSONB, server_default="{}")
     evaluation_remediation: Mapped[str | None] = mapped_column(Text)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cscf_version: Mapped[str] = mapped_column(String(10), nullable=False, server_default="2025v")

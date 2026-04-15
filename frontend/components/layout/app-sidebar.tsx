@@ -286,6 +286,7 @@ export function AppSidebar() {
                   hoverEnabled={hoverEnabled}
                   awsHref={navHref({ href: "/aws" })}
                   gcpHref={navHref({ href: "/gcp" })}
+                  azureHref={navHref({ href: "/azure" })}
                   onOpenChange={setCloudFlyoutOpen}
                 />
               );

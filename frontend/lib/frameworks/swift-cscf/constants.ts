@@ -2,6 +2,9 @@
  * Minimal SWIFT CSCF constants. All form definitions, labels, and criteria come from the database.
  */
 
+/** A1 Network Architecture Diagram evidence item ID. */
+export const A1_EVIDENCE_ITEM_ID = "A1";
+
 /** A5 Architecture Type Declaration evidence item ID. */
 export const A5_EVIDENCE_ITEM_ID = "A5";
 

@@ -456,6 +456,11 @@ export default function CycleItemIntakePage() {
               }}
               visualVariant="swiftReview"
               awsAssistanceEnabled={awsConnectionChecked && awsConnected}
+              diagramCompareInventoryByProvider={{
+                aws: awsConnectionChecked && awsConnected,
+                gcp: true,
+                azure: true,
+              }}
             />
           </div>
           {evaluationGateError && (

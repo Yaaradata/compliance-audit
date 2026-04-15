@@ -26,6 +26,7 @@ from ..schemas.evidence import (
     EvaluateEvidenceResponse,
     AiCriterionResultOut,
     AwsEvidenceSuggestResponse,
+    DiagramCloudAiCompareRequest,
 )
 from app.config import settings
 from app.aws_evidence.core.db import ensure_schema as ensure_aws_schema, get_swift_evidence_db
@@ -33,7 +34,11 @@ from app.aws_evidence.services import evidence_service as aws_evidence_service
 from ..services import ai_service
 from ..services import artifact_registry_service
 from ..services.assignment_constraints import get_user_cycle_ids, get_user_cycle_role, get_user_assigned_evidence_items
-from ..services.ai_service import _eval_criteria_pass_if_only, _parse_numbered_criteria as _parse_criteria_ai
+from ..services.ai_service import (
+    _ai_emit,
+    _eval_criteria_pass_if_only,
+    _parse_numbered_criteria as _parse_criteria_ai,
+)
 from ..services import evidence_status as evidence_status_svc
 from ..services.batch_loaders import (
     load_mappings_by_control_ids,
@@ -47,6 +52,57 @@ router = APIRouter()
 _CONTROL_ID_ALL = "ALL"
 
 _AWS_LLM_FILL_TYPES = frozenset({"text", "textarea", "select", "date", "checkbox", "multiselect", "spreadsheet"})
+
+
+def _diagram_compare_allowed_ext(file_name: str) -> bool:
+    ext = (file_name.rsplit(".", 1)[-1] if "." in (file_name or "") else "").lower()
+    return ext in ("pdf", "png", "jpg", "jpeg", "webp", "gif")
+
+
+def _diagram_compare_file_rank(file_name: str) -> int:
+    ext = (file_name.rsplit(".", 1)[-1] if "." in (file_name or "") else "").lower()
+    if ext == "pdf":
+        return 0
+    if ext in ("png", "jpg", "jpeg", "webp", "gif"):
+        return 1
+    return 9
+
+
+def _pick_architecture_diagram_attachment(
+    attachments: list[EvidenceAttachment],
+    attachment_id: UUID | None,
+) -> EvidenceAttachment | None:
+    if not attachments:
+        return None
+    eligible = [a for a in attachments if _diagram_compare_allowed_ext(a.file_name or "")]
+    if attachment_id is not None:
+        for a in eligible:
+            if a.id == attachment_id:
+                return a
+        return None
+    if not eligible:
+        return None
+    return sorted(eligible, key=lambda a: _diagram_compare_file_rank(a.file_name or ""))[0]
+
+
+def _persist_diagram_compare_cache(
+    submission: EvidenceSubmission,
+    cloud_provider: str,
+    attachment_id: UUID,
+    api_result: dict[str, Any],
+) -> None:
+    """Merge latest diagram-vs-cloud AI result into submission JSONB (per provider + attachment)."""
+    raw = getattr(submission, "diagram_cloud_compare_cache", None)
+    if not isinstance(raw, dict):
+        raw = {}
+    prov = (cloud_provider or "aws").strip().lower()
+    if prov not in ("aws", "gcp", "azure"):
+        prov = "aws"
+    att_key = str(attachment_id)
+    per_att = dict(raw.get(prov) or {})
+    per_att[att_key] = dict(api_result)
+    submission.diagram_cloud_compare_cache = {**raw, prov: per_att}
+    submission.updated_at = datetime.now(timezone.utc)
 
 
 def _source_tokens(evidence_source: str | None) -> list[str]:
@@ -66,7 +122,8 @@ def _evidence_source_allows_cloud_llm(evidence_source: str | None, cloud_provide
     if provider == "aws":
         aliases = ["aws"]
     elif provider == "azure":
-        aliases = ["azure"]
+        # SWIFT question bank often tags inventory fields for GCP only; Azure uses the same LLM pipeline + mirrored hints.
+        aliases = ["azure", "gcp", "gcs"]
     else:
         aliases = ["gcp", "gcs"]
     if not tokens:
@@ -105,9 +162,16 @@ def _build_llm_question_payload(q: EvidenceBasedQuestion, cloud_provider: str) -
         out["aws_services"] = (getattr(q, "aws_services", None) or "").strip()
         out["question_level_aws_sources"] = (getattr(q, "question_level_aws_sources", None) or "").strip()
     elif cloud_provider == "azure":
-        out["azure_auto_level"] = (getattr(q, "azure_auto_level", None) or "").strip()
-        out["azure_services"] = (getattr(q, "azure_services", None) or "").strip()
-        out["question_level_azure_sources"] = (getattr(q, "question_level_azure_sources", None) or "").strip()
+        az_lvl = (getattr(q, "azure_auto_level", None) or "").strip()
+        az_svc = (getattr(q, "azure_services", None) or "").strip()
+        az_src = (getattr(q, "question_level_azure_sources", None) or "").strip()
+        if not (az_lvl or az_svc or az_src):
+            az_lvl = (getattr(q, "gcs_auto_level", None) or "").strip()
+            az_svc = (getattr(q, "gcs_services", None) or "").strip()
+            az_src = (getattr(q, "question_level_gcs_sources", None) or "").strip()
+        out["azure_auto_level"] = az_lvl
+        out["azure_services"] = az_svc
+        out["question_level_azure_sources"] = az_src
     else:
         out["gcs_auto_level"] = (getattr(q, "gcs_auto_level", None) or "").strip()
         out["gcs_services"] = (getattr(q, "gcs_services", None) or "").strip()
@@ -134,6 +198,9 @@ def _question_has_provider_mapping(q: EvidenceBasedQuestion, cloud_provider: str
             getattr(q, "azure_auto_level", None),
             getattr(q, "azure_services", None),
             getattr(q, "question_level_azure_sources", None),
+            getattr(q, "gcs_auto_level", None),
+            getattr(q, "gcs_services", None),
+            getattr(q, "question_level_gcs_sources", None),
         )
     else:
         return False
@@ -1317,6 +1384,179 @@ def suggest_evidence_fields_from_azure(
         aws_db=aws_db,
         user=user,
     )
+
+
+@router.get("/assessments/{cycle_id}/evidence/{submission_id}/diagram-compare-cache")
+def get_diagram_compare_cache(
+    cycle_id: UUID,
+    submission_id: UUID,
+    db: Session = Depends(get_db_scoped),
+    user: User = Depends(get_current_user),
+):
+    """
+    Return stored diagram-vs-cloud AI comparison results for this submission (per cloud_provider and attachment_id).
+    Used to restore the Compare modal when revisiting a cycle.
+    """
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
+    sub = db.query(EvidenceSubmission).filter(
+        EvidenceSubmission.id == submission_id,
+        EvidenceSubmission.cycle_id == cycle_id,
+    ).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if user.role != "admin" and sub.tenant_id != user.tenant_id:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    raw = getattr(sub, "diagram_cloud_compare_cache", None)
+    if not isinstance(raw, dict):
+        raw = {}
+    return {"by_provider": raw}
+
+
+@router.post("/assessments/{cycle_id}/diagram-cloud-ai-compare")
+@router.post("/assessments/{cycle_id}/diagram-aws-ai-compare")
+def diagram_cloud_ai_compare(
+    cycle_id: UUID,
+    req: DiagramCloudAiCompareRequest,
+    db: Session = Depends(get_db_scoped),
+    aws_db: Session = Depends(get_swift_evidence_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Vertex AI (multimodal) compares the uploaded architecture diagram (PDF/image) to the latest
+    scoped collector inventory for the chosen cloud (AWS, GCP, or Azure).
+    """
+    from ..services import storage_service
+
+    ensure_aws_schema()
+    cycle = db.query(AssessmentCycle).filter(AssessmentCycle.id == cycle_id).first()
+    _require_cycle_access(cycle, user, db)
+
+    effective_role = get_user_cycle_role(db, user.id, cycle_id)
+    can_write = user.role in EVIDENCE_WRITE_ROLES or effective_role == "it_sme"
+    if not can_write:
+        raise HTTPException(status_code=403, detail="Not authorized to run diagram comparison")
+
+    sub = db.query(EvidenceSubmission).filter(
+        EvidenceSubmission.id == req.submission_id,
+        EvidenceSubmission.cycle_id == cycle_id,
+    ).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    if effective_role == "it_sme":
+        assigned = get_user_assigned_evidence_items(db, cycle_id, user.id)
+        if assigned is not None:
+            item_upper = (sub.evidence_item_id or "").strip().upper()
+            if item_upper not in assigned:
+                raise HTTPException(status_code=403, detail="Access denied to this evidence submission")
+
+    attachments = (
+        db.query(EvidenceAttachment)
+        .filter(EvidenceAttachment.submission_id == sub.id)
+        .all()
+    )
+    att = _pick_architecture_diagram_attachment(attachments, req.attachment_id)
+    if not att:
+        raise HTTPException(
+            status_code=400,
+            detail="No PDF or image attachment found. Upload a diagram first, or pass attachment_id for a specific file.",
+        )
+    try:
+        data = storage_service.download(att.storage_path)
+    except Exception as exc:
+        logger.exception("diagram-cloud-ai-compare: attachment download failed")
+        raise HTTPException(status_code=502, detail=f"Could not read attachment: {exc}") from exc
+
+    prov = (req.cloud_provider or "aws").strip().lower()
+    if prov not in ("aws", "gcp", "azure"):
+        prov = "aws"
+
+    _ai_emit(
+        "INFO",
+        "diagram_compare_api",
+        f"request cycle_id={cycle_id} submission_id={req.submission_id} cloud_provider={prov} "
+        f"attachment_id={att.id} file_name={att.file_name!r}",
+    )
+
+    inv = aws_evidence_service.build_cloud_diagram_compare_inventory(
+        aws_db,
+        user.tenant_id,
+        cycle_id,
+        user.id,
+        prov,
+    )
+    resources = inv.get("resources") or []
+    if not isinstance(resources, list):
+        resources = []
+
+    logger.info(
+        "diagram_cloud_ai_compare START cycle_id=%s submission_id=%s provider=%s attachment_id=%s inventory_rows=%s inv_run_id=%s",
+        cycle_id,
+        req.submission_id,
+        prov,
+        att.id,
+        len(resources),
+        inv.get("run_id"),
+    )
+
+    try:
+        result = ai_service.compare_architecture_diagram_to_cloud_inventory(
+            diagram_bytes=data,
+            diagram_mime_type=att.file_type or "application/octet-stream",
+            cloud_resources=resources,
+            cloud_provider=prov,
+            inventory_truncated=len(resources) > 250,
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve)) from ve
+    except Exception as exc:
+        logger.exception("diagram-cloud-ai-compare: Vertex call failed")
+        msg = str(exc)
+        if "429" in msg or "rate limit" in msg.lower() or "Resource exhausted" in msg:
+            raise HTTPException(
+                status_code=503,
+                detail="AI service is temporarily overloaded. Please try again in a minute.",
+            ) from exc
+        raise HTTPException(status_code=502, detail=f"AI comparison error: {exc}") from exc
+
+    result["cloud_provider"] = inv.get("cloud_provider") or prov
+    result["inventory_message"] = inv.get("message")
+    result["run_id"] = inv.get("run_id")
+    result["aws_inventory_message"] = inv.get("message")
+    result["aws_run_id"] = inv.get("run_id")
+    result["attachment_id"] = str(att.id)
+    result["attachment_file_name"] = att.file_name
+    result["compared_at"] = datetime.now(timezone.utc).isoformat()
+
+    logger.info(
+        "diagram_cloud_ai_compare OK cycle_id=%s submission_id=%s provider=%s attachment_id=%s matched=%s missing=%s extra=%s summary_chars=%s",
+        cycle_id,
+        req.submission_id,
+        prov,
+        att.id,
+        len(result.get("matched") or []),
+        len(result.get("missing_in_aws") or []),
+        len(result.get("extra_in_aws") or []),
+        len(str(result.get("summary") or "")),
+    )
+    _ai_emit(
+        "INFO",
+        "diagram_compare_api",
+        f"done cycle_id={cycle_id} submission_id={req.submission_id} provider={prov} matched={len(result.get('matched') or [])} "
+        f"missing={len(result.get('missing_in_aws') or [])} extra={len(result.get('extra_in_aws') or [])}",
+    )
+
+    try:
+        _persist_diagram_compare_cache(sub, prov, att.id, result)
+        db.commit()
+    except Exception as cache_err:
+        logger.warning("diagram_cloud_ai_compare: could not persist compare cache: %s", cache_err)
+        db.rollback()
+
+    return result
 
 
 @router.post("/assessments/{cycle_id}/evidence/evaluate", response_model=EvaluateEvidenceResponse)

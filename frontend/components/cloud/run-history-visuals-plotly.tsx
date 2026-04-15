@@ -32,6 +32,7 @@ import {
 import type { CloudCollectorRun, CloudEvidenceRow } from "@/lib/cloud-evidence-types";
 import { useAuth } from "@/lib/auth-context";
 import { getGcpCollectorApiMatrix } from "@/lib/gcp-api";
+import { getAzureCollectorApiMatrix } from "@/lib/azure-api";
 import {
   awsAccordionTriggerClass,
   awsButtonSecondarySmClass,
@@ -227,6 +228,22 @@ const SOURCE_API_MAP: Record<string, string[]> = {
   vpc_network: ["compute.googleapis.com/v1/networks"],
   databases: ["sqladmin.googleapis.com/v1", "redis.googleapis.com/v1"],
   cloud_sql: ["sqladmin.googleapis.com/v1"],
+  azure_resource_graph: ["Microsoft.ResourceGraph/resources"],
+  azure_resource_graph_security: ["Microsoft.ResourceGraph/resources (securityresources)"],
+  azure_network_topology: ["Microsoft.ResourceGraph/resources"],
+  azure_component_inventory: ["Microsoft.ResourceGraph/resources"],
+  azure_firewall_nsg: ["Microsoft.ResourceGraph/resources"],
+  azure_encryption: ["Microsoft.ResourceGraph/resources"],
+  azure_identity_rbac: [
+    "Microsoft.ResourceGraph/resources",
+    "Microsoft Graph: /reports/credentialUserRegistrationDetails",
+    "Microsoft Graph: /auditLogs/directoryAudits",
+  ],
+  azure_logging_monitoring: ["Microsoft.ResourceGraph/resources"],
+  azure_defender_assessments: ["Microsoft.ResourceGraph/resources (securityresources)"],
+  azure_compute_patch: ["Microsoft.ResourceGraph/resources"],
+  azure_backup: ["Microsoft.ResourceGraph/resources"],
+  azure_container_integrity: ["Microsoft.ResourceGraph/resources"],
 };
 
 function normalizeSourceKey(source: string): string {
@@ -530,6 +547,7 @@ export function RunHistoryVisualsPlotly({
   const { activeCycleId } = useAuth();
   const pathname = usePathname();
   const isGcpPage = pathname?.includes("/gcp") ?? false;
+  const isAzurePage = pathname?.includes("/azure") ?? false;
   const loadEvidenceContent = useCallback(
     (evidenceId: string) => fetchEvidenceContent(evidenceId, activeCycleId),
     [fetchEvidenceContent, activeCycleId]
@@ -571,19 +589,24 @@ export function RunHistoryVisualsPlotly({
   >({});
 
   useEffect(() => {
-    if (!isGcpPage) {
+    if (!isGcpPage && !isAzurePage) {
       setCollectorApiMatrix(null);
       return;
     }
     let cancelled = false;
-    getGcpCollectorApiMatrix(activeCycleId)
-      .then((payload) => {
+    const load = isAzurePage ? getAzureCollectorApiMatrix(activeCycleId) : getGcpCollectorApiMatrix(activeCycleId);
+    load
+      .then((payload: unknown) => {
         if (cancelled) return;
         const map: Record<string, string[]> = {};
-        for (const row of payload?.by_collector ?? []) {
-          const k = normalizeSourceKey(row.collector || "");
+        const rows = (payload as { by_collector?: Array<Record<string, unknown>> })?.by_collector ?? [];
+        for (const row of rows) {
+          const k = normalizeSourceKey(String(row.collector || ""));
           if (!k) continue;
-          map[k] = Array.isArray(row.gcp_api_methods) ? row.gcp_api_methods : [];
+          const methods =
+            (Array.isArray(row.azure_api_methods) ? row.azure_api_methods : null) ??
+            (Array.isArray(row.gcp_api_methods) ? row.gcp_api_methods : []);
+          map[k] = methods.map((m) => String(m));
         }
         setCollectorApiMatrix(map);
       })
@@ -593,7 +616,7 @@ export function RunHistoryVisualsPlotly({
     return () => {
       cancelled = true;
     };
-  }, [isGcpPage, activeCycleId]);
+  }, [isGcpPage, isAzurePage, activeCycleId]);
 
   const toggleFeatureParent = (controlKey: string, parent: string) => {
     const key = `${controlKey}::${parent}`;

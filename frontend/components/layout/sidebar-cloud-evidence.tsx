@@ -14,11 +14,10 @@ export function SidebarCloudEvidence(props: {
   hoverEnabled: boolean;
   awsHref: string;
   gcpHref: string;
-  /** Reserved for when Azure evidence leaves "coming soon". */
-  azureHref?: string;
+  azureHref: string;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const { label, sidebarOpen, hoverEnabled, awsHref, gcpHref, onOpenChange } = props;
+  const { label, sidebarOpen, hoverEnabled, awsHref, gcpHref, azureHref, onOpenChange } = props;
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -229,26 +228,21 @@ export function SidebarCloudEvidence(props: {
               </span>
               <span className="truncate">GCP Evidence</span>
             </Link>
-            <div
+            <Link
               role="menuitem"
-              aria-disabled
-              className={`${linkCls} cursor-not-allowed opacity-75`}
+              href={azureHref}
+              className={linkCls}
               style={{
-                color: "var(--sidebar-text-muted)",
-                backgroundColor: "transparent",
+                color: isAzureActive ? "var(--sidebar-active-text)" : "var(--sidebar-text-muted)",
+                backgroundColor: isAzureActive ? "var(--sidebar-active-bg)" : "transparent",
               }}
-              title="Azure evidence — coming soon"
+              onClick={() => commitOpen(false)}
             >
-              <span style={{ color: "inherit", opacity: 0.85 }}>
+              <span style={{ color: "inherit" }}>
                 <IconAzure className="w-5 h-5" />
               </span>
-              <span className="truncate flex-1 min-w-0">Azure Evidence</span>
-              <span
-                className="shrink-0 whitespace-nowrap rounded-md border border-orange-500/40 bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-semibold leading-tight text-orange-500 dark:text-orange-400"
-              >
-                Coming Soon
-              </span>
-            </div>
+              <span className="truncate">Azure Evidence</span>
+            </Link>
           </motion.div>
         )}
       </AnimatePresence>

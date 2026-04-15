@@ -31,6 +31,7 @@ from app.aws_evidence.services import (
     delete_all_evidence_and_runs_for_tenant,
     run_belongs_to_tenant,
     evidence_belongs_to_tenant,
+    build_cloud_diagram_compare_inventory,
 )
 from app.config import settings
 from app.constants import PLATFORM_ADMIN_ROLES
@@ -591,6 +592,28 @@ def delete_gcp_run(
         raise HTTPException(status_code=404, detail="Run not found")
     deleted = delete_run(db, run_id)
     return {"run_id": str(run_id), "deleted_evidence": deleted}
+
+
+@router.get("/diagram-compare/inventory")
+def gcp_diagram_compare_inventory(
+    scope: GcpScope = Depends(get_effective_gcp_scope),
+    db: Session = Depends(get_swift_evidence_db),
+) -> dict:
+    """
+    GCE, Cloud SQL, forwarding rules, Cloud Run, and Cloud Asset resources from the latest GCP collector run,
+    with labels/tags where available, for diagram comparison.
+    """
+    try:
+        return build_cloud_diagram_compare_inventory(
+            db,
+            scope.tenant_id,
+            scope.cycle_id,
+            scope.user_id,
+            "gcp",
+        )
+    except Exception as exc:
+        logger.exception("GET /cloud/gcp/diagram-compare/inventory failed: %s", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.get("/evidence")

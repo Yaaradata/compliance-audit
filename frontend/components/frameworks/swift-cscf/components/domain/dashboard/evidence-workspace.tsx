@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AiEvaluationResult } from "@/components/domain/ai-evaluation-result";
 import { EvidenceQuestionsForm } from "@/components/domain/evidence-questions-form";
@@ -14,7 +14,7 @@ import type { EvaluationEditsMap } from "../../../../../domain/ai-evaluation-res
 import { evaluationRequiredFieldsHintClassName } from "@/lib/evidence-evaluation-validation";
 
 /** When true, Azure evidence is not offered in UI (sidebar + connect flows show "coming soon"). */
-const AZURE_EVIDENCE_COMING_SOON = true;
+const AZURE_EVIDENCE_COMING_SOON = false;
 
 type CloudProvider = "aws" | "gcp" | "azure";
 
@@ -179,6 +179,15 @@ export function EvidenceWorkspace({
         ? !AZURE_EVIDENCE_COMING_SOON && azureConnected
         : awsConnected;
 
+  const diagramCompareInventoryByProvider = useMemo(
+    () => ({
+      aws: awsConnectionChecked && awsConnected,
+      gcp: true,
+      azure: !AZURE_EVIDENCE_COMING_SOON && azureConnectionChecked && azureConnected,
+    }),
+    [awsConnectionChecked, awsConnected, azureConnectionChecked, azureConnected],
+  );
+
   const sourceMatchesProvider = useCallback((srcRaw: string, provider: CloudProvider): boolean => {
     const tokens = srcRaw
       .trim()
@@ -191,7 +200,11 @@ export function EvidenceWorkspace({
       .map((t) => t.trim())
       .filter(Boolean);
     const aliases =
-      provider === "aws" ? ["aws"] : provider === "gcp" ? ["gcp", "gcs"] : ["azure"];
+      provider === "aws"
+        ? ["aws"]
+        : provider === "gcp"
+          ? ["gcp", "gcs"]
+          : ["azure", "gcp", "gcs"];
     return tokens.some((t) => aliases.some((a) => t.startsWith(a)) && t.includes("human"));
   }, []);
 
@@ -640,6 +653,7 @@ export function EvidenceWorkspace({
             fileRefreshTrigger={fileRefreshTrigger}
             awsAssistanceEnabled={connectionsReady && canUseSelectedProvider}
             cloudAssistProvider={selectedProvider}
+            diagramCompareInventoryByProvider={diagramCompareInventoryByProvider}
           />
 
           {aiEvaluationError && !aiEvaluationResult && (

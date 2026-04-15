@@ -101,6 +101,12 @@ def ensure_optional_columns():
                 )
                 conn.execute(
                     text(
+                        f'ALTER TABLE "{schema}"."evidence_submissions" '
+                        "ADD COLUMN IF NOT EXISTS \"diagram_cloud_compare_cache\" JSONB NOT NULL DEFAULT '{}'"
+                    )
+                )
+                conn.execute(
+                    text(
                         f'ALTER TABLE "{schema}"."review_assignments" '
                         "ADD COLUMN IF NOT EXISTS \"checklist_results\" JSONB NOT NULL DEFAULT '{}'"
                     )
@@ -351,8 +357,18 @@ def ensure_cycle_user_azure_config_table():
                 "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS azure_client_id VARCHAR(128)",
                 "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS encrypted_client_secret TEXT",
                 "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS connect_api_test_passed_at TIMESTAMPTZ",
+                "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS azure_oauth_state VARCHAR(128)",
+                "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS azure_oauth_state_expires_at TIMESTAMPTZ",
+                "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS encrypted_oauth_refresh_token TEXT",
+                "ALTER TABLE core.cycle_user_azure_config ADD COLUMN IF NOT EXISTS entra_signin_username VARCHAR(320)",
             ):
                 conn.execute(text(ddl))
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_cycle_user_azure_oauth_state "
+                    "ON core.cycle_user_azure_config (azure_oauth_state) WHERE azure_oauth_state IS NOT NULL"
+                )
+            )
             conn.commit()
         logger.info("cycle_user_azure_config table ensured.")
     except Exception as e:

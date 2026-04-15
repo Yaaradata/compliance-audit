@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from uuid import UUID
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -101,6 +103,19 @@ class EvaluateEvidenceResponse(BaseModel):
     remediation: str | None = None
     """Per-form-field feedback: key = form field key (e.g. diagram_date, connector_zone_statement), value = null if adequate or message for 'AI — needs more info'."""
     field_feedback: dict[str, str | None] = {}
+
+
+class DiagramCloudAiCompareRequest(BaseModel):
+    """Run Vertex multimodal compare: submission diagram vs latest collector inventory (AWS, GCP, or Azure)."""
+
+    submission_id: UUID
+    attachment_id: UUID | None = None
+    """When set, use this attachment; otherwise the first PDF/image on the submission is used."""
+    cloud_provider: Literal["aws", "gcp", "azure"] = "aws"
+
+
+# Backward-compatible name for clients that only target AWS.
+DiagramAwsAiCompareRequest = DiagramCloudAiCompareRequest
 
 
 class AwsEvidenceSuggestResponse(BaseModel):

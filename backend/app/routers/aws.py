@@ -41,6 +41,7 @@ from app.aws_evidence.services import (
     delete_all_evidence_and_runs_for_tenant,
     run_belongs_to_tenant,
     evidence_belongs_to_tenant,
+    build_aws_diagram_compare_inventory,
 )
 from app.aws_evidence.collectors.evidence_mapping import get_apis_for_control as get_apis_for_control_items
 from app.aws_evidence.collectors.aws_api_catalog import get_apis_for_run as get_run_aws_calls
@@ -428,6 +429,27 @@ def trigger_collect(
     except Exception as exc:  # pragma: no cover
         msg = str(exc) if str(exc) else "Collection failed"
         raise HTTPException(status_code=502, detail=msg) from exc
+
+
+@router.get("/diagram-compare/inventory")
+def diagram_compare_inventory(
+    scope: AwsScope = Depends(get_effective_aws_scope),
+    db: Session = Depends(get_swift_evidence_db),
+) -> dict:
+    """
+    EC2, RDS, and load balancer resources from the latest completed AWS collector run,
+    with tags for diagram vs inventory comparison (Application / Environment / Service).
+    """
+    try:
+        return build_aws_diagram_compare_inventory(
+            db,
+            scope.tenant_id,
+            scope.cycle_id,
+            scope.user_id,
+        )
+    except Exception as exc:
+        logger.exception("GET /cloud/aws/diagram-compare/inventory failed: %s", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.get("/evidence")

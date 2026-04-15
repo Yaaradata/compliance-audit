@@ -2,9 +2,11 @@
 import json
 import logging
 from dataclasses import dataclass
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -27,18 +29,32 @@ from app.aws_evidence.services import (
     delete_all_evidence_and_runs_for_tenant,
     run_belongs_to_tenant,
     evidence_belongs_to_tenant,
+    build_cloud_diagram_compare_inventory,
 )
 from app.config import settings
 from app.constants import PLATFORM_ADMIN_ROLES
 from app.dependencies import get_current_user, get_db
 from app.models.tenant import User
 from app.azure_evidence.collectors import COLLECTORS as AZURE_COLLECTORS
+from app.azure_evidence.collectors.azure_api_catalog import api_matrix_for_docs as azure_api_matrix_for_docs
 from app.azure_evidence.services import run_all_azure_collectors
 from app.azure_evidence.platform.credentials import resolve_azure_credential
 from app.azure_evidence.services.precheck import precheck_azure_collection
+from app.services.azure_delegated_arm import list_arm_subscriptions, resolve_subscription_and_tenant_after_oauth
+from app.services.azure_entra_oauth import (
+    azure_oauth_env_configured,
+    build_authorization_url,
+    display_name_from_token_result,
+    exchange_code_for_token_result,
+    oauth_authority_tenant_segment,
+)
 from app.services.cycle_user_azure_config import (
+    begin_azure_oauth_state,
+    clear_azure_oauth_connection,
+    complete_azure_oauth,
     delete_cycle_user_azure_config,
     get_row,
+    get_row_by_azure_oauth_state,
     mark_connect_api_test_passed,
     save_azure_context,
 )
@@ -46,6 +62,28 @@ from app.services.cycle_user_azure_config import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _frontend_azure_oauth_success_url() -> str:
+    custom = (getattr(settings, "AZURE_OAUTH_FRONTEND_REDIRECT_URL", None) or "").strip()
+    if custom:
+        sep = "&" if "?" in custom else "?"
+        return f"{custom}{sep}azure_oauth=success"
+    origins = settings.CORS_ORIGINS or []
+    base = origins[0].rstrip("/") if origins else "http://localhost:3000"
+    # Land on dashboard so users can fetch evidence immediately after Microsoft redirects back.
+    return f"{base}/azure/dashboard?azure_oauth=success"
+
+
+def _frontend_azure_oauth_error_url(message: str) -> str:
+    q = quote(message[:500], safe="")
+    custom = (getattr(settings, "AZURE_OAUTH_FRONTEND_REDIRECT_URL", None) or "").strip()
+    if custom:
+        sep = "&" if "?" in custom else "?"
+        return f"{custom}{sep}azure_oauth=error&message={q}"
+    origins = settings.CORS_ORIGINS or []
+    base = origins[0].rstrip("/") if origins else "http://localhost:3000"
+    return f"{base}/azure/sign-in?azure_oauth=error&message={q}"
 
 
 @dataclass(frozen=True)
@@ -112,6 +150,122 @@ def save_azure_context_endpoint(
     return {"ok": True, "message": "Azure scope saved. Run Test connection, then collect evidence."}
 
 
+@router.post("/auth/oauth/start")
+def azure_oauth_start(scope: AzureScope = Depends(get_effective_azure_scope), db: Session = Depends(get_db)) -> dict:
+    """Returns Microsoft authorization URL. Subscription and tenant are discovered after sign-in unless already saved."""
+    if not azure_oauth_env_configured():
+        raise HTTPException(
+            status_code=400,
+            detail="Microsoft Entra OAuth is not configured. Set AZURE_OAUTH_CLIENT_ID, AZURE_OAUTH_CLIENT_SECRET, "
+            "and AZURE_OAUTH_REDIRECT_URI on the API server.",
+        )
+    try:
+        _row, state = begin_azure_oauth_state(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+        segment = oauth_authority_tenant_segment(
+            saved_directory_tenant_id=(_row.azure_tenant_id or ""),
+            settings_login_tenant=(getattr(settings, "AZURE_OAUTH_LOGIN_TENANT", None) or ""),
+        )
+        url = build_authorization_url(state=state, authority_tenant_segment=segment)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.exception("Azure OAuth URL build failed")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {"authorization_url": url}
+
+
+@router.get("/auth/oauth/callback")
+def azure_oauth_callback(
+    code: str = Query(""),
+    state: str = Query(""),
+    db: Session = Depends(get_db),
+):
+    """OAuth redirect target (no Bearer token; validated via state)."""
+    row = get_row_by_azure_oauth_state(db, state)
+    if not row:
+        return RedirectResponse(url=_frontend_azure_oauth_error_url("invalid_or_expired_state"))
+    segment = oauth_authority_tenant_segment(
+        saved_directory_tenant_id=(row.azure_tenant_id or ""),
+        settings_login_tenant=(getattr(settings, "AZURE_OAUTH_LOGIN_TENANT", None) or ""),
+    )
+    saved_sub_for_resolve = (row.azure_subscription_id or "").strip()
+    try:
+        result = exchange_code_for_token_result(code=code, authority_tenant_segment=segment)
+        rt = (result.get("refresh_token") or "").strip()
+        if not rt:
+            return RedirectResponse(
+                url=_frontend_azure_oauth_error_url(
+                    "No refresh token returned. Try again and accept consent, or ensure offline_access is allowed for this app."
+                )
+            )
+        access = (result.get("access_token") or "").strip()
+        if not access:
+            return RedirectResponse(url=_frontend_azure_oauth_error_url("No access token returned from Microsoft."))
+        arm_list, arm_err = list_arm_subscriptions(access)
+        if arm_err:
+            return RedirectResponse(
+                url=_frontend_azure_oauth_error_url(
+                    f"Could not list Azure subscriptions for this account: {arm_err}. "
+                    "Ensure the app has Azure Service Management delegated permission user_impersonation and admin consent if required."
+                )
+            )
+        picked = resolve_subscription_and_tenant_after_oauth(
+            saved_subscription_id=saved_sub_for_resolve,
+            arm_subscriptions=arm_list,
+        )
+        if not picked:
+            if saved_sub_for_resolve:
+                return RedirectResponse(
+                    url=_frontend_azure_oauth_error_url(
+                        "This Microsoft account does not have access to the saved subscription, or the subscription is not enabled. "
+                        "Check the subscription ID, sign in with an account that has Reader on that subscription, or clear saved scope and sign in again."
+                    )
+                )
+            return RedirectResponse(
+                url=_frontend_azure_oauth_error_url(
+                    "No enabled Azure subscriptions were found for this account. Use a work or school account with an Azure subscription."
+                )
+            )
+        sub_id, ten_id = picked
+        name = display_name_from_token_result(result) or "Microsoft account"
+        complete_azure_oauth(
+            db,
+            row,
+            refresh_token=rt,
+            entra_username=name,
+            azure_subscription_id=sub_id,
+            azure_tenant_id=ten_id,
+        )
+        row = get_row(db, row.tenant_id, row.cycle_id, row.user_id)
+        sub = (row.azure_subscription_id or "").strip() if row else ""
+        if sub:
+            try:
+                cred, sid, _ = resolve_azure_credential(db, row.tenant_id, row.cycle_id, row.user_id)
+                check = precheck_azure_collection(cred, sid)
+                if check.get("ok"):
+                    mark_connect_api_test_passed(db, row.tenant_id, row.cycle_id, row.user_id)
+                    logger.info("Azure OAuth Resource Graph precheck OK subscription=%s", sid)
+                else:
+                    logger.warning(
+                        "Azure OAuth OK but Resource Graph precheck failed: %s",
+                        check.get("error"),
+                    )
+            except Exception as ex:
+                logger.warning("Azure OAuth callback post-precheck failed: %s", ex)
+    except Exception as e:
+        logger.exception("Azure OAuth callback failed")
+        return RedirectResponse(url=_frontend_azure_oauth_error_url(str(e)))
+    return RedirectResponse(url=_frontend_azure_oauth_success_url())
+
+
+@router.post("/auth/oauth/disconnect")
+def azure_oauth_disconnect(scope: AzureScope = Depends(get_effective_azure_scope), db: Session = Depends(get_db)) -> dict:
+    if not azure_oauth_env_configured():
+        return {"ok": True, "message": "Microsoft OAuth mode not enabled on server."}
+    clear_azure_oauth_connection(db, scope.tenant_id, scope.cycle_id, scope.user_id)
+    return {"ok": True, "message": "Microsoft sign-in disconnected for this cycle."}
+
+
 @router.get("/config")
 def azure_config_public(scope: AzureScope = Depends(get_effective_azure_scope), db: Session = Depends(get_db)) -> dict:
     row = get_row(db, scope.tenant_id, scope.cycle_id, scope.user_id)
@@ -122,6 +276,9 @@ def azure_config_public(scope: AzureScope = Depends(get_effective_azure_scope), 
         (getattr(settings, "AZURE_CLIENT_ID", None) or "").strip()
         and (getattr(settings, "AZURE_CLIENT_SECRET", None) or "").strip()
     )
+    oauth_on = azure_oauth_env_configured()
+    has_oauth = bool(row and (row.encrypted_oauth_refresh_token or "").strip())
+    entra_user = (row.entra_signin_username or "").strip() if row else ""
     test_ok = bool(row and row.connect_api_test_passed_at is not None)
     return {
         "configured": bool(sub and tid and test_ok),
@@ -130,6 +287,9 @@ def azure_config_public(scope: AzureScope = Depends(get_effective_azure_scope), 
         "azure_tenant_id": tid or None,
         "service_principal_saved": has_sp,
         "env_service_principal_available": env_sp,
+        "azure_oauth_env_configured": oauth_on,
+        "entra_oauth_connected": has_oauth,
+        "entra_signin_username": entra_user or None,
         "connect_api_test_passed": test_ok,
     }
 
@@ -189,6 +349,13 @@ def azure_validation_precheck(scope: AzureScope = Depends(get_effective_azure_sc
     except Exception as exc:
         logger.exception("Azure precheck failed")
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get("/collectors/api-matrix")
+def azure_collectors_api_matrix(scope: AzureScope = Depends(get_effective_azure_scope)) -> dict:
+    """Azure API methods used per collector for dashboard/run-history API breakdown."""
+    _ = scope
+    return azure_api_matrix_for_docs()
 
 
 @router.get("/runs")
@@ -264,6 +431,28 @@ def delete_azure_run(
         raise HTTPException(status_code=404, detail="Run not found")
     deleted = delete_run(db, run_id)
     return {"run_id": str(run_id), "deleted_evidence": deleted}
+
+
+@router.get("/diagram-compare/inventory")
+def azure_diagram_compare_inventory(
+    scope: AzureScope = Depends(get_effective_azure_scope),
+    db: Session = Depends(get_swift_evidence_db),
+) -> dict:
+    """
+    VMs, SQL, load balancers, and related resources from the latest Azure Resource Graph component-inventory snapshot,
+    with tags for diagram comparison.
+    """
+    try:
+        return build_cloud_diagram_compare_inventory(
+            db,
+            scope.tenant_id,
+            scope.cycle_id,
+            scope.user_id,
+            "azure",
+        )
+    except Exception as exc:
+        logger.exception("GET /cloud/azure/diagram-compare/inventory failed: %s", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.get("/evidence")

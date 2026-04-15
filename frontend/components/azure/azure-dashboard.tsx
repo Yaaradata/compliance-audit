@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, FileText, Loader2, BarChart3 } from "lucide-react";
 import { AwsKpiCards } from "@/components/aws/aws-kpi-cards";
-import { AwsSectionTitle, awsButtonSecondaryClass, awsSegmentShellClass, awsSegmentButtonClass } from "@/components/aws/aws-page-header";
+import {
+  AwsSectionTitle,
+  awsButtonPrimaryClass,
+  awsButtonSecondaryClass,
+  awsSegmentShellClass,
+  awsSegmentButtonClass,
+} from "@/components/aws/aws-page-header";
 import { AwsEvidenceTable } from "@/components/aws/aws-evidence-table";
 import { RunHistoryVisualsPlotly } from "@/components/cloud/run-history-visuals-plotly";
 import type { AzureEvidenceRow, AzureRun } from "@/lib/azure-api";
@@ -87,12 +93,16 @@ export function AzureDashboard({
             </h1>
             <p className="mt-1 text-sm leading-snug" style={{ color: "var(--foreground-muted)" }}>
               Compliance evidence at a glance — collect Microsoft Azure configuration via Resource Graph and Defender
-              assessments aligned to your SWIFT workbook.
+              assessments aligned to your SWIFT workbook. Use{" "}
+              <Link href="/azure" className="underline font-medium" style={{ color: "var(--primary)" }}>
+                Azure Connect
+              </Link>{" "}
+              to change subscription, tenant, or Microsoft sign-in.
             </p>
           </div>
           <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:shrink-0">
             <Link href="/azure" className={`${awsButtonSecondaryClass} min-h-[42px] px-3 sm:px-4`}>
-              Connect
+              Azure Connect
             </Link>
             <div className={`${awsSegmentShellClass} sm:max-w-none`}>
               <button

@@ -3,7 +3,7 @@
  */
 
 import { api } from "@/lib/api";
-import { CLOUD_EVIDENCE_API } from "@/lib/cloud-evidence-api-paths";
+import { CLOUD_EVIDENCE_API, type CloudEvidenceProvider } from "@/lib/cloud-evidence-api-paths";
 import type { CloudCollectorRun, CloudEvidenceRow } from "@/lib/cloud-evidence-types";
 
 const PREFIX = CLOUD_EVIDENCE_API.aws;
@@ -78,6 +78,35 @@ export function deleteRun(runId: string, cycleId?: string | null): Promise<{ run
 export function fetchAwsEvidence(cycleId?: string | null): Promise<{ run_id: string; status: string }> {
   // Use proxy so the request goes through Next.js → backend (no direct browser → backend).
   return api.postViaProxy<{ run_id: string; status: string }>(`${PREFIX}/runs/collect${scopeQuery(cycleId)}`, {}, 120_000);
+}
+
+export type AwsDiagramCompareResource = {
+  resource_type: string;
+  id: string;
+  display_name: string;
+  region: string;
+  application: string | null;
+  environment: string | null;
+  service: string | null;
+  tag_pairs: { key: string; value: string }[];
+};
+
+export function getCloudDiagramCompareInventory(
+  provider: CloudEvidenceProvider,
+  cycleId?: string | null,
+): Promise<{
+  run_id: string | null;
+  resources: AwsDiagramCompareResource[];
+  message: string | null;
+  cloud_provider?: string | null;
+}> {
+  const prefix = CLOUD_EVIDENCE_API[provider];
+  return api.get(`${prefix}/diagram-compare/inventory${scopeQuery(cycleId)}`);
+}
+
+/** @deprecated Prefer getCloudDiagramCompareInventory("aws", cycleId). */
+export function getDiagramCompareInventory(cycleId?: string | null) {
+  return getCloudDiagramCompareInventory("aws", cycleId);
 }
 
 export function getEvidence(

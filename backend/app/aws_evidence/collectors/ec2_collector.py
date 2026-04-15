@@ -29,6 +29,7 @@ def collect(region: str, account_id: str, session=None) -> list[tuple[dict, str,
                             "State": i.get("State", {}).get("Name"),
                             "LaunchTime": i.get("LaunchTime").isoformat() if i.get("LaunchTime") else None,
                             "SecurityGroups": [sg.get("GroupId") for sg in i.get("SecurityGroups", [])],
+                            "Tags": i.get("Tags") or [],
                         })
         except ClientError as e:
             instances = [{"error": str(e)}]

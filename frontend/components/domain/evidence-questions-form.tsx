@@ -6,10 +6,12 @@ import "@/components/review/swift-review-template/swift-review-template.css";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { CompactDropzone } from "@/components/domain/compact-dropzone";
+import { ArchitectureDiagramCompareModal } from "@/components/domain/architecture-diagram-compare-modal";
 import { EvidenceInputRenderer } from "@/components/domain/evidence-input-renderer";
 import { FieldAINote } from "@/components/domain/field-ai-note";
 import type { EvidenceQuestion, EvidenceInput } from "@/lib/types";
-import { A5_EVIDENCE_ITEM_ID } from "@/lib/frameworks/swift-cscf/constants";
+import { A1_EVIDENCE_ITEM_ID, A5_EVIDENCE_ITEM_ID } from "@/lib/frameworks/swift-cscf/constants";
+import type { CloudEvidenceProvider } from "@/lib/cloud-evidence-api-paths";
 
 interface SpreadsheetColumn {
   key: string;
@@ -58,6 +60,12 @@ export interface EvidenceQuestionsFormProps {
   awsAssistanceEnabled?: boolean;
   /** Drives field labels and gap hints (“AWS” vs “GCP”) to match the selected suggest-from provider. */
   cloudAssistProvider?: CloudAssistProvider;
+  /**
+   * When true, diagram compare can refresh inventory for any provider that does not override in `diagramCompareInventoryByProvider`.
+   */
+  diagramCompareInventoryReady?: boolean;
+  /** Per-cloud readiness for diagram compare (e.g. AWS/Azure require connection). Omitted keys fall back to `diagramCompareInventoryReady`. */
+  diagramCompareInventoryByProvider?: Partial<Record<CloudEvidenceProvider, boolean>>;
 }
 
 export type EvidenceFormVisualVariant = "default" | "swiftReview";
@@ -338,19 +346,21 @@ function isAzureOnly(src: string | null | undefined): boolean {
 
 function isCloudPlusHuman(src: string | null | undefined, provider: CloudAssistProvider): boolean {
   if (provider === "gcp") return isGcpPlusHuman(src);
-  if (provider === "azure") return isAzurePlusHuman(src);
+  // Azure autofill uses the same SWIFT rows as GCP (GCS-tagged sources); show Azure+HUMAN chip + dual-tab behavior.
+  if (provider === "azure") return isAzurePlusHuman(src) || isGcpPlusHuman(src);
   return isAwsPlusHuman(src);
 }
 
 function isCloudOnly(src: string | null | undefined, provider: CloudAssistProvider): boolean {
   if (provider === "gcp") return isGcpOnly(src);
-  if (provider === "azure") return isAzureOnly(src);
+  if (provider === "azure") return isAzureOnly(src) || isGcpOnly(src);
   return isAwsOnly(src);
 }
 
 function isCloudSource(src: string | null | undefined, provider: CloudAssistProvider): boolean {
   if (provider === "gcp") return isGcpSource(src);
-  if (provider === "azure") return isAzureSource(src);
+  // Spinner + AI badge: backend treats GCS/GCP-tagged questions as Azure-eligible too.
+  if (provider === "azure") return isAzureSource(src) || isGcpSource(src);
   return isAwsSource(src);
 }
 
@@ -1022,12 +1032,25 @@ export function EvidenceQuestionsForm({
   fileRefreshTrigger = 0,
   awsAssistanceEnabled = true,
   cloudAssistProvider = "aws",
+  diagramCompareInventoryReady = false,
+  diagramCompareInventoryByProvider,
 }: EvidenceQuestionsFormProps) {
   const swift = visualVariant === "swiftReview";
   const assistBrand = cloudBrand(cloudAssistProvider);
+
+  const diagramInventoryLinkedByProvider = useMemo((): Record<CloudEvidenceProvider, boolean> => {
+    const base = diagramCompareInventoryReady;
+    const p = diagramCompareInventoryByProvider;
+    return {
+      aws: p?.aws ?? base,
+      gcp: p?.gcp ?? base,
+      azure: p?.azure ?? base,
+    };
+  }, [diagramCompareInventoryByProvider, diagramCompareInventoryReady]);
   const [questions, setQuestions] = useState<EvidenceQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [questionsLoadError, setQuestionsLoadError] = useState<string | null>(null);
+  const [diagramCompareOpen, setDiagramCompareOpen] = useState(false);
 
   useEffect(() => {
     if (!evidenceItemId || !cycleId) {
@@ -1190,6 +1213,9 @@ export function EvidenceQuestionsForm({
             evidenceItemId === A5_EVIDENCE_ITEM_ID && q.question_key === "evidence_document"
               ? "Architecture diagram upload"
               : q.label;
+          const showArchitectureCompare =
+            q.question_key === "evidence_document" &&
+            (evidenceItemId === A1_EVIDENCE_ITEM_ID || evidenceItemId === A5_EVIDENCE_ITEM_ID);
           return (
             <div
               key={q.id}
@@ -1199,16 +1225,39 @@ export function EvidenceQuestionsForm({
               role="group"
               aria-label={fileLabel}
             >
-              <div className="flex flex-wrap items-baseline gap-2">
-                <label
-                  className={
-                    swift ? "block text-sm font-semibold text-[var(--text-primary)]" : "block text-sm font-medium text-gray-700"
-                  }
-                >
-                  {fileLabel}
-                </label>
-                {isCloudSource(src, cloudAssistProvider) && <AiBadge swift={swift} />}
-                <FieldAINote text={fieldFeedback?.[q.question_key]} fieldLabel={q.label} variant="inline" />
+              <div
+                className={cn(
+                  "flex flex-wrap items-center gap-x-3 gap-y-1",
+                  showArchitectureCompare ? "justify-between" : "",
+                )}
+              >
+                <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-2">
+                  <label
+                    className={
+                      swift ? "block text-sm font-semibold text-[var(--text-primary)]" : "block text-sm font-medium text-gray-700"
+                    }
+                  >
+                    {fileLabel}
+                  </label>
+                  {isCloudSource(src, cloudAssistProvider) && <AiBadge swift={swift} />}
+                  <FieldAINote text={fieldFeedback?.[q.question_key]} fieldLabel={q.label} variant="inline" />
+                </div>
+                {showArchitectureCompare && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDiagramCompareOpen(true);
+                    }}
+                    className={
+                      swift
+                        ? "shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--primary-muted)]/30"
+                        : "shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
+                    }
+                  >
+                    Compare
+                  </button>
+                )}
               </div>
               <CompactDropzone
                 submissionId={submissionId}
@@ -1217,6 +1266,16 @@ export function EvidenceQuestionsForm({
                 onEnsureSubmission={() => onEnsureSubmission?.(evidenceItemId) ?? Promise.resolve(null)}
                 fileRefreshTrigger={fileRefreshTrigger}
               />
+              {showArchitectureCompare && (
+                <ArchitectureDiagramCompareModal
+                  open={diagramCompareOpen}
+                  onClose={() => setDiagramCompareOpen(false)}
+                  cycleId={cycleId}
+                  submissionId={submissionId}
+                  defaultCompareProvider={cloudAssistProvider}
+                  inventoryLinkedByProvider={diagramInventoryLinkedByProvider}
+                />
+              )}
             </div>
           );
         }

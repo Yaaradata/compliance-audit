@@ -18,5 +18,8 @@ from .evidence_service import (
     delete_all_evidence_and_runs_for_tenant,
     run_belongs_to_tenant,
     evidence_belongs_to_tenant,
+    build_aws_diagram_compare_inventory,
+    build_cloud_diagram_compare_inventory,
 )
+
 

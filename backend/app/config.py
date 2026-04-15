@@ -49,6 +49,19 @@ class Settings(BaseSettings):
     AZURE_TENANT_ID: str = ""
     AZURE_CLIENT_ID: str = ""
     AZURE_CLIENT_SECRET: str = ""
+    # Microsoft Entra ID OAuth (authorization code + refresh) for per-user delegated ARM / Resource Graph access.
+    AZURE_OAUTH_CLIENT_ID: str = ""
+    AZURE_OAUTH_CLIENT_SECRET: str = ""
+    AZURE_OAUTH_REDIRECT_URI: str = ""
+    # Optional and rarely needed: home-directory GUID of the *platform* Entra app registration (single-tenant apps only).
+    # Leave empty — do not put a customer or per-cycle tenant here; after sign-in, tenant/subscription are stored in the DB.
+    # When empty, sign-in uses the multi-tenant "organizations" authority (typical).
+    AZURE_OAUTH_LOGIN_TENANT: str = ""
+    # Optional: base or full URL for browser return after Microsoft OAuth (default: first CORS origin + /azure/dashboard).
+    # Example: http://localhost:3000/azure/dashboard
+    AZURE_OAUTH_FRONTEND_REDIRECT_URL: str = ""
+    # When true, always try DefaultAzureCredential as last resort (e.g. local dev with az login in same shell).
+    AZURE_FORCE_DEFAULT_CREDENTIAL: bool = False
 
     GCS_BUCKET_NAME: str = ""
     GCS_PREFIX: str = "compliance-audit"

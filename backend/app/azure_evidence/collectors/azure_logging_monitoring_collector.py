@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from app.azure_evidence.platform.resource_graph import query_object_array
+from app.azure_evidence.platform.resource_graph import query_object_array, query_resources_sample
 from app.azure_evidence.collectors.control_mappings import swift_control_pairs
 
 COLLECTOR_NAME = "azure_logging_monitoring"
 EVIDENCE_TYPE = "Logging and alert configuration"
-SOURCE_SYSTEM = "azure-resource-graph"
+SOURCE_SYSTEM = COLLECTOR_NAME
 CONTROL_MAPPINGS = swift_control_pairs("E2", "E3", "E7")
 
 _KQL = """
@@ -19,7 +19,9 @@ Resources
     'microsoft.insights/metricalerts',
     'microsoft.insights/activitylogalerts',
     'microsoft.insights/actiongroups',
-    'microsoft.insights/diagnosticsettings'
+    'microsoft.insights/diagnosticsettings',
+    'microsoft.eventhub/namespaces',
+    'microsoft.storage/storageaccounts'
 )
 | project id, name, type, resourceGroup, properties
 | take 600
@@ -30,6 +32,14 @@ def collect(subscription_id: str, credential) -> list[tuple[dict, str, str, str,
     results: list[tuple[dict, str, str, str, str]] = []
     now = datetime.utcnow()
     rows, err = query_object_array(credential, subscription_id, _KQL, max_rows=2000)
+    fallback_note = None
+    if not rows and not err:
+        sample_rows, sample_err = query_resources_sample(credential, subscription_id, max_rows=120)
+        if sample_rows:
+            rows = sample_rows
+            fallback_note = "Collector-specific query returned 0 rows; attached subscription-wide resource sample for diagnostics."
+        elif sample_err:
+            fallback_note = f"Collector query returned 0 rows and fallback sample failed: {sample_err}"
     payload = {
         "collector": COLLECTOR_NAME,
         "subscription_id": subscription_id,
@@ -37,6 +47,7 @@ def collect(subscription_id: str, credential) -> list[tuple[dict, str, str, str,
         "resource_graph_error": err,
         "row_count": len(rows),
         "resources": rows,
+        "fallback_note": fallback_note,
     }
     if err and not rows:
         payload["error"] = err

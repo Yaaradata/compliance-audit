@@ -21,6 +21,7 @@ _PROMPT_FILE = _PROMPT_DIR / "evidence_evaluation_V1.txt"
 _REPORT_PROMPT_FILE = _PROMPT_DIR / "report_generation_V1.txt"
 _AWS_AUTOFILL_PROMPT_FILE = _PROMPT_DIR / "aws_autofill_V1.txt"
 _GCP_AUTOFILL_PROMPT_FILE = _PROMPT_DIR / "gcp_autofill_V1.txt"
+_DIAGRAM_CLOUD_COMPARE_PROMPT_FILE = _PROMPT_DIR / "diagram_cloud_compare_V1.txt"
 _loaded_prompt_template: str | None = None
 _AI_LOG_PREVIEW_CHARS = 8000
 # Max chars of raw model text printed to CMD (full JSON can be huge). Override with env AI_LOG_RAW_MAX_CHARS.
@@ -937,6 +938,18 @@ def suggest_answers_from_cloud_evidence(
         if provider == "aws"
         else _load_gcp_autofill_prompt_template()
     )
+    azure_runtime_preamble = ""
+    if provider == "azure":
+        azure_runtime_preamble = (
+            "## RUNTIME — AZURE EVIDENCE (read first)\n"
+            "The JSON in SECTION 1 is from **Microsoft Azure** collector runs (`cloud_provider` is `azure`). "
+            "Each `response_json` uses ARM / Resource Graph shapes (e.g. `subscription_id`, types like `microsoft.*`).\n"
+            "Many payloads include **`instances`** and **`instance_count`** (same role as GCP inventory): one object per "
+            "Azure VM with `name`, `location`, `resource_group`, `vm_size`, `os_type`, `network_interfaces`, `tags`. "
+            "Use `instances` to populate A2 **spreadsheet** rows (hostname=name, zone=location or resource_group, etc.).\n"
+            "The template below says \"GCP\" for historical reasons — treat **GCP evidence** wording as **cloud configuration evidence** "
+            "and map only from the Azure JSON. Question objects may list `azure_*` hints (sometimes mirrored from GCP columns).\n\n"
+        )
     # AWS template uses {aws_evidence_json}; GCP/Azure use {cloud_evidence_json}. Python str.format()
     # rejects unexpected keyword arguments — passing both caused TypeError and HTTP 500 on suggest-from-gcp.
     if provider == "aws":
@@ -946,7 +959,7 @@ def suggest_answers_from_cloud_evidence(
             questions_json=q_json,
         )
     else:
-        prompt = prompt_template.format(
+        prompt = azure_runtime_preamble + prompt_template.format(
             evidence_item_id=evidence_item_id,
             cloud_evidence_json=ev_json,
             questions_json=q_json,
@@ -1119,6 +1132,265 @@ def suggest_answers_from_cloud_evidence(
         f"done item={evidence_item_id} answered={filled} gaps={len(gaps)}",
     )
     return {"suggestions": out, "gaps": gaps}
+
+
+def _load_diagram_cloud_compare_prompt_template() -> str:
+    if not _DIAGRAM_CLOUD_COMPARE_PROMPT_FILE.is_file():
+        raise FileNotFoundError(f"Prompt file not found: {_DIAGRAM_CLOUD_COMPARE_PROMPT_FILE}")
+    return _DIAGRAM_CLOUD_COMPARE_PROMPT_FILE.read_text(encoding="utf-8")
+
+
+def _diagram_cloud_provider_label(cloud_provider: str) -> str:
+    p = (cloud_provider or "aws").strip().lower()
+    return {
+        "aws": "Amazon Web Services (AWS)",
+        "gcp": "Google Cloud Platform (GCP)",
+        "azure": "Microsoft Azure",
+    }.get(p, cloud_provider or "cloud")
+
+
+def _normalize_diagram_aws_ai_result(raw: dict) -> dict[str, Any]:
+    """Coerce model output to a stable shape for the API."""
+    summary = str(raw.get("summary") or "").strip()
+
+    def _obj_list(key: str) -> list[dict[str, Any]]:
+        block = raw.get(key)
+        if not isinstance(block, list):
+            return []
+        out: list[dict[str, Any]] = []
+        for item in block:
+            if not isinstance(item, dict):
+                continue
+            out.append({str(k): v for k, v in item.items()})
+        return out
+
+    matched: list[dict[str, Any]] = []
+    for m in _obj_list("matched"):
+        matched.append({
+            "diagram_label": str(m.get("diagram_label") or "").strip(),
+            "aws_id": str(
+                m.get("aws_id")
+                or m.get("cloud_id")
+                or m.get("resource_id")
+                or m.get("id")
+                or ""
+            ).strip(),
+            "aws_display_name": str(
+                m.get("aws_display_name")
+                or m.get("cloud_display_name")
+                or m.get("display_name")
+                or ""
+            ).strip(),
+            "confidence": str(m.get("confidence") or "medium").strip().lower(),
+            "rationale": str(m.get("rationale") or "").strip(),
+        })
+
+    missing_src = _obj_list("missing_in_aws") or _obj_list("missing_in_cloud")
+    missing: list[dict[str, Any]] = []
+    for m in missing_src:
+        missing.append({
+            "diagram_label": str(m.get("diagram_label") or "").strip(),
+            "rationale": str(m.get("rationale") or "").strip(),
+        })
+
+    extra_src = _obj_list("extra_in_aws") or _obj_list("extra_in_cloud")
+    extra: list[dict[str, Any]] = []
+    for m in extra_src:
+        extra.append({
+            "aws_id": str(
+                m.get("aws_id")
+                or m.get("cloud_id")
+                or m.get("resource_id")
+                or m.get("id")
+                or ""
+            ).strip(),
+            "aws_display_name": str(
+                m.get("aws_display_name")
+                or m.get("cloud_display_name")
+                or m.get("display_name")
+                or ""
+            ).strip(),
+            "rationale": str(m.get("rationale") or "").strip(),
+        })
+
+    labels_raw = raw.get("diagram_labels_extracted")
+    labels: list[str] = []
+    if isinstance(labels_raw, list):
+        for x in labels_raw:
+            s = str(x).strip()
+            if s:
+                labels.append(s)
+
+    return {
+        "summary": summary,
+        "matched": matched,
+        "missing_in_aws": missing,
+        "extra_in_aws": extra,
+        "diagram_labels_extracted": labels,
+    }
+
+
+def compare_architecture_diagram_to_cloud_inventory(
+    *,
+    diagram_bytes: bytes,
+    diagram_mime_type: str,
+    cloud_resources: list[dict[str, Any]],
+    cloud_provider: str = "aws",
+    inventory_truncated: bool = False,
+) -> dict[str, Any]:
+    """
+    Multimodal Vertex call: architecture diagram (image/PDF) + cloud inventory JSON → drift comparison.
+    Supports AWS, GCP, and Azure inventory shapes (unified resource list).
+    """
+    log_op = "diagram_cloud_ai_compare"
+    mime = (diagram_mime_type or "").strip().lower() or "application/octet-stream"
+    if mime not in (
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+        "image/gif",
+    ):
+        raise ValueError(
+            "AI diagram comparison supports PDF, PNG, JPEG, WebP, or GIF uploads. "
+            f"Got content type: {diagram_mime_type or 'unknown'}."
+        )
+
+    try:
+        model = _get_model()
+    except Exception as init_err:
+        _ai_emit("ERROR", log_op, f"init_failed: {init_err}")
+        logger.exception("Vertex AI init failed (diagram-cloud-compare)")
+        raise ValueError(
+            "Vertex AI is not available. Set GOOGLE_CLOUD_PROJECT and credentials."
+        ) from init_err
+
+    prov = (cloud_provider or "aws").strip().lower()
+    if prov not in ("aws", "gcp", "azure"):
+        prov = "aws"
+
+    resources = list(cloud_resources or [])[:250]
+    truncated = bool(inventory_truncated) or len(cloud_resources or []) > 250
+    res_json = json.dumps(resources, default=str, separators=(",", ":"))
+    template = _load_diagram_cloud_compare_prompt_template()
+    prompt = (
+        template.replace("{cloud_provider_label}", _diagram_cloud_provider_label(prov))
+        .replace("{cloud_resources_json}", res_json)
+    )
+    if truncated:
+        prompt += (
+            "\n\n## NOTE (runtime)\n"
+            "The resource array was truncated to the first 250 entries for prompt size. "
+            "Mention this limitation in `summary` if material.\n"
+        )
+    prompt += (
+        "\n\n## RUNTIME — RESPONSE RULES (do not echo this section)\n"
+        "- Output one JSON object only; use the keys specified in the prompt above.\n"
+        "- Do not wrap the JSON in markdown code fences.\n"
+    )
+
+    diagram_part = prepare_file_part(diagram_bytes, mime)
+    parts: list = [Part.from_text(prompt), diagram_part]
+
+    _ai_emit(
+        "INFO",
+        log_op,
+        f"start resources={len(resources)} truncated={truncated} mime={mime} "
+        f"model={settings.VERTEX_AI_MODEL} prompt_chars={len(prompt)} diagram_bytes={len(diagram_bytes)}",
+    )
+
+    gen_cfg = GenerationConfig(
+        temperature=0.2,
+        max_output_tokens=min(settings.LLM_SUGGEST_MAX_OUTPUT_TOKENS, 8192),
+    )
+    max_retries = 3
+    last_err: Exception | None = None
+    response = None
+    for attempt in range(max_retries + 1):
+        try:
+            timeout_s = settings.VERTEX_GENERATE_TIMEOUT_S
+            t_vertex = time.monotonic()
+            response = _generate_with_timeout(model, parts, gen_cfg, timeout_s)
+            elapsed = time.monotonic() - t_vertex
+            _ai_emit(
+                "INFO",
+                log_op,
+                f"vertex_ok attempt={attempt + 1}/{max_retries + 1} elapsed_s={elapsed:.1f}",
+            )
+            break
+        except Exception as api_err:
+            last_err = api_err
+            err_msg = str(api_err)
+            err_type = type(api_err).__name__
+            is_rate_limit = (
+                "RESOURCE_EXHAUSTED" in err_type
+                or "ResourceExhausted" in err_type
+                or "429" in err_msg
+                or "Resource exhausted" in err_msg
+            )
+            if is_rate_limit and attempt < max_retries:
+                wait = min(2**attempt * 5, 60)
+                _ai_emit("WARN", log_op, f"rate_limit retry in {wait}s attempt={attempt + 1}/{max_retries + 1}")
+                time.sleep(wait)
+                continue
+            if is_rate_limit:
+                raise ValueError("Vertex AI rate limit (429). Try again in a minute.") from api_err
+            _ai_emit("ERROR", log_op, f"generate_content failed: {err_type}: {err_msg[:500]}")
+            raise ValueError(f"Vertex AI API error (diagram-cloud-compare): {api_err}") from api_err
+    else:
+        raise ValueError(f"Vertex AI failed after {max_retries + 1} attempts: {last_err}")
+
+    text = _get_response_text(response)
+    if not (text and text.strip()):
+        _ai_emit("ERROR", log_op, "empty_model_text")
+        raise ValueError("Vertex AI returned empty text for diagram comparison.")
+
+    _log_ai_response(log_op, text)
+    try:
+        parsed = _parse_ai_response(text)
+    except (json.JSONDecodeError, ValueError) as e:
+        _ai_emit("ERROR", log_op, f"json_parse_failed: {e}")
+        raise ValueError(f"Model returned invalid JSON: {e}") from e
+    if not isinstance(parsed, dict):
+        raise ValueError("Model response was not a JSON object.")
+
+    normalized = _normalize_diagram_aws_ai_result(parsed)
+    normalized["inventory_resource_count"] = len(cloud_resources or [])
+    normalized["inventory_truncated"] = truncated
+    normalized["cloud_provider"] = prov
+    _ai_emit(
+        "INFO",
+        log_op,
+        f"done provider={prov} matched={len(normalized['matched'])} missing={len(normalized['missing_in_aws'])} extra={len(normalized['extra_in_aws'])}",
+    )
+    logger.info(
+        "[diagram_cloud_ai_compare] Vertex normalized provider=%s matched=%d missing=%d extra=%d inventory_sent=%d truncated=%s",
+        prov,
+        len(normalized["matched"]),
+        len(normalized["missing_in_aws"]),
+        len(normalized["extra_in_aws"]),
+        len(cloud_resources or []),
+        truncated,
+    )
+    return normalized
+
+
+def compare_architecture_diagram_to_aws_inventory(
+    *,
+    diagram_bytes: bytes,
+    diagram_mime_type: str,
+    aws_resources: list[dict[str, Any]],
+    inventory_truncated: bool = False,
+) -> dict[str, Any]:
+    """Backward-compatible alias for AWS-only diagram compare."""
+    return compare_architecture_diagram_to_cloud_inventory(
+        diagram_bytes=diagram_bytes,
+        diagram_mime_type=diagram_mime_type,
+        cloud_resources=aws_resources,
+        cloud_provider="aws",
+        inventory_truncated=inventory_truncated,
+    )
 
 
 def _static_glossary() -> str:

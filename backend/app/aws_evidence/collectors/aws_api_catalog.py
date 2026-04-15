@@ -8,7 +8,7 @@ COLLECTOR_AWS_APIS: dict[str, list[str]] = {
     "config": ["config:DescribeConfigurationRecorders", "config:DescribeConfigurationRecorderStatus"],
     "ssm_patch": ["ec2:DescribeInstances", "ssm:DescribeInstancePatchStates", "ssm:DescribePatchBaselines", "ssm:DescribeMaintenanceWindowExecutions"],
     "vpc_network": ["ec2:DescribeVpcs", "ec2:DescribeSubnets", "ec2:DescribeRouteTables", "ec2:DescribeInternetGateways", "ec2:DescribeNatGateways", "ec2:DescribeFlowLogs", "ec2:DescribeSecurityGroups", "ec2:DescribeNetworkAcls", "ec2:DescribeVpcPeeringConnections", "ec2:DescribeVpnConnections", "ec2:DescribeVpcEndpoints"],
-    "encryption": ["kms:ListKeys", "kms:DescribeKey", "kms:GetKeyRotationStatus", "acm:ListCertificates", "acm:DescribeCertificate", "elasticloadbalancingv2:DescribeLoadBalancers", "elasticloadbalancingv2:DescribeListeners", "elasticloadbalancingv2:DescribeSSLPolicies", "rds:DescribeDBInstances"],
+    "encryption": ["kms:ListKeys", "kms:DescribeKey", "kms:GetKeyRotationStatus", "acm:ListCertificates", "acm:DescribeCertificate", "elasticloadbalancingv2:DescribeLoadBalancers", "elasticloadbalancingv2:DescribeListeners", "elasticloadbalancingv2:DescribeTags", "elasticloadbalancingv2:DescribeSSLPolicies", "rds:DescribeDBInstances", "rds:ListTagsForResource"],
     "iam_mfa_password": ["iam:GetAccountPasswordPolicy", "iam:ListMFADevices", "iam:ListUsers", "iam:GetAccountSummary"],
     "backup": ["backup:ListBackupPlans", "backup:GetBackupPlan", "backup:DescribeBackupVault", "rds:DescribeDBInstances", "ec2:DescribeSnapshots"],
     "guardduty": ["guardduty:ListDetectors", "guardduty:GetDetector", "guardduty:GetFindingsStatistics", "guardduty:GetMalwareProtectionPlan"],

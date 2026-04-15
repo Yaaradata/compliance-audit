@@ -26,6 +26,11 @@ export interface AzureConfigResponse {
   azure_tenant_id: string | null;
   service_principal_saved?: boolean;
   env_service_principal_available?: boolean;
+  /** Server has AZURE_OAUTH_* for Sign in with Microsoft. */
+  azure_oauth_env_configured?: boolean;
+  /** This cycle has a stored OAuth refresh token. */
+  entra_oauth_connected?: boolean;
+  entra_signin_username?: string | null;
   connect_api_test_passed?: boolean;
 }
 
@@ -53,6 +58,14 @@ export function testAzureCredentials(
     `${PREFIX}/credentials/test${scopeQuery(cycleId)}`,
     {}
   );
+}
+
+export function startAzureOAuth(cycleId?: string | null): Promise<{ authorization_url: string }> {
+  return api.post<{ authorization_url: string }>(`${PREFIX}/auth/oauth/start${scopeQuery(cycleId)}`, {});
+}
+
+export function disconnectAzureOAuth(cycleId?: string | null): Promise<{ ok: boolean; message?: string }> {
+  return api.post<{ ok: boolean; message?: string }>(`${PREFIX}/auth/oauth/disconnect${scopeQuery(cycleId)}`, {});
 }
 
 export function fetchAzureEvidence(cycleId?: string | null): Promise<{ run_id: string; status: string; subscription_id?: string }> {
@@ -109,4 +122,15 @@ export interface AzureRunDetail {
 
 export function getAzureRunDetail(runId: string, cycleId?: string | null): Promise<AzureRunDetail> {
   return api.get<AzureRunDetail>(`${PREFIX}/runs/${runId}${scopeQuery(cycleId)}`);
+}
+
+export interface AzureCollectorApiMatrix {
+  by_collector: Array<{
+    collector: string;
+    azure_api_methods: string[];
+  }>;
+}
+
+export function getAzureCollectorApiMatrix(cycleId?: string | null): Promise<AzureCollectorApiMatrix> {
+  return api.get<AzureCollectorApiMatrix>(`${PREFIX}/collectors/api-matrix${scopeQuery(cycleId)}`);
 }
