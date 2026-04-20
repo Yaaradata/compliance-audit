@@ -1,0 +1,3283 @@
+{
+  "_metadata": {
+    "demo": true,
+    "description": "Simulated cross-system access evidence for Q1 2026 audit. All data is fabricated.",
+    "organization": "Northbank Financial Services",
+    "audit_period": {
+      "start": "2026-01-01",
+      "end": "2026-03-31"
+    },
+    "audit_engagement": "ENG-2026-Q1-AM",
+    "generated_at": "2026-04-18T09:00:00Z",
+    "aws_account_id": "123456789012",
+    "aws_region": "us-east-1",
+    "thresholds": {
+      "dormant_privileged_days": 30,
+      "dormant_normal_days": 60,
+      "stale_key_days": 180,
+      "review_campaign_cadence_days": 90
+    },
+    "systems_in_scope": [
+      "Jira",
+      "ServiceNow",
+      "Jenkins",
+      "GitHub",
+      "AWS",
+      "GCP",
+      "BankSystem",
+      "ContractSystem",
+      "CardSystem",
+      "HRSystem",
+      "AutoFinanceSystem"
+    ],
+    "privileged_aws_policies": [
+      "AdministratorAccess",
+      "PowerUserAccess",
+      "IAMFullAccess"
+    ]
+  },
+  "iam_inventory_collector": {
+    "_api": "aws.iam.GetAccountAuthorizationDetails",
+    "_endpoint": "iam:GetAccountAuthorizationDetails",
+    "UserDetailList": [
+      {
+        "UserName": "sridhar.raman",
+        "UserId": "AIDAEMP-2001",
+        "Arn": "arn:aws:iam::123456789012:user/sridhar.raman",
+        "Path": "/",
+        "CreateDate": "2019-06-10T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "ReleaseLead"
+          },
+          {
+            "Key": "Department",
+            "Value": "Platform"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "cto.sundar"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "PowerUserAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/PowerUserAccess"
+          }
+        ],
+        "GroupList": [
+          "ReleaseLeads"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "sowmya.krishnan",
+        "UserId": "AIDAEMP-2002",
+        "Arn": "arn:aws:iam::123456789012:user/sowmya.krishnan",
+        "Path": "/",
+        "CreateDate": "2020-02-15T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "SeniorEngineer"
+          },
+          {
+            "Key": "Department",
+            "Value": "CustomerExperience"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "usha.patel"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "ReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"
+          }
+        ],
+        "GroupList": [
+          "Engineers"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "karthik.menon",
+        "UserId": "AIDAEMP-2003",
+        "Arn": "arn:aws:iam::123456789012:user/karthik.menon",
+        "Path": "/",
+        "CreateDate": "2022-03-15T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "SeniorEngineer"
+          },
+          {
+            "Key": "Department",
+            "Value": "RetailBanking"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "usha.patel"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "ReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"
+          }
+        ],
+        "GroupList": [
+          "Engineers"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "murali.iyer",
+        "UserId": "AIDAEMP-2004",
+        "Arn": "arn:aws:iam::123456789012:user/murali.iyer",
+        "Path": "/",
+        "CreateDate": "2018-09-01T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "InfrastructureEngineer"
+          },
+          {
+            "Key": "Department",
+            "Value": "Platform"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "cto.sundar"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "PowerUserAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/PowerUserAccess"
+          }
+        ],
+        "GroupList": [
+          "SRE"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "suresh.kumar",
+        "UserId": "AIDAEMP-2005",
+        "Arn": "arn:aws:iam::123456789012:user/suresh.kumar",
+        "Path": "/",
+        "CreateDate": "2021-07-01T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "SeniorEngineer"
+          },
+          {
+            "Key": "Department",
+            "Value": "Security"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "usha.patel"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "PowerUserAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/PowerUserAccess"
+          }
+        ],
+        "GroupList": [
+          "Engineers"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "subashini.rao",
+        "UserId": "AIDAEMP-2006",
+        "Arn": "arn:aws:iam::123456789012:user/subashini.rao",
+        "Path": "/",
+        "CreateDate": "2020-10-01T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "SeniorEngineer"
+          },
+          {
+            "Key": "Department",
+            "Value": "Payments"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "usha.patel"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "ReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"
+          }
+        ],
+        "GroupList": [
+          "Engineers"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "anurag.desai",
+        "UserId": "AIDAEMP-2007",
+        "Arn": "arn:aws:iam::123456789012:user/anurag.desai",
+        "Path": "/",
+        "CreateDate": "2023-04-10T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "JuniorEngineer"
+          },
+          {
+            "Key": "Department",
+            "Value": "Marketing"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "marketing.head.nair"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "ReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"
+          }
+        ],
+        "GroupList": [
+          "MarketingDevs"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "usha.patel",
+        "UserId": "AIDAEMP-2008",
+        "Arn": "arn:aws:iam::123456789012:user/usha.patel",
+        "Path": "/",
+        "CreateDate": "2017-01-15T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "EngineeringManager"
+          },
+          {
+            "Key": "Department",
+            "Value": "Engineering"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "cto.sundar"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "ReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"
+          }
+        ],
+        "GroupList": [
+          "Managers"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "deepa.nair",
+        "UserId": "AIDAEMP-2009",
+        "Arn": "arn:aws:iam::123456789012:user/deepa.nair",
+        "Path": "/",
+        "CreateDate": "2019-08-20T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "QALead"
+          },
+          {
+            "Key": "Department",
+            "Value": "Platform"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "cto.sundar"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "ReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"
+          }
+        ],
+        "GroupList": [
+          "QA"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "vendor.acme",
+        "UserId": "AIDAEXT-9001",
+        "Arn": "arn:aws:iam::123456789012:user/external/vendor.acme",
+        "Path": "/external/",
+        "CreateDate": "2025-10-01T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "ExternalConsultant"
+          },
+          {
+            "Key": "Department",
+            "Value": "Security"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "usha.patel"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "PowerUserAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/PowerUserAccess"
+          }
+        ],
+        "GroupList": [
+          "ExternalContractors"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "rajesh.nair",
+        "UserId": "AIDAEMP-2011",
+        "Arn": "arn:aws:iam::123456789012:user/rajesh.nair",
+        "Path": "/",
+        "CreateDate": "2021-02-01T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "SeniorEngineer"
+          },
+          {
+            "Key": "Department",
+            "Value": "ContractManagement"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "usha.patel"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "ReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"
+          }
+        ],
+        "GroupList": [
+          "Engineers"
+        ],
+        "UserPolicyList": []
+      },
+      {
+        "UserName": "priya.sharma",
+        "UserId": "AIDAEMP-2012",
+        "Arn": "arn:aws:iam::123456789012:user/priya.sharma",
+        "Path": "/",
+        "CreateDate": "2026-04-01T00:00:00Z",
+        "Tags": [
+          {
+            "Key": "Role",
+            "Value": "JuniorEngineer"
+          },
+          {
+            "Key": "Department",
+            "Value": "Cards"
+          },
+          {
+            "Key": "HRStatus",
+            "Value": "ACTIVE"
+          },
+          {
+            "Key": "Owner",
+            "Value": "cards.lead.mehta"
+          }
+        ],
+        "AttachedManagedPolicies": [
+          {
+            "PolicyName": "ReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"
+          }
+        ],
+        "GroupList": [
+          "Engineers"
+        ],
+        "UserPolicyList": []
+      }
+    ],
+    "GroupDetailList": [
+      {
+        "GroupName": "ReleaseLeads",
+        "GroupId": "AGPA0001",
+        "Arn": "arn:aws:iam::123456789012:group/ReleaseLeads"
+      },
+      {
+        "GroupName": "Engineers",
+        "GroupId": "AGPA0002",
+        "Arn": "arn:aws:iam::123456789012:group/Engineers"
+      },
+      {
+        "GroupName": "SRE",
+        "GroupId": "AGPA0003",
+        "Arn": "arn:aws:iam::123456789012:group/SRE"
+      },
+      {
+        "GroupName": "Managers",
+        "GroupId": "AGPA0004",
+        "Arn": "arn:aws:iam::123456789012:group/Managers"
+      },
+      {
+        "GroupName": "QA",
+        "GroupId": "AGPA0005",
+        "Arn": "arn:aws:iam::123456789012:group/QA"
+      },
+      {
+        "GroupName": "MarketingDevs",
+        "GroupId": "AGPA0006",
+        "Arn": "arn:aws:iam::123456789012:group/MarketingDevs"
+      },
+      {
+        "GroupName": "ExternalContractors",
+        "GroupId": "AGPA0007",
+        "Arn": "arn:aws:iam::123456789012:group/ExternalContractors"
+      }
+    ]
+  },
+  "credential_report_collector": {
+    "_api": "aws.iam.GetCredentialReport",
+    "_endpoint": "iam:GetCredentialReport",
+    "GeneratedTime": "2026-04-18T09:00:00Z",
+    "ReportFormat": "text/csv",
+    "Content_Parsed": [
+      {
+        "user": "sridhar.raman",
+        "arn": "arn:aws:iam::123456789012:user/sridhar.raman",
+        "user_creation_time": "2019-06-10T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-15T10:14:00Z",
+        "password_last_changed": "2026-01-14T08:22:10Z",
+        "password_next_rotation": null,
+        "mfa_active": true,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2025-12-01T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-15T08:00:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "sowmya.krishnan",
+        "arn": "arn:aws:iam::123456789012:user/sowmya.krishnan",
+        "user_creation_time": "2020-02-15T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-16T09:00:00Z",
+        "password_last_changed": "2026-02-03T09:11:00Z",
+        "password_next_rotation": null,
+        "mfa_active": true,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2025-11-15T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-16T08:30:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "karthik.menon",
+        "arn": "arn:aws:iam::123456789012:user/karthik.menon",
+        "user_creation_time": "2022-03-15T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-17T07:45:00Z",
+        "password_last_changed": "2026-01-20T08:00:00Z",
+        "password_next_rotation": null,
+        "mfa_active": true,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2025-10-01T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-17T07:50:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "murali.iyer",
+        "arn": "arn:aws:iam::123456789012:user/murali.iyer",
+        "user_creation_time": "2018-09-01T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-17T23:00:00Z",
+        "password_last_changed": "2026-01-10T08:00:00Z",
+        "password_next_rotation": null,
+        "mfa_active": true,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2025-12-15T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-17T22:30:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "suresh.kumar",
+        "arn": "arn:aws:iam::123456789012:user/suresh.kumar",
+        "user_creation_time": "2021-07-01T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-16T14:00:00Z",
+        "password_last_changed": "2025-09-01T00:00:00Z",
+        "password_next_rotation": null,
+        "mfa_active": false,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2025-06-01T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-16T13:45:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "subashini.rao",
+        "arn": "arn:aws:iam::123456789012:user/subashini.rao",
+        "user_creation_time": "2020-10-01T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-16T11:00:00Z",
+        "password_last_changed": "2026-02-15T09:00:00Z",
+        "password_next_rotation": null,
+        "mfa_active": true,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2025-11-01T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-16T10:30:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "anurag.desai",
+        "arn": "arn:aws:iam::123456789012:user/anurag.desai",
+        "user_creation_time": "2023-04-10T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-15T17:30:00Z",
+        "password_last_changed": "2026-03-01T09:00:00Z",
+        "password_next_rotation": null,
+        "mfa_active": true,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2026-01-15T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-15T17:00:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "usha.patel",
+        "arn": "arn:aws:iam::123456789012:user/usha.patel",
+        "user_creation_time": "2017-01-15T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-17T16:00:00Z",
+        "password_last_changed": "2026-01-05T09:00:00Z",
+        "password_next_rotation": null,
+        "mfa_active": true,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2025-12-01T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-17T15:30:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "deepa.nair",
+        "arn": "arn:aws:iam::123456789012:user/deepa.nair",
+        "user_creation_time": "2019-08-20T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-17T11:00:00Z",
+        "password_last_changed": "2026-02-01T09:00:00Z",
+        "password_next_rotation": null,
+        "mfa_active": true,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2025-12-10T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-17T10:30:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "vendor.acme",
+        "arn": "arn:aws:iam::123456789012:user/vendor.acme",
+        "user_creation_time": "2025-10-01T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-10T08:00:00Z",
+        "password_last_changed": "2025-10-01T09:00:00Z",
+        "password_next_rotation": null,
+        "mfa_active": false,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2025-10-01T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-10T07:45:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "rajesh.nair",
+        "arn": "arn:aws:iam::123456789012:user/rajesh.nair",
+        "user_creation_time": "2021-02-01T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-16T13:00:00Z",
+        "password_last_changed": "2026-01-15T09:00:00Z",
+        "password_next_rotation": null,
+        "mfa_active": true,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2025-12-01T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-16T12:30:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      },
+      {
+        "user": "priya.sharma",
+        "arn": "arn:aws:iam::123456789012:user/priya.sharma",
+        "user_creation_time": "2026-04-01T00:00:00Z",
+        "password_enabled": true,
+        "password_last_used": "2026-04-17T09:00:00Z",
+        "password_last_changed": "2026-04-02T09:00:00Z",
+        "password_next_rotation": null,
+        "mfa_active": true,
+        "access_key_1_active": true,
+        "access_key_1_last_rotated": "2026-04-02T00:00:00Z",
+        "access_key_1_last_used_date": "2026-04-17T08:45:00Z",
+        "access_key_1_last_used_region": "us-east-1",
+        "access_key_1_last_used_service": "s3",
+        "access_key_2_active": false,
+        "access_key_2_last_rotated": null,
+        "access_key_2_last_used_date": null,
+        "cert_1_active": false,
+        "cert_2_active": false
+      }
+    ]
+  },
+  "mfa_device_collector": {
+    "_api": "aws.iam.ListMFADevices",
+    "_endpoint": "iam:ListMFADevices",
+    "MFADevicesByUser": {
+      "sridhar.raman": {
+        "MFADevices": [
+          {
+            "UserName": "sridhar.raman",
+            "SerialNumber": "arn:aws:iam::123456789012:mfa/sridhar.raman",
+            "EnableDate": "2019-06-10T00:00:00Z"
+          }
+        ]
+      },
+      "sowmya.krishnan": {
+        "MFADevices": [
+          {
+            "UserName": "sowmya.krishnan",
+            "SerialNumber": "arn:aws:iam::123456789012:mfa/sowmya.krishnan",
+            "EnableDate": "2020-02-15T00:00:00Z"
+          }
+        ]
+      },
+      "karthik.menon": {
+        "MFADevices": [
+          {
+            "UserName": "karthik.menon",
+            "SerialNumber": "arn:aws:iam::123456789012:mfa/karthik.menon",
+            "EnableDate": "2022-03-15T00:00:00Z"
+          }
+        ]
+      },
+      "murali.iyer": {
+        "MFADevices": [
+          {
+            "UserName": "murali.iyer",
+            "SerialNumber": "arn:aws:iam::123456789012:mfa/murali.iyer",
+            "EnableDate": "2018-09-01T00:00:00Z"
+          }
+        ]
+      },
+      "suresh.kumar": {
+        "MFADevices": []
+      },
+      "subashini.rao": {
+        "MFADevices": [
+          {
+            "UserName": "subashini.rao",
+            "SerialNumber": "arn:aws:iam::123456789012:mfa/subashini.rao",
+            "EnableDate": "2020-10-01T00:00:00Z"
+          }
+        ]
+      },
+      "anurag.desai": {
+        "MFADevices": [
+          {
+            "UserName": "anurag.desai",
+            "SerialNumber": "arn:aws:iam::123456789012:mfa/anurag.desai",
+            "EnableDate": "2023-04-10T00:00:00Z"
+          }
+        ]
+      },
+      "usha.patel": {
+        "MFADevices": [
+          {
+            "UserName": "usha.patel",
+            "SerialNumber": "arn:aws:iam::123456789012:mfa/usha.patel",
+            "EnableDate": "2017-01-15T00:00:00Z"
+          }
+        ]
+      },
+      "deepa.nair": {
+        "MFADevices": [
+          {
+            "UserName": "deepa.nair",
+            "SerialNumber": "arn:aws:iam::123456789012:mfa/deepa.nair",
+            "EnableDate": "2019-08-20T00:00:00Z"
+          }
+        ]
+      },
+      "vendor.acme": {
+        "MFADevices": []
+      },
+      "rajesh.nair": {
+        "MFADevices": [
+          {
+            "UserName": "rajesh.nair",
+            "SerialNumber": "arn:aws:iam::123456789012:mfa/rajesh.nair",
+            "EnableDate": "2021-02-01T00:00:00Z"
+          }
+        ]
+      },
+      "priya.sharma": {
+        "MFADevices": [
+          {
+            "UserName": "priya.sharma",
+            "SerialNumber": "arn:aws:iam::123456789012:mfa/priya.sharma",
+            "EnableDate": "2026-04-01T00:00:00Z"
+          }
+        ]
+      }
+    }
+  },
+  "cloudtrail_activity_collector": {
+    "_api": "aws.cloudtrail.LookupEvents",
+    "_endpoint": "cloudtrail:LookupEvents",
+    "LookbackDays": 7,
+    "Events": [
+      {
+        "EventId": "a1b2c3d4-1111",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-15T10:14:00Z",
+        "Username": "sridhar.raman",
+        "EventSource": "signin.amazonaws.com",
+        "AwsRegion": "us-east-1",
+        "SourceIPAddress": "10.40.1.25",
+        "UserAgent": "Mozilla/5.0"
+      },
+      {
+        "EventId": "a1b2c3d4-1112",
+        "EventName": "AssumeRole",
+        "EventTime": "2026-04-15T10:20:00Z",
+        "Username": "sridhar.raman",
+        "EventSource": "sts.amazonaws.com",
+        "AwsRegion": "us-east-1",
+        "SourceIPAddress": "10.40.1.25",
+        "UserAgent": "aws-cli/2.15"
+      },
+      {
+        "EventId": "a1b2c3d4-2001",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-16T14:00:00Z",
+        "Username": "suresh.kumar",
+        "EventSource": "signin.amazonaws.com",
+        "AwsRegion": "us-east-1",
+        "SourceIPAddress": "10.40.5.88",
+        "UserAgent": "Mozilla/5.0"
+      },
+      {
+        "EventId": "a1b2c3d4-2002",
+        "EventName": "CreateAccessKey",
+        "EventTime": "2026-04-16T14:15:00Z",
+        "Username": "suresh.kumar",
+        "EventSource": "iam.amazonaws.com",
+        "AwsRegion": "us-east-1",
+        "SourceIPAddress": "10.40.5.88",
+        "UserAgent": "aws-cli/2.15"
+      },
+      {
+        "EventId": "a1b2c3d4-2003",
+        "EventName": "AttachUserPolicy",
+        "EventTime": "2026-04-16T14:22:00Z",
+        "Username": "suresh.kumar",
+        "EventSource": "iam.amazonaws.com",
+        "AwsRegion": "us-east-1",
+        "SourceIPAddress": "10.40.5.88",
+        "UserAgent": "aws-cli/2.15",
+        "RequestParameters": {
+          "userName": "suresh.kumar",
+          "policyArn": "arn:aws:iam::aws:policy/PowerUserAccess"
+        }
+      },
+      {
+        "EventId": "a1b2c3d4-3001",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-15T17:30:00Z",
+        "Username": "anurag.desai",
+        "EventSource": "signin.amazonaws.com",
+        "AwsRegion": "us-east-1",
+        "SourceIPAddress": "172.18.44.102",
+        "UserAgent": "Mozilla/5.0"
+      },
+      {
+        "EventId": "a1b2c3d4-4001",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-10T08:00:00Z",
+        "Username": "vendor.acme",
+        "EventSource": "signin.amazonaws.com",
+        "AwsRegion": "us-east-1",
+        "SourceIPAddress": "203.0.113.42",
+        "UserAgent": "Mozilla/5.0"
+      },
+      {
+        "EventId": "a1b2c3d4-4002",
+        "EventName": "PutBucketPolicy",
+        "EventTime": "2026-04-10T08:42:00Z",
+        "Username": "vendor.acme",
+        "EventSource": "s3.amazonaws.com",
+        "AwsRegion": "us-east-1",
+        "SourceIPAddress": "203.0.113.42",
+        "UserAgent": "aws-cli/2.15",
+        "RequestParameters": {
+          "bucketName": "nb-public-assets"
+        }
+      },
+      {
+        "EventId": "a1b2c3d4-5001",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-17T23:00:00Z",
+        "Username": "murali.iyer",
+        "EventSource": "signin.amazonaws.com",
+        "AwsRegion": "us-east-1",
+        "SourceIPAddress": "10.40.1.44",
+        "UserAgent": "Mozilla/5.0"
+      }
+    ]
+  },
+  "access_analyzer_collector": {
+    "_api": "aws.accessanalyzer.ListFindings",
+    "_endpoint": "accessanalyzer:ListFindings",
+    "analyzerArn": "arn:aws:access-analyzer:us-east-1:123456789012:analyzer/northbank-primary",
+    "findings": [
+      {
+        "id": "aa-f-001",
+        "analyzedResource": "arn:aws:s3:::nb-public-assets",
+        "resourceType": "AWS::S3::Bucket",
+        "status": "ACTIVE",
+        "isPublic": true,
+        "createdAt": "2026-04-10T08:42:30Z",
+        "updatedAt": "2026-04-10T08:42:30Z",
+        "principal": {
+          "AWS": "arn:aws:iam::123456789012:user/external/vendor.acme"
+        },
+        "_linked_principal_username": "vendor.acme",
+        "_finding_description": "Bucket policy allows anonymous public read; policy was set via vendor.acme session."
+      },
+      {
+        "id": "aa-f-002",
+        "analyzedResource": "arn:aws:iam::123456789012:user/suresh.kumar",
+        "resourceType": "AWS::IAM::User",
+        "status": "ACTIVE",
+        "isPublic": false,
+        "createdAt": "2026-04-16T14:30:00Z",
+        "updatedAt": "2026-04-16T14:30:00Z",
+        "principal": {
+          "AWS": "arn:aws:iam::123456789012:user/suresh.kumar"
+        },
+        "_linked_principal_username": "suresh.kumar",
+        "_finding_description": "User granted PowerUserAccess without MFA enforcement; external exposure via self-managed access keys."
+      }
+    ]
+  },
+  "hr_role_mapping_collector": {
+    "_api": "workday.hris.worker_list",
+    "_endpoint": "GET /api/v1/workers?period=2026Q1",
+    "total": 12,
+    "workers": [
+      {
+        "employee_id": "EMP-2001",
+        "username": "sridhar.raman",
+        "display_name": "Sridhar Raman",
+        "email": "sridhar.raman@northbank.example.com",
+        "hire_date": "2019-06-10",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "Release Lead",
+          "department": "Platform Engineering",
+          "team": "Release Engineering",
+          "effective_from": "2019-06-10"
+        },
+        "previous_roles": [],
+        "manager": "cto.sundar"
+      },
+      {
+        "employee_id": "EMP-2002",
+        "username": "sowmya.krishnan",
+        "display_name": "Sowmya Krishnan",
+        "email": "sowmya.krishnan@northbank.example.com",
+        "hire_date": "2020-02-15",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "Senior Engineer",
+          "department": "Customer Experience",
+          "team": "Customer API",
+          "effective_from": "2020-02-15"
+        },
+        "previous_roles": [],
+        "manager": "usha.patel"
+      },
+      {
+        "employee_id": "EMP-2003",
+        "username": "karthik.menon",
+        "display_name": "Karthik Menon",
+        "email": "karthik.menon@northbank.example.com",
+        "hire_date": "2022-03-15",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "Senior Engineer",
+          "department": "Retail Banking",
+          "team": "Web Banking Portal",
+          "effective_from": "2025-11-30"
+        },
+        "previous_roles": [
+          {
+            "title": "Senior Engineer",
+            "department": "Cards",
+            "team": "Card Payments Platform",
+            "effective_from": "2022-03-15",
+            "effective_until": "2025-11-30",
+            "movement_type": "InternalTransfer"
+          }
+        ],
+        "manager": "usha.patel"
+      },
+      {
+        "employee_id": "EMP-2004",
+        "username": "murali.iyer",
+        "display_name": "Murali Iyer",
+        "email": "murali.iyer@northbank.example.com",
+        "hire_date": "2018-09-01",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "Platform SRE",
+          "department": "Platform Engineering",
+          "team": "Infrastructure",
+          "effective_from": "2018-09-01"
+        },
+        "previous_roles": [],
+        "manager": "cto.sundar"
+      },
+      {
+        "employee_id": "EMP-2005",
+        "username": "suresh.kumar",
+        "display_name": "Suresh Kumar",
+        "email": "suresh.kumar@northbank.example.com",
+        "hire_date": "2021-07-01",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "Senior Engineer",
+          "department": "Security",
+          "team": "Authentication Service",
+          "effective_from": "2021-07-01"
+        },
+        "previous_roles": [],
+        "manager": "usha.patel"
+      },
+      {
+        "employee_id": "EMP-2006",
+        "username": "subashini.rao",
+        "display_name": "Subashini Rao",
+        "email": "subashini.rao@northbank.example.com",
+        "hire_date": "2020-10-01",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "Senior Engineer",
+          "department": "Payments",
+          "team": "Payment Gateway",
+          "effective_from": "2020-10-01"
+        },
+        "previous_roles": [],
+        "manager": "usha.patel"
+      },
+      {
+        "employee_id": "EMP-2007",
+        "username": "anurag.desai",
+        "display_name": "Anurag Desai",
+        "email": "anurag.desai@northbank.example.com",
+        "hire_date": "2023-04-10",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "Web Developer",
+          "department": "Marketing",
+          "team": "Digital Experience",
+          "effective_from": "2023-04-10"
+        },
+        "previous_roles": [],
+        "manager": "marketing.head.nair"
+      },
+      {
+        "employee_id": "EMP-2008",
+        "username": "usha.patel",
+        "display_name": "Usha Patel",
+        "email": "usha.patel@northbank.example.com",
+        "hire_date": "2017-01-15",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "Engineering Manager",
+          "department": "Engineering",
+          "team": "Architecture",
+          "effective_from": "2017-01-15"
+        },
+        "previous_roles": [],
+        "manager": "cto.sundar"
+      },
+      {
+        "employee_id": "EMP-2009",
+        "username": "deepa.nair",
+        "display_name": "Deepa Nair",
+        "email": "deepa.nair@northbank.example.com",
+        "hire_date": "2019-08-20",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "QA Lead",
+          "department": "Platform Engineering",
+          "team": "Quality Assurance",
+          "effective_from": "2019-08-20"
+        },
+        "previous_roles": [],
+        "manager": "cto.sundar"
+      },
+      {
+        "employee_id": "EXT-9001",
+        "username": "vendor.acme",
+        "display_name": "ACME Consultant",
+        "email": "consultant@acme.example.com",
+        "hire_date": "2025-10-01",
+        "employment_status": "Active",
+        "is_external": true,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "External Consultant",
+          "department": "Security",
+          "team": "Authentication Service",
+          "effective_from": "2025-10-01"
+        },
+        "previous_roles": [],
+        "manager": "usha.patel"
+      },
+      {
+        "employee_id": "EMP-2011",
+        "username": "rajesh.nair",
+        "display_name": "Rajesh Nair",
+        "email": "rajesh.nair@northbank.example.com",
+        "hire_date": "2021-02-01",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": false,
+        "current_role": {
+          "title": "Senior Engineer",
+          "department": "Contract Management",
+          "team": "Contract Lifecycle",
+          "effective_from": "2025-12-15"
+        },
+        "previous_roles": [
+          {
+            "title": "Senior Engineer",
+            "department": "Loans",
+            "team": "Loan Origination",
+            "effective_from": "2021-02-01",
+            "effective_until": "2025-12-15",
+            "movement_type": "InternalTransfer"
+          }
+        ],
+        "manager": "usha.patel"
+      },
+      {
+        "employee_id": "EMP-2012",
+        "username": "priya.sharma",
+        "display_name": "Priya Sharma",
+        "email": "priya.sharma@northbank.example.com",
+        "hire_date": "2026-04-01",
+        "employment_status": "Active",
+        "is_external": false,
+        "is_new_joiner": true,
+        "current_role": {
+          "title": "Associate Engineer",
+          "department": "Cards",
+          "team": "Card Payments Platform",
+          "effective_from": "2026-04-01"
+        },
+        "previous_roles": [],
+        "manager": "cards.lead.mehta"
+      }
+    ]
+  },
+  "cross_system_entitlement_collector": {
+    "_api": "internal.identity-hub.entitlements",
+    "_endpoint": "GET /api/v1/entitlements?period=2026Q1",
+    "systems": [
+      "Jira",
+      "ServiceNow",
+      "Jenkins",
+      "GitHub",
+      "AWS",
+      "GCP",
+      "BankSystem",
+      "ContractSystem",
+      "CardSystem",
+      "HRSystem",
+      "AutoFinanceSystem"
+    ],
+    "role_profiles": {
+      "ReleaseLead": {
+        "Jira": "admin",
+        "ServiceNow": "standard",
+        "Jenkins": "admin",
+        "GitHub": "admin",
+        "AWS": "privileged",
+        "GCP": "privileged",
+        "BankSystem": "none",
+        "ContractSystem": "none",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "SeniorEngineer-CustomerExperience": {
+        "Jira": "standard",
+        "ServiceNow": "read",
+        "Jenkins": "standard",
+        "GitHub": "standard",
+        "AWS": "read",
+        "GCP": "none",
+        "BankSystem": "none",
+        "ContractSystem": "none",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "SeniorEngineer-RetailBanking": {
+        "Jira": "standard",
+        "ServiceNow": "read",
+        "Jenkins": "standard",
+        "GitHub": "standard",
+        "AWS": "read",
+        "GCP": "none",
+        "BankSystem": "read",
+        "ContractSystem": "none",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "SeniorEngineer-Cards": {
+        "Jira": "standard",
+        "ServiceNow": "read",
+        "Jenkins": "standard",
+        "GitHub": "standard",
+        "AWS": "read",
+        "GCP": "none",
+        "BankSystem": "none",
+        "ContractSystem": "none",
+        "CardSystem": "admin",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "SeniorEngineer-Loans": {
+        "Jira": "standard",
+        "ServiceNow": "read",
+        "Jenkins": "standard",
+        "GitHub": "standard",
+        "AWS": "read",
+        "GCP": "none",
+        "BankSystem": "none",
+        "ContractSystem": "none",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none",
+        "LoanSystem": "admin"
+      },
+      "SeniorEngineer-Contract": {
+        "Jira": "standard",
+        "ServiceNow": "read",
+        "Jenkins": "standard",
+        "GitHub": "standard",
+        "AWS": "read",
+        "GCP": "none",
+        "BankSystem": "none",
+        "ContractSystem": "admin",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "SeniorEngineer-Payments": {
+        "Jira": "standard",
+        "ServiceNow": "read",
+        "Jenkins": "standard",
+        "GitHub": "standard",
+        "AWS": "read",
+        "GCP": "none",
+        "BankSystem": "read",
+        "ContractSystem": "none",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "SeniorEngineer-Security": {
+        "Jira": "standard",
+        "ServiceNow": "read",
+        "Jenkins": "standard",
+        "GitHub": "standard",
+        "AWS": "privileged",
+        "GCP": "none",
+        "BankSystem": "none",
+        "ContractSystem": "none",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "PlatformSRE": {
+        "Jira": "standard",
+        "ServiceNow": "standard",
+        "Jenkins": "admin",
+        "GitHub": "admin",
+        "AWS": "admin",
+        "GCP": "admin",
+        "BankSystem": "none",
+        "ContractSystem": "none",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "EngineeringManager": {
+        "Jira": "standard",
+        "ServiceNow": "standard",
+        "Jenkins": "read",
+        "GitHub": "read",
+        "AWS": "read",
+        "GCP": "read",
+        "BankSystem": "read",
+        "ContractSystem": "read",
+        "CardSystem": "read",
+        "HRSystem": "read",
+        "AutoFinanceSystem": "read"
+      },
+      "QALead": {
+        "Jira": "standard",
+        "ServiceNow": "read",
+        "Jenkins": "standard",
+        "GitHub": "read",
+        "AWS": "read",
+        "GCP": "none",
+        "BankSystem": "none",
+        "ContractSystem": "none",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "MarketingWebDeveloper": {
+        "Jira": "standard",
+        "ServiceNow": "read",
+        "Jenkins": "standard",
+        "GitHub": "standard",
+        "AWS": "read",
+        "GCP": "none",
+        "BankSystem": "none",
+        "ContractSystem": "none",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "ExternalConsultant-Security": {
+        "Jira": "read",
+        "ServiceNow": "read",
+        "Jenkins": "read",
+        "GitHub": "read",
+        "AWS": "standard",
+        "GCP": "none",
+        "BankSystem": "none",
+        "ContractSystem": "none",
+        "CardSystem": "none",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      },
+      "AssociateEngineer-Cards": {
+        "Jira": "standard",
+        "ServiceNow": "read",
+        "Jenkins": "read",
+        "GitHub": "standard",
+        "AWS": "read",
+        "GCP": "none",
+        "BankSystem": "none",
+        "ContractSystem": "none",
+        "CardSystem": "standard",
+        "HRSystem": "none",
+        "AutoFinanceSystem": "none"
+      }
+    },
+    "total_users": 12,
+    "users": [
+      {
+        "employee_id": "EMP-2001",
+        "username": "sridhar.raman",
+        "display_name": "Sridhar Raman",
+        "current_role_profile": "ReleaseLead",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "Project Administrator",
+            "granted_at": "2019-06-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T10:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Change Coordinator",
+            "granted_at": "2019-06-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T09:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "Release Admin",
+            "granted_at": "2019-06-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T11:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "Organization Admin",
+            "granted_at": "2019-06-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T10:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "privileged",
+            "role_in_system": "PowerUserAccess",
+            "granted_at": "2019-06-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T08:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GCP": {
+            "access": true,
+            "level": "privileged",
+            "role_in_system": "roles/editor",
+            "granted_at": "2020-03-01T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-14T11:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "HRSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      },
+      {
+        "employee_id": "EMP-2002",
+        "username": "sowmya.krishnan",
+        "display_name": "Sowmya Krishnan",
+        "current_role_profile": "SeniorEngineer-CustomerExperience",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Project Contributor",
+            "granted_at": "2020-02-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T09:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read-only",
+            "granted_at": "2020-02-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T14:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Developer",
+            "granted_at": "2020-02-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T08:50:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Write",
+            "granted_at": "2020-02-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T08:40:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "ReadOnlyAccess",
+            "granted_at": "2020-02-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T08:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GCP": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "HRSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      },
+      {
+        "employee_id": "EMP-2003",
+        "username": "karthik.menon",
+        "display_name": "Karthik Menon",
+        "current_role_profile": "SeniorEngineer-RetailBanking",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Project Contributor",
+            "granted_at": "2022-03-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T07:45:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read-only",
+            "granted_at": "2022-03-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T13:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Developer",
+            "granted_at": "2022-03-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T07:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Write",
+            "granted_at": "2022-03-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T07:25:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "ReadOnlyAccess",
+            "granted_at": "2022-03-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T07:50:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GCP": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Retail Banking User",
+            "granted_at": "2025-12-01T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T10:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "Card Payments Admin",
+            "granted_at": "2022-03-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-02-14T15:30:00Z",
+            "is_stale": true,
+            "source_role": "SeniorEngineer-Cards",
+            "notes": "Retained from previous role (Cards, ended 2025-11-30). Should have been revoked on transfer."
+          },
+          "HRSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      },
+      {
+        "employee_id": "EMP-2004",
+        "username": "murali.iyer",
+        "display_name": "Murali Iyer",
+        "current_role_profile": "PlatformSRE",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Project Contributor",
+            "granted_at": "2018-09-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T22:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Change Coordinator",
+            "granted_at": "2018-09-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T21:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "Release Admin",
+            "granted_at": "2018-09-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T23:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "Organization Admin",
+            "granted_at": "2018-09-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T22:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "AdministratorAccess (on sandbox, PowerUserAccess on prod)",
+            "granted_at": "2018-09-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T22:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GCP": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "roles/owner",
+            "granted_at": "2020-01-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T20:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "HRSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      },
+      {
+        "employee_id": "EMP-2005",
+        "username": "suresh.kumar",
+        "display_name": "Suresh Kumar",
+        "current_role_profile": "SeniorEngineer-Security",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Project Contributor",
+            "granted_at": "2021-07-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T13:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read-only",
+            "granted_at": "2021-07-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-14T15:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Developer",
+            "granted_at": "2021-07-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T13:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Write",
+            "granted_at": "2021-07-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T13:15:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "privileged",
+            "role_in_system": "PowerUserAccess",
+            "granted_at": "2021-07-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T13:45:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": "MFA NOT enforced \u2014 see mfa_device_collector"
+          },
+          "GCP": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "HRSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      },
+      {
+        "employee_id": "EMP-2006",
+        "username": "subashini.rao",
+        "display_name": "Subashini Rao",
+        "current_role_profile": "SeniorEngineer-Payments",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Project Contributor",
+            "granted_at": "2020-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T11:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read-only",
+            "granted_at": "2020-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T14:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Developer",
+            "granted_at": "2020-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T10:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Write",
+            "granted_at": "2020-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T10:45:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "ReadOnlyAccess",
+            "granted_at": "2020-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T10:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GCP": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Payments Read",
+            "granted_at": "2020-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-10T15:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "HRSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      },
+      {
+        "employee_id": "EMP-2007",
+        "username": "anurag.desai",
+        "display_name": "Anurag Desai",
+        "current_role_profile": "MarketingWebDeveloper",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Project Contributor",
+            "granted_at": "2023-04-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T17:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read-only",
+            "granted_at": "2023-04-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-10T14:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Developer",
+            "granted_at": "2023-04-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T16:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Write",
+            "granted_at": "2023-04-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T16:45:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "ReadOnlyAccess",
+            "granted_at": "2023-04-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T17:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GCP": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "Bank Ops Admin",
+            "granted_at": "2024-06-01T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2025-08-12T11:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": "EXCESSIVE \u2014 marketing role does not need Bank Ops Admin. Provisioned through short-project that ended 2024."
+          },
+          "ContractSystem": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Contract Editor",
+            "granted_at": "2024-09-01T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": "EXCESSIVE \u2014 never used; appears to be over-provisioning."
+          },
+          "CardSystem": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Card User",
+            "granted_at": "2024-09-01T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": "EXCESSIVE \u2014 never used by this user."
+          },
+          "HRSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      },
+      {
+        "employee_id": "EMP-2008",
+        "username": "usha.patel",
+        "display_name": "Usha Patel",
+        "current_role_profile": "EngineeringManager",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Project Admin (team projects)",
+            "granted_at": "2017-01-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T15:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Team Lead",
+            "granted_at": "2017-01-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T14:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Viewer",
+            "granted_at": "2017-01-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T16:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read",
+            "granted_at": "2017-01-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T13:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "ReadOnlyAccess",
+            "granted_at": "2017-01-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T15:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GCP": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "roles/viewer",
+            "granted_at": "2020-01-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T10:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Manager Oversight",
+            "granted_at": "2017-01-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-10T11:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Manager Oversight",
+            "granted_at": "2017-01-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-03-20T11:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Manager Oversight",
+            "granted_at": "2017-01-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-02T11:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "HRSystem": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Manager (team view)",
+            "granted_at": "2017-01-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T09:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Manager Oversight",
+            "granted_at": "2017-01-20T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-03-30T11:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      },
+      {
+        "employee_id": "EMP-2009",
+        "username": "deepa.nair",
+        "display_name": "Deepa Nair",
+        "current_role_profile": "QALead",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "QA Lead",
+            "granted_at": "2019-08-25T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T10:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read-only",
+            "granted_at": "2019-08-25T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-14T14:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Tester",
+            "granted_at": "2019-08-25T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T10:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read",
+            "granted_at": "2019-08-25T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T15:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "ReadOnlyAccess (test env)",
+            "granted_at": "2019-08-25T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T10:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GCP": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "HRSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      },
+      {
+        "employee_id": "EXT-9001",
+        "username": "vendor.acme",
+        "display_name": "ACME Consultant",
+        "current_role_profile": "ExternalConsultant-Security",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read",
+            "granted_at": "2025-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-09T14:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read-only",
+            "granted_at": "2025-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-08T14:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Viewer",
+            "granted_at": "2025-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-03-15T14:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "Organization Admin",
+            "granted_at": "2025-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-09T13:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": "EXCESSIVE \u2014 vendor should only have Read; likely mis-provisioning."
+          },
+          "AWS": {
+            "access": true,
+            "level": "privileged",
+            "role_in_system": "PowerUserAccess",
+            "granted_at": "2025-10-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-10T07:45:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": "MFA missing; external consultant identity. Scope check recommended."
+          },
+          "GCP": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "HRSystem": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "HR Read+Write",
+            "granted_at": "2025-11-01T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": "EXCESSIVE \u2014 external vendor should never have HR access. Provisioned by mistake during team-wide grant."
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      },
+      {
+        "employee_id": "EMP-2011",
+        "username": "rajesh.nair",
+        "display_name": "Rajesh Nair",
+        "current_role_profile": "SeniorEngineer-Contract",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Project Contributor",
+            "granted_at": "2021-02-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T12:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read-only",
+            "granted_at": "2021-02-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-14T14:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Developer",
+            "granted_at": "2021-02-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T12:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Write",
+            "granted_at": "2021-02-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T11:50:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "ReadOnlyAccess",
+            "granted_at": "2021-02-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T12:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GCP": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "Contract Lifecycle Admin",
+            "granted_at": "2025-12-15T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T10:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "HRSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "LoanSystem": {
+            "access": true,
+            "level": "admin",
+            "role_in_system": "Loan Origination Admin",
+            "granted_at": "2021-02-05T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2025-11-20T14:00:00Z",
+            "is_stale": true,
+            "source_role": "SeniorEngineer-Loans",
+            "notes": "Retained from previous role (Loans, ended 2025-12-15). Should have been revoked on transfer."
+          }
+        }
+      },
+      {
+        "employee_id": "EMP-2012",
+        "username": "priya.sharma",
+        "display_name": "Priya Sharma",
+        "current_role_profile": "AssociateEngineer-Cards",
+        "entitlements": {
+          "Jira": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Project Contributor",
+            "granted_at": "2026-04-02T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T08:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ServiceNow": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Read-only",
+            "granted_at": "2026-04-02T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-10T14:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "Jenkins": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "Viewer",
+            "granted_at": "2026-04-02T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-16T10:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GitHub": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Write",
+            "granted_at": "2026-04-02T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T08:30:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AWS": {
+            "access": true,
+            "level": "read",
+            "role_in_system": "ReadOnlyAccess",
+            "granted_at": "2026-04-02T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-17T08:45:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "GCP": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "BankSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "ContractSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "CardSystem": {
+            "access": true,
+            "level": "standard",
+            "role_in_system": "Card User",
+            "granted_at": "2026-04-02T00:00:00Z",
+            "granted_by": "identity.hub.provisioning",
+            "last_used": "2026-04-15T10:00:00Z",
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "HRSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          },
+          "AutoFinanceSystem": {
+            "access": false,
+            "level": "none",
+            "role_in_system": null,
+            "granted_at": null,
+            "granted_by": "identity.hub.provisioning",
+            "last_used": null,
+            "is_stale": false,
+            "source_role": null,
+            "notes": null
+          }
+        }
+      }
+    ]
+  },
+  "manager_access_review_collector": {
+    "_api": "internal.grc.access-review-campaigns",
+    "_endpoint": "GET /api/v1/reviews?period=2026",
+    "campaigns": [
+      {
+        "id": "REV-Q4-2025",
+        "quarter": "Q4-2025",
+        "status": "Completed",
+        "start": "2026-01-05T00:00:00Z",
+        "end": "2026-01-31T23:59:59Z",
+        "description": "Quarterly access recertification for period Oct-Dec 2025",
+        "total_in_scope": 12
+      },
+      {
+        "id": "REV-Q1-2026",
+        "quarter": "Q1-2026",
+        "status": "Active",
+        "start": "2026-04-05T00:00:00Z",
+        "end": "2026-04-30T23:59:59Z",
+        "description": "Quarterly access recertification for period Jan-Mar 2026",
+        "total_in_scope": 12
+      }
+    ],
+    "reviews": [
+      {
+        "review_id": "REV-Q4-2025-EMP-2001",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EMP-2001",
+        "employee_username": "sridhar.raman",
+        "manager": "cto.sundar",
+        "manager_display": "CTO Sundar",
+        "reviewed_at": "2026-01-20T10:30:00Z",
+        "outcome": "Certified",
+        "systems_reviewed": [
+          "Jira",
+          "ServiceNow",
+          "Jenkins",
+          "GitHub",
+          "AWS",
+          "GCP",
+          "BankSystem",
+          "ContractSystem",
+          "CardSystem",
+          "HRSystem",
+          "AutoFinanceSystem"
+        ],
+        "exceptions_noted": []
+      },
+      {
+        "review_id": "REV-Q4-2025-EMP-2002",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EMP-2002",
+        "employee_username": "sowmya.krishnan",
+        "manager": "usha.patel",
+        "manager_display": "Usha Patel",
+        "reviewed_at": "2026-01-22T09:15:00Z",
+        "outcome": "Certified",
+        "systems_reviewed": [
+          "Jira",
+          "ServiceNow",
+          "Jenkins",
+          "GitHub",
+          "AWS",
+          "GCP",
+          "BankSystem",
+          "ContractSystem",
+          "CardSystem",
+          "HRSystem",
+          "AutoFinanceSystem"
+        ],
+        "exceptions_noted": []
+      },
+      {
+        "review_id": "REV-Q4-2025-EMP-2003",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EMP-2003",
+        "employee_username": "karthik.menon",
+        "manager": "usha.patel",
+        "manager_display": "Usha Patel",
+        "reviewed_at": "2026-01-22T10:45:00Z",
+        "outcome": "Certified",
+        "systems_reviewed": [
+          "Jira",
+          "ServiceNow",
+          "Jenkins",
+          "GitHub",
+          "AWS",
+          "GCP",
+          "BankSystem",
+          "ContractSystem",
+          "CardSystem",
+          "HRSystem",
+          "AutoFinanceSystem"
+        ],
+        "exceptions_noted": [],
+        "notes": "Manager certified all systems including CardSystem admin \u2014 DID NOT flag stale access from prior Cards role. Review quality gap."
+      },
+      {
+        "review_id": "REV-Q4-2025-EMP-2004",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EMP-2004",
+        "employee_username": "murali.iyer",
+        "manager": "cto.sundar",
+        "manager_display": "CTO Sundar",
+        "reviewed_at": "2026-01-18T16:00:00Z",
+        "outcome": "Certified",
+        "systems_reviewed": [
+          "Jira",
+          "ServiceNow",
+          "Jenkins",
+          "GitHub",
+          "AWS",
+          "GCP",
+          "BankSystem",
+          "ContractSystem",
+          "CardSystem",
+          "HRSystem",
+          "AutoFinanceSystem"
+        ],
+        "exceptions_noted": []
+      },
+      {
+        "review_id": "REV-Q4-2025-EMP-2005",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EMP-2005",
+        "employee_username": "suresh.kumar",
+        "manager": "usha.patel",
+        "manager_display": "Usha Patel",
+        "reviewed_at": "2026-01-25T11:00:00Z",
+        "outcome": "Certified with exceptions",
+        "systems_reviewed": [
+          "Jira",
+          "ServiceNow",
+          "Jenkins",
+          "GitHub",
+          "AWS",
+          "GCP",
+          "BankSystem",
+          "ContractSystem",
+          "CardSystem",
+          "HRSystem",
+          "AutoFinanceSystem"
+        ],
+        "exceptions_noted": [
+          {
+            "system": "AWS",
+            "exception": "MFA not enforced",
+            "remediation_due": "2026-02-28",
+            "status": "OVERDUE"
+          }
+        ],
+        "notes": "Exception logged but remediation slipped past due date."
+      },
+      {
+        "review_id": "REV-Q4-2025-EMP-2006",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EMP-2006",
+        "employee_username": "subashini.rao",
+        "manager": "usha.patel",
+        "manager_display": "Usha Patel",
+        "reviewed_at": null,
+        "outcome": "Pending",
+        "systems_reviewed": [],
+        "exceptions_noted": [],
+        "notes": "Review was never completed before campaign closed. Manager did not submit attestation."
+      },
+      {
+        "review_id": "REV-Q4-2025-EMP-2007",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EMP-2007",
+        "employee_username": "anurag.desai",
+        "manager": "marketing.head.nair",
+        "manager_display": "Marketing Head Nair",
+        "reviewed_at": "2026-01-28T14:00:00Z",
+        "outcome": "Certified",
+        "systems_reviewed": [
+          "Jira",
+          "ServiceNow",
+          "Jenkins",
+          "GitHub",
+          "AWS",
+          "GCP",
+          "BankSystem",
+          "ContractSystem",
+          "CardSystem",
+          "HRSystem",
+          "AutoFinanceSystem"
+        ],
+        "exceptions_noted": [],
+        "notes": "Manager certified Bank/Card/Contract access WITHOUT questioning \u2014 review quality concern; user is Marketing role but certified for business-app admin access."
+      },
+      {
+        "review_id": "REV-Q4-2025-EMP-2008",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EMP-2008",
+        "employee_username": "usha.patel",
+        "manager": "cto.sundar",
+        "manager_display": "CTO Sundar",
+        "reviewed_at": "2026-01-19T10:00:00Z",
+        "outcome": "Certified",
+        "systems_reviewed": [
+          "Jira",
+          "ServiceNow",
+          "Jenkins",
+          "GitHub",
+          "AWS",
+          "GCP",
+          "BankSystem",
+          "ContractSystem",
+          "CardSystem",
+          "HRSystem",
+          "AutoFinanceSystem"
+        ],
+        "exceptions_noted": []
+      },
+      {
+        "review_id": "REV-Q4-2025-EMP-2009",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EMP-2009",
+        "employee_username": "deepa.nair",
+        "manager": "cto.sundar",
+        "manager_display": "CTO Sundar",
+        "reviewed_at": "2026-01-21T11:30:00Z",
+        "outcome": "Certified",
+        "systems_reviewed": [
+          "Jira",
+          "ServiceNow",
+          "Jenkins",
+          "GitHub",
+          "AWS",
+          "GCP",
+          "BankSystem",
+          "ContractSystem",
+          "CardSystem",
+          "HRSystem",
+          "AutoFinanceSystem"
+        ],
+        "exceptions_noted": []
+      },
+      {
+        "review_id": "REV-Q4-2025-EXT-9001",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EXT-9001",
+        "employee_username": "vendor.acme",
+        "manager": "usha.patel",
+        "manager_display": "Usha Patel",
+        "reviewed_at": null,
+        "outcome": "Not Started",
+        "systems_reviewed": [],
+        "exceptions_noted": [],
+        "notes": "External contractors excluded from automated review queue; manager was never notified. Control gap."
+      },
+      {
+        "review_id": "REV-Q4-2025-EMP-2011",
+        "campaign_id": "REV-Q4-2025",
+        "employee_id": "EMP-2011",
+        "employee_username": "rajesh.nair",
+        "manager": "usha.patel",
+        "manager_display": "Usha Patel",
+        "reviewed_at": "2026-01-24T15:45:00Z",
+        "outcome": "Certified with exceptions",
+        "systems_reviewed": [
+          "Jira",
+          "ServiceNow",
+          "Jenkins",
+          "GitHub",
+          "AWS",
+          "GCP",
+          "BankSystem",
+          "ContractSystem",
+          "CardSystem",
+          "HRSystem",
+          "AutoFinanceSystem",
+          "LoanSystem"
+        ],
+        "exceptions_noted": [
+          {
+            "system": "LoanSystem",
+            "exception": "Stale access from previous role",
+            "remediation_due": "2026-02-28",
+            "status": "OVERDUE"
+          }
+        ],
+        "notes": "Exception filed for stale LoanSystem access; remediation not completed."
+      }
+    ]
+  }
+}

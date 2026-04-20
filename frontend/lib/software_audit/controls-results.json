@@ -1,0 +1,231 @@
+{
+  "accessManagement": {
+    "title": "Access Management & Identity Governance - Controls & Results",
+    "checkedLabel": "Users checked",
+    "rows": [
+      {
+        "id": 1,
+        "control": "Privileged Access - MFA enforced",
+        "whatIsChecked": "Every privileged AWS principal must have MFA registered",
+        "checked": 12,
+        "met": 9,
+        "notMet": 2,
+        "requiresReview": 1,
+        "metPct": 75
+      },
+      {
+        "id": 2,
+        "control": "Orphan / dormant privileged account",
+        "whatIsChecked": "Privileged principal not logged in for 30+ days",
+        "checked": 12,
+        "met": 10,
+        "notMet": 1,
+        "requiresReview": 1,
+        "metPct": 83
+      },
+      {
+        "id": 3,
+        "control": "Access key rotation",
+        "whatIsChecked": "Access key must be rotated within 180 days",
+        "checked": 12,
+        "met": 10,
+        "notMet": 2,
+        "requiresReview": 0,
+        "metPct": 83
+      },
+      {
+        "id": 4,
+        "control": "External contractor MFA",
+        "whatIsChecked": "External identity must have MFA - no exceptions",
+        "checked": 12,
+        "met": 11,
+        "notMet": 0,
+        "requiresReview": 1,
+        "metPct": 92
+      },
+      {
+        "id": 5,
+        "control": "IAM Access Analyzer exposure",
+        "whatIsChecked": "No active external-exposure finding in Access Analyzer",
+        "checked": 12,
+        "met": 10,
+        "notMet": 2,
+        "requiresReview": 0,
+        "metPct": 83
+      },
+      {
+        "id": 6,
+        "control": "Least privilege - no excess business-system access",
+        "whatIsChecked": "Actual entitlement level must not exceed role profile in unrelated business apps",
+        "checked": 12,
+        "met": 9,
+        "notMet": 3,
+        "requiresReview": 0,
+        "metPct": 75
+      },
+      {
+        "id": 7,
+        "control": "Stale access revoked on role transfer",
+        "whatIsChecked": "Entitlements from previous role must be removed at point of transfer",
+        "checked": 12,
+        "met": 10,
+        "notMet": 2,
+        "requiresReview": 0,
+        "metPct": 83
+      },
+      {
+        "id": 8,
+        "control": "Quarterly manager access review completed",
+        "whatIsChecked": "Manager must certify direct report access every 90 days",
+        "checked": 12,
+        "met": 7,
+        "notMet": 3,
+        "requiresReview": 2,
+        "metPct": 58
+      },
+      {
+        "id": 9,
+        "control": "Review exceptions remediated on time",
+        "whatIsChecked": "Any exception flagged in a review must be resolved by due date",
+        "checked": 12,
+        "met": 10,
+        "notMet": 2,
+        "requiresReview": 0,
+        "metPct": 83
+      },
+      {
+        "id": 10,
+        "control": "Review quality - manager certifies only clean profiles",
+        "whatIsChecked": "Manager must not certify where drift or excess is present",
+        "checked": 12,
+        "met": 10,
+        "notMet": 0,
+        "requiresReview": 2,
+        "metPct": 83
+      },
+      {
+        "id": 11,
+        "control": "New joiner review initiated",
+        "whatIsChecked": "New joiner access reviewed within first 30 days",
+        "checked": 12,
+        "met": 11,
+        "notMet": 0,
+        "requiresReview": 1,
+        "metPct": 92
+      },
+      {
+        "id": 12,
+        "control": "Sensitive IAM activity justified",
+        "whatIsChecked": "No unexplained AttachUserPolicy / CreateAccessKey / PutBucketPolicy events",
+        "checked": 12,
+        "met": 10,
+        "notMet": 0,
+        "requiresReview": 2,
+        "metPct": 83
+      }
+    ],
+    "overall": {
+      "label": "Overall Access Management",
+      "controlEntityPairs": 144,
+      "met": 117,
+      "notMet": 19,
+      "requiresReview": 8,
+      "metPct": 81
+    },
+    "verdictSummary": "Users by overall verdict: Met 4 - Not Met 6 - Requires Review 2"
+  },
+  "changeManagement": {
+    "title": "Change Management & Release Controls - Controls & Results",
+    "checkedLabel": "Changes checked",
+    "rows": [
+      {
+        "id": 1,
+        "control": "Change approval / CAB",
+        "whatIsChecked": "Every change must have CAB approval; emergency post-hoc within 24 hours",
+        "checked": 12,
+        "met": 8,
+        "notMet": 3,
+        "requiresReview": 1,
+        "metPct": 67
+      },
+      {
+        "id": 2,
+        "control": "Developer-to-production SoD",
+        "whatIsChecked": "PR author must not be the deployment actor",
+        "checked": 12,
+        "met": 9,
+        "notMet": 3,
+        "requiresReview": 0,
+        "metPct": 75
+      },
+      {
+        "id": 3,
+        "control": "Pre-deployment testing - all gates passed",
+        "whatIsChecked": "unit_tests, integration_tests, uat_signoff, security_scan all success",
+        "checked": 12,
+        "met": 8,
+        "notMet": 4,
+        "requiresReview": 0,
+        "metPct": 67
+      },
+      {
+        "id": 4,
+        "control": "Change freeze adherence",
+        "whatIsChecked": "No production deployment inside a freeze window without approved exception",
+        "checked": 12,
+        "met": 11,
+        "notMet": 0,
+        "requiresReview": 1,
+        "metPct": 92
+      },
+      {
+        "id": 5,
+        "control": "Rollback plan documented and tested",
+        "whatIsChecked": "Plan must exist and be validated in pre-production",
+        "checked": 12,
+        "met": 9,
+        "notMet": 1,
+        "requiresReview": 2,
+        "metPct": 75
+      },
+      {
+        "id": 6,
+        "control": "Incident evidence for emergency changes",
+        "whatIsChecked": "Emergency label must be backed by PagerDuty alert + ServiceNow incident",
+        "checked": 12,
+        "met": 10,
+        "notMet": 1,
+        "requiresReview": 1,
+        "metPct": 83
+      },
+      {
+        "id": 7,
+        "control": "Process chain complete",
+        "whatIsChecked": "Full chain from Jira through PR, pipeline, and deployment - no gaps",
+        "checked": 12,
+        "met": 9,
+        "notMet": 2,
+        "requiresReview": 1,
+        "metPct": 75
+      },
+      {
+        "id": 8,
+        "control": "Execution session recorded and clean",
+        "whatIsChecked": "Deployment actor identity captured; no DIRECT_CHANGE or FAKE_EMERGENCY flags",
+        "checked": 12,
+        "met": 9,
+        "notMet": 2,
+        "requiresReview": 1,
+        "metPct": 75
+      }
+    ],
+    "overall": {
+      "label": "Overall Change Management",
+      "controlEntityPairs": 96,
+      "met": 73,
+      "notMet": 17,
+      "requiresReview": 6,
+      "metPct": 76
+    }
+  }
+}
