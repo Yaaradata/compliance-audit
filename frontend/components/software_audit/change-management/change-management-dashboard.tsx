@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import Dashboard from "./change-management-dashboard-refactored";
+import Dashboard from "@/components/software_audit/change-management/change-management-dashboard-refactored";
 
 export default Dashboard;
 

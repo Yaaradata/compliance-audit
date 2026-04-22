@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { KeyRound, Rocket, PanelLeftClose } from "lucide-react";
-import AccessManagementDashboard from "@/components/software_audit/access-management/access-management-dashboard";
-import ChangeManagementDashboard from "@/components/software_audit/change-management/change-management-dashboard";
+import AccessManagementDashboard from "@/components/software_audit/access-management/access-management-dashboard-refactored";
+import ChangeManagementDashboard from "@/components/software_audit/change-management/change-management-dashboard-refactored";
 
 const MODULES = [
   {
