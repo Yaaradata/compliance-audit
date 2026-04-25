@@ -1939,7 +1939,7 @@ const SopProcessView = ({ sop, controls, onOpenEvidence, domainLabel }) => {
         <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h4 className="text-sm font-semibold text-slate-900">Stage-by-stage compliance map</h4>
-            <p className="text-xs text-slate-500 mt-0.5">Every SOP stage, its mapped controls, and the misses at that step.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Every SOP stage and the misses at that step.</p>
           </div>
             <span className="text-[11px] text-slate-500">Click a stage row to expand details inline</span>
         </div>
@@ -1950,7 +1950,6 @@ const SopProcessView = ({ sop, controls, onOpenEvidence, domainLabel }) => {
                 <th className="px-4 py-2.5 font-semibold w-10">#</th>
                 <th className="px-3 py-2.5 font-semibold">Stage</th>
                 <th className="px-3 py-2.5 font-semibold">Accountable owner</th>
-                <th className="px-3 py-2.5 font-semibold">Mapped controls</th>
                 <th className="px-3 py-2.5 font-semibold text-center">Pass rate</th>
                 <th className="px-3 py-2.5 font-semibold text-center text-amber-700">Failed cases</th>
                 <th className="px-3 py-2.5 font-semibold text-center text-red-700">Critical</th>
@@ -1984,21 +1983,6 @@ const SopProcessView = ({ sop, controls, onOpenEvidence, domainLabel }) => {
                           <span className="text-[11px] text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2.5 align-top">
-                        <div className="flex flex-wrap gap-1">
-                          {st.mapped.map((c) => (
-                            <span key={c.id}
-                                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ${
-                                    c.violations > 0 ? 'bg-red-50 text-red-700 ring-red-200'
-                                    : c.exceptions > 0 ? 'bg-amber-50 text-amber-700 ring-amber-200'
-                                    : 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                                  }`}>
-                              {c.id}
-                            </span>
-                          ))}
-                          {st.total === 0 && <span className="text-[11px] text-slate-400">—</span>}
-                        </div>
-                      </td>
                       <td className="px-3 py-2.5 text-center align-top"><ComplianceCell v={st.compliance} /></td>
                       <td className="px-3 py-2.5 text-center text-xs font-semibold text-amber-700 align-top">{st.exceptions}</td>
                       <td className="px-3 py-2.5 text-center text-xs font-semibold text-red-700 align-top">{st.violations}</td>
@@ -2022,7 +2006,7 @@ const SopProcessView = ({ sop, controls, onOpenEvidence, domainLabel }) => {
                     </tr>
                     {isOpen && (
                       <tr className={`border-b border-slate-200 ${healthSoft(st.health)}`}>
-                        <td colSpan={9} className="p-0 align-top">
+                        <td colSpan={8} className="p-0 align-top">
                           <div className="px-4 sm:px-6 py-5 space-y-3">
                             {st.owner && (
                               <div className="bg-white ring-1 ring-slate-200 rounded-lg p-3 flex items-start gap-3">
