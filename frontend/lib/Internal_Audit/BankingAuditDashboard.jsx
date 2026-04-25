@@ -1009,18 +1009,20 @@ const AI_AUDIT_INTEL = (() => {
       : (b.violations * 10 + b.overdueRemediation) - (a.violations * 10 + a.overdueRemediation);
   });
 
-  const findings = ranked.map((d) => {
-    const severity = d.residualRisk;
-    return {
-      id: d.id,
-      domainId: d.id,
-      severity,
-      tone: severityToTone(severity),
-      title: d.topIssue,
-      solution: toOneLineSolution(d.action, 150),
-      fullSolution: d.action,
-    };
-  });
+  const findings = ranked
+    .filter((d) => d.id !== 'access')
+    .map((d) => {
+      const severity = d.residualRisk;
+      return {
+        id: d.id,
+        domainId: d.id,
+        severity,
+        tone: severityToTone(severity),
+        title: d.topIssue,
+        solution: toOneLineSolution(d.action, 150),
+        fullSolution: d.action,
+      };
+    });
 
   const severityCounts = findings.reduce(
     (acc, f) => ({ ...acc, [f.severity]: (acc[f.severity] || 0) + 1 }),
