@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Cell, Legend,
+  Cell, Legend, ComposedChart, Line,
 } from 'recharts';
 import {
   Shield, AlertTriangle, AlertCircle, CheckCircle2, XCircle,
@@ -945,6 +945,115 @@ const DOMAIN_AUDIT_VIEW = _scoredDomains.map((d) => ({
   residualRisk: _residualRiskById.get(d.id) || 'Low',
 }));
 
+/** Stage → mapped controls (same linkage as SOP aggregate). */
+const stageMappedControls = (stage, controls) =>
+  (stage.controlIds || [])
+    .map((cid) => controls.find((c) => c.id === cid))
+    .filter(Boolean);
+
+const splitControlOutcomes = (mapped) => {
+  let met = 0;
+  let notMet = 0;
+  let review = 0;
+  for (const c of mapped) {
+    if (c.status === 'deficient' || c.violations >= 2) notMet += 1;
+    else if (c.status === 'needs-attention') review += 1;
+    else met += 1;
+  }
+  return { met, notMet, review, total: mapped.length };
+};
+
+/** Every SOP stage × domain — for process tables, issue heat, drill-downs. */
+const ALL_PROCESS_ROWS = (() => {
+  const rows = [];
+  for (const domainId of Object.keys(SOP_BY_DOMAIN)) {
+    const sop = SOP_BY_DOMAIN[domainId];
+    const controls = CONTROLS_BY_DOMAIN[domainId] || [];
+    const domainLabel = DOMAIN_SUMMARY.find((x) => x.id === domainId)?.domain || domainId;
+    for (const stage of sop.stages || []) {
+      const mapped = stageMappedControls(stage, controls);
+      const { met, notMet, review, total } = splitControlOutcomes(mapped);
+      const tested = Math.max(1, total);
+      const deficiency = Number(((notMet / tested) * 100).toFixed(1));
+      const issues = mapped.reduce((s, c) => s + c.exceptions + c.violations, 0);
+      const criticalIssues = mapped.reduce((s, c) => s + c.violations, 0);
+      const processCompliance = total
+        ? Number((mapped.reduce((s, c) => s + c.compliance, 0) / total).toFixed(1))
+        : 100;
+      rows.push({
+        key: `${domainId}-${stage.id}`,
+        domainId,
+        domainLabel,
+        processName: stage.name,
+        sopName: sop.name,
+        met,
+        notMet,
+        review,
+        total,
+        deficiency,
+        issues,
+        criticalIssues,
+        processCompliance,
+      });
+    }
+  }
+  return rows;
+})();
+
+const DOMAIN_PROCESS_MAPPING_ROWS = DOMAIN_SUMMARY.map((d) => {
+  const sop = SOP_BY_DOMAIN[d.id];
+  const controls = CONTROLS_BY_DOMAIN[d.id] || [];
+  const stages = sop?.stages || [];
+  let sumStageComp = 0;
+  for (const st of stages) {
+    const mapped = stageMappedControls(st, controls);
+    const comp = mapped.length
+      ? mapped.reduce((s, c) => s + c.compliance, 0) / mapped.length
+      : 100;
+    sumStageComp += comp;
+  }
+  const processCompliance = stages.length
+    ? Number((sumStageComp / stages.length).toFixed(1))
+    : 100;
+  return {
+    id: d.id,
+    domain: d.domain,
+    processes: stages.length,
+    controls: d.controls,
+    processCompliance,
+    domainCompliance: d.compliance,
+  };
+});
+
+const COVERAGE_COMPOSED_CHART_DATA = DOMAIN_AUDIT_VIEW.map((d) => ({
+  name: d.domain.split(/[\/&]/)[0].trim().slice(0, 11),
+  met: d.met,
+  review: d.review,
+  notMet: d.notMet,
+  notTested: d.notTested,
+  deficiency: d.tested > 0 ? Number(((d.notMet / d.tested) * 100).toFixed(1)) : 0,
+  fullName: d.domain,
+  domainId: d.id,
+}));
+
+const FINDINGS_SUMMARY_CHART_DATA = DOMAIN_AUDIT_VIEW.map((d) => ({
+  name: d.domain.split(/[\/&]/)[0].trim().slice(0, 12),
+  totalIssues: d.violations + d.exceptions,
+  criticalFindings: d.violations,
+  domainId: d.id,
+  fullDomain: d.domain,
+}));
+
+const MAX_ISSUE_PROCESS_ROW = ALL_PROCESS_ROWS.reduce(
+  (best, r) => (r.issues > (best?.issues ?? -1) ? r : best),
+  null,
+);
+
+const TOP_CRITICAL_PROCESS_NAMES = [...ALL_PROCESS_ROWS]
+  .sort((a, b) => b.criticalIssues - a.criticalIssues || b.issues - a.issues)
+  .slice(0, 4)
+  .map((r) => `${r.processName} (${r.domainLabel.split(/[\/&]/)[0].trim()})`);
+
 const AUDIT_TOTALS = DOMAIN_AUDIT_VIEW.reduce((a, d) => ({
   controls:     a.controls + d.controls,
   tested:       a.tested + d.tested,
@@ -1070,7 +1179,7 @@ const AI_SEVERITY_SUMMARY = [
 
 /** Only from xl up: one fixed-height row; stacked layout below stays natural. */
 const OVERVIEW_HERO_ROW_H_XL =
-  'xl:h-[min(650px,calc(100dvh-6rem))] xl:max-h-[min(650px,calc(100dvh-6rem))]';
+  'xl:h-[min(860px,calc(100dvh-4rem))] xl:max-h-[min(860px,calc(100dvh-4rem))]';
 
 /**
  * AI shell: below the xl breakpoint, a self-contained scroll column; at xl+ it fills the hero row
@@ -1078,7 +1187,7 @@ const OVERVIEW_HERO_ROW_H_XL =
  */
 const AI_INTELLIGENCE_PANEL_H = [
   'box-border flex w-full min-w-0 flex-col overflow-hidden',
-  'h-[min(650px,calc(100dvh-6rem))] max-h-[min(650px,calc(100dvh-6rem))] min-h-0',
+  'h-[min(860px,calc(100dvh-4rem))] max-h-[min(860px,calc(100dvh-4rem))] min-h-0',
   'xl:h-full xl:max-h-full',
 ].join(' ');
 
@@ -1091,7 +1200,7 @@ const OVERVIEW_HERO_OUTER = [
   'xl:grid-cols-12 xl:items-stretch xl:overflow-hidden xl:gap-5 2xl:gap-6',
   OVERVIEW_HERO_ROW_H_XL,
 ].join(' ');
-const OVERVIEW_METRICS_COL = 'h-full min-h-0 min-w-0 overflow-hidden xl:col-span-8';
+const OVERVIEW_METRICS_COL = 'h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden xl:col-span-8';
 const OVERVIEW_AI_RAIL_COL = [
   'flex h-full min-h-0 w-full min-w-0 max-w-full flex-col items-stretch justify-start overflow-hidden',
   'xl:col-span-4',
@@ -1109,11 +1218,8 @@ const OverviewHeroRow = ({ summaryGrid, intelligencePanel }) => (
 );
 
 // ============================================================================
-// Overview — 4 Internal-Audit command-centre cards (2×2 grid)
-//   1. Audit Coverage       — controls in scope split by test outcome
-//   2. Deficiency Rate      — % failing + per-group bars
-//   3. Open Findings        — critical-rated opens + top-4 domain mix
-//   4. Residual Risk        — risk mix + strongest / weakest domains
+// Overview — residual banner (top) + combined coverage/deficiency chart & tables,
+// open findings, AI rail; domain/process mapping + findings drill chart below.
 // ============================================================================
 
 const FINDING_SEGMENT_COLORS = ['#ef4444', '#f59e0b', '#0ea5e9', '#10b981'];
@@ -1197,42 +1303,36 @@ const OpenFindingsDonut = ({ values, colors, className = '' }) => {
  * One line per row: `24 - Access & Identity` with dot; equal-height row shells.
  * `rows[].key` must be unique (domain id or `open-findings-other-domains`).
  */
-const OpenFindingsLegend = ({ rows }) => (
+const OpenFindingsLegend = ({ rows, noTruncate = false }) => (
   <ul
-    className="list-none flex min-h-0 w-full min-w-0 flex-1 flex-col justify-center gap-1 self-stretch overflow-hidden pl-2.5 sm:pl-3.5 sm:gap-1.5"
+    className="list-none flex min-h-0 w-full min-w-0 flex-1 flex-col justify-center gap-1 self-stretch overflow-y-auto overflow-x-hidden pl-2.5 sm:pl-3.5 sm:gap-1.5"
     aria-label="Critical open findings by domain"
   >
     {rows.map((row) => (
       <li
         key={row.key}
-        className="flex w-full min-h-0 min-w-0 shrink-0 items-center gap-2 py-0.5"
+        className="flex w-full min-h-0 min-w-0 shrink-0 items-start gap-2 py-0.5"
       >
         <span
-          className="h-2.5 w-2.5 shrink-0 rounded-full"
+          className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full"
           style={{ backgroundColor: row.color }}
           aria-hidden
         />
         <p
-          className="min-w-0 flex-1 truncate text-[11px] font-medium leading-snug text-slate-800 sm:text-xs"
-          title={`${row.value} — ${row.name}`}
+          className={
+            noTruncate
+              ? 'min-w-0 flex-1 text-[10px] font-medium leading-snug break-words text-slate-800 sm:text-[11px]'
+              : 'min-w-0 flex-1 truncate text-[11px] font-medium leading-snug text-slate-800 sm:text-xs'
+          }
         >
           <span className="font-extrabold tabular-nums text-slate-900">{row.value}</span>
-          <span className="px-1.5 text-slate-300" aria-hidden>
-            –
-          </span>
+          {'\u2013'}
           <span className="font-medium text-slate-800">{row.name}</span>
         </p>
       </li>
     ))}
   </ul>
 );
-
-const RESIDUAL_ROW_STYLE = {
-  Critical: { bar: 'bg-red-500',     txt: 'text-red-600' },
-  High:     { bar: 'bg-amber-500',   txt: 'text-amber-600' },
-  Medium:   { bar: 'bg-sky-500',     txt: 'text-sky-600' },
-  Low:      { bar: 'bg-emerald-500', txt: 'text-emerald-600' },
-};
 
 /**
  * One shell for all four 2×2 overview cards — same outer size (fills grid cell) and
@@ -1241,113 +1341,131 @@ const RESIDUAL_ROW_STYLE = {
 const OVERVIEW_CARD_UNIFIED =
   'flex h-full min-h-0 w-full min-w-0 flex-col justify-start overflow-hidden rounded-xl border border-slate-200/90 bg-white p-3 shadow-sm ring-1 ring-slate-200/50 sm:p-3.5';
 
-/** Card 1 — control universe split by test outcome (mirrors “Total interactions”). */
-const AuditCoverageCard = () => {
-  const total = AUDIT_TOTALS.controls;
-  const pct = (v) => (total > 0 ? Math.round((v / total) * 100) : 0);
-  const segments = [
-    { label: 'Met',        value: AUDIT_TOTALS.met,       dot: 'bg-emerald-500', pctCls: 'text-emerald-600' },
-    { label: 'Review',     value: AUDIT_TOTALS.review,    dot: 'bg-sky-500',     pctCls: 'text-sky-600' },
-    { label: 'Not Met',    value: AUDIT_TOTALS.notMet,    dot: 'bg-red-500',     pctCls: 'text-red-600' },
-    { label: 'Not Tested', value: AUDIT_TOTALS.notTested, dot: 'bg-amber-500',   pctCls: 'text-amber-600' },
-  ];
-  return (
-    <div className={OVERVIEW_CARD_UNIFIED}>
-      <div className="shrink-0">
-        <h3 className="text-xs font-bold leading-tight text-slate-900 sm:text-sm">Audit Coverage</h3>
-        <div className="mt-0.5 text-2xl font-extrabold leading-none tabular-nums text-indigo-600 sm:text-3xl">
-          {total}
-        </div>
-        <p className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-[10px]">
-          Control Segmentation
-        </p>
-      </div>
-      <div className="mt-1.5 flex min-h-0 flex-1 flex-col justify-center">
-        <div className="grid grid-cols-2 content-center gap-1.5 sm:gap-2">
-          {segments.map((it) => (
-            <div
-              key={it.label}
-              className="flex flex-col gap-1.5 rounded-lg bg-slate-50/90 px-2.5 py-2 ring-1 ring-slate-200/80 sm:gap-2 sm:px-2.5 sm:py-2"
-            >
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-800 sm:text-xs">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${it.dot}`} />
-                <span className="min-w-0 leading-tight">{it.label}</span>
-              </div>
-              <div className="flex items-baseline justify-between gap-1.5">
-                <span className="text-lg font-extrabold leading-none tabular-nums text-slate-900 sm:text-xl">
-                  {it.value}
-                </span>
-                <span className={`shrink-0 text-xs font-bold tabular-nums sm:text-sm ${it.pctCls}`}>
-                  {pct(it.value)}%
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+/** Open Findings: auto height so inner copy + chart are never clipped by a flex min-height trap. */
+const OPEN_FINDINGS_CARD_CLASS =
+  'flex w-full min-w-0 flex-col justify-start overflow-visible rounded-xl border border-slate-200/90 bg-white p-3 shadow-sm ring-1 ring-slate-200/50 sm:p-4';
 
-/** Card 2 — deficiency rate + per-group bars (mirrors “FCI Rate”). */
-const FindingRateCard = () => {
-  const rate = AUDIT_TOTALS.tested > 0 ? (AUDIT_TOTALS.notMet / AUDIT_TOTALS.tested) * 100 : 0;
-  const groups = [
-    { id: 'customer',    label: 'KYC',    color: '#10b981' },
-    { id: 'transaction', label: 'Pymts',  color: '#0ea5e9' },
-    { id: 'risk',        label: 'AML',    color: '#f59e0b' },
-    { id: 'access',      label: 'Access', color: '#ef4444' },
-  ].map((g) => {
-    const d = DOMAIN_AUDIT_VIEW.find((x) => x.id === g.id);
-    const r = d && d.tested > 0 ? (d.notMet / d.tested) * 100 : 0;
-    return { ...g, rate: r };
-  });
-  const max = Math.max(...groups.map((g) => g.rate), 1);
+/** Stacked control outcomes + deficiency % by domain in one chart; detail table by domain or by SOP process. */
+const AuditCoverageCommandPanel = () => {
+  const [view, setView] = useState('domain');
+  const processRows = useMemo(
+    () => [...ALL_PROCESS_ROWS].sort((a, b) => b.notMet - a.notMet || b.issues - a.issues).slice(0, 20),
+    [],
+  );
+  const totalControls = AUDIT_TOTALS.controls;
+  const aggDef = AUDIT_TOTALS.tested > 0 ? ((AUDIT_TOTALS.notMet / AUDIT_TOTALS.tested) * 100).toFixed(1) : '0';
   return (
-    <div className={OVERVIEW_CARD_UNIFIED}>
+    <div className={`${OVERVIEW_CARD_UNIFIED} min-h-[300px] sm:min-h-0`}>
       <div className="shrink-0">
-        <h3 className="text-sm font-bold leading-tight text-slate-900 sm:text-base">Deficiency Rate</h3>
-        <div className="mt-0.5 text-3xl font-extrabold leading-[1.1] tabular-nums text-pink-500 sm:text-4xl">
-          {rate.toFixed(1)}%
-        </div>
-        <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-xs">
-          Controls failing vs. tested
-        </p>
-        <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-xs">
-          Rate by domain group
+        <h3 className="text-xs font-bold leading-tight text-slate-900 sm:text-sm">Audit coverage & deficiency</h3>
+        <p className="mt-0.5 text-[10px] text-slate-500 sm:text-[11px]">
+          {totalControls} controls in scope · portfolio deficiency (tested){' '}
+          <span className="font-semibold text-pink-600 tabular-nums">{aggDef}%</span>
         </p>
       </div>
-      <div className="mt-2 flex min-h-0 flex-1 flex-col justify-center sm:mt-2.5">
-        <div className="flex h-32 items-end justify-between gap-2 sm:h-40 sm:gap-3 sm:px-0.5">
-          {groups.map((g) => {
-            const hPct = max > 0 ? (g.rate / max) * 100 : 0;
-            return (
-              <div key={g.id} className="flex min-w-0 flex-1 flex-col items-stretch">
-                <div
-                  className="mb-1 min-h-4 text-center text-[11px] font-bold tabular-nums leading-tight sm:text-sm"
-                  style={{ color: g.color }}
-                >
-                  {g.rate.toFixed(1)}%
-                </div>
-                <div className="relative mx-auto h-20 w-full max-w-14 overflow-hidden rounded-t bg-slate-100/90 ring-1 ring-slate-200/70 sm:h-28 sm:max-w-16">
-                  <div
-                    className="absolute bottom-0 left-0 right-0 w-full rounded-t transition-all"
-                    style={{
-                      height: hPct > 0 ? `${hPct}%` : 0,
-                      minHeight: g.rate > 0 && hPct > 0 ? 4 : 0,
-                      backgroundColor: g.color,
-                    }}
-                  />
-                </div>
-                <div
-                  className="mt-1.5 min-h-5 text-center text-[10px] font-bold uppercase leading-tight tracking-wider text-slate-500 sm:text-[11px]"
-                >
-                  {g.label}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div className="mt-2 h-[160px] w-full min-h-0 shrink-0 sm:h-[180px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={COVERAGE_COMPOSED_CHART_DATA} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
+            <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} height={36} />
+            <YAxis yAxisId="left" tick={{ fontSize: 9 }} width={28} allowDecimals={false} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 9 }} width={32} domain={[0, 100]} unit="%" />
+            <Tooltip
+              formatter={(value, name) => [value, name]}
+              labelFormatter={(_, p) => p?.[0]?.payload?.fullName || ''}
+            />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <Bar yAxisId="left" dataKey="met" name="Met" stackId="cov" fill="#10b981" radius={[0, 0, 0, 0]} />
+            <Bar yAxisId="left" dataKey="review" name="Review" stackId="cov" fill="#0ea5e9" />
+            <Bar yAxisId="left" dataKey="notMet" name="Not met" stackId="cov" fill="#ef4444" />
+            <Bar yAxisId="left" dataKey="notTested" name="Not tested" stackId="cov" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="deficiency"
+              name="Deficiency %"
+              stroke="#db2777"
+              strokeWidth={2}
+              dot={{ r: 3, fill: '#db2777' }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="mt-2 flex shrink-0 gap-1 rounded-lg bg-slate-100 p-0.5">
+        <button
+          type="button"
+          onClick={() => setView('domain')}
+          className={`flex-1 rounded-md px-2 py-1 text-[10px] font-semibold sm:text-xs ${
+            view === 'domain' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-slate-600'
+          }`}
+        >
+          By domain (controls)
+        </button>
+        <button
+          type="button"
+          onClick={() => setView('process')}
+          className={`flex-1 rounded-md px-2 py-1 text-[10px] font-semibold sm:text-xs ${
+            view === 'process' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-slate-600'
+          }`}
+        >
+          By process (SOP stage)
+        </button>
+      </div>
+      <div className="mt-2 min-h-[190px] flex-1 overflow-auto rounded-lg ring-1 ring-slate-200/80">
+        <table className="w-full min-w-[320px] border-collapse text-left text-[10px] sm:text-[11px]">
+          <thead className="sticky top-0 z-[1] bg-slate-50 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+            {view === 'domain' ? (
+              <tr>
+                <th className="px-2 py-1.5">Domain</th>
+                <th className="px-2 py-1.5 text-right tabular-nums">Met</th>
+                <th className="px-2 py-1.5 text-right tabular-nums">Not met</th>
+                <th className="px-2 py-1.5 text-right tabular-nums">Review</th>
+                <th className="px-2 py-1.5 text-right tabular-nums">Not tested</th>
+                <th className="px-2 py-1.5 text-right tabular-nums">Defic. %</th>
+              </tr>
+            ) : (
+              <tr>
+                <th className="px-2 py-1.5">Process</th>
+                <th className="px-2 py-1.5">Domain</th>
+                <th className="px-2 py-1.5 text-right tabular-nums">Met</th>
+                <th className="px-2 py-1.5 text-right tabular-nums">Not met</th>
+                <th className="px-2 py-1.5 text-right tabular-nums">Issues</th>
+                <th className="px-2 py-1.5 text-right tabular-nums">Stage %</th>
+              </tr>
+            )}
+          </thead>
+          <tbody className="text-slate-800">
+            {view === 'domain'
+              ? DOMAIN_AUDIT_VIEW.map((d) => (
+                  <tr key={d.id} className="border-t border-slate-100">
+                    <td className="max-w-[140px] truncate px-2 py-1 font-medium" title={d.domain}>
+                      {d.domain}
+                    </td>
+                    <td className="px-2 py-1 text-right tabular-nums text-emerald-700">{d.met}</td>
+                    <td className="px-2 py-1 text-right tabular-nums text-red-700">{d.notMet}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{d.review}</td>
+                    <td className="px-2 py-1 text-right tabular-nums text-amber-800">{d.notTested}</td>
+                    <td className="px-2 py-1 text-right tabular-nums font-semibold text-pink-600">
+                      {d.tested > 0 ? ((d.notMet / d.tested) * 100).toFixed(1) : '0.0'}%
+                    </td>
+                  </tr>
+                ))
+              : processRows.map((r) => (
+                  <tr key={r.key} className="border-t border-slate-100">
+                    <td className="max-w-[120px] truncate px-2 py-1 font-medium" title={r.processName}>
+                      {r.processName}
+                    </td>
+                    <td className="max-w-[100px] truncate px-2 py-1 text-slate-600" title={r.domainLabel}>
+                      {r.domainLabel}
+                    </td>
+                    <td className="px-2 py-1 text-right tabular-nums text-emerald-700">{r.met}</td>
+                    <td className="px-2 py-1 text-right tabular-nums text-red-700">{r.notMet}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{r.issues}</td>
+                    <td className="px-2 py-1 text-right tabular-nums font-medium">{r.processCompliance}%</td>
+                  </tr>
+                ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -1389,106 +1507,60 @@ const OpenFindingsCard = () => {
       : []),
   ];
   return (
-    <div className={OVERVIEW_CARD_UNIFIED}>
-      <div className="shrink-0">
-        <h3 className="text-xs font-bold leading-tight text-slate-900 sm:text-sm">Open Findings</h3>
-        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
-          <span className="text-2xl font-extrabold leading-none tabular-nums text-rose-500 sm:text-3xl">
-            {headTotal}
-          </span>
-          <span className="text-xs font-semibold text-slate-500 sm:text-sm">open</span>
-        </div>
-        <p className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-[10px]">
-          Critical-rated across the audit universe
-        </p>
-      </div>
-
-      <div className="mt-1.5 flex min-h-0 w-full flex-1 flex-col justify-center">
-        <div
-          className="flex min-h-0 w-full min-w-0 flex-1 items-stretch justify-between gap-3.5 sm:gap-4"
-          title="Donut shows how the headline count splits across top domains; grey is the remainder."
-        >
-          <div className="flex h-28 w-28 shrink-0 self-center sm:h-32 sm:w-32">
-            <OpenFindingsDonut
-              values={values}
-              colors={colorList}
-              className="h-full w-full max-h-full max-w-full drop-shadow-sm"
-            />
-          </div>
-          <OpenFindingsLegend rows={legendRows} />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/** Card 4 — residual risk mix (severity counts with bars). */
-const ResidualRiskCard = () => {
-  const counts = AI_AUDIT_INTEL.severityCounts;
-  const total = Math.max(1, Object.values(counts).reduce((s, v) => s + v, 0));
-  return (
-    <div className={OVERVIEW_CARD_UNIFIED}>
-      <div className="shrink-0">
-        <h3 className="text-xs font-bold leading-tight text-slate-900 sm:text-sm">Residual Risk</h3>
-        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
-          <span className="text-2xl font-extrabold leading-none tabular-nums text-emerald-600 sm:text-3xl">
-            {OVERALL_COMPLIANCE}%
-          </span>
-          <span className="text-xs font-semibold text-slate-500 sm:text-sm">compliance</span>
-        </div>
-        <p className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-[10px]">
-          Overall residual: {RESIDUAL_RISK_OVERALL}
-        </p>
-        <p className="mt-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-[10px]">
-          Residual risk mix
-        </p>
-      </div>
-      <div className="mt-1.5 flex min-h-0 flex-1 flex-col justify-center space-y-1.5 sm:space-y-2">
-        {['Critical', 'High', 'Medium', 'Low'].map((sev) => {
-          const c = counts[sev] || 0;
-          const rowPct = (c / total) * 100;
-          const st = RESIDUAL_ROW_STYLE[sev];
-          return (
-            <div key={sev} className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2.5">
-              <div className="flex items-center justify-between gap-1.5 sm:w-24 sm:shrink-0 sm:justify-start">
-                <span className={`text-xs font-bold sm:text-sm ${st.txt}`}>{sev}</span>
-                <span className="text-xs font-bold tabular-nums text-slate-600 sm:hidden">{c}</span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200/50 sm:h-3">
-                  <div
-                    className={`h-full rounded-r ${st.bar}`}
-                    style={{ width: `${c > 0 ? Math.max(8, rowPct) : 0}%` }}
-                  />
-                </div>
-              </div>
-              <span className="hidden w-12 shrink-0 text-right text-sm font-bold tabular-nums text-slate-600 sm:inline">
-                {c}
+    <div className={OPEN_FINDINGS_CARD_CLASS}>
+      <div className="grid w-full min-w-0 grid-cols-1 gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(200px,42%)] sm:items-start sm:gap-6">
+        {/* Left: headline + highlight critical areas */}
+        <div className="min-w-0 space-y-3">
+          <div>
+            <h3 className="text-xs font-bold leading-tight text-slate-900 sm:text-sm">Open Findings</h3>
+            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+              <span className="text-2xl font-extrabold leading-none tabular-nums text-rose-500 sm:text-3xl">
+                {headTotal}
               </span>
+              <span className="text-xs font-semibold text-slate-500 sm:text-sm">open</span>
             </div>
-          );
-        })}
+          </div>
+          <div className="space-y-2 rounded-lg bg-slate-50/90 px-3 py-3 ring-1 ring-slate-200/70">
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold leading-tight text-slate-900 sm:text-[11px]">Highlight critical areas:</p>
+              <p className="text-[10px] leading-relaxed text-rose-800 sm:text-[11px]">
+                Provisioning (Access) · Periodic Review (Customer)
+              </p>
+              <p className="text-[10px] leading-relaxed text-rose-800 sm:text-[11px]">
+                De-provisioning (Access) · Periodic UAR (Access)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: donut + legend */}
+        <div className="flex w-full min-w-0 flex-col items-center justify-start border-t border-slate-100 pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+          <div className="flex w-full max-w-[280px] items-center justify-center gap-4 sm:max-w-none">
+            <div className="h-32 w-32 shrink-0 sm:h-[132px] sm:w-[132px]">
+              <OpenFindingsDonut
+                values={values}
+                colors={colorList}
+                className="h-full w-full max-h-full max-w-full drop-shadow-sm"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <OpenFindingsLegend noTruncate rows={legendRows} />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-/** 2×2 grid: equal row heights, cells stretch; cards fill each cell. */
+/** Left column: combined coverage chart + tables; open findings below (AI rail unchanged). */
 const InternalAuditSummaryGrid = () => (
-  <div
-    className="grid h-full min-h-0 w-full min-w-0 auto-rows-auto grid-cols-1 content-start gap-3 sm:grid-cols-2 sm:grid-rows-2 sm:gap-3.5 sm:[align-content:stretch] sm:[grid-template-rows:minmax(0,1fr)_minmax(0,1fr)]"
-  >
-    <div className="flex h-full min-h-0 min-w-0 items-stretch">
-      <AuditCoverageCard />
+  <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-y-auto overflow-x-hidden sm:gap-3.5">
+    <div className="min-h-[420px] min-w-0 flex-[1_1_62%] overflow-hidden">
+      <AuditCoverageCommandPanel />
     </div>
-    <div className="flex h-full min-h-0 min-w-0 items-stretch">
-      <FindingRateCard />
-    </div>
-    <div className="flex h-full min-h-0 min-w-0 items-stretch">
+    <div className="min-h-0 w-full shrink-0 py-0.5 sm:flex-[0_0_auto]">
       <OpenFindingsCard />
-    </div>
-    <div className="flex h-full min-h-0 min-w-0 items-stretch">
-      <ResidualRiskCard />
     </div>
   </div>
 );
@@ -1700,6 +1772,173 @@ const DomainMetricTile = ({ toneCls, hint, label, value }) => (
 // OVERVIEW TAB — Internal Audit Command Center
 // ============================================================================
 
+/** Top-of-slide: compliance % and residual counts in one line (no chart). */
+const ResidualRiskBanner = () => {
+  const c = AI_AUDIT_INTEL.severityCounts;
+  return (
+    <div className="rounded-xl border border-slate-200/90 bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/50 sm:px-5">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2 text-xs text-slate-700 sm:text-sm">
+        <span>
+          Overall compliance{' '}
+          <strong className="text-lg tabular-nums text-emerald-600 sm:text-xl">{OVERALL_COMPLIANCE}%</strong>
+        </span>
+        <span className="text-slate-300" aria-hidden>
+          |
+        </span>
+        <span className="tabular-nums">
+          Critical <strong className="text-red-600">{c.Critical ?? 0}</strong>
+        </span>
+        <span className="tabular-nums">
+          High <strong className="text-amber-600">{c.High ?? 0}</strong>
+        </span>
+        <span className="tabular-nums">
+          Medium <strong className="text-sky-600">{c.Medium ?? 0}</strong>
+        </span>
+        <span className="tabular-nums">
+          Low <strong className="text-emerald-600">{c.Low ?? 0}</strong>
+        </span>
+        <span className="w-full text-sm font-semibold text-slate-900 sm:ml-auto sm:w-auto">
+          Posture: {RESIDUAL_RISK_OVERALL}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const DomainProcessMappingSection = () => (
+  <section className="overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
+    <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold text-slate-900">Domain &amp; process mapping</h3>
+        <p className="mt-1 max-w-3xl text-xs text-slate-500">
+          SOP stage counts, control inventory, average stage compliance vs domain-level control score.
+        </p>
+      </div>
+    </div>
+    <div className="overflow-x-auto p-4 sm:p-5">
+      <table className="w-full min-w-[640px] border-collapse text-left text-xs sm:text-sm">
+        <thead className="border-b border-slate-200 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          <tr>
+            <th className="py-2 pr-3">Domain</th>
+            <th className="px-2 py-2 text-right tabular-nums">Processes</th>
+            <th className="px-2 py-2 text-right tabular-nums">Controls</th>
+            <th className="px-2 py-2 text-right tabular-nums">Process coverage %</th>
+            <th className="px-2 py-2 text-right tabular-nums">Domain compliance %</th>
+          </tr>
+        </thead>
+        <tbody className="text-slate-800">
+          {DOMAIN_PROCESS_MAPPING_ROWS.map((r) => (
+            <tr key={r.id} className="border-t border-slate-100">
+              <td className="max-w-[220px] truncate py-2 pr-3 font-medium" title={r.domain}>
+                {r.domain}
+              </td>
+              <td className="px-2 py-2 text-right tabular-nums">{r.processes}</td>
+              <td className="px-2 py-2 text-right tabular-nums">{r.controls}</td>
+              <td className="px-2 py-2 text-right tabular-nums font-semibold text-indigo-700">{r.processCompliance}%</td>
+              <td className="px-2 py-2 text-right tabular-nums font-semibold text-slate-900">{r.domainCompliance}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+);
+
+const FindingsSummaryDrillSection = ({ onDrillDown }) => {
+  const [pick, setPick] = useState(null);
+  const detail = pick ? DOMAIN_AUDIT_VIEW.find((d) => d.id === pick) : null;
+  const stageHotspots =
+    pick && detail
+      ? [...ALL_PROCESS_ROWS].filter((r) => r.domainId === pick).sort((a, b) => b.issues - a.issues).slice(0, 8)
+      : [];
+
+  return (
+    <section className="overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
+      <div className="border-b border-slate-200 px-5 py-4">
+        <h3 className="text-sm font-semibold text-slate-900">Findings summary</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Double-click a bar to open the domain slice for discussion. Follow with “Open workspace” for full drill-down.
+        </p>
+      </div>
+      <div className="p-4 sm:p-5">
+        <div className="h-[240px] w-full min-h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={FINDINGS_SUMMARY_CHART_DATA}
+              margin={{ top: 8, right: 12, left: 0, bottom: 4 }}
+              onDoubleClick={(state) => {
+                const id = state?.activePayload?.[0]?.payload?.domainId;
+                if (id) setPick(id);
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
+              <YAxis tick={{ fontSize: 10 }} width={36} allowDecimals={false} />
+              <Tooltip
+                formatter={(v, name) => [v, name === 'totalIssues' ? 'Total issues (exc.+crit.)' : name]}
+                labelFormatter={(_, p) => p?.[0]?.payload?.fullDomain || ''}
+              />
+              <Bar dataKey="totalIssues" name="totalIssues" radius={[4, 4, 0, 0]}>
+                {FINDINGS_SUMMARY_CHART_DATA.map((entry, i) => (
+                  <Cell key={entry.domainId} fill={i % 2 === 0 ? '#e11d48' : '#f43f5e'} className="cursor-pointer" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {pick && detail ? (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/90 p-4 text-sm">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Selected domain</p>
+                <p className="font-semibold text-slate-900">{detail.domain}</p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Critical findings <span className="font-bold text-red-700 tabular-nums">{detail.violations}</span>
+                  {' · '}
+                  Other exceptions{' '}
+                  <span className="font-bold tabular-nums text-amber-800">{Math.max(0, detail.exceptions)}</span>
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPick(null)}
+                  className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDrillDown(pick)}
+                  className="rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700"
+                >
+                  Open workspace
+                </button>
+              </div>
+            </div>
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Processes with most issues</p>
+            <ul className="mt-1 space-y-1 text-xs text-slate-700">
+              {stageHotspots.length === 0 ? (
+                <li className="text-slate-500">No process-level issues in this slice.</li>
+              ) : (
+                stageHotspots.map((s) => (
+                  <li key={s.key} className="flex flex-wrap justify-between gap-2 border-t border-slate-200/80 pt-1 first:border-0 first:pt-0">
+                    <span className="min-w-0 font-medium">{s.processName}</span>
+                    <span className="shrink-0 tabular-nums text-slate-600">
+                      {s.issues} issues · {s.criticalIssues} critical-linked
+                    </span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+};
+
 const OverviewTab = ({ onDrillDown }) => {
   const sortedDomains = useMemo(
     () => [...DOMAIN_AUDIT_VIEW].sort(
@@ -1717,10 +1956,14 @@ const OverviewTab = ({ onDrillDown }) => {
   );
   return (
     <div className="space-y-6">
+      <ResidualRiskBanner />
+
       <OverviewHeroRow
         summaryGrid={<InternalAuditSummaryGrid />}
         intelligencePanel={<AiAuditIntelligenceCard onDrillDown={onDrillDown} />}
       />
+
+      <DomainProcessMappingSection />
 
       {/* Audit domains — domain risk heatmap baked into each card (single surface, no duplicate table) */}
       <section className="bg-white ring-1 ring-slate-200 rounded-lg overflow-hidden">
@@ -1732,7 +1975,6 @@ const OverviewTab = ({ onDrillDown }) => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-600 shrink-0">
-            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Residual risk</span>
             {['Critical', 'High', 'Medium', 'Low'].map((l) => (
               <span key={l} className="inline-flex items-center gap-1">
                 <span className={`w-2 h-2 rounded-full ${RESIDUAL_RISK_TONE[l].dot}`} />
@@ -1840,6 +2082,7 @@ const OverviewTab = ({ onDrillDown }) => {
           </div>
         </div>
       </section>
+
     </div>
   );
 };
