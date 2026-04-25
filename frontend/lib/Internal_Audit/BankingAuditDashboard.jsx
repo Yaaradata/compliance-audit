@@ -1710,7 +1710,6 @@ const OverviewTab = ({ onDrillDown }) => {
       violations: Math.max(1, ...sortedDomains.map((d) => d.violations)),
       evidenceGaps: Math.max(1, ...sortedDomains.map((d) => d.evidenceGaps)),
       overdue: Math.max(1, ...sortedDomains.map((d) => d.overdueRemediation)),
-      repeat: Math.max(1, ...sortedDomains.map((d) => d.repeatFindings)),
     }),
     [sortedDomains]
   );
@@ -1786,7 +1785,7 @@ const OverviewTab = ({ onDrillDown }) => {
                     </div>
 
                     {/* Domain risk metrics — compact tile; (i) aligned to label row, larger type */}
-                    <div className="mt-2 grid grid-cols-5 gap-0.5">
+                    <div className="mt-2 grid grid-cols-4 gap-0.5">
                       <DomainMetricTile
                         toneCls={passCls}
                         hint="% of in-scope cases that passed every control tested here. Tile colour vs other domains shows relative strength."
@@ -1810,12 +1809,6 @@ const OverviewTab = ({ onDrillDown }) => {
                         hint="Remediation or management responses past the agreed due date (SLA breach)."
                         label="Overdue"
                         value={d.overdueRemediation}
-                      />
-                      <DomainMetricTile
-                        toneCls={domainRiskHeatTone(d.repeatFindings, heatMax.repeat)}
-                        hint="Findings that match or closely mirror a prior-cycle issue — check whether last remediation actually held."
-                        label="Repeat"
-                        value={d.repeatFindings}
                       />
                     </div>
 
