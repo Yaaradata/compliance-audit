@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Cell, Legend, ComposedChart, Line,
@@ -15,6 +15,7 @@ import {
   CalendarClock, MapPin, Mail, Hash,
   Sparkles,
 } from 'lucide-react';
+import AuditCard, { AuditCardSkeleton } from '@/components/Internal_Audit/AuditCard';
 
 // ============================================================================
 // DOMAIN CATALOG — 10 control domains (auditor view)
@@ -894,26 +895,42 @@ const DOMAIN_AUDIT_META = {
 
 const _hash = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); };
 
+const DOMAIN_CASE_SUMMARY = Object.fromEntries(
+  Object.entries(CASES_BY_DOMAIN).map(([domainId, cases]) => {
+    const clean = cases.filter((k) => k.overallStatus === 'compliant').length;
+    const failed = cases.filter((k) => k.overallStatus === 'failure').length;
+    const pending = cases.filter((k) => k.overallStatus === 'pending').length;
+    return [domainId, { total: cases.length, clean, failed, pending }];
+  }),
+);
+
 /**
  * Enriched per-domain audit view (heatmap, KPIs, AI).
- * Residual risk is assigned by RANK (deterministic severity score across domains),
- * guaranteeing a demo-grade spread of 3 Critical · 3 High · 2 Medium · 2 Low
- * instead of clipping everything into a single bucket.
+ * All card counts are derived from in-memory system datasets:
+ * - control library (CONTROLS_BY_DOMAIN)
+ * - case journeys (CASES_BY_DOMAIN)
  */
 const _scoredDomains = DOMAIN_SUMMARY.map((d) => {
   const ctrls = CONTROLS_BY_DOMAIN[d.id] || [];
-  const notTested = _hash(d.id) % 3;
-  const tested    = Math.max(0, ctrls.length - notTested);
+  const caseStats = DOMAIN_CASE_SUMMARY[d.id] || { total: 0, clean: 0, failed: 0, pending: 0 };
+  const tested    = ctrls.filter((c) => Number(c.sample) > 0).length;
+  const notTested = Math.max(0, ctrls.length - tested);
   const notMet    = ctrls.filter((c) => c.status === 'deficient' || c.violations >= 2).length;
   const review    = ctrls.filter((c) => c.status === 'needs-attention' && !(c.violations >= 2)).length;
   const met       = Math.max(0, tested - notMet - review);
   const evidenceGaps       = d.violations * 2 + ctrls.filter((c) => c.status === 'needs-attention').length;
-  const overdueRemediation = Math.max(0, Math.round(d.violations * 0.9 + d.exceptions * 0.08));
+  const overdueRemediation = caseStats.failed + caseStats.pending;
   const repeatFindings     = Math.max(0, Math.floor(d.violations / 2) + (_hash(d.id + 'r') % 3));
   const severityScore      = d.violations * 10 + overdueRemediation * 2 + evidenceGaps + repeatFindings * 3;
   return {
     ...d,
     tested, notTested, met, notMet, review,
+    caseTotal: caseStats.total,
+    caseClean: caseStats.clean,
+    caseFailed: caseStats.failed,
+    casePending: caseStats.pending,
+    criticalDelta: caseStats.failed - caseStats.pending,
+    overdueDelta: caseStats.pending - caseStats.clean,
     evidenceGaps, overdueRemediation, repeatFindings, severityScore,
     ...(DOMAIN_AUDIT_META[d.id] || { owner: 'Audit Lead', topIssue: '—', action: '—' }),
   };
@@ -1946,14 +1963,20 @@ const OverviewTab = ({ onDrillDown }) => {
     ),
     []
   );
-  const heatMax = useMemo(
-    () => ({
-      violations: Math.max(1, ...sortedDomains.map((d) => d.violations)),
-      evidenceGaps: Math.max(1, ...sortedDomains.map((d) => d.evidenceGaps)),
-      overdue: Math.max(1, ...sortedDomains.map((d) => d.overdueRemediation)),
-    }),
-    [sortedDomains]
+  const [cardsLoading, setCardsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setCardsLoading(false), 450);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const cardSeverity = (residualRisk) => (
+    residualRisk === 'Critical' ? 'Critical'
+    : residualRisk === 'High' ? 'High'
+    : residualRisk === 'Medium' ? 'Medium'
+    : 'Low'
   );
+
   return (
     <div className="space-y-6">
       <ResidualRiskBanner />
@@ -1965,7 +1988,7 @@ const OverviewTab = ({ onDrillDown }) => {
 
       <DomainProcessMappingSection />
 
-      {/* Audit domains — domain risk heatmap baked into each card (single surface, no duplicate table) */}
+      {/* Audit domains — interactive cards with trends, AI focus hierarchy and drill-in expand */}
       <section className="bg-white ring-1 ring-slate-200 rounded-lg overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
@@ -1985,100 +2008,26 @@ const OverviewTab = ({ onDrillDown }) => {
         </div>
         <div className="p-4 sm:p-5">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {sortedDomains.map((d) => {
-              const Icon = DOMAINS.find((x) => x.id === d.id)?.icon || Shield;
-              const riskTone = RESIDUAL_RISK_TONE[d.residualRisk] || RESIDUAL_RISK_TONE.Low;
-              const passCls = domainPassHeatTone(d.compliance);
-              return (
-                <button
+            {cardsLoading
+              ? Array.from({ length: 9 }).map((_, idx) => <AuditCardSkeleton key={`audit-skeleton-${idx}`} />)
+              : sortedDomains.map((d) => (
+                <AuditCard
                   key={d.id}
-                  type="button"
-                  onClick={() => onDrillDown(d.id)}
-                  className={`rounded-lg ring-1 ring-slate-200 hover:ring-slate-300 hover:shadow-md transition-all text-left overflow-hidden bg-white border-t-4 ${
-                    d.residualRisk === 'Critical' ? 'border-t-red-500'
-                    : d.residualRisk === 'High' ? 'border-t-orange-500'
-                    : d.residualRisk === 'Medium' ? 'border-t-amber-500'
-                    : 'border-t-emerald-500'
-                  } group`}
-                >
-                  <div className="p-3">
-                    <div className="flex items-start gap-2.5">
-                      <div
-                        className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ring-1 ring-black/5"
-                        style={{ background: d.color + '22', color: d.color }}
-                      >
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-slate-900 leading-snug truncate">{d.domain}</div>
-                            <div className="text-[11px] text-slate-500 mt-0.5 truncate" title={d.owner}>{d.owner}</div>
-                          </div>
-                          <RiskPill level={d.residualRisk} className="shrink-0" />
-                        </div>
-                        <div className="mt-1.5 text-[10px] text-slate-500 leading-tight">
-                          <span className="text-slate-700 font-medium">{d.controls}</span> in scope ·{' '}
-                          <span className="text-slate-700 font-medium">{d.tested}/{d.controls}</span> tested
-                          {d.notTested > 0 ? (
-                            <span className="text-amber-800 font-semibold"> · {d.notTested} not tested</span>
-                          ) : null}
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 shrink-0 mt-1" />
-                    </div>
-
-                    {/* Domain risk metrics — compact tile; (i) aligned to label row, larger type */}
-                    <div className="mt-2 grid grid-cols-4 gap-0.5">
-                      <DomainMetricTile
-                        toneCls={passCls}
-                        hint="% of in-scope cases that passed every control tested here. Tile colour vs other domains shows relative strength."
-                        label="Pass rate"
-                        value={`${d.compliance}%`}
-                      />
-                      <DomainMetricTile
-                        toneCls={domainRiskHeatTone(d.violations, heatMax.violations)}
-                        hint="Open findings rated critical: regulatory or policy breach still unresolved in this domain."
-                        label="Critical"
-                        value={d.violations}
-                      />
-                      <DomainMetricTile
-                        toneCls={domainRiskHeatTone(d.evidenceGaps, heatMax.evidenceGaps)}
-                        hint="Audit evidence gaps: missing or incomplete proof — conclusion on hold until the pack is complete or you record a limitation."
-                        label="gaps"
-                        value={d.evidenceGaps}
-                      />
-                      <DomainMetricTile
-                        toneCls={domainRiskHeatTone(d.overdueRemediation, heatMax.overdue)}
-                        hint="Remediation or management responses past the agreed due date (SLA breach)."
-                        label="Overdue"
-                        value={d.overdueRemediation}
-                      />
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-slate-600">
-                      <span className="font-semibold text-slate-500 uppercase tracking-wider">Conclusions</span>
-                      <span className="text-emerald-800 font-semibold tabular-nums">{d.met} met</span>
-                      <span className="text-slate-300">·</span>
-                      <span className="text-red-800 font-semibold tabular-nums">{d.notMet} not met</span>
-                      <span className="text-slate-300">·</span>
-                      <span className="text-amber-800 font-semibold tabular-nums">{d.review} review</span>
-                    </div>
-
-                    <div className={`mt-2 rounded-md px-2.5 py-2 ${riskTone.bg} ring-1 ${riskTone.ring}`}>
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <Sparkles className={`w-3 h-3 ${riskTone.text}`} />
-                        <span className={`text-[9px] font-semibold uppercase tracking-wider ${riskTone.text}`}>AI focus</span>
-                      </div>
-                      <p className="text-[10px] text-slate-700 leading-snug">
-                        {d.topIssue} <span className="text-slate-400">—</span>{' '}
-                        <span className="font-medium text-slate-800">{d.action}</span>
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+                  onOpen={() => onDrillDown(d.id)}
+                  domain={d.domain}
+                  lead={d.owner}
+                  severity={cardSeverity(d.residualRisk)}
+                  tested={d.tested}
+                  inScope={d.controls}
+                  passRate={d.compliance}
+                  critical={d.violations}
+                  criticalDelta={d.criticalDelta}
+                  overdue={d.overdueRemediation}
+                  overdueDelta={d.overdueDelta}
+                  aiContext={d.topIssue}
+                  aiAction={d.action}
+                />
+              ))}
           </div>
         </div>
       </section>
