@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import {
   Shield, AlertTriangle, AlertCircle, CheckCircle2, XCircle,
-  Activity, Users, Briefcase, CreditCard, AlertOctagon, Lock, Server,
+  Activity, Users, Briefcase, CreditCard, AlertOctagon, Server,
   Database, DollarSign, UserCog, Search, Filter, Download, Clock,
   FileText, ChevronRight, ChevronDown, Building2, Eye, X, FileCheck2, ListChecks,
   UserCheck, Gavel, BadgeCheck, FolderSearch,
@@ -18,7 +18,7 @@ import {
 import AuditCard, { AuditCardSkeleton } from '@/components/Internal_Audit/AuditCard';
 
 // ============================================================================
-// DOMAIN CATALOG — 10 control domains (auditor view)
+// DOMAIN CATALOG — 9 control domains (auditor view)
 // ============================================================================
 
 const DOMAINS = [
@@ -27,7 +27,6 @@ const DOMAINS = [
   { id: 'loan',        label: 'Credit & Loans',        icon: Briefcase,    color: '#7c3aed' },
   { id: 'transaction', label: 'Transactions & Payments', icon: CreditCard, color: '#0891b2' },
   { id: 'risk',        label: 'AML, Risk & Fraud',     icon: AlertOctagon, color: '#dc2626' },
-  { id: 'access',      label: 'Access & Identity',     icon: Lock,         color: '#d97706' },
   { id: 'itchange',    label: 'IT Change Mgmt',        icon: Server,       color: '#059669' },
   { id: 'infra',       label: 'Infrastructure & Cyber',icon: Shield,       color: '#475569' },
   { id: 'data',        label: 'Data Governance',       icon: Database,     color: '#be185d' },
@@ -107,18 +106,6 @@ const RISK_CONTROLS = [
   { id: 'RK-07', name: 'Whistleblower & internal fraud investigation', objective: 'Whistleblower channel operative; independent investigation.', regulatory: 'SEBI LODR, Whistleblower Policy', owner: 'Vigilance', frequency: 'Continuous', population: 24, sample: 24, exceptions: 1, violations: 0, compliance: 95.8, status: 'effective' },
 ];
 
-const ACCESS_CONTROLS = [
-  { id: 'AC-01', name: 'User access provisioning with manager approval', objective: 'All new access requests require line manager + app owner approval.', regulatory: 'ISO 27001 A.9.2, RBI Cyber Security MD', owner: 'IAM Team', frequency: 'Continuous', population: 1420, sample: 120, exceptions: 14, violations: 4, compliance: 88.3, status: 'needs-attention' },
-  { id: 'AC-02', name: 'Timely de-provisioning on exit', objective: 'Sensitive access revoked T+0; all access within T+1 of exit.', regulatory: 'ISO 27001 A.9.2.6', owner: 'IAM Team', frequency: 'Continuous', population: 620, sample: 80, exceptions: 16, violations: 5, compliance: 80.0, status: 'deficient' },
-  { id: 'AC-03', name: 'Privileged Access Management (PAM)', objective: 'All privileged IDs vaulted; sessions recorded & reviewed weekly.', regulatory: 'RBI Cyber Security MD §G', owner: 'IT Security', frequency: 'Continuous', population: 280, sample: 80, exceptions: 8, violations: 2, compliance: 90.0, status: 'needs-attention' },
-  { id: 'AC-04', name: 'Role-Based Access Control (RBAC)', objective: 'Access granted only via defined roles; least-privilege.', regulatory: 'ISO 27001 A.9.1.1', owner: 'IAM Team', frequency: 'Continuous', population: 4200, sample: 160, exceptions: 12, violations: 3, compliance: 92.5, status: 'effective' },
-  { id: 'AC-05', name: 'Segregation of Duties (SoD) — maker ≠ checker', objective: 'No single user holds conflicting maker & checker roles in core banking.', regulatory: 'COBIT APO13, SOX ICoFR', owner: 'IAM + Risk', frequency: 'Continuous', population: 4200, sample: 160, exceptions: 11, violations: 3, compliance: 93.1, status: 'effective' },
-  { id: 'AC-06', name: 'MFA enforcement on critical apps', objective: 'MFA enforced on core banking, PAM, email, remote access.', regulatory: 'RBI Cyber Security MD §H', owner: 'IT Security', frequency: 'Continuous', population: 4200, sample: 200, exceptions: 4, violations: 1, compliance: 98.0, status: 'effective' },
-  { id: 'AC-07', name: 'Quarterly User Access Review (UAR)', objective: 'Business owners certify user access list quarterly.', regulatory: 'SOX, ISO 27001 A.9.2.5', owner: 'Application Owners', frequency: 'Quarterly', population: 4200, sample: 4200, exceptions: 18, violations: 4, compliance: 89.2, status: 'needs-attention' },
-  { id: 'AC-08', name: 'Dormant account / ID lockout', objective: 'IDs inactive > 90 days automatically locked.', regulatory: 'ISO 27001 A.9.2.5', owner: 'IAM Team', frequency: 'Continuous', population: 840, sample: 80, exceptions: 3, violations: 1, compliance: 96.3, status: 'effective' },
-  { id: 'AC-09', name: 'Shared / generic account usage', objective: 'Generic IDs prohibited except approved service accounts; rotated credentials.', regulatory: 'ISO 27001 A.9.2.4', owner: 'IT Security', frequency: 'Continuous', population: 142, sample: 80, exceptions: 6, violations: 1, compliance: 92.5, status: 'effective' },
-];
-
 const CHANGE_CONTROLS = [
   { id: 'CM-01', name: 'CAB approval for production changes', objective: 'All standard / normal changes approved by CAB with RFC.', regulatory: 'ITIL Change Mgmt, RBI Cyber MD', owner: 'Change Mgmt Office', frequency: 'Weekly', population: 420, sample: 80, exceptions: 7, violations: 2, compliance: 91.3, status: 'needs-attention' },
   { id: 'CM-02', name: 'Code review & peer sign-off', objective: 'Pull requests require ≥1 peer approval + lint / SAST pass.', regulatory: 'Secure SDLC Policy', owner: 'Engineering', frequency: 'Continuous', population: 2400, sample: 160, exceptions: 9, violations: 2, compliance: 94.4, status: 'effective' },
@@ -177,7 +164,6 @@ const CONTROLS_BY_DOMAIN = {
   loan:        LOAN_CONTROLS,
   transaction: TX_CONTROLS,
   risk:        RISK_CONTROLS,
-  access:      ACCESS_CONTROLS,
   itchange:    CHANGE_CONTROLS,
   infra:       INFRA_CONTROLS,
   data:        DATA_CONTROLS,
@@ -250,21 +236,6 @@ const SOP_BY_DOMAIN = {
       { id: 'ctr',     name: 'CTR Filing (FIU)',    description: 'Monthly CTR to FIU-IND by 15th.',                           controlIds: ['RK-03'], owner: { role: 'Principal Officer',    team: 'AML Compliance',    submits: 'CTR file, FIU acknowledgement' } },
       { id: 'dispute', name: 'Dispute / Chargeback',description: 'Resolve within Visa / MC / UPI TAT.',                       controlIds: ['RK-06'], owner: { role: 'Cards Ops Officer',    team: 'Cards Operations',  submits: 'Dispute register, scheme communication, refund JE' } },
       { id: 'whistle', name: 'Whistleblower',       description: 'Independent intake & investigation channel.',               controlIds: ['RK-07'], owner: { role: 'Vigilance Officer',    team: 'Vigilance',         submits: 'Intake form, investigation report, committee sign-off' } },
-    ],
-  },
-  access: {
-    name: 'User Access Lifecycle SOP',
-    purpose: 'Joiner-Mover-Leaver — every access request must clear every stage.',
-    stages: [
-      { id: 'request', name: 'Request',          description: 'Access request raised in IAM portal.',             controlIds: ['AC-01'],         owner: { role: 'Requesting Employee', team: 'Business Unit',    submits: 'IAM request form, business justification' } },
-      { id: 'approve', name: 'Approval',         description: 'Line-manager & app-owner approval.',               controlIds: ['AC-01'],         owner: { role: 'Line Manager + App Owner', team: 'Business + App', submits: 'Approver chain, email trail, role fitment note' } },
-      { id: 'prov',    name: 'Provisioning',     description: 'Role granted via RBAC; least-privilege.',          controlIds: ['AC-01','AC-04'], owner: { role: 'IAM Administrator',   team: 'IAM Operations',   submits: 'Provision ticket, role grant screenshot, AD log' } },
-      { id: 'mfa',     name: 'MFA Enforcement',  description: 'MFA factor activated before first login.',         controlIds: ['AC-06'],         owner: { role: 'IAM Administrator',   team: 'IAM Operations',   submits: 'MFA enrolment log, first-login attestation' } },
-      { id: 'pam',     name: 'PAM / Shared IDs', description: 'Privileged & generic IDs vaulted with recording.', controlIds: ['AC-03','AC-09'], owner: { role: 'PAM Administrator',   team: 'Infra Security',   submits: 'PAM vault entry, session recording reference' } },
-      { id: 'sod',     name: 'SoD Validation',   description: 'Maker-checker / SoD conflicts flagged.',           controlIds: ['AC-05'],         owner: { role: 'GRC Analyst',         team: 'Risk & Governance',submits: 'SoD run report, conflict remediation note' } },
-      { id: 'uar',     name: 'Periodic UAR',     description: 'Quarterly user access review.',                    controlIds: ['AC-07'],         owner: { role: 'Application Owner',   team: 'App Business Owner',submits: 'UAR certification, delta list, exception memo' } },
-      { id: 'dormant', name: 'Dormant Lockout',  description: 'Auto-lock after 90 days of inactivity.',           controlIds: ['AC-08'],         owner: { role: 'IAM Automation',      team: 'IAM Operations',   submits: 'Dormant scan output, lockout evidence' } },
-      { id: 'deprov',  name: 'De-provisioning',  description: 'Sensitive T+0, rest T+1 on exit.',                 controlIds: ['AC-02'],         owner: { role: 'HR + IAM',            team: 'HR Ops + IAM',     submits: 'Exit ticket, revoke evidence, asset return form' } },
     ],
   },
   itchange: {
@@ -353,7 +324,6 @@ const CASE_ENTITY = {
   loan:        { singular: 'Loan Application',plural: 'Loan Applications',entity: 'loan application' },
   transaction: { singular: 'Transaction',     plural: 'Transactions',     entity: 'transaction' },
   risk:        { singular: 'AML Alert',       plural: 'AML Alerts',       entity: 'alert' },
-  access:      { singular: 'Access Request',  plural: 'Access Requests',  entity: 'access request' },
   itchange:    { singular: 'Change Request',  plural: 'Change Requests',  entity: 'change request' },
   infra:       { singular: 'Infra Ticket',    plural: 'Infra Tickets',    entity: 'infra job' },
   data:        { singular: 'Data Task',       plural: 'Data Tasks',       entity: 'data task' },
@@ -367,7 +337,6 @@ const JOURNEY_TITLE_BY_DOMAIN = {
   loan:        'LOAN APPLICATION JOURNEY — STAGE-WISE CONTROL COMPLIANCE',
   transaction: 'TRANSACTION JOURNEY — STAGE-WISE CONTROL COMPLIANCE',
   risk:        'AML ALERT JOURNEY — STAGE-WISE CONTROL COMPLIANCE',
-  access:      'ACCESS REQUEST JOURNEY — STAGE-WISE CONTROL COMPLIANCE',
   itchange:    'CHANGE REQUEST JOURNEY — STAGE-WISE CONTROL COMPLIANCE',
   infra:       'INFRASTRUCTURE JOURNEY — STAGE-WISE CONTROL COMPLIANCE',
   data:        'DATA GOVERNANCE JOURNEY — STAGE-WISE CONTROL COMPLIANCE',
@@ -388,9 +357,6 @@ const STAGE_SHORT_LABEL = {
   },
   risk: {
     monitor: 'Monitor', screen: 'Screen', l1: 'L1', l2: 'L2', str: 'STR', ctr: 'CTR', dispute: 'Dispute', whistle: 'Whistle',
-  },
-  access: {
-    request: 'Request', approve: 'Approve', prov: 'Prov.', mfa: 'MFA', pam: 'PAM', sod: 'SoD', uar: 'UAR', dormant: 'Dormant', deprov: 'Deprov.',
   },
   itchange: {
     rfc: 'RFC', code: 'Code', env: 'Env', cab: 'CAB', deploy: 'Deploy', pir: 'PIR', emg: 'Emerg.', inc: 'Incident', patch: 'Patch',
@@ -423,8 +389,6 @@ const CONTROL_EXCEPTION_LABEL = {
   'TX-06': 'LRS / FX breach', 'TX-07': 'Reversal authority', 'TX-08': 'Recon / TAT gap', 'TX-09': 'Liquidity breach',
   'RK-01': 'TM / SLA gap', 'RK-02': 'STR timeliness', 'RK-03': 'CTR filing', 'RK-04': 'Sanctions gap', 'RK-05': 'Investigation gap',
   'RK-06': 'Dispute TAT', 'RK-07': 'Whistleblower process',
-  'AC-01': 'Approval chain gap', 'AC-02': 'Deprov delay', 'AC-03': 'PAM gap', 'AC-04': 'RBAC gap', 'AC-05': 'SoD conflict',
-  'AC-06': 'MFA gap', 'AC-07': 'UAR gap', 'AC-08': 'Dormant ID gap', 'AC-09': 'Shared ID gap',
   'CM-01': 'CAB / RFC gap', 'CM-02': 'Code review gap', 'CM-03': 'Segregation breach', 'CM-04': 'Release window', 'CM-05': 'PIR / rollback',
   'CM-06': 'Emergency ratification', 'CM-07': 'RCA SLA', 'CM-08': 'Patch SLA',
   'IN-01': 'FW rule review', 'IN-02': 'Hardening drift', 'IN-03': 'Segmentation', 'IN-04': 'Cloud IAM', 'IN-05': 'Backup gap',
@@ -487,17 +451,6 @@ const AUDITOR_FINDINGS = {
   'RK-05': '9 fraud cases exceeded the 30-day RCA SLA; 3 critical cases are > 60 days without closure. RBI Fraud Reporting MD expects timely RCA with corrective action.',
   'RK-06': '5 chargebacks / disputes resolved beyond the Visa / MC / UPI TAT; 1 critical UPI dispute auto-debited the merchant while still in investigation.',
   'RK-07': '1 whistleblower intake was investigated beyond policy TAT; Committee sign-off captured but on the follow-up, not the original intake. No concealment but the timeline evidence is weak.',
-
-  // ---------- Access ----------
-  'AC-01': '14 access requests were provisioned without the full approver chain (line manager + application owner); 4 critical grants had only a verbal / chat approval. ISO 27001 A.9.2 and RBI Cyber MD require documented two-party approval.',
-  'AC-02': '16 access profiles were still active 48–72 h after the HR exit date (Core + LOS); 5 critical where treasury / SWIFT roles remained enabled. Batch deprovisioning failed silently on Sundays and the IAM ticket queue was not monitored.',
-  'AC-03': '8 privileged IDs are not vaulted in PAM; 2 critical are long-standing DBA accounts with shared credentials. Session recording does not exist for these IDs.',
-  'AC-04': '12 user accounts hold permissions outside the approved role template; 3 critical users accumulated rights through mover workflow but nothing was revoked from the prior role (role creep).',
-  'AC-05': '11 user accounts have conflicting maker + checker roles in core banking; 3 critical users executed both steps on the same transaction in the sample window.',
-  'AC-06': '4 critical applications have users active without MFA enrolled; 1 critical includes a treasury power-user. RBI Cyber Security MD §H requires MFA on these apps.',
-  'AC-07': '18 applications missed the quarterly UAR certification; 4 critical applications cover core banking and payments. Delta list & exception memo are also absent.',
-  'AC-08': '3 user IDs dormant > 90 days were not auto-locked; 1 critical is an ex-contractor ID that logged in once during the sample window.',
-  'AC-09': '6 shared / generic account usages outside the approved service-account list; 1 critical generic ID performed a privileged action on month-end close.',
 
   // ---------- IT Change ----------
   'CM-01': '7 production changes were deployed without CAB approval; 2 critical core-banking changes bypassed the CAB entirely. ITIL Change Mgmt & RBI Cyber MD require prior CAB endorsement.',
@@ -626,14 +579,6 @@ const CASE_POOL = {
     { id: 'AL-20260417-7115', subject: 'Unusual foreign inward — A/c ****7721', segment: 'AML', opened: '17 Apr 2026', scenario: 'rejected', failStageId: 'str', failControlId: 'RK-02' },
     { id: 'AL-20260417-7116', subject: 'Chargeback dispute — Visa',        segment: 'Disputes', opened: '17 Apr 2026', scenario: 'clean' },
     { id: 'AL-20260417-7117', subject: 'Fraud case — Vishing Mumbai',      segment: 'Fraud',    opened: '17 Apr 2026', scenario: 'pending',  failStageId: 'l2',  failControlId: 'RK-05' },
-  ],
-  access: [
-    { id: 'IAM-2026-3301', subject: 'New joiner — Finacle access',   segment: 'Joiner',     opened: '14 Apr 2026', scenario: 'clean' },
-    { id: 'IAM-2026-3302', subject: 'Role change — AVP Credit',      segment: 'Mover',      opened: '14 Apr 2026', scenario: 'rejected', failStageId: 'sod',     failControlId: 'AC-05' },
-    { id: 'IAM-2026-3303', subject: 'PAM vault — DB Admin',          segment: 'Privileged', opened: '15 Apr 2026', scenario: 'rejected', failStageId: 'pam',     failControlId: 'AC-03' },
-    { id: 'IAM-2026-3304', subject: 'Leaver — Branch Operations',    segment: 'Leaver',     opened: '15 Apr 2026', scenario: 'rejected', failStageId: 'deprov',  failControlId: 'AC-02' },
-    { id: 'IAM-2026-3305', subject: 'Contract renewal — Vendor ID',  segment: 'Mover',      opened: '16 Apr 2026', scenario: 'clean' },
-    { id: 'IAM-2026-3306', subject: 'MFA enrolment — Trade Fin user',segment: 'Joiner',     opened: '16 Apr 2026', scenario: 'pending',  failStageId: 'mfa',     failControlId: 'AC-06' },
   ],
   itchange: [
     { id: 'CHG-20260415-2101', subject: 'CBS interest-rate patch',   segment: 'Normal',     opened: '15 Apr 2026', scenario: 'clean' },
@@ -885,7 +830,6 @@ const DOMAIN_AUDIT_META = {
   loan:        { owner: 'Credit Audit Lead',          topIssue: 'Underwriting policy deviations on 14 sanctions',        action: 'Validate FOIR / LTV waivers against Board Risk minutes' },
   transaction: { owner: 'Payments Audit Lead',        topIssue: 'CTR filings overdue beyond 30 days',                    action: 'Pre-intimate FIU and submit the overdue CTRs' },
   risk:        { owner: 'AML Audit Lead',             topIssue: 'STR filings breaching 7-day PMLA window',               action: 'Request remediation plan + TAT dashboard from AML' },
-  access:      { owner: 'IAM Audit Lead',             topIssue: 'Leaver access not revoked within T+1 (16 profiles)',    action: 'Immediate privileged & leaver access re-certification' },
   itchange:    { owner: 'Tech Audit Lead',            topIssue: '7 production changes bypassed CAB approval',            action: 'Enforce CAB gate and re-validate the 7 releases' },
   infra:       { owner: 'Cyber Audit Lead',           topIssue: '9 firewall rules stale / over-permissive',              action: 'Close stale rules and record owner justification' },
   data:        { owner: 'Data Audit Lead',            topIssue: 'PII in non-prod from silent masking failures',          action: 'Revoke vendor access and re-run masking with attestation' },
@@ -1136,7 +1080,6 @@ const AI_AUDIT_INTEL = (() => {
   });
 
   const findings = ranked
-    .filter((d) => d.id !== 'access')
     .map((d) => {
       const severity = d.residualRisk;
       return {
@@ -1317,7 +1260,7 @@ const OpenFindingsDonut = ({ values, colors, className = '' }) => {
 };
 
 /**
- * One line per row: `24 - Access & Identity` with dot; equal-height row shells.
+ * One line per row: domain label with dot; equal-height row shells.
  * `rows[].key` must be unique (domain id or `open-findings-other-domains`).
  */
 const OpenFindingsLegend = ({ rows, noTruncate = false }) => (
@@ -1541,10 +1484,10 @@ const OpenFindingsCard = () => {
             <div className="space-y-1">
               <p className="text-[10px] font-semibold leading-tight text-slate-900 sm:text-[11px]">Highlight critical areas:</p>
               <p className="text-[10px] leading-relaxed text-rose-800 sm:text-[11px]">
-                Provisioning (Access) · Periodic Review (Customer)
+                Re-KYC overdue (Customer) · STR timeliness (AML)
               </p>
               <p className="text-[10px] leading-relaxed text-rose-800 sm:text-[11px]">
-                De-provisioning (Access) · Periodic UAR (Access)
+                Underwriting policy (Credit) · CAB gating (IT Change)
               </p>
             </div>
           </div>
