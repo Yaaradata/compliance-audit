@@ -1,0 +1,148 @@
+Let me also peek at a few RCM sections to ground specific examples in real entities.# Persona Profiles — AI-Driven Process Compliance Platform (MVP)
+
+Three personas anchor the MVP. They share a single underlying reality — process execution, control instances, evidence, obligations — but consume it at three different abstraction levels. The platform's central commitment is making the **same fact** legible to all three without reconciliation work between them.
+
+---
+
+## Persona 1 — CRO / CAO
+
+### Mental Model
+Thinks in **risk taxonomies and exposures**, not in processes or controls. The mental map is the firm's risk universe: operational, financial crime, model, credit, compliance & conduct, third-party, technology/cyber. Aggregates ruthlessly upward. Decision rhythm is weekly ExCo, monthly Risk Committee, quarterly Board — paid to anticipate, not to investigate. Reads control health as a proxy for risk health, treats process as plumbing, and treats compliance as table stakes (its failure is a career event; its success is unremarkable). Personally accountable under OCC Heightened Standards (US), SMCR (UK), and RBI's board-mandated CRO designation (India).
+
+What they care about: where they are exposed beyond appetite *right now*, what is changing, the five things most likely to escalate next quarter, and whether they are personally defensible.
+
+### Primary Goals (mapped to system goals)
+
+| System goal | CRO / CAO instantiation |
+|---|---|
+| Real-time visibility | One cockpit screen showing residual risk by domain, with appetite-breach status and an auto-generated weekly delta narrative |
+| Regulatory traceability | Every aggregate metric drillable in ≤2 clicks to underlying control instances and obligations |
+| 100% auditability | Defensible lineage from any number reported upward (ExCo / Board / regulator) back to source activity |
+
+Concretely against the RCM: at any moment the CRO must be able to explain why `APP-FC-002` (AML alert backlog) is **red**, why `APP-MR-001` (past-due model re-validations) is **red**, and what is being done — without phoning anyone.
+
+### Key Questions
+- Where am I exposed beyond appetite right now? (Which of the 15 appetite metrics are red/amber, and what is the trend?)
+- What changed this week? Which KRIs flipped — e.g., `KRI-FC-003` beneficiary callback completion, `KRI-FC-004` wire fraud loss, `KRI-FC-009` EDD past-due, all currently *worsening*?
+- Which five risks are most likely to materialise next quarter, and what is the leading indicator for each?
+- If the OCC / Fed walks in today and asks about Model Risk posture, what do I say in three sentences with evidence?
+- Who owns closing the high-severity issues (`ISS-2026-029` AI fairness, `ISS-2026-044` open MRM findings, `ISS-2026-051` past-due re-validations) and are they on track?
+
+### Pain Points
+- **Latency** — monthly RCSA describes last quarter's bank. By the time an issue surfaces in a pack, the operating reality has moved on.
+- **Reconciliation tax** — numbers from the GRC tool, the KRI deck, and the 1LoD ops dashboard disagree. The CRO is doing translation work that should be platform work.
+- **Defensive documentation** — time spent producing artefacts for regulators rather than acting on signal.
+- **Opaque AI** — cannot defend 2LoD/3LoD use of AI in front of an examiner without traceable lineage and exposed confidence calibration.
+- **Three-different-worlds problem** — the documented model, the actual operation, and the regulator's view diverge, and the CRO is the person held to account for a divergence they cannot directly see.
+
+### Success Criteria
+- Risk posture cockpit answers "where am I exposed?" in one screen, traffic-lit by domain, with an auto-generated *what changed this week* narrative attributable to underlying activity.
+- Every aggregate drillable to root activity in ≤2 clicks with full lineage.
+- Leading indicators — control-effectiveness decay, process-variant emergence, override-rate drift — surface **before** the lagging KRIs flip red.
+- Same number, same lineage, same point-in-time view available to the CRO, the regulator, and internal audit. No reconciliation required.
+- Personal defensibility: any board statement is exportable as a regulator-acceptable workpaper with timestamped evidence.
+
+---
+
+## Persona 2 — Risk / Compliance Leadership
+
+*(Head of ORM, Head of Compliance, Head of Financial Crime, Head of Model Risk, Head of Vendor Management)*
+
+### Mental Model
+Thinks in **frameworks and coverage**. Their world is the RCSA cycle, the control library, the monitoring plan, the regulatory inventory, and the issue/action population. The dominant question is: *are my controls covering my risks, are they working, and am I closing issues fast enough?*
+
+Process is the thing controls live in — they need it mapped but they don't operate it. Control is their primary instrument. Compliance is the obligation set they must demonstrate against. They are the natural owners of the obligation-to-control coverage matrix.
+
+In the RCM's terms, this persona owns the integrity of the **Control × Obligation × Risk** lattice — 60 controls × 51 obligations × 60 risks — plus the open issue/action backlog (22) and the assurance map sitting on top.
+
+### Primary Goals (mapped to system goals)
+
+| System goal | Risk / Compliance Leadership instantiation |
+|---|---|
+| Regulatory traceability | Living obligation-to-control coverage matrix that auto-updates when regulation or the control library changes |
+| Real-time visibility | Continuous control-effectiveness signal (not an annual rating); KRI thresholds and appetite breaches monitored continuously |
+| 100% auditability | Every control instance, test, and issue carries structured lineage to obligation and risk; thematic root-cause is *computed*, not authored |
+
+### Key Questions
+- Which of my 51 obligations have weak or missing control coverage? (e.g., is `OBL-OCC-2023-17-005` — 4th-party subcontractors — adequately covered, given `KRI-TP-006` 4th-party inventory completeness sits below target?)
+- Which controls are rated *Effective with Observations* or *Needs Improvement* — and is the observation a one-off or a pattern?
+- Where are my issues clustering by root cause? *Capacity-driven*: AML backlog (`ISS-2026-009`), EDD past-due (`ISS-2026-031`), adverse-media aging (`ISS-2026-040`). *Data-quality-driven*: nostro breaks (`ISS-2026-018`), HMDA errors (`ISS-2026-046`).
+- A new regulatory expectation just landed — which obligations, controls, and processes are affected, and what is my impact-assessment draft?
+- Are my monitoring outputs telling me something I am not yet acting on? (`KRI-FC-003` is *worsening* — is `WP-C003` quietly decaying?)
+- Where is my assurance map thin — what is no one testing?
+
+### Pain Points
+- **Coverage matrix is a spreadsheet** — manually maintained, stale within 90 days, with no machine-readable link from regulation to control.
+- **Annual control ratings vs. weekly reality** — an annual *Effective* rating tells leadership nothing about whether the control fired correctly today.
+- **Issue triage by hand** — 22 open issues spanning audit, 2LoD QA, self-ID, and regulatory sources; root-cause clustering is an analyst pasting into Excel.
+- **Regulatory change load** — dozens of advisories, bulletins, and FAQs per quarter; mapping each to affected controls is essentially manual.
+- **Three-way ownership confusion** — process owner, control owner, control operator are routinely three different people, producing RACI fights on every finding.
+- **Tool sprawl** — Archer / MetricStream / case mgmt / monitoring / Excel; the same control is modelled differently in each, with no single source of truth.
+
+### Success Criteria
+- A **living control universe** with real-time effectiveness signals — answering *did the control fire?* and *did it catch what it should have?* for every control instance, not annually.
+- An **obligation coverage matrix** that updates when regulation changes, flags thinly-covered obligations (linked to too few controls, or only to controls with degrading effectiveness), and drives a guided regulatory-change impact workflow.
+- **Thematic root-cause analytics** across the open issue population — clustering by causal pattern, not by category — with suggested remediation drawn from past closures.
+- **Single source of control truth** consumed by 1LoD process owners, 2LoD reviewers, and 3LoD auditors with role-appropriate framing — same data, different lenses.
+- **Time-to-impact-assessment** for a new regulatory item collapses from weeks to hours.
+
+---
+
+## Persona 3 — Compliance Officers / Audit Managers (the Doers)
+
+### Mental Model
+Thinks in **evidence, samples, exceptions, walkthroughs, and workpapers**. The unit of work is a test, a walkthrough, an attestation, a finding. Day-to-day cognition is forensic: *can I prove this control operated on this transaction on this date? Is this exception a pattern? Where is the evidence — which system, which screenshot, whose email?*
+
+This persona spends 60–70% of effective time chasing evidence rather than analysing it. They are the persona on whom the platform's *evidence-by-default* principle is most directly tested. They are also the persona regulators interact with most concretely.
+
+In the RCM's terms, this persona lives at the **Control → Test → Evidence → Exception** chain. They produce the workpapers that defend everything upward.
+
+### Primary Goals (mapped to system goals)
+
+| System goal | Compliance Officer / Audit Manager instantiation |
+|---|---|
+| 100% auditability | Population testing replaces sampling wherever data permits; every control instance is queryable with structured evidence |
+| Regulatory traceability | Every test workpaper exports with full lineage: obligation → control → control instance → activity → evidence |
+| Real-time visibility | Reperformance is on-demand, not scheduled; exception aging and pattern detection are continuous |
+
+### Key Questions
+- Did `WP-C001` (dual approval on wires ≥$100K) fire on every in-scope wire last quarter? Show me the **population**, not a sample of 25.
+- For `ISS-2026-012` (wire callback documentation pattern), where is the evidence for the 6/30 callbacks that lacked timestamp/recorded number — and is the pattern still occurring this week?
+- Walkthrough of Wire Payments end-to-end as it actually executed last Tuesday — not as the SOP describes it.
+- For `OBL-OFAC-001` (block sanctioned transactions), assemble the end-to-end evidence package: control design, every control instance in Q1, exceptions, dispositions, escalations.
+- Is the latest item in the recon break population (`KRI-OP-004` is $140K and *worsening*) a one-off or part of the upstream-data-quality pattern flagged in `ISS-2026-018`?
+- Reperformance request: given the logic of `CO-C002` (UBO certification), replay against all legal-entity onboardings in March — where are the exceptions?
+
+### Pain Points
+- **Evidence chase** — gathering across CRM, doc mgmt, screening engines, case mgmt, core banking, email, attestations, screenshots. What should be one query is a week of scavenging.
+- **Sampling debates** — was n=25 enough? Population testing was impossible because data was not accessible in usable form.
+- **Stale walkthroughs** — documented process diverged from system reality months ago; rebuilding the walkthrough means interviews, not telemetry.
+- **Manual reperformance** — re-executing the control by hand each cycle to verify it works.
+- **Exception sprawl** — the same exception lives in email, Jira, the GRC tool, an attestation, and an Excel — with no single canonical record.
+- **Workpaper assembly** — converting findings into regulator-acceptable workpapers (PCAOB, OCC, FCA, RBI formats) is a formatting exercise consuming hours per test.
+
+### Success Criteria
+- **Ambient evidence** — every activity emits structured evidence tagged to its control instance and obligation. No separate evidence-collection phase.
+- **Population testing by default** — given a control's logic, the platform replays it across the full in-scope population and surfaces exceptions with lineage.
+- **Auto-generated walkthroughs** derived from system telemetry, with documented-vs-actual drift highlighted automatically.
+- **Single canonical exception record** per event, propagating to all stakeholders rather than being re-keyed across tools.
+- **Workpaper export** that is regulator-ready in one click, with full lineage and timestamps.
+- **On-demand reperformance** — turning *did this control work?* from a multi-week test cycle into a query.
+
+---
+
+## Cross-Cutting MVP Implications
+
+Three derivative observations the personas force on the MVP design:
+
+**Same fact, three abstractions.** A single wire payment's dual-approval event must surface to the CRO as a contribution to operational-risk posture, to the Head of ORM as an instance of `WP-C001` effectiveness, and to the auditor as a row in the population test — with no re-modelling. This is the system's central architectural commitment.
+
+**Two-click rule to root cause.** The CRO's traffic-light, the Head of Compliance's coverage-matrix cell, and the auditor's test summary must each drill to the underlying control instance in ≤2 clicks. If they cannot, the platform has failed its primary job.
+
+**Time-travel as default.** Every persona must be able to ask *what did this look like on date X?* — for the CRO defending a board statement, for the Head of Compliance explaining a rating to an examiner, for the auditor retesting a historical population. State-as-of is a first-class query, not an export feature.
+
+The MVP's six anchor processes (Wire Payments, Customer Onboarding, AML Alert Disposition, Vendor Onboarding, Model Validation, Loan Origination) give each persona enough cross-domain coverage — operational, financial crime, model, credit, third-party, conduct — to validate the ontology without overscoping. That is the right MVP perimeter.
+
+---
+
+If useful, I can take this forward into (a) a persona-by-view UI wireframe spec mapped to the RCM entities, (b) the JSON Schema / DDL for the run-time entities (`ControlInstance`, `EvidenceArtifact`, `TestExecution`) implied by these success criteria, or (c) a prioritised AI-capability backlog tied to each persona's success metric. Let me know which direction is most useful next.

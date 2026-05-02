@@ -1,0 +1,355 @@
+# System Capabilities & Data Model — Pass 2
+
+Building on the Pass 1 personas (CRO/CAO, Risk/Compliance Leadership, Compliance Officers/Audit Managers), this pass defines the platform's core capabilities, the normalized entity model that drives them, and the metrics that link them back to persona success.
+
+A foundational principle from the source model carries throughout: **separate design-time entities from their run-time instances**, and treat every run-time entity as event-sourced so any view can be rewound to a historical date. The RCM is the design-time substrate; the platform's job is to materialise the run-time graph that shadows it.
+
+---
+
+## 1. System Capabilities
+
+Eight core capabilities, each tied to a primary persona and one of the three system goals. A ninth — **Time-Travel & Lineage** — is a foundational platform service that every capability depends on rather than a standalone surface.
+
+| # | Capability | What it does | Primary persona | System goal | RCM grounding |
+|---|---|---|---|---|---|
+| C1 | **Process Execution Telemetry** | Derives the *actual* process from system event logs (payment hub, core banking, case mgmt, screening engines). Reconciles observed paths against the documented `Process → ProcessStep` model and surfaces variant drift. | Process Owner *(supplies all others)* | Real-time visibility | Wire Payments, Customer Onboarding, AML Alert Disposition, Vendor Onboarding, Model Validation, Loan Origination — the six anchor processes. |
+| C2 | **Obligation Decomposition & Mapping** | Parses regulatory text (OCC bulletins, FFIEC manuals, FCA Handbook, RBI Master Directions) into atomic, testable `Obligation` records and maps each to one or more `Control` records with a coverage strength. | Risk / Compliance Leadership | Regulatory traceability | The 51 obligations (`OBL-BSA-*`, `OBL-OFAC-*`, `OBL-SR117-*`, `OBL-OCC-2023-17-*`, etc.) become first-class linked entities, not spreadsheet columns. |
+| C3 | **Control Instance Reconciliation** | For every activity in `StepExecution`, asks: *was a control expected to fire here, did it fire, and is its evidence captured?* Surfaces the three failure modes — designed but not operating, operating without evidence, evidence without effectiveness signal. | Risk / Compliance Leadership | 100% auditability | Replaces the static `Last Test Result` field on a control with a continuous signal; e.g., `WP-C001` (dual approval ≥$100K) is reconciled against every wire `StepExecution`. |
+| C4 | **Control Effectiveness Monitoring** | Beyond *did it fire?*, asks *did it catch what it was designed to catch?* — using outcome reconciliation, false-positive/false-negative analysis, and override-rate trends. Produces a continuous `effectiveness_score`. | Risk / Compliance Leadership | Real-time visibility | Replaces annual ratings (`Effective with Observations`) with daily signal; e.g., `KRI-FC-003` beneficiary callback completion *worsening* is read as `WP-C003` effectiveness decay. |
+| C5 | **Risk Posture Engine** | Aggregates control effectiveness, KRI bands, open-issue load, and appetite breaches into a residual-risk view by domain. Generates the *what changed this week* narrative with attribution. | CRO / CAO | Real-time visibility | Drives the cockpit: 7 risk domains × 15 appetite metrics × 22 open issues × 64 KRIs, rolled up with drill paths in ≤2 clicks. |
+| C6 | **Issue Detection & Root-Cause Clustering** | Promotes drift signals (failed `ControlInstance`s, breached KRIs, unusual `ProcessExecution` variants) to candidate `Issue` records. Clusters open issues by causal pattern — capacity, data quality, threshold calibration, vendor delivery — not by category. | Risk / Compliance Leadership | Real-time visibility | The current 22-issue population reveals real clusters: capacity (`ISS-2026-009`, `-031`, `-040`, `-052`), data quality (`ISS-2026-018`, `-046`), threshold calibration (`ISS-2025-079`). Clustering is computed, not authored. |
+| C7 | **Population Reperformance & Workpaper Assembly** | Given a control's `design_condition`, replays it against the full in-scope population for any historical window and surfaces exceptions with lineage. Assembles regulator-acceptable workpapers (PCAOB, OCC, FCA, RBI formats) in one export. | Compliance Officer / Audit Manager | 100% auditability | Replaces sampling on `WP-C001`, `CO-C002`, `AML-C002`, etc.; turns the auditor's evidence chase into a query. |
+| C8 | **Regulatory Change Impact Analysis** | When a `RegulatoryChangeEvent` is ingested, traces forward through `Obligation → Control → ProcessStep → ProcessExecution` and produces a draft impact assessment with affected entities, coverage gaps, and required actions. | Risk / Compliance Leadership | Regulatory traceability | A new OCC bulletin amending TPRM expectations triggers traversal from `OBL-OCC-2023-17-*` to affected vendor controls (`VO-C001`–`VO-C010`) and exposes coverage gaps. |
+
+**Foundational service — Time-Travel & Lineage.** Every entity is event-sourced. Any view (the CRO's cockpit, the obligation coverage matrix, an audit workpaper) is answerable as of a historical date with full lineage from the displayed value back to the source `StepExecution` and `Evidence` records. This is not a feature; it is a property of the data model.
+
+---
+
+## 2. Data Model — Entities and Fields
+
+### 2.1 Design principles applied
+
+1. **Design-time vs. run-time separation.** Every "definition" entity (`Control`, `Process`, `Obligation`, `Risk`, `KRI`, `AppetiteMetric`) has a corresponding event-sourced run-time entity (`ControlInstance`, `ProcessExecution`/`StepExecution`, `RegulatoryChangeEvent`, `RiskAssessment`, `KRIObservation`, `AppetiteObservation`).
+2. **Every run-time entity is event-sourced.** Append-only log + materialised current state. Time is a queryable dimension.
+3. **Stable IDs are normative.** RCM identifiers (`WP-C001`, `OBL-OFAC-001`, `R-OP-001`, `ISS-2026-007`) are preserved verbatim as primary keys.
+4. **Multi-value cells become join tables.** No `OBL-001;OBL-002` strings — every M:N relationship is a typed link entity with its own attributes (e.g., coverage strength, position, weight).
+5. **Jurisdictional overlay, not jurisdictional fork.** Same entities, with `jurisdiction` as an attribute and obligation lenses applied at the rules layer.
+
+### 2.2 Core entities
+
+The seven entities the brief calls out are detailed below. Supporting entities are summarised in §2.3.
+
+#### `Risk`  *(design-time)*
+
+| Field | Type | Required | Enum / Format | Description |
+|---|---|---|---|---|
+| `risk_id` | string | Yes | `^R-[A-Z]{2}-\d{3}$` | Stable identifier (e.g., `R-OP-001`) |
+| `risk_domain` | enum | Yes | Operational \| Financial Crime \| Model \| Credit \| Compliance & Conduct \| Third-Party \| Tech-Cyber-Data | Enterprise risk taxonomy |
+| `title` | string | Yes | ≤120 chars | Short name |
+| `description` | text | Yes | free | Risk statement |
+| `inherent_rating` | enum | Yes | High \| Medium \| Low | Pre-control rating (design-time anchor) |
+| `owner_role` | string | Yes | role identifier | Accountable role (not person) |
+| `jurisdictions` | array<enum> | Yes | US \| UK \| IN \| EU | Where this risk applies |
+| `created_at`, `updated_at` | datetime | Yes | ISO-8601 | Audit columns |
+
+Run-time partner: **`RiskAssessment`** — point-in-time `inherent_rating`, `residual_rating`, `appetite_alignment`, `assessor_id`, `as_of_date`, `rationale`. One `Risk` has many `RiskAssessment`s over time.
+
+#### `Control`  *(design-time)*
+
+| Field | Type | Required | Enum / Format | Description |
+|---|---|---|---|---|
+| `control_id` | string | Yes | `^[A-Z]{2,4}-C\d{3}$` | Stable identifier (e.g., `WP-C001`) |
+| `title` | string | Yes | ≤120 chars | Short name |
+| `description` | text | Yes | free | What it does, when, how |
+| `control_type` | enum | Yes | Preventive \| Detective \| Corrective | |
+| `control_nature` | enum | Yes | Manual \| Automated \| ITDM | |
+| `frequency` | enum | Yes | Per-event \| Per-tx \| Daily \| ... \| Continuous | |
+| `design_condition` | text/rule | Yes | free or DSL | When the control should fire (machine-readable preferred — drives reperformance) |
+| `effectiveness_signal_def` | text/rule | Yes | free or DSL | What "caught what designed to catch" looks like |
+| `position_in_step` | enum | No | pre \| in-line \| post | Relative to its `ProcessStep` |
+| `owner_role` | string | Yes | role | Designs the control |
+| `operator_role` | string | Yes | role | Operates daily |
+| `status` | enum | Yes | Active \| Retired \| Pending | |
+| `version` | int | Yes | semver-like | Versioned; superseded versions retained |
+| `effective_from`, `effective_to` | date | Yes/No | ISO-8601 | Lifecycle |
+
+Run-time partner: **`ControlInstance`** — see below.
+
+#### `ControlInstance`  *(run-time, event-sourced)*
+
+This is the most important entity in the model. It is the empirical answer to *"did the control operate on this transaction at this time?"*.
+
+| Field | Type | Required | Enum / Format | Description |
+|---|---|---|---|---|
+| `instance_id` | string | Yes | UUID | |
+| `control_id` | FK | Yes | → `Control.control_id` | Definition reference |
+| `control_version` | int | Yes | | Version of the control at fire time |
+| `step_execution_id` | FK | Yes | → `StepExecution.id` | The activity it operated on |
+| `expected_to_fire` | bool | Yes | | Was the design condition met? |
+| `fired` | bool | Yes | | Did the control execute? |
+| `fire_ts` | datetime | No | ISO-8601 | Null if `fired=false` |
+| `caught_what_designed` | enum | No | true \| false \| unknown \| n/a | Effectiveness signal |
+| `exception_flag` | bool | Yes | | True if outcome required disposition |
+| `exception_disposition` | enum | No | Resolved \| Escalated \| False-Positive \| Pending \| Override | |
+| `operator_id` | FK | No | → `Actor.actor_id` | Person or system that operated it |
+| `evidence_ids` | array<FK> | Yes | → `Evidence.evidence_id` | One or more evidence records |
+| `latency_ms` | int | No | | Time from trigger to fire |
+| `override_reason` | text | No | | Required if disposition = Override |
+
+#### `Obligation`  *(design-time)*
+
+| Field | Type | Required | Enum / Format | Description |
+|---|---|---|---|---|
+| `obligation_id` | string | Yes | `^OBL-[A-Z0-9]+-\d{3}$` | e.g., `OBL-OFAC-001` |
+| `regulation_id` | FK | Yes | → `Regulation.id` | Parent regulation |
+| `citation` | string | Yes | free | e.g., `31 CFR §501.603` |
+| `requirement_text` | text | Yes | free | The atomic requirement |
+| `interpretive_style` | enum | Yes | Rules-based \| Principles-based \| Outcomes-based | Drives evidence expectations |
+| `evidence_expectation` | text | Yes | free | What "demonstrating compliance" requires |
+| `jurisdiction` | enum | Yes | US \| UK \| IN \| EU \| multi | |
+| `effective_from`, `effective_to` | date | Yes/No | | |
+| `status` | enum | Yes | Active \| Superseded \| Draft | |
+| `version` | int | Yes | | Versioned on regulatory change |
+
+#### `Process`  *(design-time)*
+
+| Field | Type | Required | Enum / Format | Description |
+|---|---|---|---|---|
+| `process_id` | string | Yes | `^PROC-[A-Z]{2,4}$` | e.g., `PROC-WP` |
+| `name` | string | Yes | ≤120 chars | Wire Payments, Customer Onboarding, ... |
+| `description` | text | Yes | | |
+| `business_service` | string | No | | UK Operational Resilience IBS link |
+| `owner_role` | string | Yes | | |
+| `jurisdictions` | array<enum> | Yes | | |
+| `documented_variant_signature` | string | No | hash | Signature of the canonical step path |
+
+Children: **`ProcessStep`** — `step_id`, `process_id`, `step_order`, `name`, `step_type` (system/manual/judgemental/outsourced), `expected_actor_role`, `expected_system`.
+
+Run-time partners: **`ProcessExecution`** (one per case/transaction), **`StepExecution`** (one per step actually executed) — both event-sourced with `start_ts`, `end_ts`, `actor_id`, `system_id`, `payload_uri`, `variant_signature`.
+
+#### `Evidence`  *(run-time)*
+
+Distinct from `ControlInstance` because the same piece of evidence can support multiple instances and be referenced by multiple tests/issues.
+
+| Field | Type | Required | Enum / Format | Description |
+|---|---|---|---|---|
+| `evidence_id` | string | Yes | UUID | |
+| `evidence_type` | enum | Yes | system_log \| document \| screenshot \| attestation \| email \| api_response \| recording \| computed | |
+| `created_ts` | datetime | Yes | ISO-8601 | When the evidence came into being (not ingested) |
+| `ingested_ts` | datetime | Yes | | |
+| `source_system` | string | Yes | | Originating system |
+| `payload_uri` | string | Yes | | Pointer to raw artefact |
+| `payload_hash` | string | Yes | sha256 | Tamper detection |
+| `collection_method` | enum | Yes | auto \| manual \| imported | |
+| `linked_step_execution_id` | FK | No | | Direct link to an activity |
+| `retention_class` | enum | Yes | regulatory \| internal \| transient | Drives retention policy |
+
+Linkage to `ControlInstance` is via `ControlInstance.evidence_ids` (M:N via `ControlInstanceEvidence` join). Linkage to `Issue` and `TestExecution` is similarly via join.
+
+#### `Issue`  *(run-time)*
+
+| Field | Type | Required | Enum / Format | Description |
+|---|---|---|---|---|
+| `issue_id` | string | Yes | `^ISS-\d{4}-\d{3}$` | e.g., `ISS-2026-007` |
+| `title` | string | Yes | ≤200 chars | |
+| `description` | text | Yes | | |
+| `source` | enum | Yes | Internal Audit \| 2LoD QA \| Self-Identified \| Regulator \| External Audit \| Platform-Detected | |
+| `severity` | enum | Yes | High \| Medium \| Low | |
+| `status` | enum | Yes | Open \| In Remediation \| In Validation \| Closed \| Past Due | |
+| `raised_date` | date | Yes | | |
+| `target_close_date` | date | Yes | | |
+| `actual_close_date` | date | No | | |
+| `owner_id` | FK | Yes | → `Actor.actor_id` | Accountable person |
+| `root_cause` | text | No | | |
+| `root_cause_cluster_id` | FK | No | → `RootCauseCluster.id` | **Computed** by C6 |
+| `linked_control_ids` | array<FK> | Yes | M:N via join | Affected controls (design level) |
+| `linked_control_instance_ids` | array<FK> | No | M:N via join | Specific failures (empirical) |
+| `linked_risk_ids` | array<FK> | Yes | M:N via join | |
+
+Children: **`Action`** (remediation tasks) — `action_id`, `issue_id`, `description`, `owner_id`, `due_date`, `status`, `evidence_ids`.
+
+### 2.3 Supporting entities (summarised)
+
+| Entity | Purpose | Key fields |
+|---|---|---|
+| **`Regulation`** *(design-time)* | Parent of `Obligation`. Versioned source text. | `regulation_id`, `title`, `regulator`, `jurisdiction`, `effective_date`, `version`, `source_url` |
+| **`RegulatoryChangeEvent`** *(run-time)* | Trigger for C8 (Reg Change Impact). | `change_id`, `regulation_id`, `change_summary`, `effective_date`, `affected_obligations`, `impact_assessment_status` |
+| **`KRI`** *(design-time)* | Computable metric definition. | `kri_id`, `name`, `formula`, `source_system`, `frequency`, `green/amber/red thresholds`, `linked_risk_ids`, `linked_control_ids` |
+| **`KRIObservation`** *(run-time)* | Periodic reading. | `kri_id`, `as_of`, `value`, `band`, `trend` |
+| **`AppetiteMetric`** *(design-time)* | Board-approved tolerance. | `metric_id`, `domain`, `metric_name`, `linked_risk_ids`, `green/amber/red thresholds`, `owner_role` |
+| **`AppetiteObservation`** *(run-time)* | Current state of an appetite metric. | `metric_id`, `as_of`, `value`, `band`, `breach` |
+| **`Actor`** *(static + telemetry)* | People and systems. Drives SoD, SMCR. | `actor_id`, `type`, `name`, `role`, `function` (1LoD/2LoD/3LoD), `entitlements`, `attributes` |
+| **`TestExecution`** *(run-time)* | The auditor's unit of work. | `test_id`, `control_id`, `test_type`, `method` (sample / population / reperformance), `population_size`, `exceptions_count`, `result`, `workpaper_uri` |
+| **`RiskAssessment`** *(run-time)* | Periodic risk rating snapshot. | `assessment_id`, `risk_id`, `as_of_date`, `inherent_rating`, `residual_rating`, `appetite_alignment`, `assessor_id`, `rationale` |
+
+---
+
+## 3. Relationships
+
+All multi-value cells in the RCM resolve into typed join entities with their own attributes — never into delimited strings.
+
+### 3.1 Core relationships
+
+| From | To | Cardinality | Join entity / Attributes |
+|---|---|---|---|
+| `Risk` ↔ `Control` | M:N | `RiskControlMitigation` — `coverage_strength` (Primary / Secondary / Contributory), `weight` (0–1) |
+| `Control` ↔ `ProcessStep` | M:N | `ControlEmbedding` — `position` (pre / in-line / post), `is_required` |
+| `Control` ↔ `Obligation` | M:N | `ObligationCoverage` — `coverage_strength` (Direct / Partial / Contributory), `evidence_expectation_id` |
+| `ControlInstance` → `StepExecution` | M:1 | (the empirical link — single FK) |
+| `ControlInstance` ↔ `Evidence` | M:N | `ControlInstanceEvidence` — `role` (Primary / Supporting), `captured_method` |
+| `Issue` ↔ `Control` | M:N | `IssueControlLink` — `link_type` (Affected / Root-Cause), `link_strength` |
+| `Issue` ↔ `ControlInstance` | M:N | `IssueInstanceLink` — points to the specific failures |
+| `Issue` ↔ `Risk` | M:N | `IssueRiskLink` |
+| `Issue` → `Action` | 1:N | (single FK on `Action`) |
+| `Risk` ↔ `KRI` | M:N | `RiskKRILink` |
+| `Risk` ↔ `AppetiteMetric` | M:N | `RiskAppetiteLink` |
+| `Obligation` → `Regulation` | M:1 | (single FK) |
+| `Obligation` ↔ `RegulatoryChangeEvent` | M:N | `ObligationChangeImpact` — `impact_type`, `assessment_status` |
+| `Process` → `ProcessStep` | 1:N | (single FK on `ProcessStep`) |
+| `Process` → `ProcessExecution` | 1:N | |
+| `ProcessStep` → `StepExecution` | 1:N | (with allowance for novel variants where step_id is null) |
+| `Control` → `ControlInstance` | 1:N | |
+| `KRI` → `KRIObservation` | 1:N | |
+
+### 3.2 Conceptual graph
+
+```
+Regulation ──< Obligation >──ObligationCoverage──< Control >──RiskControlMitigation──< Risk
+                                                    │                                     │
+                                                    │                                     ├──< RiskAssessment
+                                                    ├──ControlEmbedding──< ProcessStep    │
+                                                    │                        │            ├──< KRI ──< KRIObservation
+                                                    │                        │            │
+                                                    │                        ▼            └──< AppetiteMetric ──< AppetiteObservation
+                                                    │                  Process ──< ProcessExecution ──< StepExecution
+                                                    ▼                                                       │
+                                              ControlInstance ──────────────────────────────────────────────┘
+                                                    │
+                                                    ├──< ControlInstanceEvidence >── Evidence
+                                                    │
+                                                    └──< IssueInstanceLink >── Issue ──< Action
+                                                                                  │
+                                                                                  └── IssueControlLink, IssueRiskLink
+
+RegulatoryChangeEvent ──ObligationChangeImpact──< Obligation
+```
+
+### 3.3 Two design rules these relationships enforce
+
+- **Empirical lineage from any aggregate in ≤2 hops.** A CRO appetite breach drills to `Risk → ControlInstance` (failed instances) → `StepExecution` (the affected activity). Two clicks, not five.
+- **Ownership traceability at the instance level.** Every `ControlInstance` carries an `operator_id`; every `Issue` carries an `owner_id`; every `Action` carries an `owner_id`. The "process owner ≠ control owner ≠ control operator" RACI confusion noted in the foundational model becomes structurally explicit, not a forensic exercise.
+
+---
+
+## 4. Derived Metrics
+
+All three required scores are computed from the entity model above. Each is normalised 0–100 with traffic-light bands, time-windowed, and decomposable so a click on the score reveals its components and ultimately the underlying `ControlInstance` or `Evidence` records.
+
+### 4.1 Control Effectiveness Score (CES)
+
+Computed per `Control` over a rolling window (default 90 days), aggregable up to process or domain.
+
+```
+CES = 0.40 × OperatingRate
+    + 0.40 × CatchRate
+    + 0.20 × EvidenceCompleteness
+
+where over the window:
+  OperatingRate         = count(ControlInstance where expected_to_fire AND fired)
+                        / count(ControlInstance where expected_to_fire)
+
+  CatchRate             = count(ControlInstance where fired AND caught_what_designed = true)
+                        / count(ControlInstance where fired AND caught_what_designed in {true, false})
+
+  EvidenceCompleteness  = count(ControlInstance where fired AND evidence_complete)
+                        / count(ControlInstance where fired)
+```
+
+Bands: `≥90 = Effective` · `75–89 = Effective with Observations` · `60–74 = Needs Improvement` · `<60 = Ineffective`. A score with insufficient `expected_to_fire` denominators (low population) is flagged `Insufficient Population` rather than scored — preventing false confidence on rare controls.
+
+This replaces the static `Last Test Result` field with a continuously-computed signal of the same type.
+
+### 4.2 Risk Exposure Score (RES)
+
+Computed per `Risk`, aggregable to `risk_domain` and to enterprise. The number the CRO cockpit leads with.
+
+```
+RES = InherentBase
+    × (1 − ControlMitigationFactor)
+    × KRIPressure
+    × IssueLoad
+    × AppetitePenalty
+    × StalenessPenalty
+
+where:
+  InherentBase            = mapping of latest RiskAssessment.inherent_rating to base score
+                            (High = 80, Medium = 50, Low = 20)
+  ControlMitigationFactor = weighted average CES of all Controls linked to this Risk via
+                            RiskControlMitigation (weighted by coverage_strength)
+                            ∈ [0, 1]
+  KRIPressure             = 1 + 0.1 × (count of linked KRIs in amber)
+                              + 0.3 × (count of linked KRIs in red)
+  IssueLoad               = 1 + 0.05 × (open Medium issues linked)
+                              + 0.20 × (open High issues linked)
+                              + 0.10 × (issues past due)
+  AppetitePenalty         = 1.0 if all linked AppetiteMetrics green
+                            1.2 if any amber
+                            1.5 if any red
+  StalenessPenalty        = 1.0 if latest RiskAssessment.as_of_date < 90 days
+                            1.1 if 90–180 days
+                            1.3 if > 180 days
+```
+
+Bands: `≤30 Green` · `31–60 Amber` · `>60 Red`. Output normalised to 0–100 with a hard cap at 100.
+
+The composition guarantees the CRO's number is *defensible upward* — every multiplier resolves to underlying `ControlInstance`, `KRIObservation`, `Issue`, or `AppetiteObservation` records.
+
+### 4.3 Audit Readiness Score (ARS)
+
+Computed per `Control`, per `Process`, per `Obligation`, or per `Test`. Answers the auditor's question: *"if the regulator asks for evidence on this tomorrow, can I deliver it?"*
+
+```
+ARS = 0.30 × EvidenceCoverage
+    + 0.25 × PopulationTestability
+    + 0.20 × WalkthroughFreshness
+    + 0.15 × IssueDrag
+    + 0.10 × WorkpaperExportability
+
+where:
+  EvidenceCoverage       = % of ControlInstances in scope window with complete,
+                           hash-verified Evidence
+  PopulationTestability  = % of ProcessExecutions in scope with machine-readable
+                           StepExecution telemetry (vs. requiring manual reconstruction)
+  WalkthroughFreshness   = function of days_since_last_reconciled_walkthrough
+                           (1.0 if ≤30, linear decay to 0.0 at 365)
+  IssueDrag              = 1 − (open High-severity Issues linked / threshold)
+                           (clamped to [0, 1])
+  WorkpaperExportability = 1.0 if all linked Evidence has retention_class
+                           and source_system metadata complete; else weighted partial
+```
+
+Bands: `≥85 Audit-Ready` · `70–84 Audit-Ready with Gaps` · `<70 Not Audit-Ready`.
+
+This metric is the auditor's KPI for the platform itself: the platform is succeeding when ARS is high and the auditor's evidence chase has been replaced by query.
+
+### 4.4 Two metrics worth adding
+
+Beyond the three required, the model naturally produces two more:
+
+- **Obligation Coverage Score (OCS)** — per `Obligation`, the weighted CES of all Controls linked via `ObligationCoverage`, with a penalty for any obligation linked to fewer than two distinct controls. Drives the Risk Leadership coverage matrix.
+- **Process Variant Drift Score (PVDS)** — per `Process`, the divergence between the documented `ProcessStep` chain and the empirical distribution of `StepExecution.variant_signature` over a window. Drives C1 and feeds C6.
+
+---
+
+## What this enables for the next pass
+
+The combination of capabilities + entities + metrics here is sufficient to generate the next layer of artefacts without further modelling:
+
+- **JSON Schemas / DDL** — directly from §2 entity tables and §3 relationships (each join becomes a table; each enum becomes a check constraint; each event-sourced run-time entity gets an append-only log + materialised view).
+- **Persona-by-view UI wireframes** — each Pass 1 success criterion maps to an entity slice: the CRO cockpit reads `RiskAssessment + RES + AppetiteObservation + KRIObservation`; the Compliance Leadership coverage matrix reads `ObligationCoverage + CES`; the auditor workbench reads `ControlInstance + Evidence + TestExecution`.
+- **API contracts** — CRUD on design-time entities, append-only event ingestion on run-time entities, query endpoints for the three derived metrics with as-of date parameters.
+- **AI capability backlog** — Tier 1 (process mining → C1, control reconciliation → C3, obligation mapping → C2) maps directly to capabilities; Tier 2 (effectiveness analytics → C4, regulatory change impact → C8, anomaly detection → C6) layers on the same data.
+
+---
+
+If useful next, I can take this into (a) the JSON Schema and relational DDL for these entities with constraint definitions, (b) an event ingestion contract for `ControlInstance` / `StepExecution` / `Evidence` (the run-time spine), or (c) the persona-by-view UI specs grounded in these metrics. Let me know which lane to push into.

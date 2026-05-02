@@ -1,464 +1,20 @@
-// ============================================================================
-// RiskCompliancePrototype.jsx
-// AI-Driven Risk & Compliance Platform — Single-file React + Tailwind prototype
-// Drop alongside mockData.js. Uses default Tailwind classes only. No chart libs.
-// ============================================================================
+// @ts-nocheck
+'use client';
+/* eslint-disable react/no-unescaped-entities, @typescript-eslint/no-unused-vars */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import mockData from '@/lib/usbankingaudit/mockData';
+import {
+  cls, fmtNum, shortDateTime, shortDate, semanticBand, heatColor, TONE, PERSONAS, SCREENS, Icons, Card, SectionTitle, Mono, StatusBadge, BandPill, AIInsightCard, MetricCard, HeatmapGrid, Treemap, ClusterBubble, HashBadge, TrendIndicator, Sparkline, Confidence,
+} from './shared';
 
-// ────────────────────────────────────────────────────────────────────────────
-// UTILITIES
-// ────────────────────────────────────────────────────────────────────────────
-
-const cls = (...c) => c.filter(Boolean).join(' ');
-
-const fmtPct = (n, d = 1) => `${n.toFixed(d)}%`;
-const fmtNum = (n) => n?.toLocaleString?.('en-US') ?? n;
-const shortDate = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-const shortDateTime = (iso) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-// Map effectiveness/coverage/severity → semantic palette key
-const semanticBand = (key) => {
-  const map = {
-    high: 'red', medium: 'amber', low: 'green',
-    red: 'red', amber: 'amber', green: 'green',
-    effective: 'green', effective_with_obs: 'amber',
-    needs_improvement: 'red', ineffective: 'red',
-    fully_covered: 'green', thinly_covered: 'amber', uncovered: 'red',
-    worsening: 'red', stable: 'amber', improving: 'green',
-    pass: 'green', exception: 'red', override: 'amber', pending: 'slate'
-  };
-  return map[key] || 'slate';
-};
-
-const TONE = {
-  red:    { fg: 'text-rose-600 dark:text-rose-400',    bg: 'bg-rose-50 dark:bg-rose-950/40',       ring: 'ring-rose-200 dark:ring-rose-900/60',       solid: 'bg-rose-500',    softText: 'text-rose-700 dark:text-rose-300',    border: 'border-rose-200 dark:border-rose-900/60' },
-  amber:  { fg: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-50 dark:bg-amber-950/40',     ring: 'ring-amber-200 dark:ring-amber-900/60',     solid: 'bg-amber-500',   softText: 'text-amber-700 dark:text-amber-300',  border: 'border-amber-200 dark:border-amber-900/60' },
-  green:  { fg: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40', ring: 'ring-emerald-200 dark:ring-emerald-900/60', solid: 'bg-emerald-500', softText: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-200 dark:border-emerald-900/60' },
-  slate:  { fg: 'text-slate-600 dark:text-slate-400',  bg: 'bg-slate-50 dark:bg-slate-900',         ring: 'ring-slate-200 dark:ring-slate-800',        solid: 'bg-slate-400',   softText: 'text-slate-700 dark:text-slate-300',   border: 'border-slate-200 dark:border-slate-800' }
-};
-
-const PERSONAS = {
-  cro:       { id: 'cro',       label: 'CRO / CAO',                     short: 'CRO',  initials: 'CR',  defaultScreen: 'risk_posture_cockpit' },
-  risk_lead: { id: 'risk_lead', label: 'Risk / Compliance Leadership',  short: 'Risk', initials: 'RL',  defaultScreen: 'control_universe' },
-  auditor:   { id: 'auditor',   label: 'Compliance / Audit Manager',    short: 'Audit',initials: 'AM',  defaultScreen: 'evidence_workbench' }
-};
-
-const SCREENS = {
-  risk_posture_cockpit:   { label: 'Risk Posture',          persona: 'cro' },
-  what_changed:           { label: 'What Changed',          persona: 'cro' },
-  control_universe:       { label: 'Control Health',        persona: 'risk_lead' },
-  obligation_coverage:    { label: 'Obligation Coverage',   persona: 'risk_lead' },
-  issue_intelligence:     { label: 'Issue Intelligence',    persona: 'risk_lead' },
-  evidence_workbench:     { label: 'Evidence Workbench',    persona: 'auditor' },
-  reperformance_console:  { label: 'Reperformance',         persona: 'auditor' }
-};
-
-// ────────────────────────────────────────────────────────────────────────────
-// ICONS — inline SVG, sized by Tailwind class on parent
-// ────────────────────────────────────────────────────────────────────────────
-
-const I = (path, opts = {}) => (props) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill={opts.fill || 'none'}
-    stroke="currentColor"
-    strokeWidth={opts.sw || 1.75}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={cls('shrink-0', props.className || 'w-4 h-4')}
-  >
-    {path}
-  </svg>
-);
-
-const Icons = {
-  Search:    I(<><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>),
-  Bell:      I(<><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10 21a2 2 0 0 0 4 0" /></>),
-  Sun:       I(<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></>),
-  Moon:      I(<><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" /></>),
-  ChevRight: I(<path d="m9 18 6-6-6-6" />),
-  ChevLeft:  I(<path d="m15 18-6-6 6-6" />),
-  ChevDown:  I(<path d="m6 9 6 6 6-6" />),
-  Close:     I(<><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>),
-  Sparkles:  I(<><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" /></>),
-  Shield:    I(<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />),
-  Doc:       I(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></>),
-  Beaker:    I(<><path d="M9 3h6M10 3v6L4 19a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-6-10V3" /></>),
-  Network:   I(<><circle cx="6" cy="6" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><circle cx="18" cy="18" r="2.5" /><path d="M8 7l8 10M16 7 8 17" /></>),
-  AlertTri:  I(<><path d="M12 3 2 21h20L12 3z" /><path d="M12 9v5M12 18h.01" /></>),
-  CheckCirc: I(<><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></>),
-  Layers:    I(<><path d="m12 2 9 5-9 5-9-5 9-5z" /><path d="m3 12 9 5 9-5" /><path d="m3 17 9 5 9-5" /></>),
-  Calendar:  I(<><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>),
-  Hash:      I(<><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" /></>),
-  Filter:    I(<path d="M3 5h18l-7 8v6l-4-2v-4z" />),
-  Globe:     I(<><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></>),
-  Activity:  I(<path d="M3 12h4l3-9 4 18 3-9h4" />),
-  Arrow:     I(<><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></>),
-  TrendUp:   I(<><path d="m3 17 6-6 4 4 8-8" /><path d="M14 7h7v7" /></>),
-  TrendDown: I(<><path d="m3 7 6 6 4-4 8 8" /><path d="M14 17h7v-7" /></>),
-  Plus:      I(<><path d="M12 5v14" /><path d="M5 12h14" /></>),
-  Play:      I(<path d="M6 4l14 8-14 8z" />, { fill: 'currentColor' })
-};
-
-// ────────────────────────────────────────────────────────────────────────────
-// PRIMITIVES
-// ────────────────────────────────────────────────────────────────────────────
-
-const Card = ({ className, children, padded = true, ...rest }) => (
-  <div className={cls(
-    'rounded-lg border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
-    padded && 'p-4',
-    className
-  )} {...rest}>
-    {children}
-  </div>
-);
-
-const SectionTitle = ({ children, sub, action }) => (
-  <div className="flex items-end justify-between mb-3">
-    <div>
-      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 tracking-tight">{children}</h3>
-      {sub && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{sub}</p>}
-    </div>
-    {action}
-  </div>
-);
-
-const Mono = ({ children, className }) => (
-  <span className={cls('font-mono text-[11px] tracking-tight', className)}>{children}</span>
-);
-
-const StatusBadge = ({ status, children, size = 'sm' }) => {
-  const tone = TONE[semanticBand(status)] || TONE.slate;
-  return (
-    <span className={cls(
-      'inline-flex items-center gap-1.5 rounded-md font-medium border',
-      size === 'sm' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs',
-      tone.bg, tone.fg, tone.border
-    )}>
-      <span className={cls('w-1.5 h-1.5 rounded-full', tone.solid)} />
-      {children || status}
-    </span>
-  );
-};
-
-const BandPill = ({ band, value, label }) => {
-  const tone = TONE[semanticBand(band)] || TONE.slate;
-  return (
-    <div className={cls('inline-flex items-center gap-2 rounded-md border px-2.5 py-1', tone.bg, tone.border)}>
-      <span className={cls('w-2 h-2 rounded-full', tone.solid)} />
-      {label && <span className="text-[11px] text-slate-600 dark:text-slate-400">{label}</span>}
-      {value !== undefined && <Mono className={tone.fg}>{value}</Mono>}
-    </div>
-  );
-};
-
-const HashBadge = ({ verified, hash }) => (
-  <span className={cls(
-    'inline-flex items-center gap-1 rounded px-1.5 py-0.5 border text-[10px]',
-    verified
-      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300'
-      : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300'
-  )}>
-    <Icons.Hash className="w-3 h-3" />
-    <Mono>{hash ? hash.slice(0, 8) : 'verified'}</Mono>
-  </span>
-);
-
-const TrendIndicator = ({ trend, value }) => {
-  if (trend === 'worsening') return <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 text-xs"><Icons.TrendUp className="w-3.5 h-3.5" /> {value}</span>;
-  if (trend === 'improving') return <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs"><Icons.TrendDown className="w-3.5 h-3.5" /> {value}</span>;
-  return <span className="inline-flex items-center gap-1 text-slate-500 text-xs">— {value}</span>;
-};
-
-const Confidence = ({ value }) => {
-  const pct = Math.round(value * 100);
-  return (
-    <span className="inline-flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
-      <span className="relative w-8 h-1 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-        <span className="absolute left-0 top-0 bottom-0 bg-slate-700 dark:bg-slate-300" style={{ width: `${pct}%` }} />
-      </span>
-      <Mono>{pct}%</Mono>
-    </span>
-  );
-};
-
-// ────────────────────────────────────────────────────────────────────────────
-// SPARKLINE / MICRO-VIZ
-// ────────────────────────────────────────────────────────────────────────────
-
-const Sparkline = ({ data, height = 32, stroke, fill, className }) => {
-  if (!data || data.length === 0) return null;
-  const w = 100, h = height;
-  const max = Math.max(...data), min = Math.min(...data);
-  const range = max - min || 1;
-  const points = data.map((d, i) => {
-    const x = (i / (data.length - 1)) * w;
-    const y = h - ((d - min) / range) * (h - 4) - 2;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  const last = data[data.length - 1], lx = w, ly = h - ((last - min) / range) * (h - 4) - 2;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={cls('w-full', className)} style={{ height }}>
-      {fill && <polygon points={`0,${h} ${points} ${w},${h}`} className={fill} />}
-      <polyline points={points} fill="none" strokeWidth="1.5" className={stroke || 'stroke-slate-700 dark:stroke-slate-300'} vectorEffect="non-scaling-stroke" />
-      <circle cx={lx} cy={ly} r="2" className={stroke?.replace('stroke-', 'fill-') || 'fill-slate-700 dark:fill-slate-300'} />
-    </svg>
-  );
-};
-
-// ────────────────────────────────────────────────────────────────────────────
-// AI INSIGHT CARD
-// ────────────────────────────────────────────────────────────────────────────
-
-const AIInsightCard = ({ insight, onAct, onDrillEntity, dense = false }) => {
-  const [expanded, setExpanded] = useState(false);
-  const tone = TONE[semanticBand(insight.severity)] || TONE.slate;
-  return (
-    <div className={cls(
-      'rounded-md border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors',
-      dense ? 'p-3' : 'p-3.5'
-    )}>
-      <div className="flex items-start gap-2 mb-1.5">
-        <div className={cls('w-1 self-stretch rounded-full', tone.solid)} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
-            <Icons.Sparkles className="w-3 h-3" />
-            <span>{insight.type.replace(/_/g, ' ')}</span>
-          </div>
-          <div className="text-sm font-medium text-slate-900 dark:text-slate-100 leading-snug">{insight.title}</div>
-        </div>
-      </div>
-      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-2">
-        {insight.summary}
-      </p>
-      <div className="flex items-center justify-between gap-2">
-        <Confidence value={insight.confidence} />
-        <button
-          className="text-[10px] font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 underline-offset-2 hover:underline"
-          onClick={() => setExpanded(v => !v)}
-        >
-          {expanded ? 'Hide' : 'Explain'}
-        </button>
-      </div>
-      {expanded && (
-        <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-          {insight.counterfactual && (
-            <div className="text-[11px] text-slate-600 dark:text-slate-400">
-              <span className="text-slate-500">Counterfactual: </span>{insight.counterfactual}
-            </div>
-          )}
-          <div className="text-[10px] text-slate-500 dark:text-slate-500 flex items-center gap-1.5 flex-wrap">
-            <span>Source: {insight.modelId} v{insight.modelVersion}</span>
-            <span>·</span>
-            <span>{insight.sourceRecordIds?.length || 0} records</span>
-          </div>
-          {insight.relatedEntityIds?.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {insight.relatedEntityIds.slice(0, 4).map(eid => (
-                <button
-                  key={eid}
-                  onClick={() => onDrillEntity?.(eid)}
-                  className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                >
-                  {eid}
-                </button>
-              ))}
-            </div>
-          )}
-          {onAct && (
-            <button
-              onClick={() => onAct(insight)}
-              className="mt-1 text-[11px] font-medium text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded px-2 py-1 hover:bg-slate-700 dark:hover:bg-slate-200"
-            >
-              Take action
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ────────────────────────────────────────────────────────────────────────────
-// METRIC CARD
-// ────────────────────────────────────────────────────────────────────────────
-
-const MetricCard = ({ label, value, band, trend, sub, sparkData, onClick }) => {
-  const tone = band ? TONE[semanticBand(band)] : TONE.slate;
-  return (
-    <button
-      onClick={onClick}
-      className={cls(
-        'group text-left rounded-lg border p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
-        'hover:border-slate-300 dark:hover:border-slate-700 transition-colors w-full'
-      )}
-    >
-      <div className="flex items-start justify-between mb-2">
-        <div className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium">{label}</div>
-        {band && <span className={cls('w-1.5 h-1.5 rounded-full', tone.solid)} />}
-      </div>
-      <div className="flex items-baseline gap-2">
-        <div className="text-2xl font-semibold text-slate-900 dark:text-slate-100 tracking-tight tabular-nums">{value}</div>
-        {trend && <TrendIndicator trend={trend} />}
-      </div>
-      {sub && <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{sub}</div>}
-      {sparkData && (
-        <div className="mt-2.5">
-          <Sparkline data={sparkData} height={28} stroke={tone.fg.replace('text-', 'stroke-')} />
-        </div>
-      )}
-    </button>
-  );
-};
-
-// ────────────────────────────────────────────────────────────────────────────
-// HEATMAP GRID  (Risk Domain × Week)
-// ────────────────────────────────────────────────────────────────────────────
-
-const heatColor = (v) => {
-  // 0..100 → green..amber..red
-  if (v >= 70) return 'bg-rose-500/80 dark:bg-rose-500/70';
-  if (v >= 60) return 'bg-rose-400/70 dark:bg-rose-500/55';
-  if (v >= 50) return 'bg-amber-400/70 dark:bg-amber-500/60';
-  if (v >= 40) return 'bg-amber-300/60 dark:bg-amber-500/40';
-  if (v >= 30) return 'bg-emerald-300/60 dark:bg-emerald-500/40';
-  return 'bg-emerald-400/60 dark:bg-emerald-500/30';
-};
-
-const HeatmapGrid = ({ rows, weeks, onCellClick }) => {
-  return (
-    <div className="overflow-x-auto">
-      <div className="inline-block min-w-full">
-        <div className="grid" style={{ gridTemplateColumns: `160px repeat(${weeks}, minmax(28px, 1fr))` }}>
-          <div />
-          {Array.from({ length: weeks }).map((_, i) => (
-            <div key={i} className="text-[10px] text-slate-500 dark:text-slate-500 text-center pb-1.5 font-mono">
-              W-{weeks - 1 - i}
-            </div>
-          ))}
-          {rows.map(row => (
-            <React.Fragment key={row.id}>
-              <button
-                onClick={() => onCellClick?.(row.id, null)}
-                className="text-left pr-3 py-1 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 truncate"
-              >
-                {row.label}
-              </button>
-              {row.values.map((v, i) => (
-                <button
-                  key={i}
-                  onClick={() => onCellClick?.(row.id, i)}
-                  className={cls(
-                    'h-7 m-px rounded-sm transition-all hover:ring-2 hover:ring-slate-400 dark:hover:ring-slate-500',
-                    heatColor(v)
-                  )}
-                  title={`${row.label} W-${weeks - 1 - i}: ${v.toFixed(0)}`}
-                />
-              ))}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ────────────────────────────────────────────────────────────────────────────
-// TREEMAP — process-grouped controls; tile color = effectiveness band
-// ────────────────────────────────────────────────────────────────────────────
-
-const Treemap = ({ groups, onTileClick }) => {
-  return (
-    <div className="space-y-2">
-      {groups.map(group => {
-        const totalWeight = group.tiles.reduce((s, t) => s + t.weight, 0);
-        return (
-          <div key={group.id}>
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-300">{group.label}</div>
-              <div className="text-[10px] text-slate-500">{group.tiles.length} controls</div>
-            </div>
-            <div className="flex gap-1 h-16">
-              {group.tiles.map(t => {
-                const tone = TONE[semanticBand(t.band)] || TONE.slate;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => onTileClick?.(t.id)}
-                    style={{ flexBasis: `${(t.weight / totalWeight) * 100}%` }}
-                    className={cls(
-                      'group relative rounded border overflow-hidden text-left',
-                      tone.bg, tone.border, 'hover:ring-2 hover:ring-offset-0', tone.ring,
-                      'transition-all'
-                    )}
-                  >
-                    <div className="p-2 flex flex-col h-full justify-between">
-                      <div className={cls('text-[10px] font-mono', tone.fg)}>{t.id}</div>
-                      <div className="flex items-end justify-between">
-                        <div className={cls('text-[10px] truncate', tone.softText)}>{t.label}</div>
-                        <Mono className={cls('font-semibold', tone.fg)}>{t.score}</Mono>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// ────────────────────────────────────────────────────────────────────────────
-// CLUSTER BUBBLE — root cause clusters
-// ────────────────────────────────────────────────────────────────────────────
-
-const ClusterBubble = ({ clusters, selectedId, onSelect }) => {
-  const sizes = clusters.map(c => c.issueIds.length);
-  const maxSize = Math.max(...sizes);
-  return (
-    <div className="flex flex-wrap gap-3 items-center justify-center py-4 min-h-[180px]">
-      {clusters.map(c => {
-        const size = 60 + (c.issueIds.length / maxSize) * 90;
-        const tone = TONE[c.severitySkew === 'high_skew' ? 'red' : c.severitySkew === 'medium_skew' ? 'amber' : 'green'] || TONE.slate;
-        const selected = selectedId === c.id;
-        return (
-          <button
-            key={c.id}
-            onClick={() => onSelect?.(c.id)}
-            style={{ width: size, height: size }}
-            className={cls(
-              'rounded-full border-2 flex flex-col items-center justify-center text-center transition-all',
-              tone.bg, tone.border,
-              selected ? cls('ring-4 ring-offset-2 ring-offset-white dark:ring-offset-slate-900', tone.ring) : 'hover:scale-105'
-            )}
-          >
-            <div className={cls('text-2xl font-semibold tabular-nums', tone.fg)}>{c.issueIds.length}</div>
-            <div className={cls('text-[10px] font-medium px-2 leading-tight', tone.softText)}>{c.name}</div>
-          </button>
-        );
-      })}
-    </div>
-  );
-};
-
-// ────────────────────────────────────────────────────────────────────────────
-// MAIN APP
-// ────────────────────────────────────────────────────────────────────────────
-
-export default function App() {
-  // ── Theme ───────────────────────────────────────────────────────────────
+export default function RiskCompliancePrototype() {
   const [dark, setDark] = useState(true);
   useEffect(() => {
     if (dark) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
   }, [dark]);
 
-  // ── Core App State ──────────────────────────────────────────────────────
   const [activePersona, setActivePersona] = useState('cro');
   const [activeScreen, setActiveScreen] = useState('risk_posture_cockpit');
   const [drillStack, setDrillStack] = useState([]);
@@ -469,7 +25,6 @@ export default function App() {
   const [filters, setFilters] = useState({});
   const [workpaperItems, setWorkpaperItems] = useState([]);
 
-  // ── Indexes ─────────────────────────────────────────────────────────────
   const idx = useMemo(() => {
     const risksById = new Map(mockData.risks.map(r => [r.id, r]));
     const controlsById = new Map(mockData.controls.map(c => [c.id, c]));
@@ -497,7 +52,6 @@ export default function App() {
     return { risksById, controlsById, obligationsById, issuesById, clustersById, processesById, evidenceById, ciById, ciByControl, issuesByControl, insightsByEntity };
   }, []);
 
-  // ── Drill helpers ───────────────────────────────────────────────────────
   const drillTo = useCallback((entityType, entityId, opts = {}) => {
     setDrillStack(prev => [...prev, { entityType, entityId, screenContext: opts.screenContext || activeScreen, asOfDate: timeAsOf, panelType: opts.panelType || 'drill_panel' }]);
     setActivePanel(opts.panelType === 'lineage_panel' ? 'lineage' : 'drill');
@@ -532,7 +86,6 @@ export default function App() {
     else drillTo('control', entityId);
   }, [drillTo]);
 
-  // ── Persona switch ──────────────────────────────────────────────────────
   const switchPersona = useCallback((personaId) => {
     setActivePersona(personaId);
     setActiveScreen(PERSONAS[personaId].defaultScreen);
@@ -544,12 +97,10 @@ export default function App() {
     clearDrill();
   }, [clearDrill]);
 
-  // ── Wokpaper tray (Auditor) ─────────────────────────────────────────────
   const toggleWorkpaper = useCallback((id) => {
     setWorkpaperItems(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   }, []);
 
-  // ── App context bag (props drilling — kept simple for prototype) ────────
   const ctx = {
     idx, drillTo, popDrill, clearDrill, gotoFrame, drillByEntityId,
     activePersona, activeScreen, drillStack, activePanel, timeAsOf, jurisdiction,
@@ -569,14 +120,19 @@ export default function App() {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// APP SHELL
-// ────────────────────────────────────────────────────────────────────────────
-
 function AppShell({ ctx }) {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const expandSidebar = useCallback(() => setSidebarOpen(true), []);
+  const collapseSidebar = useCallback(() => setSidebarOpen(false), []);
+
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar ctx={ctx} />
+      <Sidebar
+        ctx={ctx}
+        open={sidebarOpen}
+        onMouseEnter={expandSidebar}
+        onMouseLeave={collapseSidebar}
+      />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar ctx={ctx} />
         <div className="flex-1 flex min-h-0">
@@ -593,11 +149,7 @@ function AppShell({ ctx }) {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// SIDEBAR
-// ────────────────────────────────────────────────────────────────────────────
-
-function Sidebar({ ctx }) {
+function Sidebar({ ctx, open, onMouseEnter, onMouseLeave }) {
   const navItems = useMemo(() => Object.entries(SCREENS).filter(([_, s]) => s.persona === ctx.activePersona), [ctx.activePersona]);
   const screenIcons = {
     risk_posture_cockpit: Icons.Shield, what_changed: Icons.Activity,
@@ -605,21 +157,34 @@ function Sidebar({ ctx }) {
     evidence_workbench: Icons.Doc, reperformance_console: Icons.Beaker
   };
   return (
-    <aside className="w-60 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col">
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-2">
+    <aside
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      className={cls(
+        'shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col transition-[width] duration-200 overflow-hidden',
+        open ? 'w-60' : 'w-16'
+      )}
+    >
+      <div className={cls('border-b border-slate-200 dark:border-slate-800', open ? 'px-5 py-4' : 'px-3 py-4')}>
+        <div className={cls('flex items-center', open ? 'gap-2' : 'justify-center')}>
           <div className="w-7 h-7 rounded bg-slate-900 dark:bg-slate-100 flex items-center justify-center">
             <Icons.Shield className="w-4 h-4 text-white dark:text-slate-900" />
           </div>
-          <div>
-            <div className="text-[13px] font-semibold tracking-tight">Sentry</div>
-            <div className="text-[10px] text-slate-500 dark:text-slate-400 -mt-0.5">Risk &amp; Compliance</div>
-          </div>
+          {open && (
+            <div>
+              <div className="text-[13px] font-semibold tracking-tight">Sentry</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 -mt-0.5">Risk &amp; Compliance</div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="px-3 py-3">
-        <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-500 px-2 mb-1.5">{PERSONAS[ctx.activePersona].label}</div>
+      <div className={cls('py-3', open ? 'px-3' : 'px-2')}>
+        {open && (
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-500 px-2 mb-1.5">
+            {PERSONAS[ctx.activePersona].label}
+          </div>
+        )}
         <nav className="space-y-0.5">
           {navItems.map(([id, s]) => {
             const Icon = screenIcons[id];
@@ -628,26 +193,30 @@ function Sidebar({ ctx }) {
               <button
                 key={id}
                 onClick={() => ctx.switchScreen(id)}
+                title={!open ? s.label : undefined}
                 className={cls(
-                  'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] transition-colors',
+                  'w-full flex items-center px-2.5 py-1.5 rounded text-[13px] transition-colors',
+                  open ? 'gap-2.5 justify-start' : 'justify-center',
                   active
                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-slate-200'
                 )}
               >
                 <Icon className="w-4 h-4" />
-                {s.label}
+                {open && s.label}
               </button>
             );
           })}
         </nav>
       </div>
 
-      <div className="mt-auto px-3 pb-4">
-        <div className="rounded-md border border-slate-200 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-900">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Demo data</div>
-          <div className="text-[11px] text-slate-600 dark:text-slate-400">
-            13 weeks · 35 controls · {fmtNum(mockData.controlInstances.length)} instances · {fmtNum(mockData.auditTrail.length)} audit events
+      <div className={cls('mt-auto pb-4', open ? 'px-3' : 'px-2')}>
+        <div className={cls('rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900', open ? 'p-3' : 'p-2')}>
+          <div className={cls('uppercase tracking-wider text-slate-500', open ? 'text-[10px] mb-1' : 'text-[9px] text-center mb-0.5')}>Demo data</div>
+          <div className={cls('text-slate-600 dark:text-slate-400', open ? 'text-[11px]' : 'text-[10px] text-center')}>
+            {open
+              ? `13 weeks · 35 controls · ${fmtNum(mockData.controlInstances.length)} instances · ${fmtNum(mockData.auditTrail.length)} audit events`
+              : `${fmtNum(mockData.controlInstances.length)} inst.`}
           </div>
         </div>
       </div>
@@ -655,29 +224,21 @@ function Sidebar({ ctx }) {
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// TOP BAR
-// ────────────────────────────────────────────────────────────────────────────
-
 function TopBar({ ctx }) {
   return (
     <header className="h-14 shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-5 flex items-center gap-4">
-      {/* Persona switcher */}
       <PersonaSwitcher ctx={ctx} />
 
       <div className="h-5 w-px bg-slate-200 dark:bg-slate-800" />
 
-      {/* Drill stack breadcrumb */}
       <DrillBreadcrumb ctx={ctx} />
 
       <div className="ml-auto flex items-center gap-2">
-        {/* Time scrubber */}
         <div className="flex items-center gap-1.5 text-[12px] text-slate-600 dark:text-slate-400 px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
           <Icons.Calendar className="w-3.5 h-3.5" />
           <span className="font-mono">{ctx.timeAsOf}</span>
         </div>
 
-        {/* Jurisdiction */}
         <select
           value={ctx.jurisdiction}
           onChange={(e) => ctx.setJurisdiction(e.target.value)}
@@ -687,7 +248,6 @@ function TopBar({ ctx }) {
           <option value="multi">Multi-jurisdiction</option>
         </select>
 
-        {/* Search */}
         <div className="relative">
           <Icons.Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input
@@ -698,7 +258,6 @@ function TopBar({ ctx }) {
           />
         </div>
 
-        {/* Theme toggle */}
         <button
           onClick={() => ctx.setDark(d => !d)}
           className="p-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
@@ -1206,6 +765,14 @@ function WhatChangedView({ ctx }) {
 function ControlUniverse({ ctx }) {
   const [processFilter, setProcessFilter] = useState('all');
   const [bandFilter, setBandFilter] = useState('all');
+  const PROCESS_ORDER = [
+    'Wire Payments',
+    'Customer Onboarding',
+    'AML Alert Disposition',
+    'Vendor Onboarding',
+    'Model Validation',
+    'Loan Origination'
+  ];
 
   const filteredControls = useMemo(() => {
     return mockData.controls.filter(c => {
@@ -1215,26 +782,30 @@ function ControlUniverse({ ctx }) {
     });
   }, [processFilter, bandFilter]);
 
-  const treemapGroups = useMemo(() => {
-    const byProcess = new Map();
-    filteredControls.forEach(c => {
-      if (!byProcess.has(c.processId)) byProcess.set(c.processId, []);
-      byProcess.get(c.processId).push(c);
+  const processRows = useMemo(() => {
+    const resolveProcess = (name) =>
+      mockData.processes.find((p) => p.name.toLowerCase() === name.toLowerCase())
+      || mockData.processes.find((p) => p.name.toLowerCase().includes(name.toLowerCase()));
+
+    return PROCESS_ORDER.map((processName) => {
+      const process = resolveProcess(processName);
+      const controls = filteredControls
+        .filter((c) => c.processId === process?.id)
+        .sort((a, b) => a.id.localeCompare(b.id));
+      return {
+        id: process?.id || processName,
+        name: processName,
+        controls
+      };
     });
-    return Array.from(byProcess.entries()).map(([pid, ctrls]) => ({
-      id: pid,
-      label: idxFindProc(pid),
-      tiles: ctrls.map(c => ({
-        id: c.id,
-        label: c.name,
-        weight: 1 + (mockData.controlInstances.filter(ci => ci.controlId === c.id).length / 100),
-        band: c.effectivenessBand,
-        score: c.effectivenessScore
-      }))
-    }));
   }, [filteredControls]);
 
   const driftWatch = useMemo(() => mockData.controls.filter(c => c.effectivenessTrend === 'worsening').sort((a, b) => a.effectivenessScore - b.effectivenessScore).slice(0, 5), []);
+  const controlsNeedingAttention = useMemo(
+    () => filteredControls.filter((c) => c.effectivenessScore < 70).sort((a, b) => a.effectivenessScore - b.effectivenessScore),
+    [filteredControls]
+  );
+  const shortControlId = useCallback((id) => id.split('-').slice(-1)[0] || id, []);
 
   return (
     <div className="space-y-5">
@@ -1271,10 +842,69 @@ function ControlUniverse({ ctx }) {
       </Card>
 
       <div className="grid grid-cols-12 gap-5">
-        {/* Treemap */}
+        {/* Control universe by process */}
         <Card className="col-span-8">
           <SectionTitle sub="Grouped by process · sized by activity volume · colored by effectiveness band">Control Universe</SectionTitle>
-          <Treemap groups={treemapGroups} onTileClick={(id) => ctx.drillTo('control', id)} />
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            Each square is one control. Color shows effectiveness. Click a square to inspect.
+          </p>
+          <div className="space-y-3">
+            {processRows.map((row) => (
+              <div key={row.id} className="grid grid-cols-12 gap-3 items-start">
+                <div className="col-span-4 flex items-center justify-between pr-2">
+                  <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">{row.name}</h4>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{row.controls.length}</span>
+                </div>
+                <div className="col-span-8 flex flex-wrap gap-1.5">
+                  {row.controls.map((c) => {
+                    const tone = TONE[semanticBand(c.effectivenessBand)];
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => ctx.drillTo('control', c.id)}
+                        title={`${c.id} • ${c.name}`}
+                        className={cls(
+                          'w-10 h-10 rounded-sm border text-[10px] font-mono flex items-center justify-center leading-none transition-all',
+                          tone.bg,
+                          tone.border,
+                          tone.softText,
+                          'hover:ring-2 hover:ring-slate-400 dark:hover:ring-slate-500'
+                        )}
+                      >
+                        {shortControlId(c.id)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <SectionTitle sub="CES below 70">Important to look</SectionTitle>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {controlsNeedingAttention.length === 0 ? (
+                <div className="text-sm text-emerald-600 dark:text-emerald-400">No controls currently below CES 70.</div>
+              ) : (
+                controlsNeedingAttention.map((c) => {
+                  const tone = TONE[semanticBand(c.effectivenessBand)];
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => ctx.drillTo('control', c.id)}
+                      className="w-full text-left p-2.5 rounded-md border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                    >
+                      <div className="flex items-center justify-between">
+                        <Mono className="text-slate-500">{c.id}</Mono>
+                        <span className={cls('text-sm font-semibold tabular-nums', tone.fg)}>{c.effectivenessScore}</span>
+                      </div>
+                      <div className="text-[12px] text-slate-700 dark:text-slate-300 mt-0.5 line-clamp-1">{c.name}</div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </Card>
 
         {/* Drift watch */}
