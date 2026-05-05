@@ -9,12 +9,14 @@ export function Sparkline({
   width = 120,
   height = 30,
   fill = false,
+  className = '',
 }: {
   series?: number[];
   band?: string;
   width?: number;
   height?: number;
   fill?: boolean;
+  className?: string;
 }) {
   if (!series.length) return <div className="h-[30px]" />;
   const min = Math.min(...series);
@@ -35,7 +37,12 @@ export function Sparkline({
     .join(' ');
   const fillPath = `0,${height} ${points} ${width},${height}`;
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      className={`block max-w-full overflow-visible ${className}`.trim()}
+      style={{ width: '100%', height }}
+    >
       {fill && <polygon points={fillPath} fill={fillColor} />}
       <polyline
         points={points}

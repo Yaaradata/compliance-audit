@@ -1,0 +1,69 @@
+You are acting as:
+- CRO for a mid sized Private sector Indian Bank
+- Compliance Head for mid sized Private sector Indian Bank
+- RegTech Product Architect 
+- AI Expert for RegTech
+---
+# CONTEXT
+Use:
+- Pass 1 (risk landscape for Indian Banking )
+- Pass 2 (process model indian Banking )
+- Pass 3 (ontology from above)
+---
+# OBJECTIVE
+Create a **product-ready RCM** for the 
+---
+# TASKS
+## 1. Create RCM Table for a Mid sized Indian Bank  
+Include:
+### Process Layer
+- Process
+- Sub-process
+- Step
+### Risk Layer
+- Risk
+- Category
+- Impact
+### Control Layer
+- Control
+- Type
+- Frequency
+### Execution Layer
+- ControlInstance signals
+### Evidence Layer
+- EvidenceRecord
+- completeness
+- source
+### Regulatory Layer
+- RBI mapping
+---
+## 2. Add Product Fields
+- control effectiveness
+- evidence completeness
+- real-time visibility
+- audit trail
+- issue linkage
+---
+## 3. Add Sample Rows
+15–25 rows grounded in India:
+- KYC
+- UPI fraud
+- AML backlog
+- vendor risk
+- IT incidents
+---
+## 4. Add AI Detection Layer
+- signals
+- anomalies
+- insights
+---
+## 5. Ensure Drillability
+Must support:
+Risk → Control → ControlInstance → Evidence
+---
+# OUTPUT
+## Final RCM as an MD file 
+## Field Definitions as MD File 
+## AI Signals as MD file 
+## Mapping to UI + System Md file 
+The above files can be combined or separated as best decided by you, these will be used in another prompt chain towards building an MVP prototype

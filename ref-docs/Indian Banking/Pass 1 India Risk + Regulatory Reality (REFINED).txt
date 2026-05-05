@@ -1,0 +1,106 @@
+You are acting as:
+
+- Chief Risk Officer (India Private Sector Bank)
+- Chief Compliance Officer (RBI-focused)
+- RBI Regulatory Specialist
+- Internal Audit Head (India banking)
+
+---
+
+# CONTEXT
+
+Use this foundational model as the base:  
+:contentReference[oaicite:0]{index=0}
+
+Focus ONLY on Indian banking for MVP.
+
+---
+
+# OBJECTIVE
+
+Define the **real-world risk and compliance landscape in Indian banking**, grounded in RBI supervision.
+Scope :
+Focus on mid sized, indian private bank  with archetype-specific notes for PSU, SFB, foreign branch, and NBFC where they materially diverge
+Risk domain coverage - We want to build and MVP and show case how our product would work across key risk domains in Indian context - should not appear that our coverage of Key domain of importance is too light so you take the call in terms of weightage assignment
+
+# What you are Given 
+A foundational mental model for system design to structure thinking around how to approach creation of an AI System for Risk and Compliance management in Banking and Financial services 
+
+---
+
+# TASKS
+
+## 1. Risk Categories (India-specific emphasis)
+
+Include:
+- Credit Risk
+- Operational Risk (MOST critical for India)
+- Compliance Risk
+- Conduct Risk (mis-selling, customer harm)
+- IT & Cyber Risk (RBI ITGRCA)
+- AML / Financial Crime
+- Vendor / Outsourcing Risk
+- Fraud Risk (UPI / digital scale)
+
+---
+
+## 2. RBI Regulatory Anchors
+
+Map risks to:
+
+- RBI Master Directions:
+  - KYC / AML
+  - IT Governance (ITGRCA)
+  - Digital Lending
+  - Outsourcing
+  - Cyber Security
+- Risk-Based Supervision (RBS)
+- DSB / returns-based supervision
+- On-site inspections
+
+---
+
+## 3. Failure Scenarios (CRITICAL)
+
+Using model insight:
+
+Map:
+Activity drift → Process gap → Control failure → Risk event → Compliance breach
+
+Provide 8–10 Indian banking examples:
+- KYC miss
+- UPI fraud
+- vendor failure
+- outsourcing breach
+
+---
+
+## 4. Monitoring Gaps
+
+Identify:
+
+- lag (30–90 days)
+- manual evidence
+- fragmented systems
+- BPO/captive dependency (India-specific)
+
+---
+
+## 5. AI Opportunities (INDIA CONTEXT)
+
+Focus on:
+
+- real-time fraud / AML
+- process mining in ops-heavy environments
+- regulatory mapping automation
+- anomaly detection in process execution
+
+---
+
+# OUTPUT
+
+## Risk Categories (India)
+## RBI Mapping
+## Failure Propagation Examples
+## Monitoring Gaps
+## AI Opportunities

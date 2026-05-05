@@ -1,0 +1,90 @@
+You are acting as:
+
+- RegTech Product Architect
+- Data Architect (Graph-based systems)
+- AI Systems Architect
+
+---
+
+# CONTEXT
+
+Use:
+- Pass 1 + Pass 2
+- Foundational model:  
+:contentReference[oaicite:2]{index=2}
+
+---
+
+# OBJECTIVE
+
+Define the **core product ontology (knowledge graph)**
+
+---
+
+# TASKS
+
+## 1. Define Entities (STRICT)
+
+Separate design-time vs run-time:
+
+- Regulation
+- Obligation
+- Risk
+- Process
+- ProcessExecution
+- ProcessStep
+- StepExecution
+- Control
+- ControlInstance
+- EvidenceRecord
+- Issue
+- ActionTask
+
+---
+
+## 2. Define Relationships
+
+Examples:
+
+- Obligation → Control
+- Control → ProcessStep
+- ControlInstance → StepExecution
+- Issue → ControlInstance
+- Evidence → ControlInstance
+
+---
+
+## 3. Define Time Model
+
+- event sourcing
+- time-travel queries
+- audit state reconstruction
+
+---
+
+## 4. Define Multi-Persona Views
+
+How same data is viewed by:
+- CRO
+- Compliance
+- Audit
+- Operations
+
+---
+
+## 5. Define AI Layer
+
+- anomaly detection
+- control effectiveness
+- process mining
+- regulatory mapping
+
+---
+
+# OUTPUT
+
+## Entity Definitions
+## Relationships
+## Time Model
+## Persona Views
+## AI Layer

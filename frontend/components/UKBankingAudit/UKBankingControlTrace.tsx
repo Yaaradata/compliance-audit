@@ -140,7 +140,7 @@ export default function UKBankingControlTrace() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
-        <div className="flex items-center gap-6 px-6 py-3">
+        <div className="flex items-center gap-4 px-3 py-3 sm:gap-6 sm:px-4 lg:px-5">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-indigo-600 to-indigo-800 text-sm font-bold text-white">
               RC
@@ -194,7 +194,7 @@ export default function UKBankingControlTrace() {
           )}
         </div>
 
-        <nav className="flex items-center gap-1 border-t border-slate-100 px-6">
+        <nav className="flex items-center gap-1 border-t border-slate-100 px-3 sm:px-4 lg:px-5">
           {navItems.map((n) => (
             <button
               key={n.id}
@@ -210,7 +210,7 @@ export default function UKBankingControlTrace() {
         </nav>
       </header>
 
-      <main className="px-6 py-6">
+      <main className="w-full min-w-0 px-3 py-6 sm:px-4 lg:px-5">
         {activeScreen === 'riskPosture' && (
           <CroRiskPostureCockpit openDrawer={openDrawer} setActiveScreen={setActiveScreen} setSelectedSMFId={setSelectedSMFId} smfTrails={smfTrails} />
         )}
