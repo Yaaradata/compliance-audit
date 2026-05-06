@@ -122,11 +122,10 @@ export const hitlBadge = (status: string) =>
     overridden: 'bg-sky-100 text-sky-800 border border-sky-300',
   }[status] || 'bg-slate-100 text-slate-600 border border-slate-200');
 
-// Persona theme colours
+// Persona theme colours — three primary personas per UI Pass 1
 export const personaAccent = (code: string) =>
   ({
     cro: 'from-indigo-600 to-indigo-800',
     compliance: 'from-violet-600 to-violet-800',
     audit: 'from-emerald-600 to-emerald-800',
-    operations: 'from-amber-600 to-amber-800',
   }[code] || 'from-slate-600 to-slate-800');

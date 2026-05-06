@@ -20,33 +20,31 @@ export type ScreenCode =
   | 'workpaperAuditPackBuilder'
   | 'processHealth';
 
-export type PersonaCode = 'cro' | 'compliance' | 'audit' | 'operations';
+export type PersonaCode = 'cro' | 'compliance' | 'audit';
 
-// Persona meta (concise dropdown labels, default landing screen)
+// Three primary personas per UI Pass 1 (PERSONA-001/002/003). Naming is the
+// India-regulatory equivalent of the US/UK 3-persona structure:
+//   US/UK: CRO / CAO            ↔  India: CRO / MD&CEO
+//   US/UK: Risk & Compliance Lead ↔ India: CCO / Head of ORM
+//   US/UK: Compliance / Audit Mgr ↔ India: IA Manager / Audit Tester
 export const PERSONA_META: Record<PersonaCode, { label: string; short: string; initials: string; description: string }> = {
   cro: {
-    label: 'Chief Risk Officer',
+    label: 'CRO / MD&CEO',
     short: 'CRO',
     initials: 'CR',
-    description: 'MD&CEO · BRMC Chair · risk-posture & inspection readiness',
+    description: 'Apex risk owner · BRMC Chair',
   },
   compliance: {
     label: 'CCO / Head of ORM',
     short: 'CCO',
     initials: 'CC',
-    description: 'MLRO–PO · Head of FC · Head of IT Risk · obligation coverage',
+    description: 'MLRO–PO · Head of FC · Head of IT Risk',
   },
   audit: {
-    label: 'IA Manager',
+    label: 'IA Manager / Audit Tester',
     short: 'Audit',
     initials: 'IA',
-    description: 'Concurrent Auditor · Control Tester · workpaper-grade evidence',
-  },
-  operations: {
-    label: 'Operations / Process Owner',
-    short: 'Ops',
-    initials: 'OP',
-    description: 'Process drift · BPO/branch handoffs · SLA breach',
+    description: 'Concurrent · Control Tester · workpaper-grade',
   },
 };
 
@@ -74,19 +72,24 @@ const SCREEN: Record<ScreenCode, { label: string; subtitle: string; icon: string
 export const PERSONA_NAV: Record<PersonaCode, ScreenCode[]> = {
   // CRO — board-room lens: posture, weekly deltas, RBI walk-in, accountability + cross-cuts
   cro: ['riskPosture', 'whatChanged', 'inspectionReadiness', 'accountability', 'aiInsights', 'issueBoard'],
-  // CCO — coverage lens: obligations, RCM, drill-down, HITL, lineage, issues
-  compliance: ['obligationCoverage', 'controlUniverse', 'controlDrillDown', 'aiInsights', 'sourceLineage', 'issueBoard'],
+  // CCO — coverage lens: obligations, RCM, drill-down, process drift, HITL, lineage, issues
+  compliance: [
+    'obligationCoverage',
+    'controlUniverse',
+    'controlDrillDown',
+    'processHealth',
+    'aiInsights',
+    'sourceLineage',
+    'issueBoard',
+  ],
   // IA — testing lens: population, evidence, workpapers, inspection, issues
   audit: ['populationTesting', 'evidenceWorkbench', 'workpaperAuditPackBuilder', 'inspectionReadiness', 'issueBoard'],
-  // Ops — process lens: process health, source ingest, issues
-  operations: ['processHealth', 'sourceLineage', 'issueBoard'],
 };
 
 export const PERSONA_DEFAULT_SCREEN: Record<PersonaCode, ScreenCode> = {
   cro: 'riskPosture',
   compliance: 'obligationCoverage',
   audit: 'populationTesting',
-  operations: 'processHealth',
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -138,6 +141,7 @@ export function PersonaSwitcher({
             {(Object.keys(PERSONA_META) as PersonaCode[]).map((code) => {
               const m = PERSONA_META[code];
               const isActive = code === activePersona;
+              const defaultScreen = SCREEN[PERSONA_DEFAULT_SCREEN[code]]?.label;
               return (
                 <button
                   key={code}
@@ -148,7 +152,7 @@ export function PersonaSwitcher({
                     setActivePersona(code);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-start gap-3 border-b border-slate-100 px-3 py-2.5 text-left transition-colors last:border-b-0 ${
+                  className={`flex w-full items-start gap-3 border-b border-slate-100 px-3 py-3 text-left transition-colors last:border-b-0 ${
                     isActive ? 'bg-indigo-50' : 'hover:bg-slate-50'
                   }`}
                 >
@@ -161,9 +165,17 @@ export function PersonaSwitcher({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">{m.label}</span>
-                      {isActive && <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-700">active</span>}
+                      <span className="truncate text-sm font-semibold text-slate-900">{m.label}</span>
+                      {isActive && (
+                        <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-700">
+                          active
+                        </span>
+                      )}
                     </div>
+                    <div className="mt-0.5 truncate text-[11px] text-slate-500">
+                      Default screen: {defaultScreen}
+                    </div>
+                    <div className="mt-0.5 truncate text-[10px] text-slate-400">{m.description}</div>
                   </div>
                 </button>
               );

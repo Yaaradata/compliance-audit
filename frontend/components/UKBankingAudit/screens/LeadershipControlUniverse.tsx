@@ -1,12 +1,16 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { aiInsights, controls, coverageGaps, obligations, riskDomains } from '../dataModel';
-import { DimCell, StatusBadge } from '../primitives';
-import { Sparkline } from '../primitives';
-import { bandBg, bandDot, bandText, trendArrow, trendTone } from '../theme';
+import { aiInsights, controls, getControl, obligations, processes, riskDomains } from '../dataModel';
+import { bandText, trendArrow, trendTone } from '../theme';
 
 type OpenDrawer = (entityType: string, entityId: string, sourceScreen: string) => void;
+
+type ControlEntry = (typeof controls)[number];
+type DriftTrend = 'worsening' | 'rapidly_worsening';
+
+const DRIFT_TRENDS: ReadonlySet<DriftTrend> = new Set(['worsening', 'rapidly_worsening']);
+const DRIFT_TREND_RANK: Record<DriftTrend, number> = { rapidly_worsening: 0, worsening: 1 };
 
 export function LeadershipControlUniverse({
   activeViewMode,
@@ -21,25 +25,53 @@ export function LeadershipControlUniverse({
   filterDomain: string | null;
   setFilterDomain: (id: string | null) => void;
 }) {
-  const filtered = useMemo(() => {
+  const filteredControls = useMemo(() => {
     if (!filterDomain) return controls;
     const dom = riskDomains.find((d) => d.id === filterDomain);
     if (!dom) return controls;
     return controls.filter((c) => (c as { linkedRiskIds?: string[] }).linkedRiskIds?.[0] === dom.primaryDriverRiskId);
   }, [filterDomain]);
 
-  const obligationsCoverage = useMemo(() => {
-    const buckets: { fully_covered: typeof obligations; thinly_covered: typeof obligations; uncovered: typeof obligations } = {
-      fully_covered: [],
-      thinly_covered: [],
-      uncovered: [],
-    };
-    obligations.forEach((o) => {
-      const k = o.ocs.coverageStatus as keyof typeof buckets;
-      if (buckets[k]) buckets[k].push(o);
-    });
-    return buckets;
-  }, []);
+  const controlRows = useMemo(() => {
+    return processes
+      .map((process) => {
+        const rowControls = filteredControls.filter((control) => control.processId === process.id);
+        return {
+          id: process.id,
+          label: compactProcessName(process.name),
+          count: rowControls.length,
+          chips: rowControls
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map((control) => ({
+              id: control.id,
+              tone: control.ces.band,
+              onClick: () => openDrawer('control', control.id, 'controlUniverse'),
+            })),
+        };
+      })
+      .filter((row) => row.count > 0)
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }, [filteredControls, openDrawer]);
+
+  const obligationRows = useMemo(() => {
+    return obligations
+      .map((obligation) => ({
+        id: obligation.id,
+        label: `${obligation.citationShort} (${obligation.regulator})`,
+        count: obligation.linkedControlIds.length,
+        chips: obligation.linkedControlIds
+          .map((controlId) => getControl(controlId))
+          .filter(Boolean)
+          .map((control) => ({
+            id: control!.id,
+            tone: control!.ces.band,
+            onClick: () => openDrawer('obligation', obligation.id, 'controlUniverse'),
+          })),
+      }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }, [openDrawer]);
+
+  const driftControls = useMemo(() => buildDriftWatch(filteredControls), [filteredControls]);
 
   return (
     <div className="space-y-6">
@@ -85,108 +117,25 @@ export function LeadershipControlUniverse({
         ))}
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-12 lg:col-span-9">
-          {activeViewMode === 'controls' ? (
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-12 gap-3 border-b border-slate-100 px-5 py-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                <div className="col-span-4">Control</div>
-                <div className="col-span-2 text-center">Operating</div>
-                <div className="col-span-2 text-center">Catch</div>
-                <div className="col-span-2 text-center">Evidence</div>
-                <div className="col-span-1 text-center">CES</div>
-                <div className="col-span-1 text-right">Trend</div>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {filtered.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => openDrawer('control', c.id, 'controlUniverse')}
-                    className="grid w-full grid-cols-12 items-center gap-3 px-5 py-3 text-left transition hover:bg-slate-50"
-                  >
-                    <div className="col-span-4">
-                      <div className="text-sm font-semibold text-slate-900">{c.id}</div>
-                      <div className="truncate text-xs text-slate-600">{c.title}</div>
-                    </div>
-                    <DimCell dim={c.threeDim.operating} />
-                    <DimCell dim={c.threeDim.catch} />
-                    <DimCell dim={c.threeDim.evidence} />
-                    <div className="col-span-1 text-center">
-                      <div className={`inline-block rounded px-2 py-0.5 text-sm font-bold ${bandBg(c.ces.band)}`}>{c.ces.current}</div>
-                    </div>
-                    <div className={`col-span-1 text-right text-xs font-medium ${trendTone(c.ces.trend)}`}>
-                      {trendArrow(c.ces.trend)} {c.ces.delta13w >= 0 ? '+' : ''}
-                      {c.ces.delta13w}
-                    </div>
-                  </button>
-                ))}
+      <div className="grid grid-cols-12 items-start gap-4">
+        <div className="col-span-12 lg:col-span-8">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+              <h3 className="text-sm font-semibold text-slate-900">
+                {activeViewMode === 'controls' ? 'Control Universe' : 'Obligation Coverage'}
+              </h3>
+              <div className="text-xs text-slate-500">
+                {activeViewMode === 'controls' ? `${controlRows.length} process lanes` : `${obligationRows.length} obligations`}
               </div>
             </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-100 px-5 py-3">
-                <h3 className="text-sm font-semibold">Obligation Coverage by Status</h3>
-              </div>
-              <div className="grid grid-cols-3 divide-x divide-slate-100">
-                {(
-                  [
-                    { key: 'fully_covered' as const, label: 'Fully Covered', tone: 'green' },
-                    { key: 'thinly_covered' as const, label: 'Thinly Covered', tone: 'amber' },
-                    { key: 'uncovered' as const, label: 'Uncovered', tone: 'red' },
-                  ] as const
-                ).map((b) => (
-                  <div key={b.key} className="p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div>
-                        <div className={`text-2xl font-bold ${bandText(b.tone)}`}>{(obligationsCoverage[b.key] || []).length}</div>
-                        <div className="text-xs text-slate-500">{b.label}</div>
-                      </div>
-                      <span className={`h-3 w-3 rounded-full ${bandDot(b.tone)}`} />
-                    </div>
-                    <div className="space-y-1">
-                      {(obligationsCoverage[b.key] || []).map((o) => (
-                        <button
-                          key={o.id}
-                          type="button"
-                          onClick={() => openDrawer('obligation', o.id, 'controlUniverse')}
-                          className="w-full rounded px-2 py-1.5 text-left text-xs hover:bg-slate-50"
-                        >
-                          <div className="truncate font-medium text-slate-900">{o.citationShort}</div>
-                          <div className="truncate text-[10px] text-slate-500">
-                            {o.regulator} · OCS {o.ocs.score}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="col-span-12 space-y-4 lg:col-span-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-2 text-sm font-semibold text-slate-900">Coverage Gaps</h3>
-            <div className="space-y-2">
-              {coverageGaps.map((g) => (
-                <div
-                  key={g.id}
-                  className={`rounded border p-2 ${bandBg(g.severity === 'high' || g.severity === 'critical' ? 'red' : g.severity === 'medium' ? 'amber' : 'neutral')}`}
-                >
-                  <div className="mb-1 flex items-start justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{g.gapType.replace(/_/g, ' ')}</span>
-                    <span className="text-[10px]">{g.ageDays}d</span>
-                  </div>
-                  <div className="text-xs font-medium">{g.entityId}</div>
-                  <div className="mt-1 line-clamp-2 text-[10px]">{g.recommendedRemediation}</div>
-                </div>
-              ))}
-            </div>
+            {activeViewMode === 'controls' ? (
+              <MatrixView rows={controlRows} />
+            ) : (
+              <MatrixView rows={obligationRows} />
+            )}
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mt-4 min-h-[240px] rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="mb-2 text-sm font-semibold text-slate-900">Domain AI Insights</h3>
             <div className="space-y-2">
               {aiInsights
@@ -199,7 +148,7 @@ export function LeadershipControlUniverse({
                     onClick={() => openDrawer('aiInsight', i.id, 'controlUniverse')}
                     className="w-full rounded border border-slate-200 p-2 text-left hover:border-indigo-300 hover:bg-indigo-50/30"
                   >
-                    <div className="line-clamp-1 text-xs font-medium text-slate-900">{i.title}</div>
+                    <div className="text-xs font-medium text-slate-900">{i.title}</div>
                     <div className="mt-0.5 text-[10px] text-slate-500">
                       conf {Math.round(i.confidence * 100)}% · {i.type.replace('_', ' ')}
                     </div>
@@ -208,7 +157,160 @@ export function LeadershipControlUniverse({
             </div>
           </div>
         </div>
+
+        <div className="col-span-12 space-y-4 lg:col-span-4">
+          <DriftWatch entries={driftControls} openDrawer={openDrawer} />
+        </div>
       </div>
+    </div>
+  );
+}
+
+type MatrixRow = {
+  id: string;
+  label: string;
+  count: number;
+  chips: { id: string; tone: string; onClick: () => void }[];
+};
+
+function MatrixView({ rows }: { rows: MatrixRow[] }) {
+  if (!rows.length) {
+    return <div className="px-5 py-8 text-sm text-slate-500">No records available for the current filter.</div>;
+  }
+
+  return (
+    <div className="divide-y divide-slate-100">
+      {rows.map((row) => (
+        <div
+          key={row.id}
+          className="grid grid-cols-[180px_36px_1fr] items-center gap-4 px-5 py-3"
+        >
+          <div className="truncate text-sm font-semibold text-slate-900" title={row.label}>
+            {row.label}
+          </div>
+          <div className="text-right text-sm font-medium text-slate-500 tabular-nums">{row.count}</div>
+          <div className="flex flex-wrap gap-1.5">
+            {row.chips.map((chip) => (
+              <button
+                key={`${row.id}-${chip.id}`}
+                type="button"
+                onClick={chip.onClick}
+                title={chip.id}
+                className={`rounded-md border px-2 py-1 font-mono text-[11px] leading-none transition hover:brightness-95 ${chipTone(chip.tone)}`}
+              >
+                {chip.id}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function compactProcessName(name: string) {
+  if (name.startsWith('AML')) return 'AML Alert Disposition';
+  if (name.startsWith('Customer Onboarding')) return 'Customer Onboarding';
+  if (name.startsWith('Wire Payments')) return 'Wire Payments';
+  if (name.startsWith('Vendor Onboarding')) return 'Vendor Onboarding';
+  if (name.startsWith('Model Validation')) return 'Model Validation';
+  if (name.startsWith('Loan Origination')) return 'Loan Origination';
+  return name;
+}
+
+function chipTone(tone: string) {
+  if (tone === 'green') return 'border-emerald-300 bg-emerald-50 text-emerald-700';
+  if (tone === 'amber') return 'border-amber-300 bg-amber-50 text-amber-700';
+  if (tone === 'red') return 'border-rose-300 bg-rose-50 text-rose-700';
+  return 'border-slate-300 bg-slate-50 text-slate-700';
+}
+
+type DriftEntry = {
+  id: string;
+  title: string;
+  ces: number;
+  cesBand: string;
+  cesTrend: string;
+  threeDim: ControlEntry['threeDim'];
+};
+
+function buildDriftWatch(source: ControlEntry[]): DriftEntry[] {
+  return source
+    .filter((control) => DRIFT_TRENDS.has(control.ces.trend as DriftTrend))
+    .sort((a, b) => {
+      const rankDiff =
+        DRIFT_TREND_RANK[a.ces.trend as DriftTrend] - DRIFT_TREND_RANK[b.ces.trend as DriftTrend];
+      if (rankDiff !== 0) return rankDiff;
+      return a.ces.current - b.ces.current;
+    })
+    .slice(0, 6)
+    .map((control) => ({
+      id: control.id,
+      title: control.title,
+      ces: control.ces.current,
+      cesBand: control.ces.band,
+      cesTrend: control.ces.trend,
+      threeDim: control.threeDim,
+    }));
+}
+
+function DriftWatch({ entries, openDrawer }: { entries: DriftEntry[]; openDrawer: OpenDrawer }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-3">
+        <h3 className="text-sm font-semibold text-slate-900">Drift Watch</h3>
+        <p className="text-[11px] text-slate-500">Worsening trend</p>
+      </div>
+
+      {entries.length === 0 ? (
+        <div className="rounded-md border border-dashed border-slate-200 px-3 py-4 text-center text-[11px] text-slate-500">
+          No worsening controls in scope.
+        </div>
+      ) : (
+        <div className="max-h-[520px] space-y-2.5 overflow-y-auto pr-1">
+          {entries.map((entry) => (
+            <DriftCard key={entry.id} entry={entry} openDrawer={openDrawer} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DriftCard({ entry, openDrawer }: { entry: DriftEntry; openDrawer: OpenDrawer }) {
+  return (
+    <button
+      type="button"
+      onClick={() => openDrawer('control', entry.id, 'driftWatch')}
+      className="w-full rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-slate-300 hover:shadow-sm"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="font-mono text-[11px] font-semibold text-violet-700">{entry.id}</div>
+          <div className="truncate text-xs font-medium text-slate-900" title={entry.title}>
+            {entry.title}
+          </div>
+        </div>
+        <div className={`flex items-center gap-1 leading-none ${bandText(entry.cesBand)}`}>
+          <span className="text-base font-bold tabular-nums">{entry.ces}</span>
+          <span className={`text-sm ${trendTone(entry.cesTrend)}`}>{trendArrow(entry.cesTrend)}</span>
+        </div>
+      </div>
+
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        <DimMetric label="Op rate"  value={entry.threeDim.operating.current} band={entry.threeDim.operating.band} />
+        <DimMetric label="Catch"    value={entry.threeDim.catch.current}     band={entry.threeDim.catch.band} />
+        <DimMetric label="Evidence" value={entry.threeDim.evidence.current}  band={entry.threeDim.evidence.band} />
+      </div>
+    </button>
+  );
+}
+
+function DimMetric({ label, value, band }: { label: string; value: number; band: string }) {
+  return (
+    <div>
+      <div className="text-[9px] font-medium uppercase tracking-wider text-slate-500">{label}</div>
+      <div className={`text-xs font-bold tabular-nums ${bandText(band)}`}>{value}%</div>
     </div>
   );
 }
