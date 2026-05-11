@@ -1,0 +1,530 @@
+{
+  "_metadata": {
+    "demo": true,
+    "description": "Simulated AWS collector payloads for Access Management & Identity Governance audit demo. All data is fabricated. Structures mimic boto3 response shapes for auditor-facing dashboard consumption.",
+    "account_id": "123456789012",
+    "account_alias": "yaaralabs-prod-demo",
+    "region": "ap-south-1",
+    "collected_at": "2026-04-18T09:00:00Z",
+    "assumptions": {
+      "environment": "AWS only",
+      "total_users": 10,
+      "admin_count": 1,
+      "identity_model": "IAM users and groups (no SSO federation modelled for demo simplicity)",
+      "dormant_threshold_privileged_days": 30,
+      "dormant_threshold_normal_days": 60,
+      "privileged_policies": ["AdministratorAccess", "PowerUserAccess", "IAMFullAccess"],
+      "mfa_required_for": "all privileged users and all console-enabled users",
+      "least_privilege_expectation": {
+        "JuniorEngineer": ["read-only or scoped dev sandbox"],
+        "InfraEngineer": ["compute/network only, NOT IAM"],
+        "QAReviewer": ["read-only across target systems"],
+        "ExternalVendor": ["scoped to specific resources, time-bound"]
+      },
+      "notes": [
+        "Inline policy documents have been abbreviated for readability but remain shape-compatible with IAM policy JSON.",
+        "CloudTrail Events list is a trimmed sample (7 days) focused on sensitive actions; a real lookup_events call would return many more login / describe / list events.",
+        "Credential report content is normally returned as base64-encoded CSV by boto3; we include both a realistic CSV (Content_RawCSV) and the parsed rows (Content_Parsed) for frontend convenience."
+      ]
+    }
+  },
+
+  "iam_inventory_collector": {
+    "_api": "iam.get_account_authorization_details()",
+    "UserDetailList": [
+      {
+        "Path": "/",
+        "UserName": "usha.patel",
+        "UserId": "AIDA3FOOBARAXAMPLE01",
+        "Arn": "arn:aws:iam::123456789012:user/usha.patel",
+        "CreateDate": "2023-01-15T10:00:00Z",
+        "GroupList": ["Admins"],
+        "AttachedManagedPolicies": [
+          {"PolicyName": "AdministratorAccess", "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"}
+        ],
+        "UserPolicyList": [],
+        "Tags": [
+          {"Key": "Owner", "Value": "usha.patel@yaaralabs.ai"},
+          {"Key": "Role", "Value": "Administrator"},
+          {"Key": "HRStatus", "Value": "ACTIVE"},
+          {"Key": "Department", "Value": "Engineering Leadership"}
+        ]
+      },
+      {
+        "Path": "/",
+        "UserName": "sridhar.raman",
+        "UserId": "AIDA3FOOBARAXAMPLE02",
+        "Arn": "arn:aws:iam::123456789012:user/sridhar.raman",
+        "CreateDate": "2023-03-01T09:00:00Z",
+        "GroupList": ["Architects"],
+        "AttachedManagedPolicies": [
+          {"PolicyName": "ReadOnlyAccess", "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"}
+        ],
+        "UserPolicyList": [
+          {
+            "PolicyName": "ArchitectLimitedWrite",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {"Effect": "Allow", "Action": ["cloudformation:CreateStack", "cloudformation:UpdateStack"], "Resource": "*"},
+                {"Effect": "Allow", "Action": ["ssm:PutParameter"], "Resource": "arn:aws:ssm:ap-south-1:123456789012:parameter/arch/*"}
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {"Key": "Owner", "Value": "sridhar.raman@yaaralabs.ai"},
+          {"Key": "Role", "Value": "PrincipalArchitect"},
+          {"Key": "HRStatus", "Value": "ACTIVE"},
+          {"Key": "Department", "Value": "Platform"}
+        ]
+      },
+      {
+        "Path": "/",
+        "UserName": "sowmya.krishnan",
+        "UserId": "AIDA3FOOBARAXAMPLE03",
+        "Arn": "arn:aws:iam::123456789012:user/sowmya.krishnan",
+        "CreateDate": "2023-05-15T11:30:00Z",
+        "GroupList": ["Engineers"],
+        "AttachedManagedPolicies": [
+          {"PolicyName": "PowerUserAccess", "PolicyArn": "arn:aws:iam::aws:policy/PowerUserAccess"},
+          {"PolicyName": "AmazonS3FullAccess", "PolicyArn": "arn:aws:iam::aws:policy/AmazonS3FullAccess"}
+        ],
+        "UserPolicyList": [],
+        "Tags": [
+          {"Key": "Owner", "Value": "sowmya.krishnan@yaaralabs.ai"},
+          {"Key": "Role", "Value": "SeniorBackendEngineer"},
+          {"Key": "HRStatus", "Value": "ACTIVE"},
+          {"Key": "Department", "Value": "Engineering"}
+        ]
+      },
+      {
+        "Path": "/",
+        "UserName": "murali.iyer",
+        "UserId": "AIDA3FOOBARAXAMPLE04",
+        "Arn": "arn:aws:iam::123456789012:user/murali.iyer",
+        "CreateDate": "2022-11-10T08:20:00Z",
+        "GroupList": ["Engineers"],
+        "AttachedManagedPolicies": [
+          {"PolicyName": "PowerUserAccess", "PolicyArn": "arn:aws:iam::aws:policy/PowerUserAccess"},
+          {"PolicyName": "AmazonEC2FullAccess", "PolicyArn": "arn:aws:iam::aws:policy/AmazonEC2FullAccess"}
+        ],
+        "UserPolicyList": [],
+        "Tags": [
+          {"Key": "Owner", "Value": "murali.iyer@yaaralabs.ai"},
+          {"Key": "Role", "Value": "SeniorPlatformEngineer"},
+          {"Key": "HRStatus", "Value": "ACTIVE"},
+          {"Key": "Department", "Value": "Platform"}
+        ]
+      },
+      {
+        "Path": "/",
+        "UserName": "subashini.rao",
+        "UserId": "AIDA3FOOBARAXAMPLE05",
+        "Arn": "arn:aws:iam::123456789012:user/subashini.rao",
+        "CreateDate": "2023-07-20T14:00:00Z",
+        "GroupList": ["InfraEngineers"],
+        "AttachedManagedPolicies": [
+          {"PolicyName": "AmazonEC2FullAccess", "PolicyArn": "arn:aws:iam::aws:policy/AmazonEC2FullAccess"},
+          {"PolicyName": "AmazonVPCFullAccess", "PolicyArn": "arn:aws:iam::aws:policy/AmazonVPCFullAccess"}
+        ],
+        "UserPolicyList": [],
+        "Tags": [
+          {"Key": "Owner", "Value": "subashini.rao@yaaralabs.ai"},
+          {"Key": "Role", "Value": "InfrastructureEngineer"},
+          {"Key": "HRStatus", "Value": "ACTIVE"},
+          {"Key": "Department", "Value": "Platform"}
+        ]
+      },
+      {
+        "Path": "/",
+        "UserName": "karthik.menon",
+        "UserId": "AIDA3FOOBARAXAMPLE06",
+        "Arn": "arn:aws:iam::123456789012:user/karthik.menon",
+        "CreateDate": "2024-08-01T09:15:00Z",
+        "GroupList": ["JuniorEngineers"],
+        "AttachedManagedPolicies": [
+          {"PolicyName": "AdministratorAccess", "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"}
+        ],
+        "UserPolicyList": [],
+        "Tags": [
+          {"Key": "Owner", "Value": "karthik.menon@yaaralabs.ai"},
+          {"Key": "Role", "Value": "JuniorEngineer"},
+          {"Key": "HRStatus", "Value": "ACTIVE"},
+          {"Key": "Department", "Value": "Engineering"},
+          {"Key": "ProvisionedBy", "Value": "temporary-onboarding-exception-2024"}
+        ]
+      },
+      {
+        "Path": "/",
+        "UserName": "anurag.desai",
+        "UserId": "AIDA3FOOBARAXAMPLE07",
+        "Arn": "arn:aws:iam::123456789012:user/anurag.desai",
+        "CreateDate": "2024-09-15T10:30:00Z",
+        "GroupList": ["JuniorEngineers"],
+        "AttachedManagedPolicies": [
+          {"PolicyName": "AmazonS3ReadOnlyAccess", "PolicyArn": "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"}
+        ],
+        "UserPolicyList": [
+          {
+            "PolicyName": "DevSandboxScoped",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {"Effect": "Allow", "Action": ["ec2:Describe*", "logs:Get*", "logs:List*"], "Resource": "*"},
+                {"Effect": "Allow", "Action": ["s3:PutObject", "s3:GetObject"], "Resource": "arn:aws:s3:::dev-sandbox-anurag/*"}
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {"Key": "Owner", "Value": "anurag.desai@yaaralabs.ai"},
+          {"Key": "Role", "Value": "JuniorEngineer"},
+          {"Key": "HRStatus", "Value": "ACTIVE"},
+          {"Key": "Department", "Value": "Engineering"}
+        ]
+      },
+      {
+        "Path": "/",
+        "UserName": "gaurav.singh",
+        "UserId": "AIDA3FOOBARAXAMPLE08",
+        "Arn": "arn:aws:iam::123456789012:user/gaurav.singh",
+        "CreateDate": "2023-10-05T08:40:00Z",
+        "GroupList": ["QAReviewers"],
+        "AttachedManagedPolicies": [
+          {"PolicyName": "ReadOnlyAccess", "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"}
+        ],
+        "UserPolicyList": [],
+        "Tags": [
+          {"Key": "Owner", "Value": "gaurav.singh@yaaralabs.ai"},
+          {"Key": "Role", "Value": "QAEngineer"},
+          {"Key": "HRStatus", "Value": "ACTIVE"},
+          {"Key": "Department", "Value": "Quality"}
+        ]
+      },
+      {
+        "Path": "/",
+        "UserName": "suresh.kumar",
+        "UserId": "AIDA3FOOBARAXAMPLE09",
+        "Arn": "arn:aws:iam::123456789012:user/suresh.kumar",
+        "CreateDate": "2023-02-14T12:00:00Z",
+        "GroupList": ["InfraEngineers"],
+        "AttachedManagedPolicies": [
+          {"PolicyName": "AmazonEC2FullAccess", "PolicyArn": "arn:aws:iam::aws:policy/AmazonEC2FullAccess"},
+          {"PolicyName": "IAMFullAccess", "PolicyArn": "arn:aws:iam::aws:policy/IAMFullAccess"}
+        ],
+        "UserPolicyList": [],
+        "Tags": [
+          {"Key": "Owner", "Value": "suresh.kumar@yaaralabs.ai"},
+          {"Key": "Role", "Value": "InfrastructureEngineer"},
+          {"Key": "HRStatus", "Value": "ACTIVE"},
+          {"Key": "Department", "Value": "Platform"}
+        ]
+      },
+      {
+        "Path": "/external/",
+        "UserName": "vendor.acme.external",
+        "UserId": "AIDA3FOOBARAXAMPLE10",
+        "Arn": "arn:aws:iam::123456789012:user/external/vendor.acme.external",
+        "CreateDate": "2025-01-10T07:00:00Z",
+        "GroupList": ["ExternalVendors"],
+        "AttachedManagedPolicies": [],
+        "UserPolicyList": [
+          {
+            "PolicyName": "AcmeVendorDataExchange",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+                  "Resource": [
+                    "arn:aws:s3:::yaaralabs-client-data-exchange",
+                    "arn:aws:s3:::yaaralabs-client-data-exchange/*"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {"Key": "Owner", "Value": "vendor-liaison@yaaralabs.ai"},
+          {"Key": "Role", "Value": "ExternalContractor"},
+          {"Key": "HRStatus", "Value": "ACTIVE"},
+          {"Key": "VendorCompany", "Value": "Acme Data Services"},
+          {"Key": "ContractEndDate", "Value": "2026-01-10"}
+        ]
+      }
+    ],
+    "GroupDetailList": [
+      {"GroupName": "Admins", "GroupId": "AGPA3FOOBARAXAMPLE01", "Arn": "arn:aws:iam::123456789012:group/Admins", "CreateDate": "2022-10-01T00:00:00Z", "AttachedManagedPolicies": [{"PolicyName": "AdministratorAccess", "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"}], "GroupPolicyList": []},
+      {"GroupName": "Architects", "GroupId": "AGPA3FOOBARAXAMPLE02", "Arn": "arn:aws:iam::123456789012:group/Architects", "CreateDate": "2022-10-01T00:00:00Z", "AttachedManagedPolicies": [{"PolicyName": "ReadOnlyAccess", "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"}], "GroupPolicyList": []},
+      {"GroupName": "Engineers", "GroupId": "AGPA3FOOBARAXAMPLE03", "Arn": "arn:aws:iam::123456789012:group/Engineers", "CreateDate": "2022-10-01T00:00:00Z", "AttachedManagedPolicies": [], "GroupPolicyList": []},
+      {"GroupName": "InfraEngineers", "GroupId": "AGPA3FOOBARAXAMPLE04", "Arn": "arn:aws:iam::123456789012:group/InfraEngineers", "CreateDate": "2022-10-01T00:00:00Z", "AttachedManagedPolicies": [], "GroupPolicyList": []},
+      {"GroupName": "JuniorEngineers", "GroupId": "AGPA3FOOBARAXAMPLE05", "Arn": "arn:aws:iam::123456789012:group/JuniorEngineers", "CreateDate": "2022-10-01T00:00:00Z", "AttachedManagedPolicies": [], "GroupPolicyList": []},
+      {"GroupName": "QAReviewers", "GroupId": "AGPA3FOOBARAXAMPLE06", "Arn": "arn:aws:iam::123456789012:group/QAReviewers", "CreateDate": "2022-10-01T00:00:00Z", "AttachedManagedPolicies": [{"PolicyName": "ReadOnlyAccess", "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"}], "GroupPolicyList": []},
+      {"GroupName": "ExternalVendors", "GroupId": "AGPA3FOOBARAXAMPLE07", "Arn": "arn:aws:iam::123456789012:group/ExternalVendors", "CreateDate": "2022-10-01T00:00:00Z", "AttachedManagedPolicies": [], "GroupPolicyList": []}
+    ],
+    "RoleDetailList": [],
+    "Policies": [],
+    "IsTruncated": false,
+    "ResponseMetadata": {"RequestId": "4b6f8c1a-2e91-4c7e-9a3c-demo0000001", "HTTPStatusCode": 200}
+  },
+
+  "credential_report_collector": {
+    "_api": "iam.generate_credential_report() then iam.get_credential_report()",
+    "GeneratedTime": "2026-04-18T09:02:14Z",
+    "ReportFormat": "text/csv",
+    "Content_RawCSV": "user,arn,user_creation_time,password_enabled,password_last_used,password_last_changed,password_next_rotation,mfa_active,access_key_1_active,access_key_1_last_rotated,access_key_1_last_used_date,access_key_2_active,access_key_2_last_rotated,access_key_2_last_used_date\nusha.patel,arn:aws:iam::123456789012:user/usha.patel,2023-01-15T10:00:00+00:00,true,2026-04-17T14:22:31+00:00,2026-01-10T09:00:00+00:00,2026-07-10T09:00:00+00:00,true,true,2026-01-10T09:00:00+00:00,2026-04-18T08:30:00+00:00,false,N/A,N/A\nsridhar.raman,arn:aws:iam::123456789012:user/sridhar.raman,2023-03-01T09:00:00+00:00,true,2026-04-18T08:15:02+00:00,2025-11-20T09:00:00+00:00,2026-05-20T09:00:00+00:00,true,true,2025-11-20T09:00:00+00:00,2026-04-18T08:16:00+00:00,false,N/A,N/A\nsowmya.krishnan,arn:aws:iam::123456789012:user/sowmya.krishnan,2023-05-15T11:30:00+00:00,true,2026-04-17T10:45:00+00:00,2025-09-01T09:00:00+00:00,2026-03-01T09:00:00+00:00,false,true,2025-09-01T09:00:00+00:00,2026-04-17T10:46:00+00:00,false,N/A,N/A\nmurali.iyer,arn:aws:iam::123456789012:user/murali.iyer,2022-11-10T08:20:00+00:00,true,2026-03-05T11:20:00+00:00,2025-12-15T09:00:00+00:00,2026-06-15T09:00:00+00:00,true,true,2025-12-15T09:00:00+00:00,2026-03-05T11:21:00+00:00,false,N/A,N/A\nsubashini.rao,arn:aws:iam::123456789012:user/subashini.rao,2023-07-20T14:00:00+00:00,true,2026-04-16T09:30:00+00:00,2026-02-01T09:00:00+00:00,2026-08-01T09:00:00+00:00,true,true,2026-02-01T09:00:00+00:00,2026-04-16T09:30:00+00:00,false,N/A,N/A\nkarthik.menon,arn:aws:iam::123456789012:user/karthik.menon,2024-08-01T09:15:00+00:00,true,2026-04-15T16:00:00+00:00,2025-12-01T09:00:00+00:00,2026-06-01T09:00:00+00:00,true,true,2025-02-01T09:00:00+00:00,2026-04-15T16:05:00+00:00,false,N/A,N/A\nanurag.desai,arn:aws:iam::123456789012:user/anurag.desai,2024-09-15T10:30:00+00:00,true,2026-04-14T13:45:00+00:00,2026-01-15T09:00:00+00:00,2026-07-15T09:00:00+00:00,true,false,N/A,N/A,false,N/A,N/A\ngaurav.singh,arn:aws:iam::123456789012:user/gaurav.singh,2023-10-05T08:40:00+00:00,true,2026-04-13T11:10:00+00:00,2026-03-01T09:00:00+00:00,2026-09-01T09:00:00+00:00,true,false,N/A,N/A,false,N/A,N/A\nsuresh.kumar,arn:aws:iam::123456789012:user/suresh.kumar,2023-02-14T12:00:00+00:00,true,2026-04-18T07:00:00+00:00,2026-01-20T09:00:00+00:00,2026-07-20T09:00:00+00:00,true,true,2026-01-20T09:00:00+00:00,2026-04-18T07:02:00+00:00,false,N/A,N/A\nvendor.acme.external,arn:aws:iam::123456789012:user/external/vendor.acme.external,2025-01-10T07:00:00+00:00,true,2026-02-10T14:00:00+00:00,2025-07-10T07:00:00+00:00,2026-01-10T07:00:00+00:00,true,true,2025-07-10T07:00:00+00:00,2026-02-10T14:00:00+00:00,false,N/A,N/A",
+    "Content_Parsed": [
+      {"user": "usha.patel", "arn": "arn:aws:iam::123456789012:user/usha.patel", "user_creation_time": "2023-01-15T10:00:00Z", "password_enabled": true, "password_last_used": "2026-04-17T14:22:31Z", "password_last_changed": "2026-01-10T09:00:00Z", "password_next_rotation": "2026-07-10T09:00:00Z", "mfa_active": true, "access_key_1_active": true, "access_key_1_last_rotated": "2026-01-10T09:00:00Z", "access_key_1_last_used_date": "2026-04-18T08:30:00Z", "access_key_2_active": false},
+      {"user": "sridhar.raman", "arn": "arn:aws:iam::123456789012:user/sridhar.raman", "user_creation_time": "2023-03-01T09:00:00Z", "password_enabled": true, "password_last_used": "2026-04-18T08:15:02Z", "password_last_changed": "2025-11-20T09:00:00Z", "password_next_rotation": "2026-05-20T09:00:00Z", "mfa_active": true, "access_key_1_active": true, "access_key_1_last_rotated": "2025-11-20T09:00:00Z", "access_key_1_last_used_date": "2026-04-18T08:16:00Z", "access_key_2_active": false},
+      {"user": "sowmya.krishnan", "arn": "arn:aws:iam::123456789012:user/sowmya.krishnan", "user_creation_time": "2023-05-15T11:30:00Z", "password_enabled": true, "password_last_used": "2026-04-17T10:45:00Z", "password_last_changed": "2025-09-01T09:00:00Z", "password_next_rotation": "2026-03-01T09:00:00Z", "mfa_active": false, "access_key_1_active": true, "access_key_1_last_rotated": "2025-09-01T09:00:00Z", "access_key_1_last_used_date": "2026-04-17T10:46:00Z", "access_key_2_active": false},
+      {"user": "murali.iyer", "arn": "arn:aws:iam::123456789012:user/murali.iyer", "user_creation_time": "2022-11-10T08:20:00Z", "password_enabled": true, "password_last_used": "2026-03-05T11:20:00Z", "password_last_changed": "2025-12-15T09:00:00Z", "password_next_rotation": "2026-06-15T09:00:00Z", "mfa_active": true, "access_key_1_active": true, "access_key_1_last_rotated": "2025-12-15T09:00:00Z", "access_key_1_last_used_date": "2026-03-05T11:21:00Z", "access_key_2_active": false},
+      {"user": "subashini.rao", "arn": "arn:aws:iam::123456789012:user/subashini.rao", "user_creation_time": "2023-07-20T14:00:00Z", "password_enabled": true, "password_last_used": "2026-04-16T09:30:00Z", "password_last_changed": "2026-02-01T09:00:00Z", "password_next_rotation": "2026-08-01T09:00:00Z", "mfa_active": true, "access_key_1_active": true, "access_key_1_last_rotated": "2026-02-01T09:00:00Z", "access_key_1_last_used_date": "2026-04-16T09:30:00Z", "access_key_2_active": false},
+      {"user": "karthik.menon", "arn": "arn:aws:iam::123456789012:user/karthik.menon", "user_creation_time": "2024-08-01T09:15:00Z", "password_enabled": true, "password_last_used": "2026-04-15T16:00:00Z", "password_last_changed": "2025-12-01T09:00:00Z", "password_next_rotation": "2026-06-01T09:00:00Z", "mfa_active": true, "access_key_1_active": true, "access_key_1_last_rotated": "2025-02-01T09:00:00Z", "access_key_1_last_used_date": "2026-04-15T16:05:00Z", "access_key_2_active": false},
+      {"user": "anurag.desai", "arn": "arn:aws:iam::123456789012:user/anurag.desai", "user_creation_time": "2024-09-15T10:30:00Z", "password_enabled": true, "password_last_used": "2026-04-14T13:45:00Z", "password_last_changed": "2026-01-15T09:00:00Z", "password_next_rotation": "2026-07-15T09:00:00Z", "mfa_active": true, "access_key_1_active": false, "access_key_2_active": false},
+      {"user": "gaurav.singh", "arn": "arn:aws:iam::123456789012:user/gaurav.singh", "user_creation_time": "2023-10-05T08:40:00Z", "password_enabled": true, "password_last_used": "2026-04-13T11:10:00Z", "password_last_changed": "2026-03-01T09:00:00Z", "password_next_rotation": "2026-09-01T09:00:00Z", "mfa_active": true, "access_key_1_active": false, "access_key_2_active": false},
+      {"user": "suresh.kumar", "arn": "arn:aws:iam::123456789012:user/suresh.kumar", "user_creation_time": "2023-02-14T12:00:00Z", "password_enabled": true, "password_last_used": "2026-04-18T07:00:00Z", "password_last_changed": "2026-01-20T09:00:00Z", "password_next_rotation": "2026-07-20T09:00:00Z", "mfa_active": true, "access_key_1_active": true, "access_key_1_last_rotated": "2026-01-20T09:00:00Z", "access_key_1_last_used_date": "2026-04-18T07:02:00Z", "access_key_2_active": false},
+      {"user": "vendor.acme.external", "arn": "arn:aws:iam::123456789012:user/external/vendor.acme.external", "user_creation_time": "2025-01-10T07:00:00Z", "password_enabled": true, "password_last_used": "2026-02-10T14:00:00Z", "password_last_changed": "2025-07-10T07:00:00Z", "password_next_rotation": "2026-01-10T07:00:00Z", "mfa_active": true, "access_key_1_active": true, "access_key_1_last_rotated": "2025-07-10T07:00:00Z", "access_key_1_last_used_date": "2026-02-10T14:00:00Z", "access_key_2_active": false}
+    ]
+  },
+
+  "mfa_device_collector": {
+    "_api": "iam.list_mfa_devices(UserName=...) -- called per user, aggregated here",
+    "MFADevicesByUser": {
+      "usha.patel": {
+        "MFADevices": [
+          {"UserName": "usha.patel", "SerialNumber": "arn:aws:iam::123456789012:mfa/usha.patel", "EnableDate": "2023-01-15T10:30:00Z", "DeviceType": "virtual"}
+        ],
+        "IsTruncated": false
+      },
+      "sridhar.raman": {
+        "MFADevices": [
+          {"UserName": "sridhar.raman", "SerialNumber": "GAHT12345678", "EnableDate": "2023-03-01T09:45:00Z", "DeviceType": "hardware-u2f"}
+        ],
+        "IsTruncated": false
+      },
+      "sowmya.krishnan": {
+        "MFADevices": [],
+        "IsTruncated": false
+      },
+      "murali.iyer": {
+        "MFADevices": [
+          {"UserName": "murali.iyer", "SerialNumber": "arn:aws:iam::123456789012:mfa/murali.iyer", "EnableDate": "2022-11-10T08:50:00Z", "DeviceType": "virtual"}
+        ],
+        "IsTruncated": false
+      },
+      "subashini.rao": {
+        "MFADevices": [
+          {"UserName": "subashini.rao", "SerialNumber": "arn:aws:iam::123456789012:mfa/subashini.rao", "EnableDate": "2023-07-20T14:30:00Z", "DeviceType": "virtual"}
+        ],
+        "IsTruncated": false
+      },
+      "karthik.menon": {
+        "MFADevices": [
+          {"UserName": "karthik.menon", "SerialNumber": "arn:aws:iam::123456789012:mfa/karthik.menon", "EnableDate": "2024-08-01T09:45:00Z", "DeviceType": "virtual"}
+        ],
+        "IsTruncated": false
+      },
+      "anurag.desai": {
+        "MFADevices": [
+          {"UserName": "anurag.desai", "SerialNumber": "arn:aws:iam::123456789012:mfa/anurag.desai", "EnableDate": "2024-09-15T11:00:00Z", "DeviceType": "virtual"}
+        ],
+        "IsTruncated": false
+      },
+      "gaurav.singh": {
+        "MFADevices": [
+          {"UserName": "gaurav.singh", "SerialNumber": "arn:aws:iam::123456789012:mfa/gaurav.singh", "EnableDate": "2023-10-05T09:00:00Z", "DeviceType": "virtual"}
+        ],
+        "IsTruncated": false
+      },
+      "suresh.kumar": {
+        "MFADevices": [
+          {"UserName": "suresh.kumar", "SerialNumber": "arn:aws:iam::123456789012:mfa/suresh.kumar", "EnableDate": "2023-02-14T12:30:00Z", "DeviceType": "virtual"}
+        ],
+        "IsTruncated": false
+      },
+      "vendor.acme.external": {
+        "MFADevices": [
+          {"UserName": "vendor.acme.external", "SerialNumber": "arn:aws:iam::123456789012:mfa/vendor.acme.external", "EnableDate": "2025-01-10T07:30:00Z", "DeviceType": "virtual"}
+        ],
+        "IsTruncated": false
+      }
+    }
+  },
+
+  "cloudtrail_activity_collector": {
+    "_api": "cloudtrail.lookup_events(StartTime=2026-04-11, EndTime=2026-04-18)",
+    "Events": [
+      {
+        "EventId": "ct-0001-demo",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-17T14:22:31Z",
+        "EventSource": "signin.amazonaws.com",
+        "Username": "usha.patel",
+        "Resources": [],
+        "CloudTrailEvent": "{\"eventVersion\":\"1.09\",\"userIdentity\":{\"type\":\"IAMUser\",\"principalId\":\"AIDA3FOOBARAXAMPLE01\",\"arn\":\"arn:aws:iam::123456789012:user/usha.patel\",\"userName\":\"usha.patel\"},\"eventTime\":\"2026-04-17T14:22:31Z\",\"eventSource\":\"signin.amazonaws.com\",\"eventName\":\"ConsoleLogin\",\"awsRegion\":\"ap-south-1\",\"sourceIPAddress\":\"203.0.113.45\",\"responseElements\":{\"ConsoleLogin\":\"Success\"},\"additionalEventData\":{\"MFAUsed\":\"Yes\",\"LoginTo\":\"https://console.aws.amazon.com/\"}}"
+      },
+      {
+        "EventId": "ct-0002-demo",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-18T08:15:02Z",
+        "EventSource": "signin.amazonaws.com",
+        "Username": "sridhar.raman",
+        "Resources": [],
+        "CloudTrailEvent": "{\"eventName\":\"ConsoleLogin\",\"additionalEventData\":{\"MFAUsed\":\"Yes\"},\"responseElements\":{\"ConsoleLogin\":\"Success\"},\"sourceIPAddress\":\"203.0.113.22\"}"
+      },
+      {
+        "EventId": "ct-0003-demo",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-17T10:45:00Z",
+        "EventSource": "signin.amazonaws.com",
+        "Username": "sowmya.krishnan",
+        "Resources": [],
+        "CloudTrailEvent": "{\"eventName\":\"ConsoleLogin\",\"additionalEventData\":{\"MFAUsed\":\"No\"},\"responseElements\":{\"ConsoleLogin\":\"Success\"},\"sourceIPAddress\":\"203.0.113.77\"}"
+      },
+      {
+        "EventId": "ct-0004-demo",
+        "EventName": "PutBucketPolicy",
+        "EventTime": "2026-04-17T10:52:18Z",
+        "EventSource": "s3.amazonaws.com",
+        "Username": "sowmya.krishnan",
+        "Resources": [{"ResourceType": "AWS::S3::Bucket", "ResourceName": "yaaralabs-analytics-raw"}],
+        "CloudTrailEvent": "{\"eventName\":\"PutBucketPolicy\",\"requestParameters\":{\"bucketName\":\"yaaralabs-analytics-raw\"},\"awsRegion\":\"ap-south-1\"}"
+      },
+      {
+        "EventId": "ct-0005-demo",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-15T16:00:00Z",
+        "EventSource": "signin.amazonaws.com",
+        "Username": "karthik.menon",
+        "Resources": [],
+        "CloudTrailEvent": "{\"eventName\":\"ConsoleLogin\",\"additionalEventData\":{\"MFAUsed\":\"Yes\"},\"responseElements\":{\"ConsoleLogin\":\"Success\"}}"
+      },
+      {
+        "EventId": "ct-0006-demo",
+        "EventName": "CreateUser",
+        "EventTime": "2026-04-15T16:47:02Z",
+        "EventSource": "iam.amazonaws.com",
+        "Username": "karthik.menon",
+        "Resources": [{"ResourceType": "AWS::IAM::User", "ResourceName": "test-debug-user"}],
+        "CloudTrailEvent": "{\"eventName\":\"CreateUser\",\"requestParameters\":{\"userName\":\"test-debug-user\"},\"awsRegion\":\"us-east-1\"}"
+      },
+      {
+        "EventId": "ct-0007-demo",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-18T07:00:00Z",
+        "EventSource": "signin.amazonaws.com",
+        "Username": "suresh.kumar",
+        "Resources": [],
+        "CloudTrailEvent": "{\"eventName\":\"ConsoleLogin\",\"additionalEventData\":{\"MFAUsed\":\"Yes\"},\"responseElements\":{\"ConsoleLogin\":\"Success\"}}"
+      },
+      {
+        "EventId": "ct-0008-demo",
+        "EventName": "CreateAccessKey",
+        "EventTime": "2026-04-18T07:14:27Z",
+        "EventSource": "iam.amazonaws.com",
+        "Username": "suresh.kumar",
+        "Resources": [{"ResourceType": "AWS::IAM::User", "ResourceName": "svc-deploy-agent"}],
+        "CloudTrailEvent": "{\"eventName\":\"CreateAccessKey\",\"requestParameters\":{\"userName\":\"svc-deploy-agent\"},\"awsRegion\":\"ap-south-1\"}"
+      },
+      {
+        "EventId": "ct-0009-demo",
+        "EventName": "AttachUserPolicy",
+        "EventTime": "2026-04-18T07:16:08Z",
+        "EventSource": "iam.amazonaws.com",
+        "Username": "suresh.kumar",
+        "Resources": [{"ResourceType": "AWS::IAM::User", "ResourceName": "svc-deploy-agent"}, {"ResourceType": "AWS::IAM::Policy", "ResourceName": "AdministratorAccess"}],
+        "CloudTrailEvent": "{\"eventName\":\"AttachUserPolicy\",\"requestParameters\":{\"userName\":\"svc-deploy-agent\",\"policyArn\":\"arn:aws:iam::aws:policy/AdministratorAccess\"}}"
+      },
+      {
+        "EventId": "ct-0010-demo",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-16T09:30:00Z",
+        "EventSource": "signin.amazonaws.com",
+        "Username": "subashini.rao",
+        "Resources": [],
+        "CloudTrailEvent": "{\"eventName\":\"ConsoleLogin\",\"additionalEventData\":{\"MFAUsed\":\"Yes\"},\"responseElements\":{\"ConsoleLogin\":\"Success\"}}"
+      },
+      {
+        "EventId": "ct-0011-demo",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-14T13:45:00Z",
+        "EventSource": "signin.amazonaws.com",
+        "Username": "anurag.desai",
+        "Resources": [],
+        "CloudTrailEvent": "{\"eventName\":\"ConsoleLogin\",\"additionalEventData\":{\"MFAUsed\":\"Yes\"},\"responseElements\":{\"ConsoleLogin\":\"Success\"}}"
+      },
+      {
+        "EventId": "ct-0012-demo",
+        "EventName": "ConsoleLogin",
+        "EventTime": "2026-04-13T11:10:00Z",
+        "EventSource": "signin.amazonaws.com",
+        "Username": "gaurav.singh",
+        "Resources": [],
+        "CloudTrailEvent": "{\"eventName\":\"ConsoleLogin\",\"additionalEventData\":{\"MFAUsed\":\"Yes\"},\"responseElements\":{\"ConsoleLogin\":\"Success\"}}"
+      }
+    ],
+    "NextToken": null
+  },
+
+  "access_analyzer_collector": {
+    "_api": "accessanalyzer.list_findings(analyzerArn=...)",
+    "analyzerArn": "arn:aws:access-analyzer:ap-south-1:123456789012:analyzer/yaaralabs-org-analyzer",
+    "findings": [
+      {
+        "id": "aa-0001-demo",
+        "analyzedResource": "arn:aws:s3:::yaaralabs-client-data-exchange",
+        "resourceType": "AWS::S3::Bucket",
+        "condition": {},
+        "action": ["s3:GetObject", "s3:ListBucket"],
+        "principal": {"AWS": "*"},
+        "isPublic": true,
+        "status": "ACTIVE",
+        "createdAt": "2026-04-10T02:14:00Z",
+        "updatedAt": "2026-04-18T02:14:00Z",
+        "analyzedAt": "2026-04-18T02:14:00Z",
+        "resourceOwnerAccount": "123456789012",
+        "sources": [{"type": "BUCKET_ACL"}],
+        "_linked_principal_username": "vendor.acme.external",
+        "_finding_description": "S3 bucket accessible to any AWS principal via bucket policy. Bucket is used by external vendor for client data exchange."
+      },
+      {
+        "id": "aa-0002-demo",
+        "analyzedResource": "arn:aws:iam::123456789012:role/externalAuditTrust",
+        "resourceType": "AWS::IAM::Role",
+        "condition": {"aws:PrincipalAccount": ["999888777666"]},
+        "action": ["sts:AssumeRole"],
+        "principal": {"AWS": "arn:aws:iam::999888777666:root"},
+        "isPublic": false,
+        "status": "ACTIVE",
+        "createdAt": "2026-04-05T10:00:00Z",
+        "updatedAt": "2026-04-18T02:14:00Z",
+        "analyzedAt": "2026-04-18T02:14:00Z",
+        "resourceOwnerAccount": "123456789012",
+        "sources": [{"type": "POLICY"}],
+        "_linked_principal_username": null,
+        "_finding_description": "IAM role grants cross-account assume-role to external AWS account 999888777666 (not in known trusted accounts list)."
+      },
+      {
+        "id": "aa-0003-demo",
+        "analyzedResource": "arn:aws:lambda:ap-south-1:123456789012:function:invoice-webhook-public",
+        "resourceType": "AWS::Lambda::Function",
+        "condition": {},
+        "action": ["lambda:InvokeFunction"],
+        "principal": {"Service": "apigateway.amazonaws.com"},
+        "isPublic": false,
+        "status": "RESOLVED",
+        "createdAt": "2025-12-01T09:00:00Z",
+        "updatedAt": "2026-02-15T09:00:00Z",
+        "analyzedAt": "2026-04-18T02:14:00Z",
+        "resourceOwnerAccount": "123456789012",
+        "sources": [{"type": "POLICY"}],
+        "_linked_principal_username": null,
+        "_finding_description": "Lambda permits invocation from API Gateway (expected integration). Reviewed and marked resolved by owner."
+      }
+    ],
+    "NextToken": null
+  }
+}
