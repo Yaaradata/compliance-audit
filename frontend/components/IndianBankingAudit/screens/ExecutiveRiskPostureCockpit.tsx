@@ -5,6 +5,9 @@ import {
   aggregateAITES,
   aggregateARS,
   aggregateCES,
+  aggregateKRIBreachRatePct,
+  aggregateOpenIncidents30d,
+  aggregateOverdueOpenPreventiveActions,
   aggregateRES,
   aggregateRTS,
   aggregateSAES,
@@ -13,9 +16,13 @@ import {
   getInsight,
   getRiskDomain,
   getSeniorManager,
+  incidents,
   inspectionLenses,
   issues,
+  pacNotes,
   pendingAIInsights,
+  preventiveActions,
+  rcas,
   reportingClocks,
   riskDomains,
   risks,
@@ -27,25 +34,58 @@ import {
   SectionCard,
   SeverityBadge,
   Stat,
-  StatusBadge,
   TrendArrow,
 } from '../primitives';
-import { bandBg, bandFromScore, bandText } from '../theme';
-import type { OpenDrawer, SetActiveScreen } from '../types';
+import { bandBg, bandFromScore, bandText, oriCardHover, oriFocusRing } from '../theme';
+import type { OpenDrawer, OrmCrossNavIntent, SetActiveScreen } from '../types';
+
+const INC_CLOSED_HEART = new Set(['closed', 'closed_no_loss']);
+const RCA_AWAIT_ORM = new Set(['under_review', 'hod_approval', 'spoc_review']);
+
+function weekStartInclusive6Local() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 6);
+  return d.getTime();
+}
+
+function parseDiscAgg(s: string) {
+  return new Date(s.includes('T') ? s : `${s}T12:00:00`).getTime();
+}
 
 export function ExecutiveRiskPostureCockpit({
   openDrawer,
   setActiveScreen,
+  goOrm,
 }: {
   openDrawer: OpenDrawer;
   setActiveScreen: SetActiveScreen;
+  goOrm: (intent: OrmCrossNavIntent) => void;
 }) {
   const res = aggregateRES();
-  const ars = aggregateARS();
   const ces = aggregateCES();
+  const kriBreachPct = aggregateKRIBreachRatePct();
+  const openIncidents30d = aggregateOpenIncidents30d();
+  const overdueOpenPa = aggregateOverdueOpenPreventiveActions();
+  const ars = aggregateARS();
   const rts = aggregateRTS();
   const saes = aggregateSAES();
   const aites = aggregateAITES();
+
+  const tWeek = weekStartInclusive6Local();
+  const criticalIncidents7d = incidents.filter(
+    (i) =>
+      !INC_CLOSED_HEART.has(i.status) &&
+      (i.severity === 'high' || i.severity === 'critical') &&
+      parseDiscAgg(i.discovered_date) >= tWeek
+  ).length;
+
+  const rcasAwaitingApproval = rcas.filter((r) => RCA_AWAIT_ORM.has(r.status || '')).length;
+
+  const openPaIds = new Set(preventiveActions.filter((p) => p.status === 'open').map((p) => p.preventive_action_id));
+  const pacNotesBlocked = pacNotes.filter((pn) =>
+    (pn.blocking_preventive_action_ids || []).some((id) => openPaIds.has(id))
+  ).length;
 
   const top5Issues = [...issues]
     .sort((a, b) => {
@@ -59,7 +99,6 @@ export function ExecutiveRiskPostureCockpit({
 
   const atRiskClocks = reportingClocks.filter((c) => c.current_status === 'at_risk');
 
-  // Risk by domain
   const domainRisks: Record<string, typeof risks> = {};
   riskDomains.forEach((d) => {
     domainRisks[d.domain_id] = risks.filter((r) => r.domain_id === d.domain_id);
@@ -67,17 +106,35 @@ export function ExecutiveRiskPostureCockpit({
 
   return (
     <div className="space-y-5">
-      {/* Header strip — top-line KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Stat k="RES (residual)" v={res} sub="across 9 domains" tone={res >= 80 ? 'emerald' : res >= 60 ? 'amber' : 'rose'} />
-        <Stat k="ARS (audit ready)" v={ars} sub="weighted across packs" tone={ars >= 85 ? 'emerald' : ars >= 70 ? 'amber' : 'rose'} />
         <Stat k="CES (controls)" v={ces ?? '—'} sub="weighted across active controls" tone={(ces ?? 0) >= 80 ? 'emerald' : (ces ?? 0) >= 60 ? 'amber' : 'rose'} />
-        <Stat k="RTS (reporting)" v={`${rts}%`} sub="on-time submissions" tone={rts >= 95 ? 'emerald' : rts >= 85 ? 'amber' : 'rose'} />
-        <Stat k="SAES (sr. mgmt)" v={saes} sub="senior accountability evidence" tone={saes >= 85 ? 'emerald' : saes >= 70 ? 'amber' : 'rose'} />
-        <Stat k="AITES (AI trust)" v={aites} sub="model-validated decisions" tone={aites >= 85 ? 'emerald' : aites >= 70 ? 'amber' : 'rose'} />
+        <Stat
+          k="KRI breach rate"
+          v={`${kriBreachPct}%`}
+          sub="Latest obs ≥ amber threshold"
+          tone={kriBreachPct <= 15 ? 'emerald' : kriBreachPct <= 35 ? 'amber' : 'rose'}
+        />
+        <Stat
+          k="Open incidents (30d)"
+          v={openIncidents30d}
+          sub="Not closed · discovered in window"
+          tone={openIncidents30d <= 2 ? 'emerald' : openIncidents30d <= 6 ? 'amber' : 'rose'}
+        />
+        <Stat
+          k="Overdue preventive actions"
+          v={overdueOpenPa}
+          sub="Status open · target in the past"
+          tone={overdueOpenPa === 0 ? 'emerald' : overdueOpenPa <= 4 ? 'amber' : 'rose'}
+        />
+        <Stat
+          k="Inspection readiness"
+          v={ars}
+          sub="ARS · weighted across packs"
+          tone={ars >= 85 ? 'emerald' : ars >= 70 ? 'amber' : 'rose'}
+        />
       </div>
 
-      {/* Risk Domain Heatmap (Zone A) */}
       <SectionCard
         title="Risk Domain Heatmap"
         subtitle="9 risk domains × inherent · residual · trend · RES — click any domain to drill into failing controls"
@@ -99,7 +156,7 @@ export function ExecutiveRiskPostureCockpit({
                 key={d.domain_id}
                 type="button"
                 onClick={() => rs[0] && openDrawer('risk', rs[0].risk_id, 'riskPosture')}
-                className={`rounded-xl border p-3 text-left transition hover:shadow-md ${bandBg(band)}`}
+                className={`rounded-xl border p-3 text-left shadow-sm ${bandBg(band)} ${oriCardHover} ${oriFocusRing}`}
               >
                 <div className="mb-1 flex items-start justify-between">
                   <div>
@@ -108,7 +165,9 @@ export function ExecutiveRiskPostureCockpit({
                   </div>
                   <div className="text-right">
                     <div className={`text-2xl font-bold ${bandText(band)}`}>{avgRES}</div>
-                    <div className="text-[10px] opacity-70">RES · <TrendArrow trend={trend} /></div>
+                    <div className="text-[10px] opacity-70">
+                      RES · <TrendArrow trend={trend} />
+                    </div>
                   </div>
                 </div>
                 <div className="mt-1 text-[10px] opacity-70">
@@ -121,14 +180,55 @@ export function ExecutiveRiskPostureCockpit({
         </div>
       </SectionCard>
 
-      {/* Reporting Clock Strip (at-risk only) */}
+      <SectionCard title="Governance health" subtitle="Reporting timeliness · senior accountability evidence · AI trust (secondary lens)">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <Stat size="compact" k="RTS (reporting)" v={`${rts}%`} sub="on-time submissions" tone={rts >= 95 ? 'emerald' : rts >= 85 ? 'amber' : 'rose'} />
+          <Stat size="compact" k="SAES (sr. mgmt)" v={saes} sub="senior accountability evidence" tone={saes >= 85 ? 'emerald' : saes >= 70 ? 'amber' : 'rose'} />
+          <Stat size="compact" k="AITES (AI trust)" v={aites} sub="model-validated decisions" tone={aites >= 85 ? 'emerald' : aites >= 70 ? 'amber' : 'rose'} />
+        </div>
+      </SectionCard>
+
+      <SectionCard title="This week's ORM heartbeat" subtitle="Deep-links apply filters on the destination screen">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => goOrm({ target: 'incidentRegister', preset: 'critical_incidents_7d' })}
+            className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm ${oriCardHover} ${oriFocusRing}`}
+          >
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Critical incidents (7d)</div>
+            <div className="mt-1 text-2xl font-bold text-rose-800">{criticalIncidents7d}</div>
+            <div className="mt-2 text-xs text-indigo-700 underline">Open incident register →</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => goOrm({ target: 'rcaWorkspace', preset: 'awaiting_approval' })}
+            className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm ${oriCardHover} ${oriFocusRing}`}
+          >
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">RCAs awaiting approval</div>
+            <div className="mt-1 text-2xl font-bold text-amber-900">{rcasAwaitingApproval}</div>
+            <div className="mt-2 text-xs text-indigo-700 underline">Open RCA workspace →</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => goOrm({ target: 'pacNoteApprovals', preset: 'blocked' })}
+            className={`rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm ${oriCardHover} ${oriFocusRing}`}
+          >
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">PAC notes blocked</div>
+            <div className="mt-1 text-2xl font-bold text-violet-900">{pacNotesBlocked}</div>
+            <div className="mt-2 text-xs text-indigo-700 underline">Open PAC approvals →</div>
+          </button>
+        </div>
+      </SectionCard>
+
       {atRiskClocks.length > 0 && (
         <SectionCard title="Reporting Clocks · at-risk" subtitle="STR / CTR / CSITE / FMR / CIMS — only clocks needing attention">
           <div className="flex flex-wrap gap-2">
             {atRiskClocks.map((c) => (
               <div key={c.clock_id} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs">
                 <div className="font-semibold text-amber-900">{c.clock_label}</div>
-                <div className="font-mono text-[10px] text-amber-700">{c.clock_id} · {c.deadline_spec}</div>
+                <div className="font-mono text-[10px] text-amber-700">
+                  {c.clock_id} · {c.deadline_spec}
+                </div>
               </div>
             ))}
           </div>
@@ -136,7 +236,6 @@ export function ExecutiveRiskPostureCockpit({
       )}
 
       <div className="grid items-start gap-4 lg:grid-cols-3">
-        {/* Issue Watchlist (Zone C) */}
         <div className="lg:col-span-2 [&>section]:h-[420px]">
           <SectionCard title="Issue Watchlist" subtitle="Top-5 ranked by severity × ageing × RBI MRA flag">
             <div className="h-[320px] overflow-y-auto">
@@ -170,7 +269,9 @@ export function ExecutiveRiskPostureCockpit({
                         </td>
                         <td className="px-2 py-2 font-mono text-[10px] text-slate-600">{ctrl?.control_id || '—'}</td>
                         <td className="px-2 py-2 text-[11px] text-slate-700">{sm?.role || iss.accountable_senior_manager_id}</td>
-                        <td className="px-2 py-2"><SeverityBadge severity={iss.severity} /></td>
+                        <td className="px-2 py-2">
+                          <SeverityBadge severity={iss.severity} />
+                        </td>
                         <td className="px-2 py-2 text-right text-[11px] text-slate-600">{iss.ageing_days}d</td>
                       </tr>
                     );
@@ -181,10 +282,9 @@ export function ExecutiveRiskPostureCockpit({
           </SectionCard>
         </div>
 
-        {/* Inspection Readiness Snapshot (Zone D) */}
         <div className="lg:col-span-1 [&>section]:h-[420px]">
           <SectionCard
-            title="Inspection Readiness"
+            title="Supervisory readiness"
             subtitle="ARS per lens — click for pack view"
             actions={
               <button type="button" className="text-xs font-semibold text-indigo-600" onClick={() => setActiveScreen('inspectionReadiness')}>
@@ -204,7 +304,7 @@ export function ExecutiveRiskPostureCockpit({
                     key={lens.lens_id}
                     type="button"
                     onClick={() => packsForLens[0] && openDrawer('auditPack', packsForLens[0].audit_pack_id, 'riskPosture')}
-                    className="flex min-h-[64px] w-full items-start justify-between gap-2 rounded border border-slate-200 px-2.5 py-2 text-left hover:border-indigo-300"
+                    className={`flex min-h-[64px] w-full items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left shadow-sm ${oriCardHover} ${oriFocusRing}`}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-medium leading-tight text-slate-900">{lens.label}</div>
@@ -223,13 +323,16 @@ export function ExecutiveRiskPostureCockpit({
         </div>
       </div>
 
-      {/* Senior Accountability + AI Insight Panel */}
       <div className="grid items-start gap-4 lg:grid-cols-3">
         <div className="lg:col-span-1">
           <SectionCard
             title="Senior Accountability Snapshot"
             subtitle="SAES × open issues · click any to open ledger"
-            actions={<button type="button" className="text-xs font-semibold text-indigo-600" onClick={() => setActiveScreen('accountability')}>Open ledger →</button>}
+            actions={
+              <button type="button" className="text-xs font-semibold text-indigo-600" onClick={() => setActiveScreen('accountability')}>
+                Open ledger →
+              </button>
+            }
           >
             <div className="grid grid-cols-2 gap-2">
               {seniorManagers.slice(0, 6).map((sm) => {
@@ -255,7 +358,7 @@ export function ExecutiveRiskPostureCockpit({
 
         <div className="lg:col-span-2">
           <SectionCard
-            title="AI insights · this week"
+            title="AI / predictive signals · this week"
             subtitle="High-confidence signals touching your risk surface"
             actions={
               <button type="button" className="text-xs font-semibold text-indigo-600" onClick={() => setActiveScreen('aiInsights')}>

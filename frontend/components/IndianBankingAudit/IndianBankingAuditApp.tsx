@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   MainNavigation,
   PERSONA_DEFAULT_SCREEN,
+  SCREEN_FUNCTIONAL_SUBTITLE,
   ScreenContainer,
   TopBar,
   type PersonaCode,
@@ -11,7 +12,7 @@ import {
 } from './AppShell';
 import { DetailDrawer } from './DetailDrawer';
 import { auditPacks, controls, screens, testExecutions } from './dataModel';
-import type { DrawerEntityType, DrawerState } from './types';
+import type { DrawerEntityType, DrawerState, DrillFromDrawer, OrmCrossNavIntent } from './types';
 import { initialDrawer } from './types';
 
 import { AccountabilityLedger } from './screens/AccountabilityLedger';
@@ -19,15 +20,25 @@ import { AiInsightsReviewQueue } from './screens/AiInsightsReviewQueue';
 import { ControlDrillDown } from './screens/ControlDrillDown';
 import { ControlUniverse } from './screens/ControlUniverse';
 import { EvidenceWorkbench } from './screens/EvidenceWorkbench';
+import { IncidentRegister } from './screens/IncidentRegister';
 import { ExecutiveRiskPostureCockpit } from './screens/ExecutiveRiskPostureCockpit';
 import { InspectionReadiness } from './screens/InspectionReadiness';
 import { IssueRemediationBoard } from './screens/IssueRemediationBoard';
+import { KriMonitoring } from './screens/KriMonitoring';
+import { LossDataRegister } from './screens/LossDataRegister';
 import { ObligationCoverageMap } from './screens/ObligationCoverageMap';
 import { PopulationTesting } from './screens/PopulationTesting';
 import { ProcessHealth } from './screens/ProcessHealth';
+import { RcaWorkspace } from './screens/RcaWorkspace';
+import { RcsaWorkspace } from './screens/RcsaWorkspace';
+import { RiskRegister } from './screens/RiskRegister';
 import { SourceLineagePage } from './screens/SourceLineagePage';
 import { WhatChangedThisWeek } from './screens/WhatChangedThisWeek';
+import { PacNoteApprovals } from './screens/PacNoteApprovals';
 import { WorkpaperAuditPackBuilder } from './screens/WorkpaperAuditPackBuilder';
+import { DemoModeBar } from './DemoModeBar';
+import { DEMO_STEP_COUNT, DEMO_STEPS, DEMO_STORY } from './demoGuidedStory';
+import { OriDemoProvider, type OriDemoUiHints } from './OriDemoContext';
 
 export default function IndianBankingAuditApp() {
   const [activePersona, setActivePersonaState] = useState<PersonaCode>('cro');
@@ -38,6 +49,45 @@ export default function IndianBankingAuditApp() {
   const [selectedControlId, setSelectedControlId] = useState<string>(controls[0]?.control_id || '');
   const [selectedTestId, setSelectedTestId] = useState<string>(testExecutions[0]?.test_id || '');
   const [, setSelectedPackId] = useState<string>(auditPacks[0]?.audit_pack_id || '');
+  const [selectedRcaId, setSelectedRcaId] = useState<string | null>(null);
+  const [ormCrossNav, setOrmCrossNav] = useState<OrmCrossNavIntent | null>(null);
+
+  const [demoMode, setDemoMode] = useState(false);
+  const [demoStep, setDemoStep] = useState(1);
+
+  const exitDemo = useCallback(() => {
+    setDemoMode(false);
+    setDemoStep(1);
+    setDrawer(initialDrawer());
+    setSelectedRcaId(null);
+    setOrmCrossNav(null);
+    setActivePersonaState('cro');
+    setActiveScreen('riskPosture');
+  }, []);
+
+  const startGuidedDemo = useCallback(() => {
+    setOrmCrossNav(null);
+    setDrawer(initialDrawer());
+    setSelectedRcaId(null);
+    setActivePersonaState('cro');
+    setActiveScreen('riskPosture');
+    setDemoStep(1);
+    setDemoMode(true);
+  }, []);
+
+  const consumeOrmCrossNav = useCallback(() => setOrmCrossNav(null), []);
+
+  const goOrm = useCallback(
+    (intent: OrmCrossNavIntent) => {
+      if (demoMode) {
+        exitDemo();
+        return;
+      }
+      setOrmCrossNav(intent);
+      setActiveScreen(intent.target);
+    },
+    [demoMode, exitDemo]
+  );
 
   // Switching persona routes user to their default home
   const setActivePersona = useCallback((code: PersonaCode) => {
@@ -60,6 +110,11 @@ export default function IndianBankingAuditApp() {
   );
 
   const closeDrawer = useCallback(() => setDrawer(initialDrawer()), []);
+
+  const onOpenRcaWorkspace = useCallback((rcaId: string) => {
+    setSelectedRcaId(rcaId);
+    setActiveScreen('rcaWorkspace');
+  }, []);
 
   const drillFromDrawer = useCallback(
     (entityType: DrawerEntityType, entityId: string) => {
@@ -110,73 +165,215 @@ export default function IndianBankingAuditApp() {
     }
   }, [activeScreen, selectedControlId, selectedTestId]);
 
-  const screenMeta = useMemo(() => {
-    const s = screens.find((sc) => sc.code === activeScreen);
+  useEffect(() => {
+    if (activeScreen !== 'rcaWorkspace' && !demoMode) setSelectedRcaId(null);
+  }, [activeScreen, demoMode]);
+
+  const demoHints: OriDemoUiHints | null = useMemo(() => {
+    if (!demoMode) return null;
+    const minTs = Date.now() - 30 * 86400000;
     return {
-      title: s?.title || 'IndianBankingAudit',
-      subtitle: s ? `${s.screen_id} · answers ${s.persona_question_answered} · anchor ${s.anchor_entity}` : undefined,
+      step: demoStep,
+      scrollToKriId: demoStep === 2 ? DEMO_STORY.kriId : null,
+      incidentFilter:
+        demoStep === 3 || demoStep === 4 ? { incidentTypes: ['operational_loss'], minDiscoveredTs: minTs } : null,
+      forcedPacNoteId: demoStep === 6 ? DEMO_STORY.pacNoteId : null,
+      scrollPacBlocking: demoStep === 6,
+      highlightPreventiveActionId: demoStep === 7 ? DEMO_STORY.preventiveActionIds[0] : null,
+    };
+  }, [demoMode, demoStep]);
+
+  useEffect(() => {
+    if (!demoMode) return;
+    const cfg = DEMO_STEPS[demoStep - 1];
+    if (!cfg) return;
+    setActivePersonaState(cfg.persona);
+    setActiveScreen(cfg.screen as ScreenCode);
+    if (demoStep === 5 || demoStep === 7) {
+      setSelectedRcaId(DEMO_STORY.rcaId);
+    } else if (demoStep !== 6) {
+      setSelectedRcaId(null);
+    }
+    if (demoStep !== 4) {
+      setDrawer(initialDrawer());
+    }
+  }, [demoMode, demoStep]);
+
+  useEffect(() => {
+    if (!demoMode || demoStep !== 4) return;
+    const t = window.setTimeout(() => {
+      setDrawer({
+        isOpen: true,
+        entityType: 'incident',
+        entityId: DEMO_STORY.incidentId,
+        sourceScreen: 'incidentRegister',
+        drillPath: [],
+      });
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [demoMode, demoStep]);
+
+  useEffect(() => {
+    if (!demoMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        exitDemo();
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [demoMode, exitDemo]);
+
+  const screenMeta = useMemo(() => {
+    const list = Array.isArray(screens) ? screens : [];
+    const s = list.find((sc) => sc.code === activeScreen);
+    const strap = SCREEN_FUNCTIONAL_SUBTITLE[activeScreen];
+    return {
+      title: s?.title || 'Indian Banking Audit',
+      subtitle: strap || undefined,
     };
   }, [activeScreen]);
 
+  const splitFillLayout = activeScreen === 'rcaWorkspace' || activeScreen === 'pacNoteApprovals';
+
   return (
-    <div className="flex h-screen flex-col bg-slate-100 text-slate-900">
-      <TopBar activePersona={activePersona} setActivePersona={setActivePersona} activeScreen={activeScreen} />
-      <div className="flex flex-1 overflow-hidden">
-        <MainNavigation activePersona={activePersona} activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
-        <main className="flex-1 overflow-y-auto">
-          <ScreenContainer title={screenMeta.title} subtitle={screenMeta.subtitle} persona={activePersona}>
-            {renderScreen({
-              activeScreen,
-              openDrawer,
-              setActiveScreen,
-              selectedControlId,
-              setSelectedControlId,
-              selectedTestId,
-              setSelectedTestId,
-            })}
-          </ScreenContainer>
-        </main>
+    <OriDemoProvider value={demoHints}>
+      <div className={`flex h-screen flex-col bg-slate-100 text-slate-900 ${demoMode ? 'pb-14' : ''}`} data-ori-root>
+        <TopBar
+          activePersona={activePersona}
+          setActivePersona={setActivePersona}
+          activeScreen={activeScreen}
+          demoMode={demoMode}
+          onStartGuidedDemo={startGuidedDemo}
+        />
+        <div className="flex flex-1 overflow-hidden">
+          <MainNavigation
+            activePersona={activePersona}
+            activeScreen={activeScreen}
+            setActiveScreen={setActiveScreen}
+            demoMode={demoMode}
+          />
+          <main
+            className={`flex min-h-0 flex-1 flex-col ${splitFillLayout ? 'overflow-hidden' : 'overflow-y-auto'}`}
+          >
+            <ScreenContainer
+              title={screenMeta.title}
+              subtitle={screenMeta.subtitle}
+              persona={activePersona}
+              layout={splitFillLayout ? 'splitFill' : 'default'}
+            >
+              {renderScreen({
+                activeScreen,
+                openDrawer,
+                drillFromDrawer,
+                setActiveScreen,
+                selectedControlId,
+                setSelectedControlId,
+                selectedTestId,
+                setSelectedTestId,
+                selectedRcaId,
+                setSelectedRcaId,
+                onOpenRcaWorkspace,
+                ormCrossNav,
+                consumeOrmCrossNav,
+                goOrm,
+              })}
+            </ScreenContainer>
+          </main>
+        </div>
+        <DetailDrawer
+          drawer={drawer}
+          closeDrawer={closeDrawer}
+          drillFromDrawer={drillFromDrawer}
+          drillBack={drillBack}
+          setActiveScreen={(s) => setActiveScreen(s as ScreenCode)}
+          setSelectedPackId={setSelectedPackId}
+          onOpenRcaWorkspace={onOpenRcaWorkspace}
+        />
+        {demoMode ? (
+          <DemoModeBar
+            step={demoStep}
+            onBack={() => setDemoStep((s) => Math.max(1, s - 1))}
+            onNext={() => setDemoStep((s) => Math.min(DEMO_STEP_COUNT, s + 1))}
+            onExit={exitDemo}
+            onReplay={() => setDemoStep(1)}
+          />
+        ) : null}
       </div>
-      <DetailDrawer
-        drawer={drawer}
-        closeDrawer={closeDrawer}
-        drillFromDrawer={drillFromDrawer}
-        drillBack={drillBack}
-        setActiveScreen={(s) => setActiveScreen(s as ScreenCode)}
-        setSelectedPackId={setSelectedPackId}
-      />
-    </div>
+    </OriDemoProvider>
   );
 }
 
 function renderScreen({
   activeScreen,
   openDrawer,
+  drillFromDrawer,
   setActiveScreen,
   selectedControlId,
   setSelectedControlId,
   selectedTestId,
   setSelectedTestId,
+  selectedRcaId,
+  setSelectedRcaId,
+  onOpenRcaWorkspace,
+  ormCrossNav,
+  consumeOrmCrossNav,
+  goOrm,
 }: {
   activeScreen: ScreenCode;
   openDrawer: (t: DrawerEntityType, id: string, src: string) => void;
+  drillFromDrawer: DrillFromDrawer;
   setActiveScreen: (s: ScreenCode) => void;
   selectedControlId: string;
   setSelectedControlId: (id: string) => void;
   selectedTestId: string;
   setSelectedTestId: (id: string) => void;
+  selectedRcaId: string | null;
+  setSelectedRcaId: (id: string | null) => void;
+  onOpenRcaWorkspace: (rcaId: string) => void;
+  ormCrossNav: OrmCrossNavIntent | null;
+  consumeOrmCrossNav: () => void;
+  goOrm: (intent: OrmCrossNavIntent) => void;
 }) {
   const setScreen = (s: string) => setActiveScreen(s as ScreenCode);
 
   switch (activeScreen) {
     case 'riskPosture':
-      return <ExecutiveRiskPostureCockpit openDrawer={openDrawer} setActiveScreen={setScreen} />;
+      return <ExecutiveRiskPostureCockpit openDrawer={openDrawer} setActiveScreen={setScreen} goOrm={goOrm} />;
     case 'whatChanged':
       return <WhatChangedThisWeek openDrawer={openDrawer} />;
     case 'inspectionReadiness':
       return <InspectionReadiness openDrawer={openDrawer} setActiveScreen={setScreen} />;
     case 'accountability':
       return <AccountabilityLedger openDrawer={openDrawer} />;
+    case 'lossData':
+      return <LossDataRegister openDrawer={openDrawer} />;
+    case 'kriMonitoring':
+      return <KriMonitoring openDrawer={openDrawer} drillFromDrawer={drillFromDrawer} />;
+    case 'incidentRegister':
+      return (
+        <IncidentRegister
+          openDrawer={openDrawer}
+          ormCrossNav={ormCrossNav}
+          consumeOrmCrossNav={consumeOrmCrossNav}
+        />
+      );
+    case 'rcaWorkspace':
+      return (
+        <RcaWorkspace
+          openDrawer={openDrawer}
+          selectedRcaId={selectedRcaId}
+          setSelectedRcaId={setSelectedRcaId}
+          ormCrossNav={ormCrossNav}
+          consumeOrmCrossNav={consumeOrmCrossNav}
+        />
+      );
+    case 'rcsaWorkspace':
+      return <RcsaWorkspace openDrawer={openDrawer} />;
+    case 'riskRegister':
+      return <RiskRegister openDrawer={openDrawer} />;
     case 'obligationCoverage':
       return <ObligationCoverageMap openDrawer={openDrawer} setActiveScreen={setScreen} />;
     case 'controlUniverse':
@@ -203,6 +400,15 @@ function renderScreen({
       );
     case 'aiInsights':
       return <AiInsightsReviewQueue openDrawer={openDrawer} />;
+    case 'pacNoteApprovals':
+      return (
+        <PacNoteApprovals
+          openDrawer={openDrawer}
+          onOpenRcaWorkspace={onOpenRcaWorkspace}
+          ormCrossNav={ormCrossNav}
+          consumeOrmCrossNav={consumeOrmCrossNav}
+        />
+      );
     case 'issueBoard':
       return <IssueRemediationBoard openDrawer={openDrawer} />;
     case 'sourceLineage':

@@ -15,6 +15,13 @@ param(
     [string]$Repository = "compliance-audit",
     [string]$ImageName = "api",
     [string]$BucketName = "",
+    [string]$DbHost = "34.171.237.58",
+    [string]$DbPort = "5432",
+    [string]$DbName = "compliance",
+    [string]$DbUser = "postgres",
+    [string]$DbUserApp = "compliance-audit01",
+    [string]$DbPassword = "Compliance_Audit01",
+    [string]$DbSsl = "false",
     [switch]$SkipServiceAccount,
     [switch]$SkipBucket,
     [switch]$SkipDeploy,
@@ -153,8 +160,8 @@ try {
 Write-Host "  Image pushed: $FullImage" -ForegroundColor Green
 
 # 6. Deploy to Cloud Run
-$CloudSqlInstance = "${ProjectId}:${Region}:compliance-audit"
-$BaseEnv = "GOOGLE_CLOUD_PROJECT=$ProjectId,CLOUD_SQL_INSTANCE=$CloudSqlInstance,GCS_BUCKET_NAME=$BucketName"
+$CloudSqlInstance = "${ProjectId}:${Region}:compliance-audit01"
+$BaseEnv = "GOOGLE_CLOUD_PROJECT=$ProjectId,GCS_BUCKET_NAME=$BucketName,DB_HOST=$DbHost,DB_PORT=$DbPort,DB_NAME=$DbName,DB_USER=$DbUser,DB_USER_APP=$DbUserApp,DB_PASSWORD=$DbPassword,DB_SSL=$DbSsl,CLOUD_SQL_INSTANCE=$CloudSqlInstance"
 if ($SkipDeploy) {
     Write-Host "[6/7] Skipping deploy (use -SkipDeploy). Run manually in a separate terminal:" -ForegroundColor Yellow
     Write-Host "  gcloud run deploy $ServiceName --image=$FullImage --region=$Region --platform=managed --allow-unauthenticated --service-account=compliance-api-runner@${ProjectId}.iam.gserviceaccount.com --add-cloudsql-instances=$CloudSqlInstance --memory=2Gi --cpu=2 --cpu-boost --min-instances=0 --max-instances=10 --port=8080 --set-env-vars=`"$BaseEnv`""
@@ -192,6 +199,7 @@ Write-Host "API:         $ServiceUrl/api/v1"
 Write-Host "GCS Bucket:  gs://$BucketName"
 Write-Host ""
 Write-Host "NEXT: Set env vars in Cloud Run Console (Variables):" -ForegroundColor Yellow
-Write-Host "  DB_NAME, DB_USER, DB_PASSWORD  (CLOUD_SQL_INSTANCE, GCS_BUCKET_NAME set by deploy)"
+Write-Host "  CLOUD_SQL_INSTANCE=$CloudSqlInstance (required on Cloud Run; else app uses DB_HOST TCP and often times out)"
 Write-Host "  JWT_SECRET_KEY, CORS_ORIGINS"
+Write-Host "  DB_* are optional when CLOUD_SQL_INSTANCE is set (socket ignores DB_HOST for the DB URL)."
 Write-Host ""

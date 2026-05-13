@@ -211,7 +211,7 @@ export function IssueRemediationBoard({ openDrawer }: { openDrawer: OpenDrawer }
                   }
                 />
                 <KVRow
-                  k="AI Insights"
+                  k="AI / predictive signals"
                   v={
                     <div className="flex flex-wrap gap-1">
                       {selected.linked_ai_insight_ids.map((id) => (

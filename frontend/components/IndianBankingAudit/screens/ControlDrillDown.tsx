@@ -17,7 +17,6 @@ import {
   EmptyState,
   EvidenceStatusBadge,
   HITLBadge,
-  KVRow,
   OutcomeBadge,
   SectionCard,
   SeverityBadge,
@@ -80,24 +79,24 @@ export function ControlDrillDown({
           </div>
         }
       >
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:col-span-2">
-            <div className="rounded bg-slate-50 p-2 font-mono text-[11px] text-slate-700">{ctrl.designed_condition}</div>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <KVRow k="Process" v={`${process?.name || ctrl.process_id}`} />
-              <KVRow k="Position" v={ctrl.position_in_step} mono />
-              <KVRow k="Owner role" v={ctrl.owner_role} />
-              <KVRow k="Population testable" v={ctrl.population_testable_flag ? 'yes' : 'no'} />
-              <KVRow k="Linked obligations" v={ctrl.linked_obligations.join(', ') || '—'} />
-              <KVRow k="Linked risks" v={ctrl.linked_risks.join(', ') || '—'} />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_10.5rem]">
+          <div className="min-w-0">
+            <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
+              <MetadataStat label="Process" value={process?.name || ctrl.process_id} />
+              <MetadataStat label="Position" value={ctrl.position_in_step} mono />
+              <MetadataStat label="Owner role" value={ctrl.owner_role} />
+              <MetadataStat label="Population testable" value={ctrl.population_testable_flag ? 'yes' : 'no'} />
+              <MetadataStat label="Linked obligations" value={ctrl.linked_obligations.join(', ') || '—'} mono />
+              <MetadataStat label="Linked risks" value={ctrl.linked_risks.join(', ') || '—'} mono />
             </div>
           </div>
-          <div>
-            <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 lg:text-right">Outcomes (window)</div>
+            <div className="flex flex-wrap gap-2 lg:justify-end">
               {Object.entries(split).map(([k, v]) =>
                 v > 0 ? (
-                  <div key={k} className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-center">
-                    <div className="text-base font-bold text-slate-900">{v}</div>
+                  <div key={k} className="min-w-[4.5rem] rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-center">
+                    <div className="text-base font-bold tabular-nums text-slate-900">{v}</div>
                     <div className="text-[9px] uppercase tracking-wider text-slate-500">{k}</div>
                   </div>
                 ) : null
@@ -116,13 +115,13 @@ export function ControlDrillDown({
             onClick={() => setTab(t)}
             className={`-mb-px border-b-2 px-3 py-1.5 text-xs font-medium transition ${tab === t ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
           >
-            {t === 'overview' ? 'Overview' : t === 'population' ? `Population (${instances.length})` : t === 'evidence' ? 'Evidence' : t === 'issues' ? `Issues (${linkedIssues.length})` : `AI Insights (${insights.length})`}
+            {t === 'overview' ? 'Overview' : t === 'population' ? `Population (${instances.length})` : t === 'evidence' ? 'Evidence' : t === 'issues' ? `Issues (${linkedIssues.length})` : `AI / predictive signals (${insights.length})`}
           </button>
         ))}
       </div>
 
       {tab === 'overview' && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_17.5rem]">
           <CESBreakdownCard
             breakdown={{
               operating: { current: ctrl.ces_breakdown.operating_rate, band: cesCompBand(ctrl.ces_breakdown.operating_rate) },
@@ -133,7 +132,7 @@ export function ControlDrillDown({
             cesBand={ctrl.ces_band}
           />
 
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             <SectionCard title="Linked obligations">
               {ctrl.linked_obligations.length ? (
                 <div className="flex flex-wrap gap-1.5">
@@ -288,3 +287,12 @@ const cesCompBand = (v: number | null) => {
   if (v >= 60) return 'amber';
   return 'red';
 };
+
+function MetadataStat({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
+      <div className={`mt-0.5 break-words text-xs leading-snug text-slate-800 ${mono ? 'font-mono' : ''}`}>{value}</div>
+    </div>
+  );
+}

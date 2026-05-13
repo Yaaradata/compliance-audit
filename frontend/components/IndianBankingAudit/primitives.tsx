@@ -9,6 +9,7 @@ import {
   bandText,
   evidenceStatusBadge,
   hitlBadge,
+  oriFocusRing,
   outcomeBadge,
   severityBadge,
   trendArrow,
@@ -184,6 +185,7 @@ export function SeverityBadge({ severity }: { severity: string }) {
 
 // ---------- Entity Type Badge ----------
 const ENTITY_BADGE_CLASS: Record<string, string> = {
+  incident: 'bg-orange-100 text-orange-900 border-orange-200',
   risk: 'bg-rose-100 text-rose-800 border-rose-200',
   control: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   controlInstance: 'bg-indigo-50 text-indigo-700 border-indigo-200',
@@ -207,9 +209,14 @@ const ENTITY_BADGE_CLASS: Record<string, string> = {
   reportingClock: 'bg-orange-100 text-orange-800 border-orange-200',
   reportingSubmission: 'bg-orange-50 text-orange-700 border-orange-200',
   sourceSystem: 'bg-slate-100 text-slate-700 border-slate-200',
+  kri: 'bg-teal-100 text-teal-900 border-teal-200',
+  regulation: 'bg-purple-50 text-purple-900 border-purple-200',
+  rca: 'bg-indigo-50 text-indigo-900 border-indigo-200',
+  preventiveAction: 'bg-orange-50 text-orange-900 border-orange-200',
 };
 
 const ENTITY_LABEL: Record<string, string> = {
+  incident: 'INCIDENT',
   risk: 'RISK',
   control: 'CONTROL',
   controlInstance: 'CTRL INSTANCE',
@@ -233,6 +240,10 @@ const ENTITY_LABEL: Record<string, string> = {
   reportingClock: 'CLOCK',
   reportingSubmission: 'SUBMISSION',
   sourceSystem: 'SOURCE SYS',
+  kri: 'KRI',
+  regulation: 'REGULATION',
+  rca: 'RCA',
+  preventiveAction: 'PREVENTIVE ACTION',
 };
 
 export function EntityTypeBadge({ type }: { type: string | null }) {
@@ -260,25 +271,27 @@ export function CESBreakdownCard({ breakdown, ces, cesBand }: { breakdown: CESBr
   ];
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex items-start justify-between">
-        <div>
+      <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1">
+        <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Control Effectiveness Score</div>
-          <div className="text-[10px] text-slate-400">0.40 × OperatingRate + 0.40 × CatchRate + 0.20 × EvidenceCompleteness</div>
+          <div className="text-[10px] leading-snug text-slate-500">
+            0.40 × OperatingRate + 0.40 × CatchRate + 0.20 × EvidenceCompleteness
+          </div>
         </div>
-        <div className="text-right">
-          <div className={`text-3xl font-bold ${bandText(cesBand)}`}>{ces == null ? '—' : ces.toFixed(1)}</div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">CES · {cesBand}</div>
+        <div className="shrink-0 text-right">
+          <div className={`text-2xl font-bold tabular-nums leading-none ${bandText(cesBand)}`}>{ces == null ? '—' : ces.toFixed(1)}</div>
+          <div className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-500">CES · {cesBand}</div>
         </div>
       </div>
       <div className="space-y-2">
         {dims.map((d) => (
           <div key={d.key} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
-            <div className="mb-1.5 flex items-start justify-between">
-              <div>
+            <div className="mb-1.5 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
+              <div className="min-w-0">
                 <div className="text-xs font-semibold text-slate-900">{d.label}</div>
-                <div className="text-[10px] text-slate-500">{d.desc}</div>
+                <div className="text-[10px] leading-snug text-slate-500">{d.desc}</div>
               </div>
-              <div className={`text-lg font-bold ${bandText(d.data.band || 'neutral')}`}>
+              <div className={`shrink-0 text-lg font-bold tabular-nums leading-none ${bandText(d.data.band || 'neutral')}`}>
                 {d.data.current == null ? '—' : d.data.current}
               </div>
             </div>
@@ -296,7 +309,19 @@ export function CESBreakdownCard({ breakdown, ces, cesBand }: { breakdown: CESBr
 }
 
 // ---------- Stat / KV / Empty ----------
-export function Stat({ k, v, sub, tone = 'slate' }: { k: string; v: React.ReactNode; sub?: string; tone?: string }) {
+export function Stat({
+  k,
+  v,
+  sub,
+  tone = 'slate',
+  size = 'default',
+}: {
+  k: string;
+  v: React.ReactNode;
+  sub?: string;
+  tone?: string;
+  size?: 'default' | 'compact';
+}) {
   const colors: Record<string, string> = {
     slate: 'text-slate-900',
     emerald: 'text-emerald-700',
@@ -304,12 +329,14 @@ export function Stat({ k, v, sub, tone = 'slate' }: { k: string; v: React.ReactN
     rose: 'text-rose-700',
     indigo: 'text-indigo-700',
     violet: 'text-violet-700',
+    sky: 'text-sky-700',
   };
+  const compact = size === 'compact';
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{k}</div>
-      <div className={`text-xl font-bold ${colors[tone] || 'text-slate-900'}`}>{v}</div>
-      {sub && <div className="mt-0.5 text-[10px] text-slate-500">{sub}</div>}
+    <div className={`rounded-lg border border-slate-200 bg-white ${compact ? 'p-2' : 'p-3'}`}>
+      <div className={`font-semibold uppercase tracking-wider text-slate-500 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>{k}</div>
+      <div className={`font-bold ${compact ? 'text-lg' : 'text-2xl'} ${colors[tone] || 'text-slate-900'}`}>{v}</div>
+      {sub && <div className={`mt-0.5 text-slate-500 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>{sub}</div>}
     </div>
   );
 }
@@ -323,11 +350,33 @@ export function KVRow({ k, v, tone, mono }: { k: string; v: React.ReactNode; ton
   );
 }
 
-export function EmptyState({ message, hint }: { message: string; hint?: string }) {
+export function EmptyState({
+  message,
+  hint,
+  actionLabel,
+  onAction,
+}: {
+  message: string;
+  hint?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
-    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-      <div className="text-sm font-medium text-slate-600">{message}</div>
-      {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
+    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
+      <div className="mb-2 text-2xl opacity-60" aria-hidden>
+        📋
+      </div>
+      <div className="text-xs font-medium leading-snug text-slate-700">{message}</div>
+      {hint && <div className="mt-1.5 text-[10px] leading-snug text-slate-500">{hint}</div>}
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className={`mt-4 rounded-md border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-800 shadow-sm transition hover:bg-indigo-50 ${oriFocusRing}`}
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }
@@ -348,8 +397,8 @@ export function SectionCard({
     <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-start justify-between border-b border-slate-100 px-4 py-3">
         <div>
-          <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-          {subtitle && <p className="mt-0.5 text-[11px] text-slate-500">{subtitle}</p>}
+          <h3 className="text-xs font-semibold leading-snug text-slate-800">{title}</h3>
+          {subtitle && <p className="mt-1 text-[10px] font-normal leading-snug text-slate-500">{subtitle}</p>}
         </div>
         {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
@@ -376,13 +425,13 @@ export function Chip({
   onClick?: () => void;
 }) {
   const tones: Record<string, string> = {
-    slate: 'bg-slate-100 text-slate-700 border-slate-200',
-    indigo: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-    emerald: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    rose: 'bg-rose-100 text-rose-800 border-rose-200',
-    amber: 'bg-amber-100 text-amber-800 border-amber-200',
-    violet: 'bg-violet-100 text-violet-800 border-violet-200',
-    sky: 'bg-sky-100 text-sky-800 border-sky-200',
+    slate: 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200/90',
+    indigo: 'bg-indigo-100 text-indigo-900 border-indigo-200 hover:bg-indigo-200/80',
+    emerald: 'bg-emerald-100 text-emerald-900 border-emerald-200 hover:bg-emerald-200/80',
+    rose: 'bg-rose-100 text-rose-900 border-rose-200 hover:bg-rose-200/80',
+    amber: 'bg-amber-100 text-amber-900 border-amber-200 hover:bg-amber-200/80',
+    violet: 'bg-violet-100 text-violet-900 border-violet-200 hover:bg-violet-200/80',
+    sky: 'bg-sky-100 text-sky-900 border-sky-200 hover:bg-sky-200/80',
   };
   const sizes = size === 'xs' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5';
   const Tag = onClick ? 'button' : 'span';
@@ -390,8 +439,8 @@ export function Chip({
     <Tag
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`inline-flex items-center gap-1 rounded-full border ${tones[tone] || tones.slate} ${sizes} ${
-        onClick ? 'hover:bg-opacity-80' : ''
+      className={`inline-flex items-center gap-1 rounded-full border transition-colors ${tones[tone] || tones.slate} ${sizes} ${
+        onClick ? `${oriFocusRing} cursor-pointer` : ''
       }`}
     >
       {label}

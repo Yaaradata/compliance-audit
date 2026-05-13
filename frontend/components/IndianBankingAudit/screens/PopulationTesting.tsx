@@ -149,7 +149,7 @@ export function PopulationTesting({
           onClick={() => setActiveScreen('workpaperAuditPackBuilder')}
           className="w-full rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
         >
-          Open in Workpaper Builder →
+          Open in Inspection pack builder →
         </button>
       </div>
 

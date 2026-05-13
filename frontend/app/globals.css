@@ -506,3 +506,22 @@ body {
   border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
   box-shadow: var(--interactive-glow-subtle);
 }
+
+/* ─── ORI (IndianBankingAudit) prototype — drawer + focus (scoped) ─── */
+@keyframes ori-drawer-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0.96;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+[data-ori-root] .ori-drawer-panel {
+  animation: ori-drawer-in 200ms ease-out;
+}
+[data-ori-root] :where(button, a, summary, [role='button'], [role='tab']):focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}

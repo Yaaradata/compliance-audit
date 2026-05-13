@@ -1,9 +1,13 @@
-import mockControlTraceData from '@/lib/ukbankingaudit/mockDataV1';
+/**
+ * UK Banking Audit (Pass 7.x) — re-exports v2 mock graph for modular code / tests.
+ * Main UI lives in `UKBankingControlTrace.tsx` (self-contained v2 shell).
+ */
+import mockControlTraceData from '@/lib/ukbankingaudit/mockDataV2';
 
 export const {
   personas,
   navigationItems,
-  riskDomains,
+  croCategories,
   risks,
   controls,
   obligations,
@@ -27,7 +31,24 @@ export const {
   aiInsights,
   auditTrailEvents,
   metrics,
+  riskAreas,
+  controlObjectives,
+  groupSetRequirements,
+  crsaAttestationCycles,
+  crsaAttestationLines,
+  horizonScanItems,
+  findingsLedger,
+  firmLevelRAG,
+  whatChangedThisWeek,
+  amlAlertsByWeek,
+  sarFilingsByWeek,
+  eddPipelineItems,
+  sanctionsScreeningMetrics,
+  capacityVsDemandSeries,
 } = mockControlTraceData;
+
+/** Legacy v1 name — v2 uses CRO five-category taxonomy (`croCategories`). */
+export const riskDomains = croCategories;
 
 export const findById = <T extends { id: string }>(arr: T[] | undefined, id: string | null | undefined): T | null =>
   (arr || []).find((x) => x.id === id) || null;
@@ -51,3 +72,9 @@ export const getWorkpaper = (id: string) => findById(workpapers, id);
 export const getAuditPack = (id: string) => findById(auditPacks, id);
 export const getInsight = (id: string) => findById(aiInsights, id);
 export const getCoverageGap = (id: string) => findById(coverageGaps, id);
+export const getRiskArea = (id: string) => findById(riskAreas, id);
+export const getControlObjective = (id: string) => findById(controlObjectives, id);
+export const getGSR = (id: string) => findById(groupSetRequirements, id);
+export const getCRSACycle = (id: string) => findById(crsaAttestationCycles, id);
+export const getAttestationLine = (id: string) => findById(crsaAttestationLines, id);
+export const getCROCategory = (id: string) => findById(croCategories, id);

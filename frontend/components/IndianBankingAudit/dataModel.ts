@@ -429,6 +429,8 @@ export type KRI = {
   threshold_red: number;
   unit: string;
   formula_ref: string;
+  /** When latest observation is amber/red — narrative for monitoring cards. */
+  breach_summary?: string | null;
 };
 
 export type KRIObservation = {
@@ -517,6 +519,135 @@ export type DemoStoryline = {
   steps: DemoStorylineStep[];
 };
 
+/** ORI — RCSA workspace (mock backbone). */
+export type RcsaCycle = {
+  rcsa_cycle_id: string;
+  cycle_name: string;
+  fiscal_period_label: string;
+  period_start: string;
+  period_end: string;
+  status: string;
+  linked_process_id: string;
+  owner_senior_manager_id: string;
+  business_unit?: string;
+  refresh_cadence?: string;
+  target_signoff_at?: string;
+};
+
+export type RcsaCell = {
+  rcsa_cell_id: string;
+  rcsa_cycle_id: string;
+  risk_id: string;
+  process_id: string;
+  control_ids: string[];
+  inherent_likelihood: number;
+  inherent_impact: number;
+  inherent_rating: string;
+  control_effectiveness_score: number;
+  residual_rating: string;
+  residual_trend: string;
+  spoc_attested_at?: string | null;
+  last_refreshed?: string;
+};
+
+export type Incident = {
+  incident_id: string;
+  incident_type: string;
+  severity: string;
+  discovered_date: string;
+  gross_loss_inr?: number | null;
+  recovery_inr?: number | null;
+  status: string;
+  title: string;
+  linked_risk_ids: string[];
+  linked_control_ids: string[];
+  accountable_senior_manager_id: string;
+  fraud_origin?: string;
+  conduct_subtype?: string;
+  business_unit?: string;
+  basel_event_type?: string;
+  basel_event_subtype?: string | null;
+  description?: string;
+  occurred_date?: string;
+  reported_date?: string;
+  detection_source?: string;
+  rbi_reportable?: boolean;
+  fmr_filed?: boolean;
+  fmr_filed_date?: string | null;
+  cert_in_filed_at?: string | null;
+  csite_filed_at?: string | null;
+  linked_rca_id?: string | null;
+};
+
+/** ORI loss register row (mock snake_case). */
+export type LossEvent = {
+  loss_event_id: string;
+  event_date: string;
+  gross_loss_inr: number;
+  net_loss_inr: number;
+  direct_recovery_inr: number;
+  insurance_recovery_inr: number;
+  recovery_inr?: number;
+  business_line: string;
+  basel_event_type: string;
+  loss_event_type: string;
+  loss_event_subtype?: string | null;
+  business_unit: string;
+  status: string;
+  linked_risk_id: string;
+  linked_control_ids: string[];
+  linked_incident_id?: string | null;
+  accountable_senior_manager_id: string;
+};
+
+export type RcaRecord = {
+  rca_id: string;
+  incident_id: string;
+  status?: string;
+  opened_at?: string;
+  rca_started_at?: string | null;
+  rca_completed_at?: string | null;
+  owner_senior_manager_id?: string;
+  five_whys_steps?: { step_order: number; statement: string }[];
+  methodology?: string;
+  root_cause_categories?: string[];
+  root_cause_summary?: string;
+  lessons_learnt?: string;
+};
+
+export type PreventiveAction = {
+  preventive_action_id: string;
+  rca_id: string;
+  status: string;
+  target_date?: string;
+  title?: string;
+  owner_senior_manager_id?: string;
+  linked_pac_note_block_flag?: boolean;
+  /** When the PA moved to closed (for weekly deltas / velocity). */
+  closed_at?: string | null;
+};
+
+export type PacNoteComment = { at: string; author_role: string; text: string };
+
+export type PacNote = {
+  pac_note_id: string;
+  title?: string;
+  document_version?: string;
+  blocking_preventive_action_ids: string[];
+  referenced_rca_ids: string[];
+  status?: string;
+  document_type?: string;
+  business_unit?: string;
+  submitted_by_role?: string;
+  submitted_at?: string;
+  target_approval_date?: string;
+  approved_at?: string | null;
+  accountable_senior_manager_id?: string;
+  linked_obligation_ids?: string[];
+  linked_process_ids?: string[];
+  comments?: PacNoteComment[];
+};
+
 // Dataset exports
 export const personas: Persona[] = M.personas;
 export const navigationItems: NavigationItem[] = M.navigationItems;
@@ -559,6 +690,13 @@ export const auditTrailEvents: AuditTrailEvent[] = M.auditTrailEvents;
 export const inspectionLenses: InspectionLens[] = M.inspectionLenses;
 export const sourceSystemHealth: SourceSystemHealth[] = M.sourceSystemHealth;
 export const demoStorylines: DemoStoryline[] = M.demoStorylines;
+export const rcsaCycles: RcsaCycle[] = Array.isArray(M.rcsaCycles) ? M.rcsaCycles : [];
+export const rcsaCells: RcsaCell[] = Array.isArray(M.rcsaCells) ? M.rcsaCells : [];
+export const incidents: Incident[] = Array.isArray(M.incidents) ? M.incidents : [];
+export const rcas: RcaRecord[] = Array.isArray(M.rcas) ? M.rcas : [];
+export const preventiveActions: PreventiveAction[] = Array.isArray(M.preventiveActions) ? M.preventiveActions : [];
+export const pacNotes: PacNote[] = Array.isArray(M.pacNotes) ? M.pacNotes : [];
+export const lossEvents: LossEvent[] = Array.isArray(M.lossEvents) ? M.lossEvents : [];
 
 // Generic finder
 export function findBy<T>(arr: T[], key: keyof T, id: string | null | undefined): T | null {
@@ -583,6 +721,11 @@ export const getSourceRecord = (id: string | null) => findBy(sourceRecords, 'sou
 export const getCorrelation = (id: string | null) => findBy(correlationRecords, 'correlation_id', id);
 export const getException = (id: string | null) => findBy(exceptionRecords, 'exception_id', id);
 export const getIssue = (id: string | null) => findBy(issues, 'issue_id', id);
+export const getIncident = (id: string | null) => findBy(incidents, 'incident_id', id);
+export const getLossEvent = (id: string | null) => findBy(lossEvents, 'loss_event_id', id);
+export const getRca = (id: string | null) => findBy(rcas, 'rca_id', id);
+export const getPreventiveAction = (id: string | null) => findBy(preventiveActions, 'preventive_action_id', id);
+export const getPacNote = (id: string | null) => findBy(pacNotes, 'pac_note_id', id);
 export const getRemediation = (id: string | null) => findBy(remediationActions, 'action_id', id);
 export const getSeniorManager = (id: string | null) => findBy(seniorManagers, 'senior_manager_id', id);
 export const getDecision = (id: string | null) => findBy(decisionEvents, 'decision_id', id);
@@ -625,6 +768,49 @@ export const issuesForControl = (ctrlId: string) =>
 export const issuesForSeniorManager = (smId: string) =>
   issues.filter((i) => i.accountable_senior_manager_id === smId);
 
+/** Issues still open or in remediation that cite this risk. */
+export const openIssuesForRisk = (riskId: string) =>
+  issues.filter(
+    (i) =>
+      (i.status === 'open' || i.status === 'in_remediation') &&
+      Array.isArray(i.linked_risk_ids) &&
+      i.linked_risk_ids.includes(riskId)
+  );
+
+const incidentById: Record<string, Incident> = {};
+for (const inc of incidents) {
+  incidentById[inc.incident_id] = inc;
+}
+
+/** Median calendar days from RCA start to completion (completed RCAs only). */
+export const medianRcaCycleTimeDays = (): number | null => {
+  const durations = rcas
+    .filter((r) => r.rca_completed_at && r.rca_started_at)
+    .map((r) => {
+      const end = new Date(r.rca_completed_at as string).getTime();
+      const start = new Date(r.rca_started_at as string).getTime();
+      return (end - start) / 86400000;
+    });
+  if (!durations.length) return null;
+  durations.sort((a, b) => a - b);
+  const mid = Math.floor(durations.length / 2);
+  if (durations.length % 2 === 1) return Math.round(durations[mid] * 10) / 10;
+  return Math.round(((durations[mid - 1] + durations[mid]) / 2) * 10) / 10;
+};
+
+/** Open / in-progress preventive actions whose RCA’s incident links this risk_id. */
+export const openPreventiveActionCountForRisk = (riskId: string): number => {
+  const openPa = (s: string) => s === 'open' || s === 'in_progress';
+  return preventiveActions.filter((pa) => {
+    if (!openPa(pa.status)) return false;
+    const rca = rcas.find((r) => r.rca_id === pa.rca_id);
+    if (!rca) return false;
+    const inc = incidentById[rca.incident_id];
+    const ids = inc?.linked_risk_ids;
+    return Array.isArray(ids) && ids.includes(riskId);
+  }).length;
+};
+
 export const obligationsForRegulator = (regulator: string) =>
   obligations.filter((o) => {
     const reg = getRegulation(o.regulation_id);
@@ -650,6 +836,108 @@ export const observationsForKRI = (kriId: string) =>
   kriObservations
     .filter((o) => o.kri_id === kriId)
     .sort((a, b) => (a.as_of_ts < b.as_of_ts ? -1 : 1));
+
+/** % of KRIs whose latest observation value is at or beyond amber threshold (ORM breach band). */
+export const aggregateKRIBreachRatePct = (): number => {
+  if (!kris.length) return 0;
+  let breach = 0;
+  for (const k of kris) {
+    const obs = observationsForKRI(k.kri_id);
+    const last = obs.length ? obs[obs.length - 1] : null;
+    if (last && last.value >= k.threshold_amber) breach += 1;
+  }
+  return Math.round((100 * breach) / kris.length);
+};
+
+const INCIDENT_CLOSED_AGG = new Set(['closed', 'closed_no_loss']);
+
+function parseYmdLocalAgg(ymd: string): number {
+  return new Date(ymd.includes('T') ? ymd : `${ymd}T12:00:00`).getTime();
+}
+
+/** Open incidents with discovered_at in the last 30 calendar days. */
+export const aggregateOpenIncidents30d = (): number => {
+  const cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - 30);
+  const t0 = cutoff.getTime();
+  return incidents.filter((i) => {
+    if (INCIDENT_CLOSED_AGG.has(i.status)) return false;
+    return parseYmdLocalAgg(i.discovered_date) >= t0;
+  }).length;
+};
+
+/** Preventive actions still open and past target_date (strict status = open). */
+export const aggregateOverdueOpenPreventiveActions = (): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const t0 = today.getTime();
+  return preventiveActions.filter((pa) => {
+    if (pa.status !== 'open') return false;
+    if (!pa.target_date) return false;
+    const t = parseYmdLocalAgg(pa.target_date);
+    return !Number.isNaN(t) && t < t0;
+  }).length;
+};
+
+/** Net loss as % of gross for FY26 loss register rows (Apr 2025–Mar 2026). */
+export const aggregateORLR = (): number | null => {
+  const fyStart = '2025-04-01';
+  const fyEnd = '2026-03-31';
+  const rows = lossEvents.filter((e) => e.event_date >= fyStart && e.event_date <= fyEnd);
+  const gross = rows.reduce((s, e) => s + (e.gross_loss_inr || 0), 0);
+  if (!gross) return null;
+  const net = rows.reduce((s, e) => s + (e.net_loss_inr ?? e.gross_loss_inr), 0);
+  return Math.round((1000 * net) / gross) / 10;
+};
+
+/** Mean days from incident discovery to RCA completion (completed RCAs only). */
+export const aggregateINCV = (): number | null => {
+  let sum = 0;
+  let n = 0;
+  for (const r of rcas) {
+    if (!r.rca_completed_at) continue;
+    const inc = getIncident(r.incident_id);
+    if (!inc) continue;
+    const d0 = parseYmdLocalAgg(inc.discovered_date);
+    const d1 = new Date(r.rca_completed_at).getTime();
+    if (Number.isNaN(d0) || Number.isNaN(d1) || d1 < d0) continue;
+    sum += (d1 - d0) / 86400000;
+    n += 1;
+  }
+  if (!n) return null;
+  return Math.round((sum / n) * 10) / 10;
+};
+
+/** Mean calendar days from PAC submission to approval (notes with approved_at). */
+export const aggregatePACV = (): number | null => {
+  const vals: number[] = [];
+  for (const pn of pacNotes) {
+    if (!pn.approved_at || !pn.submitted_at) continue;
+    const a = new Date(pn.approved_at).getTime();
+    const b = new Date(pn.submitted_at).getTime();
+    if (Number.isNaN(a) || Number.isNaN(b) || a < b) continue;
+    vals.push((a - b) / 86400000);
+  }
+  if (!vals.length) return null;
+  const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+  return Math.round(avg * 10) / 10;
+};
+
+/** % of open / in-progress preventive actions that are past target_date. */
+export const aggregatePOAOR = (): number | null => {
+  const openish = preventiveActions.filter((p) => p.status === 'open' || p.status === 'in_progress');
+  if (!openish.length) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const t0 = today.getTime();
+  const overdue = openish.filter((pa) => {
+    if (!pa.target_date) return false;
+    const t = parseYmdLocalAgg(pa.target_date);
+    return !Number.isNaN(t) && t < t0;
+  }).length;
+  return Math.round((100 * overdue) / openish.length);
+};
 
 export const observationsForAppetite = (apId: string) =>
   appetiteObservations

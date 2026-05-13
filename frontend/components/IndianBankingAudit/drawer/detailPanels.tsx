@@ -15,7 +15,9 @@ import {
   getEvidence,
   getException,
   getInsight,
+  getIncident,
   getIssue,
+  getKRI,
   getModel,
   getObligation,
   getProcess,
@@ -24,6 +26,8 @@ import {
   getRemediation,
   getReportingClock,
   getRisk,
+  getRca,
+  getPreventiveAction,
   getSeniorManager,
   getSourceRecord,
   getSourceSystem,
@@ -32,9 +36,14 @@ import {
   getTest,
   getWorkpaper,
   issuesForControl,
+  preventiveActions,
   issuesForSeniorManager,
   modelRiskRecords,
+  observationsForKRI,
+  obligations,
+  pacNotes,
   remediationsForIssue,
+  rcas,
   stepExecutionsForExecution,
 } from '../dataModel';
 import type { DrawerEntityType } from '../types';
@@ -53,6 +62,7 @@ import {
   StatusBadge,
 } from '../primitives';
 import type { DrillFromDrawer, SetActiveScreen } from '../types';
+import { formatInrLossDisplay } from '../inrFormat';
 
 const fmtTs = (iso: string | null | undefined) => {
   if (!iso) return '—';
@@ -80,6 +90,15 @@ export function RiskDetailPanel({
 }) {
   const risk = getRisk(riskId);
   if (!risk) return <EmptyState message="Risk not found." />;
+  const sm = getSeniorManager(risk.accountable_senior_manager_id);
+  const regulationIds = Array.from(
+    new Set(
+      risk.linked_obligation_ids
+        .map((oid) => getObligation(oid))
+        .filter((o): o is NonNullable<typeof o> => !!o)
+        .map((o) => o.regulation_id)
+    )
+  );
   return (
     <div className="space-y-4">
       <div>
@@ -96,7 +115,22 @@ export function RiskDetailPanel({
         <ScoreRing score={risk.res_score} band={risk.res_score >= 80 ? 'green' : risk.res_score >= 60 ? 'amber' : 'red'} label="RES" size={88} />
         <div>
           <KVRow k="Risk ID" v={risk.risk_id} mono />
-          <KVRow k="Accountable SM" v={risk.accountable_senior_manager_id} mono />
+          <KVRow
+            k="Accountable SM"
+            v={
+              sm ? (
+                <button
+                  type="button"
+                  className="text-left text-xs font-semibold text-indigo-700 underline decoration-dotted hover:text-indigo-900"
+                  onClick={() => drillFromDrawer('seniorManager', risk.accountable_senior_manager_id)}
+                >
+                  {sm.name}
+                </button>
+              ) : (
+                risk.accountable_senior_manager_id
+              )
+            }
+          />
           <KVRow k="KRIs" v={risk.kri_ids.join(', ') || '—'} />
           <KVRow k="Appetite metrics" v={risk.appetite_metric_ids.join(', ') || '—'} />
         </div>
@@ -111,6 +145,21 @@ export function RiskDetailPanel({
           </div>
         ) : (
           <EmptyState message="No obligations linked." />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Regulations (via obligations)">
+        {regulationIds.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {regulationIds.map((rid) => {
+              const reg = getRegulation(rid);
+              return (
+                <Chip key={rid} label={reg?.title || rid} tone="slate" onClick={() => drillFromDrawer('regulation', rid)} />
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState message="No regulations resolved from linked obligations." />
         )}
       </SectionCard>
 
@@ -156,7 +205,6 @@ export function ControlDetailPanel({
           <Chip label={ctrl.frequency} tone="slate" />
           <Chip label={`Process · ${ctrl.process_id}`} tone="sky" onClick={() => drillFromDrawer('process', ctrl.process_id)} />
         </div>
-        <div className="mt-2 rounded bg-slate-50 p-2 font-mono text-[11px] text-slate-700">{ctrl.designed_condition}</div>
       </div>
 
       <CESBreakdownCard
@@ -292,7 +340,7 @@ export function ControlInstanceDetailPanel({
   const exception = ci.exception_id ? getException(ci.exception_id) : null;
 
   const spine: { type: string; id: string | null; label: string; clickType?: DrawerEntityType }[] = [
-    { type: 'Regulation', id: reg?.regulation_id || null, label: reg?.title || 'No regulation' },
+    { type: 'Regulation', id: reg?.regulation_id || null, label: reg?.title || 'No regulation', clickType: reg?.regulation_id ? 'regulation' : undefined },
     { type: 'Obligation', id: obl?.obligation_id || null, label: obl?.atomic_requirement || 'No obligation', clickType: 'obligation' },
     { type: 'Control', id: ctrl?.control_id || null, label: ctrl?.title || 'No control', clickType: 'control' },
     { type: 'ProcessExecution', id: pe?.process_execution_id || null, label: `${pe?.process_id} · ${pe?.anchor_key_value}`, clickType: 'processExecution' },
@@ -516,6 +564,13 @@ export function ObligationDetailPanel({
         {clock && <KVRow k="Reporting clock" v={`${clock.clock_label} · ${clock.current_status}`} />}
       </SectionCard>
 
+      {reg && (
+        <SectionCard title="Regulation instrument">
+          <Chip label={`${reg.regulation_id} · ${reg.title}`} tone="slate" onClick={() => drillFromDrawer('regulation', reg.regulation_id)} />
+          <div className="mt-2 text-[11px] text-slate-600">{reg.citation}</div>
+        </SectionCard>
+      )}
+
       <SectionCard title="Linked Controls">
         {obl.linked_control_ids.length ? (
           <div className="flex flex-wrap gap-1.5">
@@ -560,7 +615,22 @@ export function IssueDetailPanel({ issueId, drillFromDrawer }: { issueId: string
 
       <SectionCard title="Accountability">
         <KVRow k="Issue ID" v={iss.issue_id} mono />
-        <KVRow k="Accountable SM" v={sm?.name || iss.accountable_senior_manager_id} />
+        <KVRow
+          k="Accountable SM"
+          v={
+            sm ? (
+              <button
+                type="button"
+                className="text-left text-xs font-semibold text-indigo-700 underline decoration-dotted hover:text-indigo-900"
+                onClick={() => drillFromDrawer('seniorManager', iss.accountable_senior_manager_id)}
+              >
+                {sm.name}
+              </button>
+            ) : (
+              iss.accountable_senior_manager_id
+            )
+          }
+        />
         <KVRow k="Opened" v={fmtDate(iss.opened_at)} />
         <KVRow k="Closed" v={fmtDate(iss.closed_at)} />
       </SectionCard>
@@ -589,7 +659,7 @@ export function IssueDetailPanel({ issueId, drillFromDrawer }: { issueId: string
           )}
           {iss.linked_ai_insight_ids.length > 0 && (
             <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">AI Insights</div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">AI / predictive signals</div>
               <div className="flex flex-wrap gap-1.5">
                 {iss.linked_ai_insight_ids.map((id) => (
                   <Chip key={id} label={id} tone="violet" onClick={() => drillFromDrawer('aiInsight', id)} />
@@ -700,6 +770,109 @@ export function AIInsightDetailPanel({ insightId, drillFromDrawer }: { insightId
 }
 
 // =====================================================================
+// KRI
+// =====================================================================
+export function KriDetailPanel({ kriId, drillFromDrawer }: { kriId: string; drillFromDrawer: DrillFromDrawer }) {
+  const k = getKRI(kriId);
+  if (!k) return <EmptyState message="KRI not found." />;
+  const risk = getRisk(k.linked_risk_id);
+  const sm = risk ? getSeniorManager(risk.accountable_senior_manager_id) : null;
+  const obs = observationsForKRI(kriId);
+  const latest = obs.length ? obs[obs.length - 1] : null;
+  const band = latest?.band || 'grey';
+  const breachHistory = obs.filter((o) => o.band === 'amber' || o.band === 'red');
+  const tableObs = obs.slice(-24);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-mono text-[10px] font-bold text-slate-500">{k.kri_id}</div>
+          <h2 className="text-base font-bold leading-snug text-slate-900">{k.name}</h2>
+        </div>
+        <StatusBadge tone={band === 'red' ? 'red' : band === 'amber' ? 'amber' : band === 'green' ? 'green' : 'neutral'} label={`Band · ${band}`} />
+      </div>
+
+      {risk && (
+        <SectionCard title="Linked risk">
+          <button type="button" className="w-full rounded-lg border border-indigo-100 bg-indigo-50/80 p-3 text-left hover:bg-indigo-50" onClick={() => drillFromDrawer('risk', risk.risk_id)}>
+            <div className="font-mono text-[10px] text-indigo-700">{risk.risk_id}</div>
+            <div className="text-sm font-semibold text-slate-900">{risk.title}</div>
+          </button>
+        </SectionCard>
+      )}
+
+      {risk && risk.linked_control_ids.length > 0 && (
+        <SectionCard title="Controls (via linked risk)" subtitle="ORM graph: KRI → risk → controls">
+          <div className="flex flex-wrap gap-1.5">
+            {risk.linked_control_ids.map((cid) => (
+              <Chip key={cid} label={cid} tone="indigo" onClick={() => drillFromDrawer('control', cid)} />
+            ))}
+          </div>
+        </SectionCard>
+      )}
+
+      <SectionCard title="Threshold specification">
+        <KVRow k="Amber" v={String(k.threshold_amber)} />
+        <KVRow k="Red" v={String(k.threshold_red)} />
+        <KVRow k="Unit" v={k.unit.replace(/_/g, ' ')} />
+        <KVRow k="Formula reference" v={k.formula_ref} />
+      </SectionCard>
+
+      <SectionCard title={`Observation history (last ${tableObs.length})`} subtitle="Newest at bottom">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <th className="py-1.5 pr-2">As of</th>
+                <th className="py-1.5 pr-2">Value</th>
+                <th className="py-1.5">Band</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableObs.map((o) => (
+                <tr key={o.observation_id} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-2 font-mono text-[10px] text-slate-600">{fmtTs(o.as_of_ts)}</td>
+                  <td className="py-1.5 pr-2 font-medium text-slate-900">{o.value}</td>
+                  <td className="py-1.5">
+                    <StatusBadge tone={o.band === 'red' ? 'red' : o.band === 'amber' ? 'amber' : 'green'} label={o.band} size="xs" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Breach history" subtitle="Observations in amber or red band">
+        {breachHistory.length === 0 ? (
+          <span className="text-xs text-slate-500">No breach-band observations in window.</span>
+        ) : (
+          <ul className="space-y-2 text-xs text-slate-800">
+            {breachHistory.map((o) => (
+              <li key={o.observation_id} className="flex flex-wrap items-center gap-2 border-b border-slate-50 pb-2 last:border-0">
+                <span className="font-mono text-[10px] text-slate-500">{fmtTs(o.as_of_ts)}</span>
+                <span className="font-semibold">{o.value}</span>
+                <StatusBadge tone={o.band === 'red' ? 'red' : 'amber'} label={o.band} size="xs" />
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+
+      {sm && (
+        <SectionCard title="Accountable senior manager">
+          <button type="button" className="text-sm font-semibold text-indigo-700 underline" onClick={() => drillFromDrawer('seniorManager', sm.senior_manager_id)}>
+            {sm.name}
+          </button>
+          <div className="mt-1 text-[10px] text-slate-500">{sm.role}</div>
+        </SectionCard>
+      )}
+    </div>
+  );
+}
+
+// =====================================================================
 // SENIOR MANAGER
 // =====================================================================
 export function SeniorManagerDetailPanel({
@@ -801,7 +974,7 @@ export function AuditPackDetailPanel({
   closeDrawer: () => void;
 }) {
   const ap = getAuditPack(packId);
-  if (!ap) return <EmptyState message="Audit pack not found." />;
+  if (!ap) return <EmptyState message="Readiness pack not found." />;
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-4">
@@ -824,10 +997,10 @@ export function AuditPackDetailPanel({
         }}
         className="w-full rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
       >
-        Open in Workpaper / AuditPack Builder →
+        Open in Inspection pack builder →
       </button>
 
-      <SectionCard title={`Workpapers (${ap.included_workpaper_ids.length})`}>
+      <SectionCard title={`Pack workpapers (${ap.included_workpaper_ids.length})`}>
         <div className="flex flex-wrap gap-1.5">
           {ap.included_workpaper_ids.map((id) => (
             <Chip key={id} label={id} tone="slate" onClick={() => drillFromDrawer('workpaper', id)} />
@@ -1153,6 +1326,523 @@ export function CorrelationDetailPanel({ correlationId }: { correlationId: strin
       <SectionCard title="Linked records">
         <KVRow k="From" v={`${cr.from_entity_type} · ${cr.from_entity_id}`} mono />
         <KVRow k="To" v={cr.to_entity_id ? `${cr.to_entity_type} · ${cr.to_entity_id}` : 'orphan'} mono />
+      </SectionCard>
+    </div>
+  );
+}
+
+// =====================================================================
+// REGULATION
+// =====================================================================
+export function RegulationDetailPanel({
+  regulationId,
+  drillFromDrawer,
+}: {
+  regulationId: string;
+  drillFromDrawer: DrillFromDrawer;
+}) {
+  const reg = getRegulation(regulationId);
+  if (!reg) return <EmptyState message="Regulation not found." />;
+  const linkedObl = obligations.filter((o) => o.regulation_id === regulationId);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{reg.regulator}</div>
+        <h2 className="text-base font-bold text-slate-900">{reg.title}</h2>
+        <div className="mt-1 font-mono text-[10px] text-slate-500">{reg.regulation_id}</div>
+      </div>
+      <SectionCard title="Citation">
+        <p className="text-xs text-slate-700">{reg.citation}</p>
+      </SectionCard>
+      <SectionCard title="Atomic obligations">
+        {linkedObl.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {linkedObl.map((o) => (
+              <Chip key={o.obligation_id} label={o.obligation_id} tone="violet" onClick={() => drillFromDrawer('obligation', o.obligation_id)} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState message="No obligations in this prototype slice." />
+        )}
+      </SectionCard>
+    </div>
+  );
+}
+
+// =====================================================================
+// RCA
+// =====================================================================
+export function RcaDetailPanel({ rcaId, drillFromDrawer }: { rcaId: string; drillFromDrawer: DrillFromDrawer }) {
+  const rca = getRca(rcaId);
+  if (!rca) return <EmptyState message="RCA not found." />;
+  const inc = getIncident(rca.incident_id);
+  const owner = rca.owner_senior_manager_id ? getSeniorManager(rca.owner_senior_manager_id) : null;
+  const pas = preventiveActions.filter((p) => p.rca_id === rca.rca_id);
+  const ctrlIds = new Set<string>();
+  if (inc?.linked_control_ids) inc.linked_control_ids.forEach((c) => ctrlIds.add(c));
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="font-mono text-[10px] text-slate-500">{rca.rca_id}</div>
+        <h2 className="text-base font-bold text-slate-900">RCA record</h2>
+        <div className="mt-1 flex flex-wrap gap-2">
+          <Chip label={(rca.status || '—').replace(/_/g, ' ')} tone="indigo" />
+          <Chip label={rca.methodology || 'five_whys'} tone="slate" size="xs" />
+        </div>
+      </div>
+
+      {inc && (
+        <SectionCard title="Source incident">
+          <button
+            type="button"
+            className="w-full rounded-lg border border-rose-100 bg-rose-50/80 p-3 text-left hover:bg-rose-50"
+            onClick={() => drillFromDrawer('incident', inc.incident_id)}
+          >
+            <div className="font-mono text-[10px] text-rose-800">{inc.incident_id}</div>
+            <div className="text-sm font-semibold text-slate-900">{inc.title}</div>
+          </button>
+        </SectionCard>
+      )}
+
+      <SectionCard title="Linked controls (from incident)">
+        {[...ctrlIds].length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {[...ctrlIds].map((cid) => (
+              <Chip key={cid} label={cid} tone="indigo" onClick={() => drillFromDrawer('control', cid)} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState message="No controls linked on the incident." />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Preventive actions">
+        {pas.length ? (
+          <div className="space-y-2">
+            {pas.map((pa) => (
+              <button
+                key={pa.preventive_action_id}
+                type="button"
+                onClick={() => drillFromDrawer('preventiveAction', pa.preventive_action_id)}
+                className="block w-full rounded border border-slate-200 bg-white p-2 text-left text-xs hover:border-orange-300"
+              >
+                <div className="font-mono text-[10px] text-slate-500">{pa.preventive_action_id}</div>
+                <div className="font-medium text-slate-900">{pa.title || '—'}</div>
+                <div className="mt-1 text-[10px] capitalize text-slate-600">{pa.status.replace(/_/g, ' ')}</div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <EmptyState message="No preventive actions on this RCA." />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Ownership">
+        <KVRow k="RCA owner" v={owner?.name || rca.owner_senior_manager_id || '—'} />
+        <KVRow k="Opened" v={fmtDate(rca.opened_at)} />
+        <KVRow k="Completed" v={fmtDate(rca.rca_completed_at)} />
+      </SectionCard>
+    </div>
+  );
+}
+
+// =====================================================================
+// PREVENTIVE ACTION
+// =====================================================================
+export function PreventiveActionDetailPanel({
+  paId,
+  drillFromDrawer,
+}: {
+  paId: string;
+  drillFromDrawer: DrillFromDrawer;
+}) {
+  const pa = getPreventiveAction(paId);
+  if (!pa) return <EmptyState message="Preventive action not found." />;
+  const rca = getRca(pa.rca_id);
+  const inc = rca ? getIncident(rca.incident_id) : null;
+  const sm = pa.owner_senior_manager_id ? getSeniorManager(pa.owner_senior_manager_id) : null;
+  const blockingNotes = pacNotes.filter((pn) => (pn.blocking_preventive_action_ids || []).includes(pa.preventive_action_id));
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="font-mono text-[10px] text-slate-500">{pa.preventive_action_id}</div>
+        <h2 className="text-base font-bold text-slate-900">{pa.title || 'Preventive action'}</h2>
+        <div className="mt-1 flex flex-wrap gap-2">
+          <Chip label={pa.status.replace(/_/g, ' ')} tone={pa.status === 'closed' ? 'emerald' : 'amber'} />
+          {pa.linked_pac_note_block_flag && <Chip label="Blocks PAC" tone="rose" size="xs" />}
+        </div>
+      </div>
+
+      <SectionCard title="RCA · incident chain">
+        {rca ? (
+          <div className="space-y-2">
+            <button
+              type="button"
+              className="block w-full rounded-lg border border-indigo-100 bg-indigo-50/80 p-3 text-left hover:bg-indigo-50"
+              onClick={() => drillFromDrawer('rca', rca.rca_id)}
+            >
+              <div className="font-mono text-[10px] text-indigo-700">{rca.rca_id}</div>
+              <div className="text-xs font-semibold text-slate-800">{(rca.status || '').replace(/_/g, ' ')}</div>
+            </button>
+            {inc ? (
+              <button
+                type="button"
+                className="block w-full rounded-lg border border-rose-100 bg-rose-50/80 p-3 text-left hover:bg-rose-50"
+                onClick={() => drillFromDrawer('incident', inc.incident_id)}
+              >
+                <div className="font-mono text-[10px] text-rose-800">{inc.incident_id}</div>
+                <div className="text-xs font-semibold text-slate-800">{inc.title}</div>
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <EmptyState message="RCA not found for this PA." />
+        )}
+      </SectionCard>
+
+      <SectionCard title="PAC notes blocking on this PA">
+        {blockingNotes.length ? (
+          <ul className="space-y-2 text-xs text-slate-700">
+            {blockingNotes.map((pn) => (
+              <li key={pn.pac_note_id} className="rounded border border-slate-200 bg-white p-2">
+                <div className="font-mono text-[10px]">{pn.pac_note_id}</div>
+                <div className="font-medium">{pn.title || 'PAC note'}</div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {(pn.referenced_rca_ids || []).map((rid) => (
+                    <Chip key={rid} label={rid} tone="indigo" size="xs" onClick={() => drillFromDrawer('rca', rid)} />
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <span className="text-xs text-slate-500">No PAC notes list this PA in blocking_preventive_action_ids.</span>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Accountability">
+        <KVRow k="Target date" v={fmtDate(pa.target_date)} />
+        <KVRow
+          k="Owner SM"
+          v={
+            sm && pa.owner_senior_manager_id ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-indigo-700 underline"
+                onClick={() => drillFromDrawer('seniorManager', pa.owner_senior_manager_id as string)}
+              >
+                {sm.name}
+              </button>
+            ) : (
+              pa.owner_senior_manager_id || '—'
+            )
+          }
+        />
+      </SectionCard>
+    </div>
+  );
+}
+
+// =====================================================================
+// INCIDENT (ORI)
+// =====================================================================
+function rcaForIncidentId(incidentId: string, linkedRcaId?: string | null) {
+  if (linkedRcaId) return rcas.find((r) => r.rca_id === linkedRcaId) || null;
+  return rcas.find((r) => r.incident_id === incidentId) || null;
+}
+
+function incidentTypeChipTone(t: string): 'slate' | 'rose' | 'violet' | 'sky' | 'amber' | 'indigo' {
+  if (t === 'operational_loss') return 'slate';
+  if (t === 'near_miss') return 'sky';
+  if (t === 'fraud') return 'rose';
+  if (t === 'cyber') return 'violet';
+  if (t === 'conduct') return 'amber';
+  if (t === 'regulatory_breach') return 'indigo';
+  return 'slate';
+}
+
+function severityChipTone(s: string): 'rose' | 'amber' | 'slate' {
+  if (s === 'high' || s === 'critical') return 'rose';
+  if (s === 'medium') return 'amber';
+  return 'slate';
+}
+
+function daysBetweenYmd(occ?: string | null, disc?: string | null): string {
+  if (!occ || !disc) return '—';
+  const o = new Date(occ.includes('T') ? occ : `${occ}T00:00:00`).getTime();
+  const d = new Date(disc.includes('T') ? disc : `${disc}T00:00:00`).getTime();
+  if (Number.isNaN(o) || Number.isNaN(d)) return '—';
+  const days = Math.round((d - o) / 86400000);
+  return `${days}`;
+}
+
+function rcaStatusHeadline(st?: string) {
+  if (!st) return 'RCA';
+  if (st === 'approved') return 'RCA approved';
+  if (st === 'in_progress') return 'RCA in progress';
+  if (st === 'draft') return 'RCA draft';
+  return st.replace(/_/g, ' ');
+}
+
+export function IncidentDetailPanel({
+  incidentId,
+  drillFromDrawer,
+  onOpenRcaWorkspace,
+  closeDrawer,
+}: {
+  incidentId: string;
+  drillFromDrawer: DrillFromDrawer;
+  onOpenRcaWorkspace: (rcaId: string) => void;
+  closeDrawer: () => void;
+}) {
+  const inc = getIncident(incidentId);
+  if (!inc) return <EmptyState message="Incident not found." />;
+  const rca = rcaForIncidentId(inc.incident_id, inc.linked_rca_id);
+  const sm = getSeniorManager(inc.accountable_senior_manager_id);
+  const whys = rca?.five_whys_steps?.length ?? 0;
+  const paCount = rca ? preventiveActions.filter((pa) => pa.rca_id === rca.rca_id).length : 0;
+  const rcaOwner = rca?.owner_senior_manager_id ? getSeniorManager(rca.owner_senior_manager_id) : null;
+  const incidentAudit = auditTrailForEntity('incident', inc.incident_id);
+
+  const gross = inc.gross_loss_inr ?? null;
+  const rec = inc.recovery_inr ?? null;
+  const net =
+    gross != null || rec != null ? (gross ?? 0) - (rec ?? 0) : null;
+  const showLoss = inc.incident_type === 'operational_loss' || inc.incident_type === 'fraud';
+
+  const rcaCardBorder =
+    rca?.status === 'approved'
+      ? 'border-emerald-200 bg-emerald-50/80'
+      : rca?.status === 'in_progress'
+        ? 'border-indigo-200 bg-indigo-50/80'
+        : 'border-slate-200 bg-slate-50';
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-sm font-semibold text-slate-900">{inc.incident_id}</span>
+        <Chip label={inc.incident_type.replace(/_/g, ' ')} size="xs" tone={incidentTypeChipTone(inc.incident_type)} />
+        <Chip label={inc.severity} size="xs" tone={severityChipTone(inc.severity)} />
+        <Chip label={inc.status.replace(/_/g, ' ')} size="xs" tone="slate" />
+        {inc.rbi_reportable === true && (
+          <span className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-800">
+            RBI-reportable
+          </span>
+        )}
+      </div>
+
+      <h2 className="text-lg font-bold leading-snug text-slate-900">{inc.title}</h2>
+
+      <SectionCard title="Key dates">
+        <KVRow k="Occurred" v={fmtDate(inc.occurred_date)} mono />
+        <KVRow k="Discovered" v={fmtDate(inc.discovered_date)} mono />
+        <KVRow k="Reported" v={fmtDate(inc.reported_date)} mono />
+        <KVRow k="Days to detection" v={daysBetweenYmd(inc.occurred_date, inc.discovered_date)} />
+      </SectionCard>
+
+      <SectionCard title="Description">
+        {inc.description ? (
+          <p className="text-xs leading-relaxed text-slate-700">{inc.description}</p>
+        ) : (
+          <EmptyState message="No description on file." />
+        )}
+      </SectionCard>
+
+      {showLoss && (gross != null || rec != null || inc.basel_event_type) ? (
+        <SectionCard title="Loss & Basel classification">
+          {gross != null ? <KVRow k="Gross loss" v={formatInrLossDisplay(gross)} /> : null}
+          {rec != null ? <KVRow k="Recovery" v={formatInrLossDisplay(rec)} /> : null}
+          {net != null ? <KVRow k="Net loss" v={formatInrLossDisplay(net)} /> : null}
+          <KVRow k="Basel event type" v={(inc.basel_event_type || '—').replace(/_/g, ' ')} />
+          <KVRow k="Basel subtype" v={inc.basel_event_subtype ? inc.basel_event_subtype.replace(/_/g, ' ') : '—'} />
+        </SectionCard>
+      ) : null}
+
+      <SectionCard title="Organisation">
+        <KVRow k="Detection source" v={inc.detection_source ? inc.detection_source.replace(/_/g, ' ') : '—'} />
+        <KVRow k="Business unit" v={inc.business_unit || '—'} />
+        <KVRow
+          k="Accountable SM"
+          v={
+            sm ? (
+              <button
+                type="button"
+                className="text-left text-xs font-medium text-indigo-700 underline decoration-dotted hover:text-indigo-900"
+                onClick={() => drillFromDrawer('seniorManager', sm.senior_manager_id)}
+              >
+                {sm.name}
+              </button>
+            ) : (
+              inc.accountable_senior_manager_id || '—'
+            )
+          }
+        />
+      </SectionCard>
+
+      <SectionCard title="Linked risks">
+        {inc.linked_risk_ids?.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {inc.linked_risk_ids.map((rid) => {
+              const r = getRisk(rid);
+              return (
+                <Chip
+                  key={rid}
+                  label={r?.title ? `${rid} · ${r.title}` : rid}
+                  tone="rose"
+                  size="xs"
+                  onClick={() => drillFromDrawer('risk', rid)}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState message="No risks linked." />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Linked controls">
+        {inc.linked_control_ids?.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {inc.linked_control_ids.map((cid) => {
+              const c = getControl(cid);
+              return (
+                <Chip
+                  key={cid}
+                  label={c?.title ? `${cid} · ${c.title}` : cid}
+                  tone="indigo"
+                  size="xs"
+                  onClick={() => drillFromDrawer('control', cid)}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState message="No controls linked." />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Linked processes" subtitle="Derived from linked controls">
+        {(() => {
+          const pids = new Set<string>();
+          (inc.linked_control_ids || []).forEach((cid) => {
+            const c = getControl(cid);
+            if (c?.process_id) pids.add(c.process_id);
+          });
+          const list = [...pids];
+          if (!list.length) return <EmptyState message="No processes resolved from linked controls." />;
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              {list.map((pid) => {
+                const p = getProcess(pid);
+                return (
+                  <Chip key={pid} label={p?.name || pid} tone="sky" size="xs" onClick={() => drillFromDrawer('process', pid)} />
+                );
+              })}
+            </div>
+          );
+        })()}
+      </SectionCard>
+
+      <SectionCard title="Evidence trail (sample)" subtitle="Control instances → verifiable evidence">
+        {(() => {
+          const samples: { eid: string; label: string }[] = [];
+          for (const cid of inc.linked_control_ids || []) {
+            const insts = controlInstancesForControl(cid).slice(0, 1);
+            for (const ci of insts) {
+              for (const ev of evidenceForControlInstance(ci).slice(0, 2)) {
+                samples.push({ eid: ev.evidence_id, label: `${ev.evidence_id} · ${cid}` });
+              }
+            }
+          }
+          if (!samples.length) return <EmptyState message="No evidence samples in current window." />;
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              {samples.map((s) => (
+                <Chip key={s.eid + s.label} label={s.label} tone="sky" size="xs" onClick={() => drillFromDrawer('evidence', s.eid)} />
+              ))}
+            </div>
+          );
+        })()}
+      </SectionCard>
+
+      {rca ? (
+        <div className={`rounded-lg border p-4 ${rcaCardBorder}`}>
+          <div className="mb-2 text-xs font-bold text-slate-900">{rcaStatusHeadline(rca.status)}</div>
+          <div className="grid gap-1 text-[11px] text-slate-700">
+            <div>
+              <span className="font-semibold text-slate-500">Owner: </span>
+              {rcaOwner?.name ?? rca.owner_senior_manager_id ?? '—'}
+            </div>
+            <div>
+              <span className="font-semibold text-slate-500">5-Whys: </span>
+              {whys}
+            </div>
+            <div>
+              <span className="font-semibold text-slate-500">Preventive actions: </span>
+              {paCount}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+            onClick={() => drillFromDrawer('rca', rca.rca_id)}
+          >
+            View RCA record in drawer →
+          </button>
+          <button
+            type="button"
+            className="mt-2 w-full rounded-md border border-indigo-300 bg-white px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+            onClick={() => {
+              onOpenRcaWorkspace(rca.rca_id);
+              closeDrawer();
+            }}
+          >
+            Open in RCA Workspace →
+          </button>
+        </div>
+      ) : (
+        <SectionCard title="RCA">
+          <EmptyState message="No RCA linked to this incident." />
+        </SectionCard>
+      )}
+
+      <SectionCard title="Regulatory reporting">
+        <KVRow k="RBI-reportable" v={inc.rbi_reportable === true ? '✓' : inc.rbi_reportable === false ? '✗' : '—'} />
+        <KVRow
+          k="FMR filed"
+          v={
+            inc.fmr_filed === true
+              ? `✓${inc.fmr_filed_date ? ` (${fmtDate(inc.fmr_filed_date)})` : ''}`
+              : inc.fmr_filed === false
+                ? '✗'
+                : '—'
+          }
+        />
+        {inc.incident_type === 'cyber' ? (
+          <>
+            <KVRow k="CERT-In filed" v={inc.cert_in_filed_at ? fmtTs(inc.cert_in_filed_at) : '—'} mono />
+            <KVRow k="CSITE filed" v={inc.csite_filed_at ? fmtTs(inc.csite_filed_at) : '—'} mono />
+          </>
+        ) : null}
+      </SectionCard>
+
+      <SectionCard title="Audit trail">
+        {incidentAudit.length ? (
+          incidentAudit.map((e) => (
+            <div key={e.audit_trail_event_id} className="border-b border-slate-100 py-1.5 text-[10px] last:border-0">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-700">{e.event_type}</span>
+                <span className="text-slate-500">{fmtTs(e.system_time)}</span>
+              </div>
+              <div className="text-slate-600">{e.payload_summary}</div>
+            </div>
+          ))
+        ) : (
+          <EmptyState message="No audit events for this incident." />
+        )}
       </SectionCard>
     </div>
   );

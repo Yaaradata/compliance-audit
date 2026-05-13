@@ -1,8 +1,10 @@
 export type DrawerEntityType =
+  | 'incident'
   | 'risk'
   | 'control'
   | 'controlInstance'
   | 'obligation'
+  | 'regulation'
   | 'process'
   | 'processExecution'
   | 'stepExecution'
@@ -21,7 +23,16 @@ export type DrawerEntityType =
   | 'testExecution'
   | 'reportingClock'
   | 'reportingSubmission'
-  | 'sourceSystem';
+  | 'sourceSystem'
+  | 'kri'
+  | 'rca'
+  | 'preventiveAction';
+
+/** Deep-link preset when routing from posture heartbeat tiles. */
+export type OrmCrossNavIntent =
+  | { target: 'incidentRegister'; preset: 'critical_incidents_7d' }
+  | { target: 'rcaWorkspace'; preset: 'awaiting_approval' }
+  | { target: 'pacNoteApprovals'; preset: 'blocked' };
 
 export type DrillCrumb = {
   type: DrawerEntityType;

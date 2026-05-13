@@ -1,0 +1,2080 @@
+  rcsaCycles: [
+    {
+      "rcsa_cycle_id": "RC-FY26-H1-RL",
+      "cycle_name": "Retail Liabilities",
+      "fiscal_period_label": "FY26-H1",
+      "period_start": "2026-04-01",
+      "period_end": "2026-09-30",
+      "status": "not_started",
+      "linked_process_id": "PROC-KYC-001",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "business_unit": "Retail Banking",
+      "refresh_cadence": "half_yearly",
+      "target_signoff_at": "2026-03-20"
+    },
+    {
+      "rcsa_cycle_id": "RC-FY26-H1-DL",
+      "cycle_name": "Digital Lending",
+      "fiscal_period_label": "FY26-H1",
+      "period_start": "2026-04-01",
+      "period_end": "2026-09-30",
+      "status": "in_progress",
+      "linked_process_id": "PROC-LND-001",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "business_unit": "Digital Lending",
+      "refresh_cadence": "quarterly",
+      "target_signoff_at": "2026-04-28"
+    },
+    {
+      "rcsa_cycle_id": "RC-FY26-H1-TR",
+      "cycle_name": "Treasury",
+      "fiscal_period_label": "FY26-H1",
+      "period_start": "2026-04-01",
+      "period_end": "2026-09-30",
+      "status": "in_progress",
+      "linked_process_id": "PROC-VND-001",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "business_unit": "Treasury",
+      "refresh_cadence": "annual",
+      "target_signoff_at": "2026-08-15"
+    },
+    {
+      "rcsa_cycle_id": "RC-FY26-H1-TF",
+      "cycle_name": "Trade Finance",
+      "fiscal_period_label": "FY26-H1",
+      "period_start": "2026-04-01",
+      "period_end": "2026-09-30",
+      "status": "in_progress",
+      "linked_process_id": "PROC-VND-001",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "business_unit": "Trade Finance",
+      "refresh_cadence": "half_yearly",
+      "target_signoff_at": "2026-08-20"
+    },
+    {
+      "rcsa_cycle_id": "RC-FY26-H1-CP",
+      "cycle_name": "Cards & Payments",
+      "fiscal_period_label": "FY26-H1",
+      "period_start": "2026-04-01",
+      "period_end": "2026-09-30",
+      "status": "in_progress",
+      "linked_process_id": "PROC-UPI-001",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "business_unit": "Cards & Payments",
+      "refresh_cadence": "quarterly",
+      "target_signoff_at": "2026-07-10"
+    },
+    {
+      "rcsa_cycle_id": "RC-FY26-H1-IT",
+      "cycle_name": "IT Operations",
+      "fiscal_period_label": "FY26-H1",
+      "period_start": "2026-04-01",
+      "period_end": "2026-09-30",
+      "status": "spoc_review",
+      "linked_process_id": "PROC-ITO-001",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "business_unit": "IT Operations",
+      "refresh_cadence": "monthly",
+      "target_signoff_at": "2026-04-15"
+    },
+    {
+      "rcsa_cycle_id": "RC-FY26-H1-BB",
+      "cycle_name": "Branch Banking",
+      "fiscal_period_label": "FY26-H1",
+      "period_start": "2026-04-01",
+      "period_end": "2026-09-30",
+      "status": "spoc_review",
+      "linked_process_id": "PROC-KYC-001",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "business_unit": "Branch Banking",
+      "refresh_cadence": "quarterly",
+      "target_signoff_at": "2026-06-01"
+    },
+    {
+      "rcsa_cycle_id": "RC-FY26-H1-FC",
+      "cycle_name": "Financial Crime Operations",
+      "fiscal_period_label": "FY26-H1",
+      "period_start": "2026-04-01",
+      "period_end": "2026-09-30",
+      "status": "hod_approval",
+      "linked_process_id": "PROC-AML-001",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "business_unit": "Financial Crime",
+      "refresh_cadence": "annual",
+      "target_signoff_at": "2026-05-28"
+    },
+    {
+      "rcsa_cycle_id": "RC-FY26-H1-WM",
+      "cycle_name": "Wealth Management",
+      "fiscal_period_label": "FY26-H1",
+      "period_start": "2026-04-01",
+      "period_end": "2026-09-30",
+      "status": "signed_off",
+      "linked_process_id": "PROC-KYC-001",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "business_unit": "Wealth Management",
+      "refresh_cadence": "half_yearly",
+      "target_signoff_at": "2026-04-30"
+    },
+    {
+      "rcsa_cycle_id": "RC-FY26-H1-CB",
+      "cycle_name": "Corporate Banking",
+      "fiscal_period_label": "FY26-H1",
+      "period_start": "2026-04-01",
+      "period_end": "2026-09-30",
+      "status": "locked",
+      "linked_process_id": "PROC-LND-001",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "business_unit": "Corporate Banking",
+      "refresh_cadence": "annual",
+      "target_signoff_at": "2026-09-15"
+    }
+  ],
+
+  rcsaCells: [
+    {
+      "rcsa_cell_id": "RCELL-FY26-001",
+      "rcsa_cycle_id": "RC-FY26-H1-RL",
+      "risk_id": "R-CD-001",
+      "process_id": "PROC-KYC-001",
+      "control_ids": [
+        "CTRL-KYC-002",
+        "CTRL-KYC-003"
+      ],
+      "inherent_likelihood": 3,
+      "inherent_impact": 5,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 89,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": "2026-05-08T14:30:00Z",
+      "last_refreshed": "2026-04-27"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-002",
+      "rcsa_cycle_id": "RC-FY26-H1-RL",
+      "risk_id": "R-OP-001",
+      "process_id": "PROC-KYC-001",
+      "control_ids": [
+        "CTRL-KYC-003",
+        "CTRL-KYC-001",
+        "CTRL-KYC-002"
+      ],
+      "inherent_likelihood": 4,
+      "inherent_impact": 4,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 92,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-25"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-003",
+      "rcsa_cycle_id": "RC-FY26-H1-DL",
+      "risk_id": "R-OP-001",
+      "process_id": "PROC-LND-001",
+      "control_ids": [
+        "CTRL-LND-002"
+      ],
+      "inherent_likelihood": 5,
+      "inherent_impact": 3,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 91,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": "2026-05-08T14:30:00Z",
+      "last_refreshed": "2026-04-25"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-004",
+      "rcsa_cycle_id": "RC-FY26-H1-DL",
+      "risk_id": "R-CR-001",
+      "process_id": "PROC-LND-001",
+      "control_ids": [
+        "CTRL-LND-001",
+        "CTRL-LND-002"
+      ],
+      "inherent_likelihood": 2,
+      "inherent_impact": 2,
+      "inherent_rating": "low",
+      "control_effectiveness_score": 93,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-23"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-005",
+      "rcsa_cycle_id": "RC-FY26-H1-DL",
+      "risk_id": "R-FR-001",
+      "process_id": "PROC-LND-001",
+      "control_ids": [
+        "CTRL-LND-002",
+        "CTRL-LND-001",
+        "CTRL-LND-002"
+      ],
+      "inherent_likelihood": 3,
+      "inherent_impact": 5,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 88,
+      "residual_rating": "medium",
+      "residual_trend": "stable",
+      "spoc_attested_at": "2026-05-08T14:30:00Z",
+      "last_refreshed": "2026-04-21"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-006",
+      "rcsa_cycle_id": "RC-FY26-H1-DL",
+      "risk_id": "R-FC-001",
+      "process_id": "PROC-LND-001",
+      "control_ids": [
+        "CTRL-LND-001"
+      ],
+      "inherent_likelihood": 4,
+      "inherent_impact": 4,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 91,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-19"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-007",
+      "rcsa_cycle_id": "RC-FY26-H1-TR",
+      "risk_id": "R-FR-001",
+      "process_id": "PROC-VND-001",
+      "control_ids": [
+        "CTRL-VND-002",
+        "CTRL-VND-001"
+      ],
+      "inherent_likelihood": 5,
+      "inherent_impact": 3,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 72,
+      "residual_rating": "high",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-21"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-008",
+      "rcsa_cycle_id": "RC-FY26-H1-TR",
+      "risk_id": "R-FC-001",
+      "process_id": "PROC-VND-001",
+      "control_ids": [
+        "CTRL-VND-001",
+        "CTRL-VND-002",
+        "CTRL-VND-001"
+      ],
+      "inherent_likelihood": 2,
+      "inherent_impact": 2,
+      "inherent_rating": "low",
+      "control_effectiveness_score": 74,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-19"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-009",
+      "rcsa_cycle_id": "RC-FY26-H1-TR",
+      "risk_id": "R-CO-001",
+      "process_id": "PROC-VND-001",
+      "control_ids": [
+        "CTRL-VND-002"
+      ],
+      "inherent_likelihood": 3,
+      "inherent_impact": 5,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 73,
+      "residual_rating": "high",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-17"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-010",
+      "rcsa_cycle_id": "RC-FY26-H1-TR",
+      "risk_id": "R-TC-001",
+      "process_id": "PROC-VND-001",
+      "control_ids": [
+        "CTRL-VND-001",
+        "CTRL-VND-002"
+      ],
+      "inherent_likelihood": 4,
+      "inherent_impact": 4,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 70,
+      "residual_rating": "high",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-15"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-011",
+      "rcsa_cycle_id": "RC-FY26-H1-TF",
+      "risk_id": "R-CO-001",
+      "process_id": "PROC-VND-001",
+      "control_ids": [
+        "CTRL-VND-002",
+        "CTRL-VND-001",
+        "CTRL-VND-002"
+      ],
+      "inherent_likelihood": 5,
+      "inherent_impact": 3,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 71,
+      "residual_rating": "high",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-17"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-012",
+      "rcsa_cycle_id": "RC-FY26-H1-TF",
+      "risk_id": "R-TC-001",
+      "process_id": "PROC-VND-001",
+      "control_ids": [
+        "CTRL-VND-001"
+      ],
+      "inherent_likelihood": 2,
+      "inherent_impact": 2,
+      "inherent_rating": "low",
+      "control_effectiveness_score": 73,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-15"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-013",
+      "rcsa_cycle_id": "RC-FY26-H1-TF",
+      "risk_id": "R-TP-001",
+      "process_id": "PROC-VND-001",
+      "control_ids": [
+        "CTRL-VND-002",
+        "CTRL-VND-001"
+      ],
+      "inherent_likelihood": 3,
+      "inherent_impact": 5,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 73,
+      "residual_rating": "high",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-13"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-014",
+      "rcsa_cycle_id": "RC-FY26-H1-TF",
+      "risk_id": "R-MR-001",
+      "process_id": "PROC-VND-001",
+      "control_ids": [
+        "CTRL-VND-001",
+        "CTRL-VND-002",
+        "CTRL-VND-001"
+      ],
+      "inherent_likelihood": 4,
+      "inherent_impact": 4,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 75,
+      "residual_rating": "high",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-11"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-015",
+      "rcsa_cycle_id": "RC-FY26-H1-CP",
+      "risk_id": "R-TP-001",
+      "process_id": "PROC-UPI-001",
+      "control_ids": [
+        "CTRL-UPI-001"
+      ],
+      "inherent_likelihood": 5,
+      "inherent_impact": 3,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 68,
+      "residual_rating": "high",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-13"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-016",
+      "rcsa_cycle_id": "RC-FY26-H1-CP",
+      "risk_id": "R-MR-001",
+      "process_id": "PROC-UPI-001",
+      "control_ids": [
+        "CTRL-UPI-001",
+        "CTRL-UPI-001"
+      ],
+      "inherent_likelihood": 2,
+      "inherent_impact": 2,
+      "inherent_rating": "low",
+      "control_effectiveness_score": 69,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-11"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-017",
+      "rcsa_cycle_id": "RC-FY26-H1-CP",
+      "risk_id": "R-CD-001",
+      "process_id": "PROC-UPI-001",
+      "control_ids": [
+        "CTRL-UPI-001",
+        "CTRL-UPI-001",
+        "CTRL-UPI-001"
+      ],
+      "inherent_likelihood": 3,
+      "inherent_impact": 5,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 70,
+      "residual_rating": "high",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-09"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-018",
+      "rcsa_cycle_id": "RC-FY26-H1-CP",
+      "risk_id": "R-OP-001",
+      "process_id": "PROC-UPI-001",
+      "control_ids": [
+        "CTRL-UPI-001"
+      ],
+      "inherent_likelihood": 4,
+      "inherent_impact": 4,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 71,
+      "residual_rating": "high",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-27"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-019",
+      "rcsa_cycle_id": "RC-FY26-H1-IT",
+      "risk_id": "R-CD-001",
+      "process_id": "PROC-ITO-001",
+      "control_ids": [
+        "CTRL-ITO-001",
+        "CTRL-ITO-001"
+      ],
+      "inherent_likelihood": 5,
+      "inherent_impact": 3,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 91,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": "2026-05-08T14:30:00Z",
+      "last_refreshed": "2026-04-09"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-020",
+      "rcsa_cycle_id": "RC-FY26-H1-IT",
+      "risk_id": "R-OP-001",
+      "process_id": "PROC-ITO-001",
+      "control_ids": [
+        "CTRL-ITO-001",
+        "CTRL-ITO-001",
+        "CTRL-ITO-001"
+      ],
+      "inherent_likelihood": 2,
+      "inherent_impact": 2,
+      "inherent_rating": "low",
+      "control_effectiveness_score": 87,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-27"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-021",
+      "rcsa_cycle_id": "RC-FY26-H1-IT",
+      "risk_id": "R-CR-001",
+      "process_id": "PROC-ITO-001",
+      "control_ids": [
+        "CTRL-ITO-001"
+      ],
+      "inherent_likelihood": 3,
+      "inherent_impact": 5,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 88,
+      "residual_rating": "medium",
+      "residual_trend": "stable",
+      "spoc_attested_at": "2026-05-08T14:30:00Z",
+      "last_refreshed": "2026-04-25"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-022",
+      "rcsa_cycle_id": "RC-FY26-H1-IT",
+      "risk_id": "R-FR-001",
+      "process_id": "PROC-ITO-001",
+      "control_ids": [
+        "CTRL-ITO-001",
+        "CTRL-ITO-001"
+      ],
+      "inherent_likelihood": 4,
+      "inherent_impact": 4,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 89,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-23"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-023",
+      "rcsa_cycle_id": "RC-FY26-H1-BB",
+      "risk_id": "R-CR-001",
+      "process_id": "PROC-KYC-001",
+      "control_ids": [
+        "CTRL-KYC-003",
+        "CTRL-KYC-001",
+        "CTRL-KYC-002"
+      ],
+      "inherent_likelihood": 5,
+      "inherent_impact": 3,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 93,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-25"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-024",
+      "rcsa_cycle_id": "RC-FY26-H1-BB",
+      "risk_id": "R-FR-001",
+      "process_id": "PROC-KYC-001",
+      "control_ids": [
+        "CTRL-KYC-001"
+      ],
+      "inherent_likelihood": 2,
+      "inherent_impact": 2,
+      "inherent_rating": "low",
+      "control_effectiveness_score": 95,
+      "residual_rating": "low",
+      "residual_trend": "stable",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-23"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-025",
+      "rcsa_cycle_id": "RC-FY26-H1-BB",
+      "risk_id": "R-FC-001",
+      "process_id": "PROC-KYC-001",
+      "control_ids": [
+        "CTRL-KYC-002",
+        "CTRL-KYC-003"
+      ],
+      "inherent_likelihood": 3,
+      "inherent_impact": 5,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 88,
+      "residual_rating": "medium",
+      "residual_trend": "deteriorating",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-21"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-026",
+      "rcsa_cycle_id": "RC-FY26-H1-BB",
+      "risk_id": "R-CO-001",
+      "process_id": "PROC-KYC-001",
+      "control_ids": [
+        "CTRL-KYC-003",
+        "CTRL-KYC-001",
+        "CTRL-KYC-002"
+      ],
+      "inherent_likelihood": 4,
+      "inherent_impact": 4,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 91,
+      "residual_rating": "low",
+      "residual_trend": "deteriorating",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-19"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-027",
+      "rcsa_cycle_id": "RC-FY26-H1-FC",
+      "risk_id": "R-FC-001",
+      "process_id": "PROC-AML-001",
+      "control_ids": [
+        "CTRL-AML-003"
+      ],
+      "inherent_likelihood": 5,
+      "inherent_impact": 3,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 88,
+      "residual_rating": "medium",
+      "residual_trend": "deteriorating",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-21"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-028",
+      "rcsa_cycle_id": "RC-FY26-H1-FC",
+      "risk_id": "R-CO-001",
+      "process_id": "PROC-AML-001",
+      "control_ids": [
+        "CTRL-AML-002",
+        "CTRL-AML-003"
+      ],
+      "inherent_likelihood": 2,
+      "inherent_impact": 2,
+      "inherent_rating": "low",
+      "control_effectiveness_score": 80,
+      "residual_rating": "low",
+      "residual_trend": "deteriorating",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-19"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-029",
+      "rcsa_cycle_id": "RC-FY26-H1-FC",
+      "risk_id": "R-TC-001",
+      "process_id": "PROC-AML-001",
+      "control_ids": [
+        "CTRL-AML-003",
+        "CTRL-AML-002",
+        "CTRL-AML-003"
+      ],
+      "inherent_likelihood": 3,
+      "inherent_impact": 5,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 84,
+      "residual_rating": "medium",
+      "residual_trend": "deteriorating",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-17"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-030",
+      "rcsa_cycle_id": "RC-FY26-H1-FC",
+      "risk_id": "R-TP-001",
+      "process_id": "PROC-AML-001",
+      "control_ids": [
+        "CTRL-AML-002"
+      ],
+      "inherent_likelihood": 4,
+      "inherent_impact": 4,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 68,
+      "residual_rating": "high",
+      "residual_trend": "deteriorating",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-15"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-031",
+      "rcsa_cycle_id": "RC-FY26-H1-WM",
+      "risk_id": "R-TC-001",
+      "process_id": "PROC-KYC-001",
+      "control_ids": [
+        "CTRL-KYC-002",
+        "CTRL-KYC-003"
+      ],
+      "inherent_likelihood": 5,
+      "inherent_impact": 3,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 89,
+      "residual_rating": "low",
+      "residual_trend": "deteriorating",
+      "spoc_attested_at": "2026-05-08T14:30:00Z",
+      "last_refreshed": "2026-04-17"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-032",
+      "rcsa_cycle_id": "RC-FY26-H1-WM",
+      "risk_id": "R-TP-001",
+      "process_id": "PROC-KYC-001",
+      "control_ids": [
+        "CTRL-KYC-003",
+        "CTRL-KYC-001",
+        "CTRL-KYC-002"
+      ],
+      "inherent_likelihood": 2,
+      "inherent_impact": 2,
+      "inherent_rating": "low",
+      "control_effectiveness_score": 92,
+      "residual_rating": "low",
+      "residual_trend": "deteriorating",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-15"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-033",
+      "rcsa_cycle_id": "RC-FY26-H1-WM",
+      "risk_id": "R-MR-001",
+      "process_id": "PROC-KYC-001",
+      "control_ids": [
+        "CTRL-KYC-001"
+      ],
+      "inherent_likelihood": 3,
+      "inherent_impact": 5,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 95,
+      "residual_rating": "low",
+      "residual_trend": "deteriorating",
+      "spoc_attested_at": "2026-05-08T14:30:00Z",
+      "last_refreshed": "2026-04-13"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-034",
+      "rcsa_cycle_id": "RC-FY26-H1-WM",
+      "risk_id": "R-CD-001",
+      "process_id": "PROC-KYC-001",
+      "control_ids": [
+        "CTRL-KYC-002",
+        "CTRL-KYC-003"
+      ],
+      "inherent_likelihood": 4,
+      "inherent_impact": 4,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 92,
+      "residual_rating": "low",
+      "residual_trend": "deteriorating",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-11"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-035",
+      "rcsa_cycle_id": "RC-FY26-H1-CB",
+      "risk_id": "R-MR-001",
+      "process_id": "PROC-LND-001",
+      "control_ids": [
+        "CTRL-LND-002",
+        "CTRL-LND-001",
+        "CTRL-LND-002"
+      ],
+      "inherent_likelihood": 5,
+      "inherent_impact": 3,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 88,
+      "residual_rating": "medium",
+      "residual_trend": "improving",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-13"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-036",
+      "rcsa_cycle_id": "RC-FY26-H1-CB",
+      "risk_id": "R-CD-001",
+      "process_id": "PROC-LND-001",
+      "control_ids": [
+        "CTRL-LND-001"
+      ],
+      "inherent_likelihood": 2,
+      "inherent_impact": 2,
+      "inherent_rating": "low",
+      "control_effectiveness_score": 91,
+      "residual_rating": "low",
+      "residual_trend": "improving",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-11"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-037",
+      "rcsa_cycle_id": "RC-FY26-H1-CB",
+      "risk_id": "R-OP-001",
+      "process_id": "PROC-LND-001",
+      "control_ids": [
+        "CTRL-LND-002",
+        "CTRL-LND-001"
+      ],
+      "inherent_likelihood": 3,
+      "inherent_impact": 5,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 91,
+      "residual_rating": "low",
+      "residual_trend": "improving",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-09"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-038",
+      "rcsa_cycle_id": "RC-FY26-H1-CB",
+      "risk_id": "R-CR-001",
+      "process_id": "PROC-LND-001",
+      "control_ids": [
+        "CTRL-LND-001",
+        "CTRL-LND-002",
+        "CTRL-LND-001"
+      ],
+      "inherent_likelihood": 4,
+      "inherent_impact": 4,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 92,
+      "residual_rating": "low",
+      "residual_trend": "improving",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-27"
+    },
+    {
+      "rcsa_cell_id": "RCELL-FY26-039",
+      "rcsa_cycle_id": "RC-FY26-H1-CB",
+      "risk_id": "R-FR-001",
+      "process_id": "PROC-LND-001",
+      "control_ids": [
+        "CTRL-LND-002"
+      ],
+      "inherent_likelihood": 5,
+      "inherent_impact": 3,
+      "inherent_rating": "high",
+      "control_effectiveness_score": 92,
+      "residual_rating": "low",
+      "residual_trend": "improving",
+      "spoc_attested_at": null,
+      "last_refreshed": "2026-04-25"
+    }
+  ],
+
+  incidents: [
+    {
+      "incident_id": "INC-2026-ORI-001",
+      "incident_type": "operational_loss",
+      "severity": "high",
+      "discovered_date": "2026-04-29",
+      "gross_loss_inr": 13500000,
+      "recovery_inr": 2000000,
+      "status": "rca_in_progress",
+      "linked_risk_ids": [
+        "R-OP-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-AML-002"
+      ],
+      "accountable_senior_manager_id": "SM-OPS-001",
+      "title": "BPO EOD batch posting error — duplicate NEFT credits",
+      "business_unit": "Operations / CPC",
+      "basel_event_type": "execution_delivery_process_management",
+      "basel_event_subtype": "Payment / settlement processing error",
+      "description": "Duplicate NEFT batch posting at CPC Mumbai after BPO EOD handoff; CBS reconciliation window missed before ORMC pack. Duplicate credits identified on T+1 recon; customer debits frozen pending reversal.",
+      "occurred_date": "2026-04-28",
+      "reported_date": "2026-04-29",
+      "detection_source": "Core banking EOD reconciliation",
+      "rbi_reportable": true,
+      "fmr_filed": true,
+      "fmr_filed_date": "2026-05-01",
+      "cert_in_filed_at": null,
+      "csite_filed_at": null,
+      "linked_rca_id": "RCA-2026-ORI-01"
+    },
+    {
+      "incident_id": "INC-2026-ORI-002",
+      "incident_type": "operational_loss",
+      "severity": "high",
+      "discovered_date": "2026-04-16",
+      "gross_loss_inr": 4200000,
+      "recovery_inr": 800000,
+      "status": "rca_in_progress",
+      "linked_risk_ids": [
+        "R-FC-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-AML-002",
+        "CTRL-AML-003"
+      ],
+      "accountable_senior_manager_id": "SM-MLRO-001",
+      "title": "STR clock stress — PMLA workflow backlog near 7 working days",
+      "business_unit": "Financial Crime",
+      "basel_event_type": "clients_products_business_practices",
+      "basel_event_subtype": "Regulatory reporting timeliness",
+      "description": "STR workflow backlog approaching seven working days under PMLA operational discipline; MLRO war-room invoked.",
+      "occurred_date": "2026-04-10",
+      "reported_date": "2026-04-16",
+      "detection_source": "AML case ageing dashboard",
+      "rbi_reportable": true,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null,
+      "linked_rca_id": "RCA-2026-ORI-02"
+    },
+    {
+      "incident_id": "INC-2026-ORI-003",
+      "incident_type": "operational_loss",
+      "severity": "high",
+      "discovered_date": "2026-04-01",
+      "gross_loss_inr": 2800000,
+      "recovery_inr": 0,
+      "status": "under_investigation",
+      "linked_risk_ids": [
+        "R-CD-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-LND-002"
+      ],
+      "accountable_senior_manager_id": "SM-BH-RETAIL-001",
+      "title": "DSA channel cooling-off bypass cluster — remediation in flight",
+      "business_unit": "Enterprise",
+      "basel_event_type": "execution_delivery_process_management",
+      "basel_event_subtype": null,
+      "description": "DSA channel cooling-off bypass cluster — remediation in flight. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-04-01",
+      "reported_date": "2026-04-01",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": true,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null,
+      "linked_rca_id": "RCA-2026-ORI-03"
+    },
+    {
+      "incident_id": "INC-2026-ORI-004",
+      "incident_type": "operational_loss",
+      "severity": "medium",
+      "discovered_date": "2026-04-26",
+      "gross_loss_inr": 350000,
+      "recovery_inr": 50000,
+      "status": "reported",
+      "linked_risk_ids": [
+        "R-CO-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-KYC-003"
+      ],
+      "accountable_senior_manager_id": "SM-CCO-001",
+      "title": "Retail ops variance — KYC evidence lag cohort 1",
+      "business_unit": "Enterprise",
+      "basel_event_type": "execution_delivery_process_management",
+      "basel_event_subtype": null,
+      "description": "Retail ops variance — KYC evidence lag cohort 1. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-04-26",
+      "reported_date": "2026-04-26",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": false,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null
+    },
+    {
+      "incident_id": "INC-2026-ORI-005",
+      "incident_type": "operational_loss",
+      "severity": "medium",
+      "discovered_date": "2026-04-19",
+      "gross_loss_inr": 400000,
+      "recovery_inr": 50000,
+      "status": "rca_in_progress",
+      "linked_risk_ids": [
+        "R-CO-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-KYC-003"
+      ],
+      "accountable_senior_manager_id": "SM-CCO-001",
+      "title": "Retail ops variance — KYC evidence lag cohort 2",
+      "business_unit": "Enterprise",
+      "basel_event_type": "execution_delivery_process_management",
+      "basel_event_subtype": null,
+      "description": "Retail ops variance — KYC evidence lag cohort 2. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-04-19",
+      "reported_date": "2026-04-19",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": false,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null,
+      "linked_rca_id": "RCA-2026-ORI-04"
+    },
+    {
+      "incident_id": "INC-2026-ORI-006",
+      "incident_type": "operational_loss",
+      "severity": "medium",
+      "discovered_date": "2026-04-12",
+      "gross_loss_inr": 450000,
+      "recovery_inr": 50000,
+      "status": "contained",
+      "linked_risk_ids": [
+        "R-CO-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-KYC-003"
+      ],
+      "accountable_senior_manager_id": "SM-CCO-001",
+      "title": "Retail ops variance — KYC evidence lag cohort 3",
+      "business_unit": "Enterprise",
+      "basel_event_type": "execution_delivery_process_management",
+      "basel_event_subtype": null,
+      "description": "Retail ops variance — KYC evidence lag cohort 3. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-04-12",
+      "reported_date": "2026-04-12",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": false,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null,
+      "linked_rca_id": "RCA-2026-ORI-05"
+    },
+    {
+      "incident_id": "INC-2026-ORI-007",
+      "incident_type": "near_miss",
+      "severity": "medium",
+      "discovered_date": "2026-05-06",
+      "gross_loss_inr": null,
+      "recovery_inr": null,
+      "status": "closed_no_loss",
+      "linked_risk_ids": [
+        "R-TC-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-ITO-001"
+      ],
+      "accountable_senior_manager_id": "SM-CISO-001",
+      "title": "Near miss — SOC detected anomalous IAM change pre-CERT-In window 1",
+      "business_unit": "IT Operations",
+      "basel_event_type": "business_disruption_system_failures",
+      "basel_event_subtype": null,
+      "description": "Near miss — SOC detected anomalous IAM change pre-CERT-In window 1. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-05-06",
+      "reported_date": "2026-05-06",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": false,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null
+    },
+    {
+      "incident_id": "INC-2026-ORI-008",
+      "incident_type": "near_miss",
+      "severity": "medium",
+      "discovered_date": "2026-05-03",
+      "gross_loss_inr": null,
+      "recovery_inr": null,
+      "status": "closed_no_loss",
+      "linked_risk_ids": [
+        "R-TC-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-ITO-001"
+      ],
+      "accountable_senior_manager_id": "SM-CISO-001",
+      "title": "Near miss — SOC detected anomalous IAM change pre-CERT-In window 2",
+      "business_unit": "IT Operations",
+      "basel_event_type": "business_disruption_system_failures",
+      "basel_event_subtype": null,
+      "description": "Near miss — SOC detected anomalous IAM change pre-CERT-In window 2. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-05-03",
+      "reported_date": "2026-05-03",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": false,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null
+    },
+    {
+      "incident_id": "INC-2026-ORI-009",
+      "incident_type": "near_miss",
+      "severity": "medium",
+      "discovered_date": "2026-04-30",
+      "gross_loss_inr": null,
+      "recovery_inr": null,
+      "status": "closed_no_loss",
+      "linked_risk_ids": [
+        "R-TC-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-ITO-001"
+      ],
+      "accountable_senior_manager_id": "SM-CISO-001",
+      "title": "Near miss — SOC detected anomalous IAM change pre-CERT-In window 3",
+      "business_unit": "IT Operations",
+      "basel_event_type": "business_disruption_system_failures",
+      "basel_event_subtype": null,
+      "description": "Near miss — SOC detected anomalous IAM change pre-CERT-In window 3. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-04-30",
+      "reported_date": "2026-04-30",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": false,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null
+    },
+    {
+      "incident_id": "INC-2026-ORI-010",
+      "incident_type": "fraud",
+      "fraud_origin": "internal",
+      "severity": "high",
+      "discovered_date": "2026-03-12",
+      "gross_loss_inr": 1850000,
+      "recovery_inr": 400000,
+      "status": "rca_in_progress",
+      "linked_risk_ids": [
+        "R-FR-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-UPI-001"
+      ],
+      "accountable_senior_manager_id": "SM-FCC-001",
+      "title": "Internal collusion — branch Teller override limits on prepaid instruments",
+      "business_unit": "Enterprise",
+      "basel_event_type": "internal_fraud",
+      "basel_event_subtype": null,
+      "description": "Internal collusion — branch Teller override limits on prepaid instruments. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-03-12",
+      "reported_date": "2026-03-12",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": true,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null,
+      "linked_rca_id": "RCA-2026-ORI-06"
+    },
+    {
+      "incident_id": "INC-2026-ORI-011",
+      "incident_type": "fraud",
+      "fraud_origin": "external",
+      "severity": "high",
+      "discovered_date": "2026-04-08",
+      "gross_loss_inr": 9500000,
+      "recovery_inr": 1200000,
+      "status": "law_enforcement_notified",
+      "linked_risk_ids": [
+        "R-FR-001",
+        "R-FC-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-AML-002"
+      ],
+      "accountable_senior_manager_id": "SM-FCC-001",
+      "title": "External mule network — UPI rapid funnel-out linked to AML typology",
+      "business_unit": "Payments / FCC",
+      "basel_event_type": "external_fraud",
+      "basel_event_subtype": "Third-party mule typology",
+      "description": "Rapid funnel-out via UPI mule accounts linked to external typology; coordinated with LE and FIU-IND channels.",
+      "occurred_date": "2026-04-05",
+      "reported_date": "2026-04-08",
+      "detection_source": "AML typology + UPI velocity rules",
+      "rbi_reportable": true,
+      "fmr_filed": true,
+      "fmr_filed_date": "2026-04-12",
+      "cert_in_filed_at": null,
+      "csite_filed_at": null,
+      "linked_rca_id": "RCA-2026-ORI-07"
+    },
+    {
+      "incident_id": "INC-2026-ORI-012",
+      "incident_type": "conduct",
+      "conduct_subtype": "mis_selling",
+      "severity": "medium",
+      "discovered_date": "2026-04-21",
+      "gross_loss_inr": 120000,
+      "recovery_inr": 0,
+      "status": "customer_redress_in_progress",
+      "linked_risk_ids": [
+        "R-CD-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-LND-002",
+        "CTRL-LND-001"
+      ],
+      "accountable_senior_manager_id": "SM-BH-RETAIL-001",
+      "title": "Wealth RM mis-selling — APR disclosure gap vs RBI MD on Digital Lending KFS discipline",
+      "business_unit": "Enterprise",
+      "basel_event_type": "clients_products_business_practices",
+      "basel_event_subtype": null,
+      "description": "Wealth RM mis-selling — APR disclosure gap vs RBI MD on Digital Lending KFS discipline. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-04-21",
+      "reported_date": "2026-04-21",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": false,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null,
+      "linked_rca_id": "RCA-2026-ORI-08"
+    },
+    {
+      "incident_id": "INC-2026-ORI-013",
+      "incident_type": "cyber",
+      "severity": "high",
+      "discovered_date": "2026-05-03",
+      "gross_loss_inr": 450000,
+      "recovery_inr": 0,
+      "status": "rca_in_progress",
+      "linked_risk_ids": [
+        "R-TC-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-ITO-001"
+      ],
+      "accountable_senior_manager_id": "SM-CISO-001",
+      "title": "Ransomware attempt on DR site - CERT-In six-hour notification met; RBI CSITE materiality assessment ongoing per ITGRCA",
+      "business_unit": "IT Operations / Cyber",
+      "basel_event_type": "business_disruption_system_failures",
+      "basel_event_subtype": "Cyber incident — DR drill boundary",
+      "description": "Ransomware attempt contained at DR site; CERT-In six-hour notification met; CSITE materiality assessment per RBI ITGRCA.",
+      "occurred_date": "2026-05-02",
+      "reported_date": "2026-05-03",
+      "detection_source": "SOC SIEM + DR monitoring",
+      "rbi_reportable": true,
+      "fmr_filed": true,
+      "fmr_filed_date": "2026-05-03",
+      "cert_in_filed_at": "2026-05-03T05:12:00Z",
+      "csite_filed_at": "2026-05-04T10:00:00Z",
+      "linked_rca_id": "RCA-2026-ORI-09"
+    },
+    {
+      "incident_id": "INC-2026-ORI-014",
+      "incident_type": "cyber",
+      "severity": "medium",
+      "discovered_date": "2026-04-23",
+      "gross_loss_inr": 80000,
+      "recovery_inr": 0,
+      "status": "contained",
+      "linked_risk_ids": [
+        "R-TC-001",
+        "R-MR-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-ITO-001"
+      ],
+      "accountable_senior_manager_id": "SM-CISO-001",
+      "title": "API key leakage in non-prod - exposure window bridged to production-like data class",
+      "business_unit": "IT Operations",
+      "basel_event_type": "business_disruption_system_failures",
+      "basel_event_subtype": null,
+      "description": "API key leakage in non-prod - exposure window bridged to production-like data class. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-04-23",
+      "reported_date": "2026-04-23",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": false,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null,
+      "linked_rca_id": "RCA-2026-ORI-10"
+    },
+    {
+      "incident_id": "INC-2026-ORI-015",
+      "incident_type": "regulatory_breach",
+      "severity": "high",
+      "discovered_date": "2026-03-28",
+      "gross_loss_inr": 500000,
+      "recovery_inr": 0,
+      "status": "reported",
+      "linked_risk_ids": [
+        "R-FC-001"
+      ],
+      "linked_control_ids": [
+        "CTRL-AML-003"
+      ],
+      "accountable_senior_manager_id": "SM-MLRO-001",
+      "title": "CTR filing delay vs FIU-IND monthly cut-off — regulatory reporting breach logged",
+      "business_unit": "Enterprise",
+      "basel_event_type": "clients_products_business_practices",
+      "basel_event_subtype": null,
+      "description": "CTR filing delay vs FIU-IND monthly cut-off — regulatory reporting breach logged. Logged under ORM incident taxonomy for FY26-H1; accountable SM notified per internal escalation matrix.",
+      "occurred_date": "2026-03-28",
+      "reported_date": "2026-03-28",
+      "detection_source": "Control / monitoring",
+      "rbi_reportable": true,
+      "fmr_filed": false,
+      "fmr_filed_date": null,
+      "cert_in_filed_at": null,
+      "csite_filed_at": null
+    }
+  ],
+
+  rcas: [
+    {
+      "rca_id": "RCA-2026-ORI-01",
+      "incident_id": "INC-2026-ORI-001",
+      "status": "approved",
+      "five_whys_steps": [
+        {
+          "step_order": 1,
+          "statement": "Why was loss material? — EOD NEFT batch at CPC Mumbai ran twice after BPM handoff; CBS T+1 reconciliation not completed before MD&CEO dashboard ORMC pack."
+        },
+        {
+          "step_order": 2,
+          "statement": "Why did reconciliation miss? — SPOC on leave; HOD approval for temporary dual-key not recorded in MOM; RBI operational resilience guidance on critical role backup not fully operationalised."
+        },
+        {
+          "step_order": 3,
+          "statement": "Why dual-key gap tolerated? — Vendor release window overlapped KYC annual freeze; IT change calendar conflict with PMLA reporting week."
+        },
+        {
+          "step_order": 4,
+          "statement": "Why calendar conflict unmanaged? — ORMC risk agenda did not include cross-functional change freeze map for financial crime operations."
+        }
+      ],
+      "opened_at": "2026-04-29T09:00:00Z",
+      "rca_started_at": "2026-04-29T08:30:00Z",
+      "rca_completed_at": "2026-05-03T08:30:00.000Z",
+      "owner_senior_manager_id": "SM-OPS-001"
+    },
+    {
+      "rca_id": "RCA-2026-ORI-02",
+      "incident_id": "INC-2026-ORI-002",
+      "status": "approved",
+      "five_whys_steps": [
+        {
+          "step_order": 1,
+          "statement": "Why was loss material? — EOD NEFT batch at CPC Mumbai ran twice after BPM handoff; CBS T+1 reconciliation not completed before MD&CEO dashboard ORMC pack."
+        },
+        {
+          "step_order": 2,
+          "statement": "Why did reconciliation miss? — SPOC on leave; HOD approval for temporary dual-key not recorded in MOM; RBI operational resilience guidance on critical role backup not fully operationalised."
+        },
+        {
+          "step_order": 3,
+          "statement": "Why dual-key gap tolerated? — Vendor release window overlapped KYC annual freeze; IT change calendar conflict with PMLA reporting week."
+        },
+        {
+          "step_order": 4,
+          "statement": "Why calendar conflict unmanaged? — ORMC risk agenda did not include cross-functional change freeze map for financial crime operations."
+        },
+        {
+          "step_order": 5,
+          "statement": "Root systemic cause — RCSA linkage from retail liabilities cycle to change management not signed off; control effectiveness assumed green without branch sampling."
+        }
+      ],
+      "opened_at": "2026-04-16T09:00:00Z",
+      "rca_started_at": "2026-04-16T08:30:00Z",
+      "rca_completed_at": "2026-04-21T08:30:00.000Z",
+      "owner_senior_manager_id": "SM-MLRO-001"
+    },
+    {
+      "rca_id": "RCA-2026-ORI-03",
+      "incident_id": "INC-2026-ORI-003",
+      "status": "approved",
+      "five_whys_steps": [
+        {
+          "step_order": 1,
+          "statement": "Why was loss material? — EOD NEFT batch at CPC Mumbai ran twice after BPM handoff; CBS T+1 reconciliation not completed before MD&CEO dashboard ORMC pack."
+        },
+        {
+          "step_order": 2,
+          "statement": "Why did reconciliation miss? — SPOC on leave; HOD approval for temporary dual-key not recorded in MOM; RBI operational resilience guidance on critical role backup not fully operationalised."
+        },
+        {
+          "step_order": 3,
+          "statement": "Why dual-key gap tolerated? — Vendor release window overlapped KYC annual freeze; IT change calendar conflict with PMLA reporting week."
+        }
+      ],
+      "opened_at": "2026-04-01T09:00:00Z",
+      "rca_started_at": "2026-04-01T08:30:00Z",
+      "rca_completed_at": "2026-04-07T08:30:00.000Z",
+      "owner_senior_manager_id": "SM-BH-RETAIL-001"
+    },
+    {
+      "rca_id": "RCA-2026-ORI-04",
+      "incident_id": "INC-2026-ORI-005",
+      "status": "approved",
+      "five_whys_steps": [
+        {
+          "step_order": 1,
+          "statement": "Why was loss material? — EOD NEFT batch at CPC Mumbai ran twice after BPM handoff; CBS T+1 reconciliation not completed before MD&CEO dashboard ORMC pack."
+        },
+        {
+          "step_order": 2,
+          "statement": "Why did reconciliation miss? — SPOC on leave; HOD approval for temporary dual-key not recorded in MOM; RBI operational resilience guidance on critical role backup not fully operationalised."
+        },
+        {
+          "step_order": 3,
+          "statement": "Why dual-key gap tolerated? — Vendor release window overlapped KYC annual freeze; IT change calendar conflict with PMLA reporting week."
+        },
+        {
+          "step_order": 4,
+          "statement": "Why calendar conflict unmanaged? — ORMC risk agenda did not include cross-functional change freeze map for financial crime operations."
+        }
+      ],
+      "opened_at": "2026-04-19T09:00:00Z",
+      "rca_started_at": "2026-04-19T08:30:00Z",
+      "rca_completed_at": "2026-04-26T08:30:00.000Z",
+      "owner_senior_manager_id": "SM-CCO-001"
+    },
+    {
+      "rca_id": "RCA-2026-ORI-05",
+      "incident_id": "INC-2026-ORI-006",
+      "status": "approved",
+      "five_whys_steps": [
+        {
+          "step_order": 1,
+          "statement": "Why was loss material? — EOD NEFT batch at CPC Mumbai ran twice after BPM handoff; CBS T+1 reconciliation not completed before MD&CEO dashboard ORMC pack."
+        },
+        {
+          "step_order": 2,
+          "statement": "Why did reconciliation miss? — SPOC on leave; HOD approval for temporary dual-key not recorded in MOM; RBI operational resilience guidance on critical role backup not fully operationalised."
+        },
+        {
+          "step_order": 3,
+          "statement": "Why dual-key gap tolerated? — Vendor release window overlapped KYC annual freeze; IT change calendar conflict with PMLA reporting week."
+        },
+        {
+          "step_order": 4,
+          "statement": "Why calendar conflict unmanaged? — ORMC risk agenda did not include cross-functional change freeze map for financial crime operations."
+        },
+        {
+          "step_order": 5,
+          "statement": "Root systemic cause — RCSA linkage from retail liabilities cycle to change management not signed off; control effectiveness assumed green without branch sampling."
+        }
+      ],
+      "opened_at": "2026-04-12T09:00:00Z",
+      "rca_started_at": "2026-04-12T08:30:00Z",
+      "rca_completed_at": "2026-04-20T08:30:00.000Z",
+      "owner_senior_manager_id": "SM-CCO-001"
+    },
+    {
+      "rca_id": "RCA-2026-ORI-06",
+      "incident_id": "INC-2026-ORI-010",
+      "status": "approved",
+      "five_whys_steps": [
+        {
+          "step_order": 1,
+          "statement": "Why fraud succeeded? — KYC refresh queue backlog; BPO queue prioritised commercial onboarding over retail mule typology alerts per MLRO-PO directive."
+        },
+        {
+          "step_order": 2,
+          "statement": "Why backlog? — PMLA Rule 9 retention pulls consumed analyst capacity during FIU-IND FINnet 2.0 schema upgrade weekend."
+        },
+        {
+          "step_order": 3,
+          "statement": "Why dual-key gap tolerated? — Vendor release window overlapped KYC annual freeze; IT change calendar conflict with PMLA reporting week."
+        }
+      ],
+      "opened_at": "2026-03-12T09:00:00Z",
+      "rca_started_at": "2026-03-12T08:30:00Z",
+      "rca_completed_at": "2026-03-15T08:30:00.000Z",
+      "owner_senior_manager_id": "SM-FCC-001"
+    },
+    {
+      "rca_id": "RCA-2026-ORI-07",
+      "incident_id": "INC-2026-ORI-011",
+      "status": "under_review",
+      "five_whys_steps": [
+        {
+          "step_order": 1,
+          "statement": "Why fraud succeeded? — KYC refresh queue backlog; BPO queue prioritised commercial onboarding over retail mule typology alerts per MLRO-PO directive."
+        },
+        {
+          "step_order": 2,
+          "statement": "Why backlog? — PMLA Rule 9 retention pulls consumed analyst capacity during FIU-IND FINnet 2.0 schema upgrade weekend."
+        },
+        {
+          "step_order": 3,
+          "statement": "Why dual-key gap tolerated? — Vendor release window overlapped KYC annual freeze; IT change calendar conflict with PMLA reporting week."
+        },
+        {
+          "step_order": 4,
+          "statement": "Why calendar conflict unmanaged? — ORMC risk agenda did not include cross-functional change freeze map for financial crime operations."
+        }
+      ],
+      "opened_at": "2026-04-08T09:00:00Z",
+      "rca_started_at": "2026-04-08T08:30:00Z",
+      "rca_completed_at": null,
+      "owner_senior_manager_id": "SM-FCC-001"
+    },
+    {
+      "rca_id": "RCA-2026-ORI-08",
+      "incident_id": "INC-2026-ORI-012",
+      "status": "under_review",
+      "five_whys_steps": [
+        {
+          "step_order": 1,
+          "statement": "Why was loss material? — EOD NEFT batch at CPC Mumbai ran twice after BPM handoff; CBS T+1 reconciliation not completed before MD&CEO dashboard ORMC pack."
+        },
+        {
+          "step_order": 2,
+          "statement": "Why did reconciliation miss? — SPOC on leave; HOD approval for temporary dual-key not recorded in MOM; RBI operational resilience guidance on critical role backup not fully operationalised."
+        },
+        {
+          "step_order": 3,
+          "statement": "Why dual-key gap tolerated? — Vendor release window overlapped KYC annual freeze; IT change calendar conflict with PMLA reporting week."
+        },
+        {
+          "step_order": 4,
+          "statement": "Why calendar conflict unmanaged? — ORMC risk agenda did not include cross-functional change freeze map for financial crime operations."
+        },
+        {
+          "step_order": 5,
+          "statement": "Root systemic cause — RCSA linkage from retail liabilities cycle to change management not signed off; control effectiveness assumed green without branch sampling."
+        }
+      ],
+      "opened_at": "2026-04-21T09:00:00Z",
+      "rca_started_at": "2026-04-21T08:30:00Z",
+      "rca_completed_at": null,
+      "owner_senior_manager_id": "SM-BH-RETAIL-001"
+    },
+    {
+      "rca_id": "RCA-2026-ORI-09",
+      "incident_id": "INC-2026-ORI-013",
+      "status": "under_review",
+      "five_whys_steps": [
+        {
+          "step_order": 1,
+          "statement": "Why CERT-In timeline at risk? — SIEM parser lag on new log source; ITGRCA control CTRL-ITO-001 evidence hash mismatch until CISO war-room invoked."
+        },
+        {
+          "step_order": 2,
+          "statement": "Why parser lag? — TPSP patch deployed without VMO fourth-party test evidence; RBI outsourcing master direction materiality criteria referenced in ORMC action."
+        },
+        {
+          "step_order": 3,
+          "statement": "Why dual-key gap tolerated? — Vendor release window overlapped KYC annual freeze; IT change calendar conflict with PMLA reporting week."
+        }
+      ],
+      "opened_at": "2026-05-03T09:00:00Z",
+      "rca_started_at": "2026-05-03T08:30:00Z",
+      "rca_completed_at": null,
+      "owner_senior_manager_id": "SM-CISO-001"
+    },
+    {
+      "rca_id": "RCA-2026-ORI-10",
+      "incident_id": "INC-2026-ORI-014",
+      "status": "draft",
+      "five_whys_steps": [
+        {
+          "step_order": 1,
+          "statement": "Why CERT-In timeline at risk? — SIEM parser lag on new log source; ITGRCA control CTRL-ITO-001 evidence hash mismatch until CISO war-room invoked."
+        },
+        {
+          "step_order": 2,
+          "statement": "Why parser lag? — TPSP patch deployed without VMO fourth-party test evidence; RBI outsourcing master direction materiality criteria referenced in ORMC action."
+        },
+        {
+          "step_order": 3,
+          "statement": "Why dual-key gap tolerated? — Vendor release window overlapped KYC annual freeze; IT change calendar conflict with PMLA reporting week."
+        },
+        {
+          "step_order": 4,
+          "statement": "Why calendar conflict unmanaged? — ORMC risk agenda did not include cross-functional change freeze map for financial crime operations."
+        }
+      ],
+      "opened_at": "2026-04-23T09:00:00Z",
+      "rca_started_at": "2026-04-23T08:30:00Z",
+      "rca_completed_at": null,
+      "owner_senior_manager_id": "SM-CISO-001"
+    }
+  ],
+
+  preventiveActions: [
+    {
+      "preventive_action_id": "PA-2026-ORI-01",
+      "rca_id": "RCA-2026-ORI-01",
+      "title": "Overdue PAC 1 — tighten SOP control points",
+      "status": "open",
+      "target_date": "2026-03-15",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": true
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-02",
+      "rca_id": "RCA-2026-ORI-02",
+      "title": "Overdue PAC 2 — tighten BPM control points",
+      "status": "open",
+      "target_date": "2026-03-15",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": true
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-03",
+      "rca_id": "RCA-2026-ORI-03",
+      "title": "Overdue PAC 3 — tighten SOP control points",
+      "status": "open",
+      "target_date": "2026-03-15",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": true
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-04",
+      "rca_id": "RCA-2026-ORI-04",
+      "title": "Overdue PAC 4 — tighten BPM control points",
+      "status": "open",
+      "target_date": "2026-03-15",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": true
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-05",
+      "rca_id": "RCA-2026-ORI-05",
+      "title": "Overdue PAC 5 — tighten SOP control points",
+      "status": "open",
+      "target_date": "2026-03-15",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-06",
+      "rca_id": "RCA-2026-ORI-06",
+      "title": "Overdue PAC 6 — tighten BPM control points",
+      "status": "open",
+      "target_date": "2026-03-15",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-07",
+      "rca_id": "RCA-2026-ORI-04",
+      "title": "Open PAC 1 — branch training and HOD attestation pack",
+      "status": "open",
+      "target_date": "2026-07-30",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-08",
+      "rca_id": "RCA-2026-ORI-05",
+      "title": "Open PAC 2 — branch training and HOD attestation pack",
+      "status": "open",
+      "target_date": "2026-07-30",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-09",
+      "rca_id": "RCA-2026-ORI-06",
+      "title": "Open PAC 3 — branch training and HOD attestation pack",
+      "status": "open",
+      "target_date": "2026-07-30",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-10",
+      "rca_id": "RCA-2026-ORI-07",
+      "title": "Open PAC 4 — branch training and HOD attestation pack",
+      "status": "open",
+      "target_date": "2026-07-30",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-11",
+      "rca_id": "RCA-2026-ORI-08",
+      "title": "Open PAC 5 — branch training and HOD attestation pack",
+      "status": "open",
+      "target_date": "2026-07-30",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-12",
+      "rca_id": "RCA-2026-ORI-09",
+      "title": "Open PAC 6 — branch training and HOD attestation pack",
+      "status": "open",
+      "target_date": "2026-07-30",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-13",
+      "rca_id": "RCA-2026-ORI-10",
+      "title": "Open PAC 7 — branch training and HOD attestation pack",
+      "status": "open",
+      "target_date": "2026-07-30",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-14",
+      "rca_id": "RCA-2026-ORI-01",
+      "title": "Open PAC 8 — branch training and HOD attestation pack",
+      "status": "open",
+      "target_date": "2026-07-30",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-15",
+      "rca_id": "RCA-2026-ORI-02",
+      "title": "In progress PAC 1 — ITSM change template update",
+      "status": "in_progress",
+      "target_date": "2026-06-15",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": true
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-16",
+      "rca_id": "RCA-2026-ORI-03",
+      "title": "In progress PAC 2 — ITSM change template update",
+      "status": "in_progress",
+      "target_date": "2026-06-15",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-17",
+      "rca_id": "RCA-2026-ORI-04",
+      "title": "In progress PAC 3 — ITSM change template update",
+      "status": "in_progress",
+      "target_date": "2026-06-15",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-18",
+      "rca_id": "RCA-2026-ORI-05",
+      "title": "In progress PAC 4 — ITSM change template update",
+      "status": "in_progress",
+      "target_date": "2026-06-15",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-19",
+      "rca_id": "RCA-2026-ORI-01",
+      "title": "Closed PAC — FIU STR XML sample retest",
+      "status": "closed",
+      "target_date": "2026-04-01",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [
+        "EV-DOC-STR-501",
+        "EV-LOG-FIU-ACK-501"
+      ],
+      "linked_pac_note_block_flag": false
+    },
+    {
+      "preventive_action_id": "PA-2026-ORI-20",
+      "rca_id": "RCA-2026-ORI-02",
+      "title": "Closed PAC — KFS sequence guard deployed",
+      "status": "closed",
+      "target_date": "2026-04-10",
+      "owner_senior_manager_id": "SM-CCO-001",
+      "closure_evidence_ids": [
+        "EV-SIGN-KFS-881",
+        "EV-LOG-LOS-EVT-884-KFS"
+      ],
+      "linked_pac_note_block_flag": false
+    }
+  ],
+
+  lossEvents: [
+    {
+      "loss_event_id": "LEV-2026-001",
+      "event_date": "2026-02-14",
+      "gross_loss_inr": 12500000,
+      "recovery_inr": 1800000,
+      "business_line": "retail_banking",
+      "basel_event_type": "internal_fraud",
+      "linked_risk_id": "R-FR-001",
+      "linked_control_ids": [
+        "CTRL-UPI-001"
+      ],
+      "accountable_senior_manager_id": "SM-FCC-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-002",
+      "event_date": "2026-01-22",
+      "gross_loss_inr": 4200000,
+      "recovery_inr": 900000,
+      "business_line": "retail_banking",
+      "basel_event_type": "internal_fraud",
+      "linked_risk_id": "R-OP-001",
+      "linked_control_ids": [
+        "CTRL-AML-002"
+      ],
+      "accountable_senior_manager_id": "SM-OPS-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-003",
+      "event_date": "2025-11-03",
+      "gross_loss_inr": 850000,
+      "recovery_inr": 0,
+      "business_line": "commercial_banking",
+      "basel_event_type": "internal_fraud",
+      "linked_risk_id": "R-TP-001",
+      "linked_control_ids": [
+        "CTRL-VND-001"
+      ],
+      "accountable_senior_manager_id": "SM-CIO-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-004",
+      "event_date": "2026-03-08",
+      "gross_loss_inr": 15200000,
+      "recovery_inr": 2500000,
+      "business_line": "retail_banking",
+      "basel_event_type": "external_fraud",
+      "linked_risk_id": "R-FR-001",
+      "linked_control_ids": [
+        "CTRL-AML-002"
+      ],
+      "accountable_senior_manager_id": "SM-FCC-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-005",
+      "event_date": "2025-12-19",
+      "gross_loss_inr": 2200000,
+      "recovery_inr": 400000,
+      "business_line": "payment_settlement",
+      "basel_event_type": "external_fraud",
+      "linked_risk_id": "R-FC-001",
+      "linked_control_ids": [
+        "CTRL-AML-003"
+      ],
+      "accountable_senior_manager_id": "SM-MLRO-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-006",
+      "event_date": "2026-04-02",
+      "gross_loss_inr": 650000,
+      "recovery_inr": 150000,
+      "business_line": "commercial_banking",
+      "basel_event_type": "employment_practices_workplace_safety",
+      "linked_risk_id": "R-OP-001",
+      "linked_control_ids": [],
+      "accountable_senior_manager_id": "SM-OPS-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-007",
+      "event_date": "2026-02-28",
+      "gross_loss_inr": 1800000,
+      "recovery_inr": 0,
+      "business_line": "retail_banking",
+      "basel_event_type": "clients_products_business_practices",
+      "linked_risk_id": "R-CD-001",
+      "linked_control_ids": [
+        "CTRL-LND-002"
+      ],
+      "accountable_senior_manager_id": "SM-BH-RETAIL-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-008",
+      "event_date": "2025-10-11",
+      "gross_loss_inr": 450000,
+      "recovery_inr": 0,
+      "business_line": "commercial_banking",
+      "basel_event_type": "clients_products_business_practices",
+      "linked_risk_id": "R-CR-001",
+      "linked_control_ids": [
+        "CTRL-LND-001"
+      ],
+      "accountable_senior_manager_id": "SM-BH-RETAIL-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-009",
+      "event_date": "2026-01-05",
+      "gross_loss_inr": 3200000,
+      "recovery_inr": 1100000,
+      "business_line": "agency_services",
+      "basel_event_type": "damage_to_physical_assets",
+      "linked_risk_id": "R-OP-001",
+      "linked_control_ids": [],
+      "accountable_senior_manager_id": "SM-OPS-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-010",
+      "event_date": "2026-04-18",
+      "gross_loss_inr": 5600000,
+      "recovery_inr": 800000,
+      "business_line": "corporate_finance",
+      "basel_event_type": "business_disruption_system_failures",
+      "linked_risk_id": "R-TC-001",
+      "linked_control_ids": [
+        "CTRL-ITO-001"
+      ],
+      "accountable_senior_manager_id": "SM-CISO-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-011",
+      "event_date": "2025-09-27",
+      "gross_loss_inr": 780000,
+      "recovery_inr": 200000,
+      "business_line": "retail_banking",
+      "basel_event_type": "execution_delivery_process_management",
+      "linked_risk_id": "R-CO-001",
+      "linked_control_ids": [
+        "CTRL-KYC-003"
+      ],
+      "accountable_senior_manager_id": "SM-CCO-001"
+    },
+    {
+      "loss_event_id": "LEV-2026-012",
+      "event_date": "2026-03-30",
+      "gross_loss_inr": 1250000,
+      "recovery_inr": 0,
+      "business_line": "payment_settlement",
+      "basel_event_type": "execution_delivery_process_management",
+      "linked_risk_id": "R-OP-001",
+      "linked_control_ids": [
+        "CTRL-AML-002"
+      ],
+      "accountable_senior_manager_id": "SM-OPS-001"
+    }
+  ],
+
+  pacNotes: [
+    {
+      "pac_note_id": "PACN-2026-001",
+      "document_type": "sop",
+      "business_unit": "Retail Banking",
+      "status": "pending_orm_review",
+      "blocking_preventive_action_ids": [
+        "PA-2026-ORI-01",
+        "PA-2026-ORI-02"
+      ],
+      "referenced_rca_ids": [],
+      "comments": [
+        {
+          "at": "2026-05-02T10:00:00Z",
+          "author_role": "ORM",
+          "text": "ORM review pending — link to RCSA Retail Liabilities cycle RC-FY26-H1-RL."
+        }
+      ]
+    },
+    {
+      "pac_note_id": "PACN-2026-002",
+      "document_type": "process_note",
+      "business_unit": "Financial Crime",
+      "status": "pending_orm_review",
+      "blocking_preventive_action_ids": [],
+      "referenced_rca_ids": [
+        "RCA-2026-ORI-01"
+      ],
+      "comments": [
+        {
+          "at": "2026-05-04T11:30:00Z",
+          "author_role": "MLRO-PO",
+          "text": "PMLA STR workflow capacity note; no hard regulatory code invented — references existing PMLA s.12 STR timeline discipline."
+        }
+      ]
+    },
+    {
+      "pac_note_id": "PACN-2026-003",
+      "document_type": "product_program",
+      "business_unit": "Digital Lending",
+      "status": "pending_orm_review",
+      "blocking_preventive_action_ids": [
+        "PA-2026-ORI-07"
+      ],
+      "referenced_rca_ids": [
+        "RCA-2026-ORI-03"
+      ],
+      "comments": [
+        {
+          "at": "2026-05-05T09:15:00Z",
+          "author_role": "Head-ORM",
+          "text": "Condition: complete LOS sequence guard retest before DLA scale-up per RBI MD on Digital Lending KFS discipline."
+        }
+      ]
+    },
+    {
+      "pac_note_id": "PACN-2026-004",
+      "document_type": "new_product_approval",
+      "business_unit": "Payments",
+      "status": "conditional_approval",
+      "blocking_preventive_action_ids": [],
+      "referenced_rca_ids": [],
+      "comments": [
+        {
+          "at": "2026-04-28T14:00:00Z",
+          "author_role": "ORM",
+          "text": "Conditional approval: NPCI UPI limit pilot only after FCC sign-off on mule typology rules."
+        },
+        {
+          "at": "2026-04-29T16:00:00Z",
+          "author_role": "CRO",
+          "text": "Condition accepted — ORMC MOM to capture decision."
+        }
+      ]
+    },
+    {
+      "pac_note_id": "PACN-2026-005",
+      "document_type": "sop",
+      "business_unit": "IT Operations",
+      "status": "conditional_approval",
+      "blocking_preventive_action_ids": [],
+      "referenced_rca_ids": [
+        "RCA-2026-ORI-09"
+      ],
+      "comments": [
+        {
+          "at": "2026-05-01T08:00:00Z",
+          "author_role": "CISO",
+          "text": "Condition: DR drill evidence pack for CERT-In six-hour runbook attached to CTRL-ITO-001 test population."
+        }
+      ]
+    },
+    {
+      "pac_note_id": "PACN-2026-006",
+      "document_type": "process_note",
+      "business_unit": "Corporate Banking",
+      "status": "approved",
+      "blocking_preventive_action_ids": [],
+      "referenced_rca_ids": [
+        "RCA-2026-ORI-02",
+        "RCA-2026-ORI-04"
+      ],
+      "comments": [
+        {
+          "at": "2026-04-20T12:00:00Z",
+          "author_role": "ORM",
+          "text": "Approved with linkage to supervisory readiness pack evidence indices."
+        }
+      ]
+    },
+    {
+      "pac_note_id": "PACN-2026-007",
+      "document_type": "sop",
+      "business_unit": "Treasury",
+      "status": "approved",
+      "blocking_preventive_action_ids": [],
+      "referenced_rca_ids": [
+        "RCA-2026-ORI-05"
+      ],
+      "comments": [
+        {
+          "at": "2026-04-25T17:45:00Z",
+          "author_role": "ORM",
+          "text": "TPSP fourth-party disclosure PAC closed-loop referenced in RCA-2026-ORI-05."
+        }
+      ]
+    },
+    {
+      "pac_note_id": "PACN-2026-008",
+      "document_type": "product_program",
+      "business_unit": "Wealth",
+      "status": "rejected",
+      "blocking_preventive_action_ids": [],
+      "referenced_rca_ids": [
+        "RCA-2026-ORI-08"
+      ],
+      "comments": [
+        {
+          "at": "2026-05-06T13:00:00Z",
+          "author_role": "ORM",
+          "text": "Rejected: customer-facing APR script still references deprecated fee slab; re-submit after CCO attestation."
+        },
+        {
+          "at": "2026-05-06T13:30:00Z",
+          "author_role": "CCO",
+          "text": "Acknowledged — will align to current RBI MD on Digital Lending disclosures."
+        }
+      ]
+    }
+  ]

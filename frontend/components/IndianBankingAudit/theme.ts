@@ -129,3 +129,11 @@ export const personaAccent = (code: string) =>
     compliance: 'from-violet-600 to-violet-800',
     audit: 'from-emerald-600 to-emerald-800',
   }[code] || 'from-slate-600 to-slate-800');
+
+/** WCAG-friendly focus ring for ORI interactive controls */
+export const oriFocusRing =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2';
+
+/** Clickable card / tile hover (shadow + border) */
+export const oriCardHover =
+  'transition-[box-shadow,border-color] duration-150 ease-out border border-slate-200 hover:border-indigo-200 hover:shadow-md';

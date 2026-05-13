@@ -1,0 +1,765 @@
+﻿[
+  {
+    "observation_id": "KOBS-FC-001-W01",
+    "kri_id": "KRI-FC-001",
+    "value": 68,
+    "band": "green",
+    "as_of_ts": "2026-02-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W02",
+    "kri_id": "KRI-FC-001",
+    "value": 92,
+    "band": "green",
+    "as_of_ts": "2026-02-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W03",
+    "kri_id": "KRI-FC-001",
+    "value": 114,
+    "band": "amber",
+    "as_of_ts": "2026-02-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W04",
+    "kri_id": "KRI-FC-001",
+    "value": 134,
+    "band": "amber",
+    "as_of_ts": "2026-03-06T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W05",
+    "kri_id": "KRI-FC-001",
+    "value": 154,
+    "band": "amber",
+    "as_of_ts": "2026-03-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W06",
+    "kri_id": "KRI-FC-001",
+    "value": 174,
+    "band": "amber",
+    "as_of_ts": "2026-03-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W07",
+    "kri_id": "KRI-FC-001",
+    "value": 193,
+    "band": "amber",
+    "as_of_ts": "2026-03-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W08",
+    "kri_id": "KRI-FC-001",
+    "value": 212,
+    "band": "amber",
+    "as_of_ts": "2026-04-03T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W09",
+    "kri_id": "KRI-FC-001",
+    "value": 231,
+    "band": "amber",
+    "as_of_ts": "2026-04-10T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W10",
+    "kri_id": "KRI-FC-001",
+    "value": 250,
+    "band": "red",
+    "as_of_ts": "2026-04-17T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W11",
+    "kri_id": "KRI-FC-001",
+    "value": 269,
+    "band": "red",
+    "as_of_ts": "2026-04-24T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FC-001-W12",
+    "kri_id": "KRI-FC-001",
+    "value": 287,
+    "band": "red",
+    "as_of_ts": "2026-05-01T23:59:59Z",
+    "breach_reason": "BPO queue backlog post-FIU FINnet uplift; L1 capacity below plan."
+  },
+  {
+    "observation_id": "KOBS-CD-001-W01",
+    "kri_id": "KRI-CD-001",
+    "value": 2.2,
+    "band": "green",
+    "as_of_ts": "2026-02-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W02",
+    "kri_id": "KRI-CD-001",
+    "value": 5.041,
+    "band": "amber",
+    "as_of_ts": "2026-02-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W03",
+    "kri_id": "KRI-CD-001",
+    "value": 7.576,
+    "band": "amber",
+    "as_of_ts": "2026-02-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W04",
+    "kri_id": "KRI-CD-001",
+    "value": 10.007,
+    "band": "amber",
+    "as_of_ts": "2026-03-06T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W05",
+    "kri_id": "KRI-CD-001",
+    "value": 12.373,
+    "band": "amber",
+    "as_of_ts": "2026-03-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W06",
+    "kri_id": "KRI-CD-001",
+    "value": 14.691,
+    "band": "amber",
+    "as_of_ts": "2026-03-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W07",
+    "kri_id": "KRI-CD-001",
+    "value": 16.972,
+    "band": "amber",
+    "as_of_ts": "2026-03-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W08",
+    "kri_id": "KRI-CD-001",
+    "value": 19.223,
+    "band": "amber",
+    "as_of_ts": "2026-04-03T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W09",
+    "kri_id": "KRI-CD-001",
+    "value": 21.448,
+    "band": "amber",
+    "as_of_ts": "2026-04-10T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W10",
+    "kri_id": "KRI-CD-001",
+    "value": 23.651,
+    "band": "amber",
+    "as_of_ts": "2026-04-17T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W11",
+    "kri_id": "KRI-CD-001",
+    "value": 25.834,
+    "band": "red",
+    "as_of_ts": "2026-04-24T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CD-001-W12",
+    "kri_id": "KRI-CD-001",
+    "value": 28,
+    "band": "red",
+    "as_of_ts": "2026-05-01T23:59:59Z",
+    "breach_reason": "DSA channel KFS-after-acceptance cluster from LOS clock drift."
+  },
+  {
+    "observation_id": "KOBS-CO-001-W01",
+    "kri_id": "KRI-CO-001",
+    "value": 410,
+    "band": "green",
+    "as_of_ts": "2026-02-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W02",
+    "kri_id": "KRI-CO-001",
+    "value": 422,
+    "band": "green",
+    "as_of_ts": "2026-02-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W03",
+    "kri_id": "KRI-CO-001",
+    "value": 433,
+    "band": "green",
+    "as_of_ts": "2026-02-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W04",
+    "kri_id": "KRI-CO-001",
+    "value": 443,
+    "band": "green",
+    "as_of_ts": "2026-03-06T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W05",
+    "kri_id": "KRI-CO-001",
+    "value": 453,
+    "band": "green",
+    "as_of_ts": "2026-03-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W06",
+    "kri_id": "KRI-CO-001",
+    "value": 463,
+    "band": "green",
+    "as_of_ts": "2026-03-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W07",
+    "kri_id": "KRI-CO-001",
+    "value": 473,
+    "band": "green",
+    "as_of_ts": "2026-03-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W08",
+    "kri_id": "KRI-CO-001",
+    "value": 483,
+    "band": "green",
+    "as_of_ts": "2026-04-03T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W09",
+    "kri_id": "KRI-CO-001",
+    "value": 492,
+    "band": "green",
+    "as_of_ts": "2026-04-10T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W10",
+    "kri_id": "KRI-CO-001",
+    "value": 501,
+    "band": "amber",
+    "as_of_ts": "2026-04-17T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W11",
+    "kri_id": "KRI-CO-001",
+    "value": 511,
+    "band": "amber",
+    "as_of_ts": "2026-04-24T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CO-001-W12",
+    "kri_id": "KRI-CO-001",
+    "value": 520,
+    "band": "amber",
+    "as_of_ts": "2026-05-01T23:59:59Z",
+    "breach_reason": "Threshold excursion on latest reading."
+  },
+  {
+    "observation_id": "KOBS-OP-001-W01",
+    "kri_id": "KRI-OP-001",
+    "value": 0.022,
+    "band": "green",
+    "as_of_ts": "2026-02-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W02",
+    "kri_id": "KRI-OP-001",
+    "value": 0.03,
+    "band": "green",
+    "as_of_ts": "2026-02-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W03",
+    "kri_id": "KRI-OP-001",
+    "value": 0.037,
+    "band": "green",
+    "as_of_ts": "2026-02-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W04",
+    "kri_id": "KRI-OP-001",
+    "value": 0.043,
+    "band": "green",
+    "as_of_ts": "2026-03-06T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W05",
+    "kri_id": "KRI-OP-001",
+    "value": 0.05,
+    "band": "amber",
+    "as_of_ts": "2026-03-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W06",
+    "kri_id": "KRI-OP-001",
+    "value": 0.056,
+    "band": "amber",
+    "as_of_ts": "2026-03-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W07",
+    "kri_id": "KRI-OP-001",
+    "value": 0.062,
+    "band": "amber",
+    "as_of_ts": "2026-03-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W08",
+    "kri_id": "KRI-OP-001",
+    "value": 0.068,
+    "band": "amber",
+    "as_of_ts": "2026-04-03T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W09",
+    "kri_id": "KRI-OP-001",
+    "value": 0.074,
+    "band": "amber",
+    "as_of_ts": "2026-04-10T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W10",
+    "kri_id": "KRI-OP-001",
+    "value": 0.08,
+    "band": "amber",
+    "as_of_ts": "2026-04-17T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W11",
+    "kri_id": "KRI-OP-001",
+    "value": 0.086,
+    "band": "amber",
+    "as_of_ts": "2026-04-24T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-OP-001-W12",
+    "kri_id": "KRI-OP-001",
+    "value": 0.092,
+    "band": "amber",
+    "as_of_ts": "2026-05-01T23:59:59Z",
+    "breach_reason": "VEND-2024-00203 staffing gap; dual-key waiver not in MOM."
+  },
+  {
+    "observation_id": "KOBS-TC-001-W01",
+    "kri_id": "KRI-TC-001",
+    "value": 2.4,
+    "band": "green",
+    "as_of_ts": "2026-02-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W02",
+    "kri_id": "KRI-TC-001",
+    "value": 2.488,
+    "band": "green",
+    "as_of_ts": "2026-02-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W03",
+    "kri_id": "KRI-TC-001",
+    "value": 2.567,
+    "band": "green",
+    "as_of_ts": "2026-02-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W04",
+    "kri_id": "KRI-TC-001",
+    "value": 2.642,
+    "band": "green",
+    "as_of_ts": "2026-03-06T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W05",
+    "kri_id": "KRI-TC-001",
+    "value": 2.715,
+    "band": "green",
+    "as_of_ts": "2026-03-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W06",
+    "kri_id": "KRI-TC-001",
+    "value": 2.787,
+    "band": "green",
+    "as_of_ts": "2026-03-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W07",
+    "kri_id": "KRI-TC-001",
+    "value": 2.858,
+    "band": "green",
+    "as_of_ts": "2026-03-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W08",
+    "kri_id": "KRI-TC-001",
+    "value": 2.928,
+    "band": "green",
+    "as_of_ts": "2026-04-03T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W09",
+    "kri_id": "KRI-TC-001",
+    "value": 2.997,
+    "band": "green",
+    "as_of_ts": "2026-04-10T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W10",
+    "kri_id": "KRI-TC-001",
+    "value": 3.065,
+    "band": "green",
+    "as_of_ts": "2026-04-17T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W11",
+    "kri_id": "KRI-TC-001",
+    "value": 3.133,
+    "band": "green",
+    "as_of_ts": "2026-04-24T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TC-001-W12",
+    "kri_id": "KRI-TC-001",
+    "value": 3.2,
+    "band": "green",
+    "as_of_ts": "2026-05-01T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W01",
+    "kri_id": "KRI-CR-001",
+    "value": 8,
+    "band": "green",
+    "as_of_ts": "2026-02-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W02",
+    "kri_id": "KRI-CR-001",
+    "value": 17,
+    "band": "green",
+    "as_of_ts": "2026-02-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W03",
+    "kri_id": "KRI-CR-001",
+    "value": 25,
+    "band": "green",
+    "as_of_ts": "2026-02-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W04",
+    "kri_id": "KRI-CR-001",
+    "value": 32,
+    "band": "green",
+    "as_of_ts": "2026-03-06T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W05",
+    "kri_id": "KRI-CR-001",
+    "value": 40,
+    "band": "green",
+    "as_of_ts": "2026-03-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W06",
+    "kri_id": "KRI-CR-001",
+    "value": 47,
+    "band": "green",
+    "as_of_ts": "2026-03-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W07",
+    "kri_id": "KRI-CR-001",
+    "value": 54,
+    "band": "amber",
+    "as_of_ts": "2026-03-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W08",
+    "kri_id": "KRI-CR-001",
+    "value": 61,
+    "band": "amber",
+    "as_of_ts": "2026-04-03T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W09",
+    "kri_id": "KRI-CR-001",
+    "value": 68,
+    "band": "amber",
+    "as_of_ts": "2026-04-10T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W10",
+    "kri_id": "KRI-CR-001",
+    "value": 75,
+    "band": "amber",
+    "as_of_ts": "2026-04-17T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W11",
+    "kri_id": "KRI-CR-001",
+    "value": 81,
+    "band": "amber",
+    "as_of_ts": "2026-04-24T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-CR-001-W12",
+    "kri_id": "KRI-CR-001",
+    "value": 88,
+    "band": "amber",
+    "as_of_ts": "2026-05-01T23:59:59Z",
+    "breach_reason": "Bureau pull freshness degraded on fast-track sanctions."
+  },
+  {
+    "observation_id": "KOBS-TP-001-W01",
+    "kri_id": "KRI-TP-001",
+    "value": 0,
+    "band": "green",
+    "as_of_ts": "2026-02-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W02",
+    "kri_id": "KRI-TP-001",
+    "value": 0,
+    "band": "green",
+    "as_of_ts": "2026-02-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W03",
+    "kri_id": "KRI-TP-001",
+    "value": 1,
+    "band": "green",
+    "as_of_ts": "2026-02-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W04",
+    "kri_id": "KRI-TP-001",
+    "value": 1,
+    "band": "green",
+    "as_of_ts": "2026-03-06T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W05",
+    "kri_id": "KRI-TP-001",
+    "value": 1,
+    "band": "green",
+    "as_of_ts": "2026-03-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W06",
+    "kri_id": "KRI-TP-001",
+    "value": 1,
+    "band": "green",
+    "as_of_ts": "2026-03-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W07",
+    "kri_id": "KRI-TP-001",
+    "value": 2,
+    "band": "green",
+    "as_of_ts": "2026-03-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W08",
+    "kri_id": "KRI-TP-001",
+    "value": 2,
+    "band": "green",
+    "as_of_ts": "2026-04-03T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W09",
+    "kri_id": "KRI-TP-001",
+    "value": 2,
+    "band": "green",
+    "as_of_ts": "2026-04-10T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W10",
+    "kri_id": "KRI-TP-001",
+    "value": 2,
+    "band": "green",
+    "as_of_ts": "2026-04-17T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W11",
+    "kri_id": "KRI-TP-001",
+    "value": 3,
+    "band": "green",
+    "as_of_ts": "2026-04-24T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-TP-001-W12",
+    "kri_id": "KRI-TP-001",
+    "value": 3,
+    "band": "green",
+    "as_of_ts": "2026-05-01T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W01",
+    "kri_id": "KRI-FR-001",
+    "value": 2,
+    "band": "green",
+    "as_of_ts": "2026-02-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W02",
+    "kri_id": "KRI-FR-001",
+    "value": 4,
+    "band": "green",
+    "as_of_ts": "2026-02-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W03",
+    "kri_id": "KRI-FR-001",
+    "value": 6,
+    "band": "green",
+    "as_of_ts": "2026-02-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W04",
+    "kri_id": "KRI-FR-001",
+    "value": 8,
+    "band": "green",
+    "as_of_ts": "2026-03-06T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W05",
+    "kri_id": "KRI-FR-001",
+    "value": 10,
+    "band": "amber",
+    "as_of_ts": "2026-03-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W06",
+    "kri_id": "KRI-FR-001",
+    "value": 12,
+    "band": "amber",
+    "as_of_ts": "2026-03-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W07",
+    "kri_id": "KRI-FR-001",
+    "value": 13,
+    "band": "amber",
+    "as_of_ts": "2026-03-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W08",
+    "kri_id": "KRI-FR-001",
+    "value": 15,
+    "band": "amber",
+    "as_of_ts": "2026-04-03T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W09",
+    "kri_id": "KRI-FR-001",
+    "value": 17,
+    "band": "amber",
+    "as_of_ts": "2026-04-10T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W10",
+    "kri_id": "KRI-FR-001",
+    "value": 19,
+    "band": "amber",
+    "as_of_ts": "2026-04-17T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W11",
+    "kri_id": "KRI-FR-001",
+    "value": 20,
+    "band": "amber",
+    "as_of_ts": "2026-04-24T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-FR-001-W12",
+    "kri_id": "KRI-FR-001",
+    "value": 22,
+    "band": "amber",
+    "as_of_ts": "2026-05-01T23:59:59Z",
+    "breach_reason": "NPCI feedback + mule typology rules pending FCC sign-off."
+  },
+  {
+    "observation_id": "KOBS-MR-001-W01",
+    "kri_id": "KRI-MR-001",
+    "value": 0,
+    "band": "green",
+    "as_of_ts": "2026-02-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W02",
+    "kri_id": "KRI-MR-001",
+    "value": 0,
+    "band": "green",
+    "as_of_ts": "2026-02-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W03",
+    "kri_id": "KRI-MR-001",
+    "value": 0,
+    "band": "green",
+    "as_of_ts": "2026-02-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W04",
+    "kri_id": "KRI-MR-001",
+    "value": 1,
+    "band": "green",
+    "as_of_ts": "2026-03-06T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W05",
+    "kri_id": "KRI-MR-001",
+    "value": 1,
+    "band": "green",
+    "as_of_ts": "2026-03-13T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W06",
+    "kri_id": "KRI-MR-001",
+    "value": 1,
+    "band": "green",
+    "as_of_ts": "2026-03-20T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W07",
+    "kri_id": "KRI-MR-001",
+    "value": 1,
+    "band": "green",
+    "as_of_ts": "2026-03-27T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W08",
+    "kri_id": "KRI-MR-001",
+    "value": 1,
+    "band": "green",
+    "as_of_ts": "2026-04-03T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W09",
+    "kri_id": "KRI-MR-001",
+    "value": 1,
+    "band": "green",
+    "as_of_ts": "2026-04-10T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W10",
+    "kri_id": "KRI-MR-001",
+    "value": 2,
+    "band": "amber",
+    "as_of_ts": "2026-04-17T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W11",
+    "kri_id": "KRI-MR-001",
+    "value": 2,
+    "band": "amber",
+    "as_of_ts": "2026-04-24T23:59:59Z"
+  },
+  {
+    "observation_id": "KOBS-MR-001-W12",
+    "kri_id": "KRI-MR-001",
+    "value": 2,
+    "band": "amber",
+    "as_of_ts": "2026-05-01T23:59:59Z",
+    "breach_reason": "Threshold excursion on latest reading."
+  }
+]

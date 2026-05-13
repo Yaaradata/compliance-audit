@@ -48,7 +48,7 @@ export function WorkpaperAuditPackBuilder({ openDrawer }: { openDrawer: OpenDraw
           onClick={() => setMode('auditPack')}
           className={`rounded-md px-3 py-1.5 text-xs font-semibold ${mode === 'auditPack' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}`}
         >
-          Audit packs ({auditPacks.length})
+          Readiness packs ({auditPacks.length})
         </button>
       </div>
 
@@ -166,7 +166,7 @@ function WorkpaperMode({
             </SectionCard>
 
             {/* Sections (Pass 4 §6 §S-07) */}
-            <SectionCard title={`Workpaper sections (${wp.sections.length})`} subtitle="Standard audit workpaper structure">
+            <SectionCard title={`Workpaper sections (${wp.sections.length})`} subtitle="Standard inspection workpaper structure">
               <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                 {wp.sections.map((s, idx) => (
                   <div key={idx} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px]">
@@ -297,7 +297,7 @@ function AuditPackMode({
         {pack ? (
           <>
             <SectionCard
-              title={`Audit pack · ${pack.audit_pack_id}`}
+              title={`Readiness pack · ${pack.audit_pack_id}`}
               subtitle={`Scope: ${pack.scope_type} · ${pack.scope_id} · for ${pack.target_audience}`}
               actions={<Chip label={pack.readiness_status} tone={pack.readiness_status === 'inspection_ready' ? 'emerald' : 'amber'} />}
             >
@@ -308,9 +308,9 @@ function AuditPackMode({
                   size={88}
                   thickness={10}
                   label="ARS"
-                  sublabel="audit readiness"
+                  sublabel="supervisory readiness"
                 />
-                <Stat k="Workpapers" v={pack.included_workpaper_ids.length} tone="indigo" />
+                <Stat k="Linked workpapers" v={pack.included_workpaper_ids.length} tone="indigo" />
                 <Stat k="Evidence" v={pack.included_evidence_ids.length} tone="indigo" />
                 <Stat k="Issues" v={pack.included_issue_ids.length} tone="rose" />
                 <Stat k="Attestations" v={pack.included_attestation_ids.length} tone="emerald" />
