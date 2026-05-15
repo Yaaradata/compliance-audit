@@ -1,24 +1,27 @@
 /**
- * IndianBankingAudit — AI-driven Risk · Compliance · Audit prototype
+ * Route: `/IndianBankingAudit`
  *
- * Sources:
- *  - Mock data: `@/lib/IndianBankingAudit/mockIndianBankingAuditData.js`
- *  - Component architecture: `@/components/IndianBankingAudit/*`
- *  - UX blueprint: `ref-docs/Indian Banking/UIPass4 - UX Blueprint.md`
+ * UI: `@/components/IndianBankingAudit/IndianBankingAuditApp`
+ * Deep links: `?screen=<ScreenCode>` and optional `?persona=cro|compliance|audit`
+ * (parsed in `IndianBankingAuditClient` — e.g. `?screen=regulatoryIntelligence`).
  *
- * Research hand-off (not routed): `IndianBankingAuditStandalone.jsx` (bundled UI) +
- * `IndianBankingAuditPrototype.data.js` (mock mirror of `lib/IndianBankingAudit/mockIndianBankingAuditData.js`).
- *
- * Scope: Wave-1 MVP (KYC · AML · Digital Lending) for a mid-sized
- * Indian private sector bank. India-only RBI / PMLA / FIU-IND grounding.
+ * Nested ORI routes (same segment): `/IndianBankingAudit/regulatory-intelligence`,
+ * `/IndianBankingAudit/obligation-coverage`, `/IndianBankingAudit/control-testing`, etc.
+ * See `ORI_ROUTES` in `screens/regIntel/regIntelPaths.ts`.
  */
 import IndianBankingAuditApp from '@/components/IndianBankingAudit/IndianBankingAuditApp';
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import IndianBankingAuditClient from './IndianBankingAuditClient';
 
 export const metadata: Metadata = {
   title: 'Indian Banking Audit',
 };
 
 export default function IndianBankingAuditPage() {
-  return <IndianBankingAuditApp />;
+  return (
+    <Suspense fallback={<IndianBankingAuditApp />}>
+      <IndianBankingAuditClient />
+    </Suspense>
+  );
 }

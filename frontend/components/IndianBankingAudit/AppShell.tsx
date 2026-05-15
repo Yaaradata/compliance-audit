@@ -5,6 +5,7 @@ import { personas } from './dataModel';
 import { personaAccent } from './theme';
 
 export type ScreenCode =
+  | 'regulatoryIntelligence'
   | 'riskPosture'
   | 'whatChanged'
   | 'inspectionReadiness'
@@ -56,7 +57,12 @@ export const PERSONA_META: Record<PersonaCode, { label: string; short: string; i
 // Each persona only sees the screens that answer their persona-questions.
 type ScreenEntry = { code: ScreenCode; label: string; subtitle: string; icon: string };
 
-const SCREEN: Record<ScreenCode, { label: string; subtitle: string; icon: string }> = {
+export const SCREEN: Record<ScreenCode, { label: string; subtitle: string; icon: string }> = {
+  regulatoryIntelligence: {
+    label: 'Reg Intelligence',
+    subtitle: 'Regulatory inbox · RBI / FIU / CERT-In / NPCI ingest',
+    icon: '✉',
+  },
   riskPosture: { label: 'Enterprise ORM posture', subtitle: 'S-01 · RES · supervisory readiness (ARS) · CES', icon: '◆' },
   whatChanged: { label: 'What changed this week', subtitle: 'S-02 · weekly deltas', icon: '⟳' },
   inspectionReadiness: { label: 'Supervisory readiness pack', subtitle: 'S-03 · RBI AFI / PMLA / FIU', icon: '✓' },
@@ -85,6 +91,7 @@ export const PERSONA_NAV: Record<PersonaCode, ScreenCode[]> = {
   cro: ['riskPosture', 'whatChanged', 'inspectionReadiness', 'accountability', 'lossData', 'kriMonitoring', 'incidentRegister', 'aiInsights', 'issueBoard'],
   // CCO — coverage lens: obligations, RCM, drill-down, process drift, HITL, lineage, issues
   compliance: [
+    'regulatoryIntelligence',
     'incidentRegister',
     'rcaWorkspace',
     'rcsaWorkspace',
@@ -118,6 +125,8 @@ export const PERSONA_DEFAULT_SCREEN: Record<PersonaCode, ScreenCode> = {
 
 /** User-facing screen straplines (functional copy — not spec IDs). */
 export const SCREEN_FUNCTIONAL_SUBTITLE: Record<ScreenCode, string> = {
+  regulatoryIntelligence:
+    'Structured RBI / FIU / CERT-In / MoF / NPCI ingest with CCO-first workflow, obligation HITL, and AI narrative with citations.',
   riskPosture: 'Residual posture, control health, and inspection readiness in one executive view.',
   whatChanged: 'Week-on-week deltas across issues, KRIs, controls, reporting, and AI signals.',
   inspectionReadiness: 'Supervisory pack status, ARS by lens, and RBI / PMLA / FIU evidence posture.',
@@ -154,6 +163,7 @@ const ORI_NAV_SECTIONS: { id: string; label: string; codes: ScreenCode[] }[] = [
     id: 'regulatory',
     label: 'Regulatory & Inspection',
     codes: [
+      'regulatoryIntelligence',
       'populationTesting',
       'evidenceWorkbench',
       'pacNoteApprovals',

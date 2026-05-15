@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   MainNavigation,
   PERSONA_DEFAULT_SCREEN,
+  SCREEN,
   SCREEN_FUNCTIONAL_SUBTITLE,
   ScreenContainer,
   TopBar,
@@ -36,13 +37,22 @@ import { SourceLineagePage } from './screens/SourceLineagePage';
 import { WhatChangedThisWeek } from './screens/WhatChangedThisWeek';
 import { PacNoteApprovals } from './screens/PacNoteApprovals';
 import { WorkpaperAuditPackBuilder } from './screens/WorkpaperAuditPackBuilder';
+import { RegulatoryIntelligenceInbox } from './screens/RegulatoryIntelligenceInbox';
 import { DemoModeBar } from './DemoModeBar';
 import { DEMO_STEP_COUNT, DEMO_STEPS, DEMO_STORY } from './demoGuidedStory';
 import { OriDemoProvider, type OriDemoUiHints } from './OriDemoContext';
 
-export default function IndianBankingAuditApp() {
-  const [activePersona, setActivePersonaState] = useState<PersonaCode>('cro');
-  const [activeScreen, setActiveScreen] = useState<ScreenCode>('riskPosture');
+export type IndianBankingAuditAppProps = {
+  initialPersona?: PersonaCode;
+  initialScreen?: ScreenCode;
+};
+
+export default function IndianBankingAuditApp({
+  initialPersona = 'cro',
+  initialScreen = 'riskPosture',
+}: IndianBankingAuditAppProps = {}) {
+  const [activePersona, setActivePersonaState] = useState<PersonaCode>(initialPersona);
+  const [activeScreen, setActiveScreen] = useState<ScreenCode>(initialScreen);
   const [drawer, setDrawer] = useState<DrawerState>(initialDrawer());
 
   // Local selection state lifted for screens that take selected ids as props
@@ -231,11 +241,12 @@ export default function IndianBankingAuditApp() {
     const s = list.find((sc) => sc.code === activeScreen);
     const strap = SCREEN_FUNCTIONAL_SUBTITLE[activeScreen];
     return {
-      title: s?.title || 'Indian Banking Audit',
+      title: s?.title || SCREEN[activeScreen]?.label || 'Indian Banking Audit',
       subtitle: strap || undefined,
     };
   }, [activeScreen]);
 
+  /** Viewport-locked split panes (list/detail): main column uses overflow-hidden + flex fill. */
   const splitFillLayout = activeScreen === 'rcaWorkspace' || activeScreen === 'pacNoteApprovals';
 
   return (
@@ -248,7 +259,7 @@ export default function IndianBankingAuditApp() {
           demoMode={demoMode}
           onStartGuidedDemo={startGuidedDemo}
         />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 overflow-hidden">
           <MainNavigation
             activePersona={activePersona}
             activeScreen={activeScreen}
@@ -256,7 +267,9 @@ export default function IndianBankingAuditApp() {
             demoMode={demoMode}
           />
           <main
-            className={`flex min-h-0 flex-1 flex-col ${splitFillLayout ? 'overflow-hidden' : 'overflow-y-auto'}`}
+            className={`flex min-h-0 min-w-0 flex-1 flex-col ${
+              splitFillLayout ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'
+            }`}
           >
             <ScreenContainer
               title={screenMeta.title}
@@ -340,6 +353,8 @@ function renderScreen({
   const setScreen = (s: string) => setActiveScreen(s as ScreenCode);
 
   switch (activeScreen) {
+    case 'regulatoryIntelligence':
+      return <RegulatoryIntelligenceInbox />;
     case 'riskPosture':
       return <ExecutiveRiskPostureCockpit openDrawer={openDrawer} setActiveScreen={setScreen} goOrm={goOrm} />;
     case 'whatChanged':

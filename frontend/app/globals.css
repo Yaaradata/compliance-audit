@@ -525,3 +525,182 @@ body {
   outline: 2px solid #6366f1;
   outline-offset: 2px;
 }
+
+/* Regulatory Intelligence Inbox — KPI attention (no scale / no layout shift) */
+@keyframes ori-reg-intel-kpi-attn-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+[data-ori-root] .ori-reg-intel-kpi-attn {
+  position: relative;
+  isolation: isolate;
+}
+[data-ori-root] .ori-reg-intel-kpi-attn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  animation: ori-reg-intel-kpi-attn-ring 2.2s ease-out infinite;
+}
+[data-ori-root] .ori-reg-intel-kpi-attn > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Regulatory Intelligence — Zone C enter + stepper pulse (Pass 5) */
+@keyframes ori-reg-intel-zone-c-slide-enter {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+[data-ori-root] .ori-reg-intel-zone-c-slide-enter {
+  animation: ori-reg-intel-zone-c-slide-enter 200ms ease-out both;
+}
+
+@keyframes ori-reg-intel-stepper-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+[data-ori-root] .ori-reg-intel-stepper-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  border: 2px solid var(--ori-stepper-ring, #1f4e79);
+  pointer-events: none;
+  animation: ori-reg-intel-stepper-pulse-ring 2s ease-out infinite;
+}
+
+@keyframes ori-reg-intel-stepper-pulse-ring-soft {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+[data-ori-root] .ori-reg-intel-stepper-pulse-soft::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  border: 2px solid var(--ori-stepper-ring, #1f4e79);
+  pointer-events: none;
+  animation: ori-reg-intel-stepper-pulse-ring-soft 2s ease-out infinite;
+}
+
+/* Regulatory Intelligence — Pass 6: toasts, HITL, obligation flash, narrative cite */
+@keyframes ori-reg-intel-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+[data-ori-root] .ori-reg-intel-toast-enter {
+  animation: ori-reg-intel-toast-in 200ms ease-out both;
+}
+
+@keyframes ori-reg-intel-hitl-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.35);
+  }
+}
+[data-ori-root] .ori-reg-intel-hitl-pending-dot {
+  animation: ori-reg-intel-hitl-dot-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ori-reg-intel-obligation-approve-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+    border-color: #22c55e;
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(22, 163, 74, 0);
+    border-color: #e2e8f0;
+  }
+}
+[data-ori-root] .ori-reg-intel-obligation-approve-flash {
+  animation: ori-reg-intel-obligation-approve-flash 800ms ease-out forwards;
+}
+
+@keyframes ori-reg-intel-obligation-cite-highlight {
+  0% {
+    background-color: rgba(250, 204, 21, 0.55);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+[data-ori-root] .ori-reg-intel-obligation-cite-highlight {
+  animation: ori-reg-intel-obligation-cite-highlight 1.2s ease-out forwards;
+}
+
+@keyframes ori-reg-intel-source-doc-cite-pulse {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: #fef3c7;
+  }
+}
+[data-ori-root] .ori-reg-intel-cite-highlight {
+  animation: ori-reg-intel-source-doc-cite-pulse 1.2s ease-in-out;
+  border-radius: 6px;
+  padding: 8px;
+  margin: -8px;
+}
+
+[data-ori-root] .ori-reg-intel-certify-overlay {
+  background: radial-gradient(circle at 50% 20%, rgba(16, 185, 129, 0.12), transparent 55%);
+}
+
+@keyframes ori-reg-intel-certify-burst {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+[data-ori-root] .ori-reg-intel-certify-burst {
+  animation: ori-reg-intel-certify-burst 0.6s ease-out both;
+}

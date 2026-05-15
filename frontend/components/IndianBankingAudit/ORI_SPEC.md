@@ -3,7 +3,7 @@
 **Role:** Single source of truth for multi-pass reframe of `IndianBankingAudit` → **ORI** (Operational Risk Intelligence). Re-read this file at the start of every subsequent build stage.
 
 **Canonical mock (code):** `frontend/lib/IndianBankingAudit/mockIndianBankingAuditData.js`  
-**Research copies:** `frontend/app/IndianBankingAudit/IndianBankingAuditPrototype.data.js`, `IndianBankingAuditStandalone.jsx` (regenerate after data / structural edits).
+**Optional blueprint export (not imported by the app):** `frontend/lib/IndianBankingAudit/IndianBankingAuditPrototype.data.js` — parallel `mockData` snapshot for research / diff; keep in sync manually if you use it.
 
 ---
 

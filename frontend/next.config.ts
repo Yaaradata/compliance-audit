@@ -4,6 +4,24 @@ const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "").trim().replace
 const apiBase = backendOrigin ? `${backendOrigin}/api/v1` : "";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    const base = "/IndianBankingAudit";
+    return [
+      { source: "/regulatory-intelligence", destination: `${base}/regulatory-intelligence`, permanent: false },
+      { source: "/obligation-coverage", destination: `${base}/obligation-coverage`, permanent: false },
+      { source: "/control-testing", destination: `${base}/control-testing`, permanent: false },
+      { source: "/issues-board", destination: `${base}/issues-board`, permanent: false },
+      { source: "/rcsa-workspace", destination: `${base}/rcsa-workspace`, permanent: false },
+      { source: "/evidence-workbench", destination: `${base}/evidence-workbench`, permanent: false },
+      { source: "/inspection-readiness", destination: `${base}/inspection-readiness`, permanent: false },
+      { source: "/software_audit_v1-1", destination: "/software_audit/v1-1", permanent: false },
+      { source: "/software_audit_v1-1/:path*", destination: "/software_audit/v1-1/:path*", permanent: false },
+      { source: "/software_audit_v1-2", destination: "/software_audit/v1-2", permanent: false },
+      { source: "/software_audit_v1-2/:path*", destination: "/software_audit/v1-2/:path*", permanent: false },
+      { source: "/software_audit_v2", destination: "/software_audit/v2", permanent: false },
+      { source: "/software_audit_v2/:path*", destination: "/software_audit/v2/:path*", permanent: false },
+    ];
+  },
   async rewrites() {
     if (!backendOrigin) {
       throw new Error(

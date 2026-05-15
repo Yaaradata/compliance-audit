@@ -1974,4 +1974,58 @@ const aiInsights = [
 ];
 
 const auditTrailEvents = [
-  { id: 'AUD-EVT-001',  ts: daysAgo(0),  actorId: 'ACT-CRO-MARK-X',    actorType\
+  { id: 'AUD-EVT-001', ts: daysAgo(0), actorId: 'ACT-CRO-MARK-X', actorType: 'user', action: 'session_open', detail: 'CRO Friday review session started' },
+  { id: 'AUD-EVT-002', ts: daysAgo(1), actorId: 'ACT-SMF17-PRIYA', actorType: 'user', action: 'fcc_forum', detail: 'FCC forum minutes published' },
+];
+
+const coverageGaps = [];
+
+const metrics = {
+  enterpriseRES: {
+    value: 62,
+    band: 'amber',
+    delta: 4,
+    sparklineSeries: trendingSeries(52, 62, 13, 1.0),
+    praSREPCategory: '2',
+  },
+  byPersona: {
+    cro: {
+      inboxItems: [
+        { id: 'INBOX-CRO-01', label: 'Material AML testing outcome — ISS-2026-009', type: 'testing_outcome', ageDays: 3, targetEntityType: 'issue', targetEntityId: 'ISS-2026-009', severity: 'high' },
+        { id: 'INBOX-CRO-02', label: 'Audit pack AP-S165-FCC-001 readiness', type: 'audit_pack', ageDays: 2, targetEntityType: 'auditPack', targetEntityId: 'AP-S165-FCC-001', severity: 'medium' },
+        { id: 'INBOX-CRO-03', label: 'AI insight — enterprise pattern', type: 'ai_insight', ageDays: 1, targetEntityType: 'aiInsight', targetEntityId: 'AI-INS-001', severity: 'medium' },
+      ],
+    },
+  },
+};
+
+const mockControlTraceData = {
+  personas,
+  navigationItems,
+  riskDomains,
+  risks,
+  controls,
+  obligations,
+  processes,
+  processSteps,
+  smfHolders,
+  actors,
+  kris,
+  riskAppetiteMetrics,
+  consumerOutcomes,
+  importantBusinessServices,
+  coverageGaps,
+  controlInstances,
+  evidenceRecords,
+  exceptions,
+  issues,
+  remediationActions,
+  tests,
+  workpapers,
+  auditPacks,
+  aiInsights,
+  auditTrailEvents,
+  metrics,
+};
+
+export default mockControlTraceData;
