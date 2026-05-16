@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
       { source: "/software_audit_v1-2/:path*", destination: "/software_audit/v1-2/:path*", permanent: false },
       { source: "/software_audit_v2", destination: "/software_audit/v2", permanent: false },
       { source: "/software_audit_v2/:path*", destination: "/software_audit/v2/:path*", permanent: false },
+      { source: "/UKBankingAuditv1", destination: "/UKBankingAudit/v1", permanent: false },
+      { source: "/UKBankingAuditv1/:path*", destination: "/UKBankingAudit/v1/:path*", permanent: false },
+      { source: "/UKBankingAuditv2", destination: "/UKBankingAudit/v2", permanent: false },
+      { source: "/UKBankingAuditv2/:path*", destination: "/UKBankingAudit/v2/:path*", permanent: false },
     ];
   },
   async rewrites() {

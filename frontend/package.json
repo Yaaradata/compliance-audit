@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "clean": "node -e \"const fs=require('fs');for (const p of ['.next','node_modules/.cache']) { try { fs.rmSync(p,{recursive:true,force:true}); console.log('removed',p); } catch {} }\"",
+    "dev:clean": "npm run clean && npm run dev"
   },
   "dependencies": {
     "framer-motion": "^12.34.5",

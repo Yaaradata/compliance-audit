@@ -63,7 +63,7 @@ export const SCREEN: Record<ScreenCode, { label: string; subtitle: string; icon:
     subtitle: 'Regulatory inbox · RBI / FIU / CERT-In / NPCI ingest',
     icon: '✉',
   },
-  riskPosture: { label: 'Enterprise ORM posture', subtitle: 'S-01 · RES · supervisory readiness (ARS) · CES', icon: '◆' },
+  riskPosture: { label: 'Executive Risk Posture Cockpit', subtitle: 'S-01 · RES · supervisory readiness (ARS) · CES', icon: '◆' },
   whatChanged: { label: 'What changed this week', subtitle: 'S-02 · weekly deltas', icon: '⟳' },
   inspectionReadiness: { label: 'Supervisory readiness pack', subtitle: 'S-03 · RBI AFI / PMLA / FIU', icon: '✓' },
   accountability: { label: 'Senior accountability ledger', subtitle: 'S-12 · SAES · attestations', icon: '★' },

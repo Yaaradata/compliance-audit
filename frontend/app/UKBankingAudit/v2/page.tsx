@@ -5,5 +5,5 @@
 import UKBankingControlTrace from '@/components/UKBankingAudit/UKBankingControlTrace';
 
 export default function UKBankingAuditPage() {
-  return <UKBankingControlTrace />;
+  return <UKBankingControlTrace variant="v2" />;
 }

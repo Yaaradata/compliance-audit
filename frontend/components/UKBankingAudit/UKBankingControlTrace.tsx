@@ -2,25 +2,75 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useReducer } from 'react';
-import mockControlTraceData from '@/lib/ukbankingaudit/mockDataV2';
+import mockDataV2 from '@/lib/ukbankingaudit/mockDataV2';
+import mockDataV3 from '@/lib/ukbankingaudit/mockDataV3';
+import {
+  getUkAuditUi,
+  computeRssScore,
+  WhatChangedFromLastReview,
+  RssDecomposition,
+  GeneratedNarrative,
+} from '@/components/UKBankingAudit/v3';
 
-const {
-  personas, navigationItems, croCategories, risks, controls, obligations,
+let personas, navigationItems, croCategories, risks, controls, obligations,
   processes, processSteps, smfHolders, actors, kris, riskAppetiteMetrics,
   consumerOutcomes, importantBusinessServices, coverageGaps,
   controlInstances, evidenceRecords, exceptions, issues, remediationActions,
   tests, workpapers, auditPacks, aiInsights, auditTrailEvents, metrics,
-  // Pass 7.0 — new CRSA-anchored entities (skeletal seeds; populated in Pass 7.6):
   riskAreas, controlObjectives, groupSetRequirements,
   crsaAttestationCycles, crsaAttestationLines,
-  // Pass 7.2 — CRO Board View narrative fixtures:
   firmLevelRAG, whatChangedThisWeek,
-  // Pass 7.3 — CRSA Cycle Cockpit + Per-Requirement Attestation fixtures:
   horizonScanItems, findingsLedger,
-  // Pass 7.4 — MLRO Workspace narrative fixtures:
   amlAlertsByWeek, sarFilingsByWeek, eddPipelineItems,
-  sanctionsScreeningMetrics, capacityVsDemandSeries,
-} = mockControlTraceData;
+  sanctionsScreeningMetrics, capacityVsDemandSeries;
+
+let activeUkUi = getUkAuditUi('v2');
+
+function bindUkMock(mock, variant = 'v2') {
+  personas = mock.personas;
+  navigationItems = mock.navigationItems;
+  croCategories = mock.croCategories;
+  risks = mock.risks;
+  controls = mock.controls;
+  obligations = mock.obligations;
+  processes = mock.processes;
+  processSteps = mock.processSteps;
+  smfHolders = mock.smfHolders;
+  actors = mock.actors;
+  kris = mock.kris;
+  riskAppetiteMetrics = mock.riskAppetiteMetrics;
+  consumerOutcomes = mock.consumerOutcomes;
+  importantBusinessServices = mock.importantBusinessServices;
+  coverageGaps = mock.coverageGaps;
+  controlInstances = mock.controlInstances;
+  evidenceRecords = mock.evidenceRecords;
+  exceptions = mock.exceptions;
+  issues = mock.issues;
+  remediationActions = mock.remediationActions;
+  tests = mock.tests;
+  workpapers = mock.workpapers;
+  auditPacks = mock.auditPacks;
+  aiInsights = mock.aiInsights;
+  auditTrailEvents = mock.auditTrailEvents;
+  metrics = mock.metrics;
+  riskAreas = mock.riskAreas;
+  controlObjectives = mock.controlObjectives;
+  groupSetRequirements = mock.groupSetRequirements;
+  crsaAttestationCycles = mock.crsaAttestationCycles;
+  crsaAttestationLines = mock.crsaAttestationLines;
+  firmLevelRAG = mock.firmLevelRAG;
+  whatChangedThisWeek = mock.whatChangedThisWeek;
+  horizonScanItems = mock.horizonScanItems;
+  findingsLedger = mock.findingsLedger;
+  amlAlertsByWeek = mock.amlAlertsByWeek;
+  sarFilingsByWeek = mock.sarFilingsByWeek;
+  eddPipelineItems = mock.eddPipelineItems;
+  sanctionsScreeningMetrics = mock.sanctionsScreeningMetrics;
+  capacityVsDemandSeries = mock.capacityVsDemandSeries;
+  activeUkUi = getUkAuditUi(variant);
+}
+
+bindUkMock(mockDataV2, 'v2');
 
 // ─── Helper: lookups ──────────────────────────────────────────────────────
 const findById = (arr, id) => (arr || []).find(x => x.id === id) || null;
@@ -557,7 +607,7 @@ function reducer(state, action) {
         ...cur.rss,
         components: { ...cur.rss.components, issueAwareness: Math.min(100, cur.rss.components.issueAwareness + 14) },
       };
-      cur.rss.score = Math.round(Object.values(cur.rss.components).reduce((s, v) => s + v, 0) / 7);
+      cur.rss.score = computeRssScore(cur.rss.components, activeUkUi.rssComponents);
       cur.rss.band = cur.rss.score >= 80 ? 'green' : cur.rss.score >= 60 ? 'amber' : 'red';
       return {
         ...state,
@@ -624,7 +674,8 @@ const selectSMFTrails           = (s) => s.domain.smfTrails;
 
 
 // ─── App Component ────────────────────────────────────────────────────────
-export default function UKBankingControlTrace() {
+export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
+  bindUkMock(variant === 'v3' ? mockDataV3 : mockDataV2, variant);
   // Pass 7.0 — single useReducer replaces 12 fragmented useState calls.
   const [state, dispatch] = useReducer(reducer, undefined, initState);
 
@@ -735,8 +786,8 @@ export default function UKBankingControlTrace() {
       <main className="px-6 py-6">
         {/* Pass 7.1 — four SMF-aligned persona landings (stubs; Passes 7.2–7.4 fill them in). */}
         {/* Pass 7.2 — CROBoardView is now real (three-zone board view). */}
-        {activeScreen === "croBoardView" && <CROBoardView openDrawer={openDrawer} />}
-        {activeScreen === "headOfERMWorkspace" && <HeadOfERMWorkspace />}
+        {activeScreen === "croBoardView" && <CROBoardView openDrawer={openDrawer} variant={variant} />}
+        {activeScreen === "headOfERMWorkspace" && variant !== "v3" && <HeadOfERMWorkspace />}
         {/* Pass 7.3 — CRSACycleCockpit is now real (CRSA-anchored SMF16 landing). */}
         {activeScreen === "crsaCycleCockpit" && (
           <CRSACycleCockpit
@@ -782,8 +833,8 @@ export default function UKBankingControlTrace() {
         )}
 
         {/* Surviving cross-persona screens. */}
-        {activeScreen === "smcrWorkspace" && <SMCRReasonableStepsWorkspace selectedSMFId={selectedSMFId} setSelectedSMFId={setSelectedSMFId} smfTrails={smfTrails} pendingDecisionId={pendingDecisionId} setPendingDecisionId={setPendingDecisionId} decisionRationale={decisionRationale} setDecisionRationale={setDecisionRationale} captureSMFDecision={captureSMFDecision} openDrawer={openDrawer} setActiveScreen={setActiveScreen} setSelectedPackId={setSelectedPackId} />}
-        {activeScreen === "monitoringReportBuilder" && <MonitoringReportBuilder selectedPackId={selectedPackId} setSelectedPackId={setSelectedPackId} openDrawer={openDrawer} />}
+        {activeScreen === "smcrWorkspace" && <SMCRReasonableStepsWorkspace variant={variant} selectedSMFId={selectedSMFId} setSelectedSMFId={setSelectedSMFId} smfTrails={smfTrails} pendingDecisionId={pendingDecisionId} setPendingDecisionId={setPendingDecisionId} decisionRationale={decisionRationale} setDecisionRationale={setDecisionRationale} captureSMFDecision={captureSMFDecision} openDrawer={openDrawer} setActiveScreen={setActiveScreen} setSelectedPackId={setSelectedPackId} />}
+        {activeScreen === "monitoringReportBuilder" && <MonitoringReportBuilder variant={variant} selectedPackId={selectedPackId} setSelectedPackId={setSelectedPackId} openDrawer={openDrawer} />}
         {activeScreen === "aiInsights" && <AIInsightExplorer openDrawer={openDrawer} />}
 
         {/* Pass 7.5 — Obligation Coverage Map promoted to top-level cross-persona screen. */}
@@ -1553,7 +1604,8 @@ function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveSc
 }
 
 // CRO (SMF4) board view — replaces the Pass 7.1 stub.
-function CROBoardView({ openDrawer }) {
+function CROBoardView({ openDrawer, variant = 'v2' }) {
+  const ui = getUkAuditUi(variant);
   const persona = personas.find(p => p.id === "cro");
   const [drilledCategoryId, setDrilledCategoryId] = useState(null);
 
@@ -1606,12 +1658,14 @@ function CROBoardView({ openDrawer }) {
         />
       )}
 
-      {/* Zone 3 — what changed this week (prose) */}
-      <WhatChangedThisWeek items={whatChangedThisWeek || []} />
+      {/* Zone 3 — what changed (prose) */}
+      <WhatChangedFromLastReview title={ui.whatChangedTitle} items={whatChangedThisWeek || []} />
 
-      <p className="text-[10px] text-slate-400 text-center pt-2">
-        No KRI tiles, no drift charts, no domain cards on this screen — those live in the Head of ERM workspace.
-      </p>
+      {variant !== "v3" && (
+        <p className="text-[10px] text-slate-400 text-center pt-2">
+          No KRI tiles, no drift charts, no domain cards on this screen — those live in the Head of ERM workspace.
+        </p>
+      )}
     </div>
   );
 }
@@ -2857,21 +2911,14 @@ function PopulationTestWorkspace({ selectedTestId, openDrawer, setActiveScreen, 
 }
 
 // ─── SCREEN: SMCR Reasonable Steps Workspace ──────────────────────────────
-function SMCRReasonableStepsWorkspace({ selectedSMFId, setSelectedSMFId, smfTrails, pendingDecisionId, setPendingDecisionId, decisionRationale, setDecisionRationale, captureSMFDecision, openDrawer, setActiveScreen, setSelectedPackId }) {
+function SMCRReasonableStepsWorkspace({ variant = 'v2', selectedSMFId, setSelectedSMFId, smfTrails, pendingDecisionId, setPendingDecisionId, decisionRationale, setDecisionRationale, captureSMFDecision, openDrawer, setActiveScreen, setSelectedPackId }) {
+  const ui = getUkAuditUi(variant);
   const smf = getSMF(selectedSMFId);
   if (!smf) return <EmptyState message="Select an SMF." />;
   const live = smfTrails[selectedSMFId];
   const rss = live.rss;
 
-  const rssComponents = [
-    { key: "oversightCadenceEvidence", label: "Oversight Cadence" },
-    { key: "escalationEvidence", label: "Escalation" },
-    { key: "attestationFreshness", label: "Attestation Freshness" },
-    { key: "issueAwareness", label: "Issue Awareness" },
-    { key: "decisionLogCompleteness", label: "Decision Log" },
-    { key: "mrmAlignment", label: "MRM Alignment" },
-    { key: "sorAlignment", label: "SoR Alignment" },
-  ];
+  const rssComponents = ui.rssComponents;
 
   return (
     <div className="space-y-6">
@@ -2917,26 +2964,7 @@ function SMCRReasonableStepsWorkspace({ selectedSMFId, setSelectedSMFId, smfTrai
       <div className="grid grid-cols-12 gap-6">
         {/* RSS decomposition */}
         <div className="col-span-12 lg:col-span-4 space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold mb-3">RSS Decomposition</h3>
-            <div className="space-y-2">
-              {rssComponents.map(c => {
-                const v = rss.components[c.key];
-                const t = v >= 80 ? "green" : v >= 60 ? "amber" : "red";
-                return (
-                  <div key={c.key}>
-                    <div className="flex justify-between text-xs mb-0.5">
-                      <span className="text-slate-700">{c.label}</span>
-                      <span className={`font-bold ${bandText(t)}`}>{v}</span>
-                    </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className={`h-full ${bandBar(t)}`} style={{ width: `${v}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <RssDecomposition components={rss.components} defs={rssComponents} bandText={bandText} bandBar={bandBar} />
 
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-sm font-semibold mb-2">Accountability Boundary</h3>
@@ -3074,7 +3102,8 @@ function SMCRReasonableStepsWorkspace({ selectedSMFId, setSelectedSMFId, smfTrai
 }
 
 // ─── SCREEN: Monitoring Report Builder ───────────────────────────────────
-function MonitoringReportBuilder({ selectedPackId, setSelectedPackId, openDrawer }) {
+function MonitoringReportBuilder({ variant = 'v2', selectedPackId, setSelectedPackId, openDrawer }) {
+  const ui = getUkAuditUi(variant);
   const pack = getAuditPack(selectedPackId);
   if (!pack) return <EmptyState message="Select a monitoring report." />;
 
@@ -3182,26 +3211,7 @@ function MonitoringReportBuilder({ selectedPackId, setSelectedPackId, openDrawer
 
         {/* Narrative */}
         <div className="col-span-12 lg:col-span-7 space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold">Generated Narrative</h3>
-                <p className="text-[10px] text-slate-500">AI-drafted with per-paragraph citations · model {pack.narrativeLineage.model} v{pack.narrativeLineage.modelVersion}</p>
-              </div>
-              <span className="text-[10px] font-bold tracking-wider bg-violet-100 text-violet-800 px-2 py-0.5 rounded">AI · {pack.narrativeLineage.perParagraphCitationCount} CITATIONS</span>
-            </div>
-            <div className="p-5 text-xs text-slate-700 leading-relaxed whitespace-pre-line">
-              {pack.generatedNarrative}
-            </div>
-            {pack.narrativeLineage.inputsNotSeen.length > 0 && (
-              <div className="mx-5 mb-5 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                <div className="text-[10px] uppercase tracking-wider text-amber-800 font-semibold mb-1">Inputs Not Seen by AI</div>
-                <ul className="text-xs text-amber-900 space-y-0.5">
-                  {pack.narrativeLineage.inputsNotSeen.map((x, i) => <li key={i}>· {x}</li>)}
-                </ul>
-              </div>
-            )}
-          </div>
+<GeneratedNarrative pack={pack} subtitle={ui.narrativeSubtitle} singleParagraph={variant === "v3"} />
 
           <div className="flex gap-2">
             <button className="flex-1 py-2.5 text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 rounded-md">Route to Executive Review →</button>
