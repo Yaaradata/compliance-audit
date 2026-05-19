@@ -1,6 +1,6 @@
 'use client';
 
-import type { MetricStatus, PostureMetric } from './types';
+import type { ClassicPostureMetric, MetricStatus } from './types';
 
 const STATUS_BORDER: Record<MetricStatus, string> = {
   good: 'border-t-emerald-500',
@@ -23,7 +23,7 @@ const TREND_TONE: Record<MetricStatus, string> = {
   neutral: 'text-slate-500',
 };
 
-function MetricCard({ metric }: { metric: PostureMetric }) {
+function ClassicMetricCard({ metric }: { metric: ClassicPostureMetric }) {
   return (
     <article
       className={`min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm border-t-[3px] ${STATUS_BORDER[metric.status]}`}
@@ -31,18 +31,18 @@ function MetricCard({ metric }: { metric: PostureMetric }) {
       <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{metric.label}</div>
       <div className={`mt-1 font-mono text-2xl font-semibold leading-none ${STATUS_VALUE[metric.status]}`}>
         {metric.value}
-        {metric.trend ? <span className={`ml-1 text-sm font-normal ${TREND_TONE[metric.status]}`}>{metric.trend}</span> : null}
+        <span className={`ml-1 text-sm font-normal ${TREND_TONE[metric.status]}`}>{metric.trend}</span>
       </div>
       <p className="mt-1 text-[10px] leading-snug text-slate-500">{metric.sub}</p>
     </article>
   );
 }
 
-export function MetricStrip({ metrics }: { metrics: PostureMetric[] }) {
+export function MetricStripClassic({ metrics }: { metrics: ClassicPostureMetric[] }) {
   return (
     <section aria-label="Executive posture metrics" className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
       {metrics.map((m) => (
-        <MetricCard key={m.id} metric={m} />
+        <ClassicMetricCard key={m.id} metric={m} />
       ))}
     </section>
   );

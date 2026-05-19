@@ -7,7 +7,7 @@ import type { SyncSourceStatus } from '@/lib/IndianBankingAudit/regIntelMockData
 import { getSourceDocumentByRef, type SourceAuthorityEmblem } from '@/lib/IndianBankingAudit/regIntelSourceDocuments';
 import { getSourceColor } from './regIntelSourceColors';
 import { AuthorityEmblemFor } from './AuthorityEmblems';
-import { REG_INTEL_ROUTES } from './regIntelPaths';
+import { useOriVersion } from '../../ori/OriVersionProvider';
 
 export interface SourceDocumentDrawerProps {
   isOpen: boolean;
@@ -91,6 +91,7 @@ export function SourceDocumentDrawer({
   syncStripNeutral = true,
   regulatorSyncStatus = null,
 }: SourceDocumentDrawerProps) {
+  const { regIntelRoutes } = useOriVersion();
   const [entered, setEntered] = useState(false);
   const [tab, setTab] = useState<DocTab>('document');
   const bodyScrollRef = useRef<HTMLDivElement>(null);
@@ -319,7 +320,7 @@ export function SourceDocumentDrawer({
             <p className="font-mono text-[10px] text-slate-500">Source hash: {doc.source_hash}</p>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Link
-                href={REG_INTEL_ROUTES.obligationCoverageForInstrument(doc.instrument_ref)}
+                href={regIntelRoutes.obligationCoverageForInstrument(doc.instrument_ref)}
                 className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
                 Open Obligation Map →

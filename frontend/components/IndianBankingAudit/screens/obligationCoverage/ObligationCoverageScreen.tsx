@@ -23,7 +23,7 @@ import { getControlById, type ControlRecord } from '@/lib/IndianBankingAudit/con
 import { getSourceColor } from '@/components/IndianBankingAudit/screens/regIntel/regIntelSourceColors';
 import { RegIntelDonutChart } from '@/components/IndianBankingAudit/screens/regIntel/RegIntelDonutChart';
 import { RegIntelHelpTip } from '@/components/IndianBankingAudit/screens/regIntel/RegIntelHelpTip';
-import { REG_INTEL_ROUTES } from '@/components/IndianBankingAudit/screens/regIntel/regIntelPaths';
+import { useOriVersion } from '@/components/IndianBankingAudit/ori/OriVersionProvider';
 import { OriStandalonePageShell } from '@/components/IndianBankingAudit/ori/OriStandalonePageShell';
 
 const COVERAGE_META: Record<
@@ -510,6 +510,7 @@ function ObligationDetailPanel({
   onClose: () => void;
   onScopeToInstrument: (instrumentRef: string) => void;
 }) {
+  const { regIntelRoutes } = useOriVersion();
   const sourceHex = getSourceColor(row.parent.source);
   const linkedControls: ControlRecord[] = row.linked_controls
     .map((id) => getControlById(id))
@@ -648,7 +649,7 @@ function ObligationDetailPanel({
                       <div className="text-[10px] text-slate-500">Target {c.ces_target}</div>
                     </div>
                     <Link
-                      href={`${REG_INTEL_ROUTES.controlTesting}?control=${encodeURIComponent(c.id)}`}
+                      href={`${regIntelRoutes.controlTesting}?control=${encodeURIComponent(c.id)}`}
                       className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                     >
                       Open in Control Testing

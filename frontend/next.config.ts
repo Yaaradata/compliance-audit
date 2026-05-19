@@ -5,7 +5,9 @@ const apiBase = backendOrigin ? `${backendOrigin}/api/v1` : "";
 
 const nextConfig: NextConfig = {
   async redirects() {
-    const base = "/IndianBankingAudit";
+    const base = "/IndianBankingAudit/v2";
+    const v1Base = "/IndianBankingAudit/v1";
+    const legacyBase = "/IndianBankingAudit";
     return [
       { source: "/regulatory-intelligence", destination: `${base}/regulatory-intelligence`, permanent: false },
       { source: "/obligation-coverage", destination: `${base}/obligation-coverage`, permanent: false },
@@ -14,6 +16,33 @@ const nextConfig: NextConfig = {
       { source: "/rcsa-workspace", destination: `${base}/rcsa-workspace`, permanent: false },
       { source: "/evidence-workbench", destination: `${base}/evidence-workbench`, permanent: false },
       { source: "/inspection-readiness", destination: `${base}/inspection-readiness`, permanent: false },
+      {
+        source: `${legacyBase}/regulatory-intelligence`,
+        destination: `${base}/regulatory-intelligence`,
+        permanent: false,
+      },
+      {
+        source: `${legacyBase}/obligation-coverage`,
+        destination: `${base}/obligation-coverage`,
+        permanent: false,
+      },
+      { source: `${legacyBase}/control-testing`, destination: `${base}/control-testing`, permanent: false },
+      { source: `${legacyBase}/issues-board`, destination: `${base}/issues-board`, permanent: false },
+      { source: `${legacyBase}/rcsa-workspace`, destination: `${base}/rcsa-workspace`, permanent: false },
+      {
+        source: `${legacyBase}/evidence-workbench`,
+        destination: `${base}/evidence-workbench`,
+        permanent: false,
+      },
+      {
+        source: `${legacyBase}/inspection-readiness`,
+        destination: `${base}/inspection-readiness`,
+        permanent: false,
+      },
+      { source: "/IndianBankingAuditv1", destination: v1Base, permanent: false },
+      { source: "/IndianBankingAuditv1/:path*", destination: `${v1Base}/:path*`, permanent: false },
+      { source: "/IndianBankingAuditv2", destination: base, permanent: false },
+      { source: "/IndianBankingAuditv2/:path*", destination: `${base}/:path*`, permanent: false },
       { source: "/software_audit_v1-1", destination: "/software_audit/v1-1", permanent: false },
       { source: "/software_audit_v1-1/:path*", destination: "/software_audit/v1-1/:path*", permanent: false },
       { source: "/software_audit_v1-2", destination: "/software_audit/v1-2", permanent: false },

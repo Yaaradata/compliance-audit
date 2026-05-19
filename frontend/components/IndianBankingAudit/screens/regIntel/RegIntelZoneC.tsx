@@ -6,7 +6,7 @@ import { BarChart2, X } from 'lucide-react';
 import type { KPISummary, RegAlertRecord } from '@/lib/IndianBankingAudit/regIntelMockData';
 import { RegIntelCCOMetricsDrawer } from './RegIntelCCOMetricsDrawer';
 import { REG_INTEL_HELP } from './regIntelHelpCopy';
-import { REG_INTEL_ROUTES } from './regIntelPaths';
+import { useOriVersion } from '../../ori/OriVersionProvider';
 import { RegIntelHelpTip } from './RegIntelHelpTip';
 import { RegIntelZoneCMiddle } from './RegIntelZoneCMiddle';
 import { RegIntelZoneCActionBar } from './RegIntelZoneCActionBar';
@@ -309,6 +309,7 @@ function C2CompositionStandard({
   expandedObligationId: string | null;
   setExpandedObligationId: (id: string | null) => void;
 }) {
+  const { regIntelRoutes } = useOriVersion();
   const u = alert.uncovered_count;
   const p = alert.partial_count;
   const c = alert.covered_count;
@@ -342,7 +343,7 @@ function C2CompositionStandard({
             {alert.obligations.map((obl) => (
               <Link
                 key={obl.id}
-                href={REG_INTEL_ROUTES.obligationCoverage(obl.id)}
+                href={regIntelRoutes.obligationCoverage(obl.id)}
                 aria-label={`Obligation ${obl.id}: expand in this view or open coverage in new tab with modifier key`}
                 className={`rounded border px-1.5 py-0.5 font-mono text-[10px] font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
                   expandedObligationId === obl.id
@@ -417,7 +418,7 @@ function C2CompositionStandard({
               <p className="text-xs text-slate-500">No PAs yet — create in Stage 3</p>
             ) : (
               <Link
-                href={REG_INTEL_ROUTES.issuesBoardPa}
+                href={regIntelRoutes.issuesBoardPa}
                 className="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
                 View PAs in Issues Board

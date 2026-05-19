@@ -1,0 +1,44 @@
+.ori-reporting-clock-ticker {
+  --ticker-duration: 28s;
+}
+
+.ori-reporting-clock-ticker__viewport {
+  mask-image: linear-gradient(90deg, #000 0%, #000 92%, transparent 100%);
+}
+
+.ori-reporting-clock-ticker__track {
+  display: flex;
+  width: max-content;
+  animation: ori-reporting-clock-ticker-scroll var(--ticker-duration) linear infinite;
+}
+
+.ori-reporting-clock-ticker:hover .ori-reporting-clock-ticker__track {
+  animation-play-state: paused;
+}
+
+@keyframes ori-reporting-clock-ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ori-reporting-clock-ticker__track {
+    animation: none;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .ori-reporting-clock-ticker__viewport {
+    mask-image: none;
+  }
+
+  .ori-reporting-clock-ticker__sequence--dup {
+    display: none;
+  }
+}

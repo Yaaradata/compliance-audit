@@ -1,27 +1,16 @@
-/**
- * Route: `/IndianBankingAudit`
- *
- * UI: `@/components/IndianBankingAudit/IndianBankingAuditApp`
- * Deep links: `?screen=<ScreenCode>` and optional `?persona=cro|compliance|audit`
- * (parsed in `IndianBankingAuditClient` — e.g. `?screen=regulatoryIntelligence`).
- *
- * Nested ORI routes (same segment): `/IndianBankingAudit/regulatory-intelligence`,
- * `/IndianBankingAudit/obligation-coverage`, `/IndianBankingAudit/control-testing`, etc.
- * See `ORI_ROUTES` in `screens/regIntel/regIntelPaths.ts`.
- */
-import IndianBankingAuditApp from '@/components/IndianBankingAudit/IndianBankingAuditApp';
-import type { Metadata } from 'next';
-import { Suspense } from 'react';
-import IndianBankingAuditClient from './IndianBankingAuditClient';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Indian Banking Audit',
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default function IndianBankingAuditPage() {
-  return (
-    <Suspense fallback={<IndianBankingAuditApp />}>
-      <IndianBankingAuditClient />
-    </Suspense>
-  );
+export default async function IndianBankingAuditIndexPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(sp)) {
+    if (typeof value === 'string') qs.set(key, value);
+    else if (Array.isArray(value)) value.forEach((v) => qs.append(key, v));
+  }
+  const query = qs.toString();
+  redirect(`/IndianBankingAudit/v2${query ? `?${query}` : ''}`);
 }

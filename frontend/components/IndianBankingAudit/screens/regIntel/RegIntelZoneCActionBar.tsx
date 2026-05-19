@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { FileText } from 'lucide-react';
 import type { RegAlertRecord } from '@/lib/IndianBankingAudit/regIntelMockData';
 import { getSourceDocumentByRef } from '@/lib/IndianBankingAudit/regIntelSourceDocuments';
-import { ORI_ROUTES, REG_INTEL_ROUTES } from './regIntelPaths';
+import { useOriVersion } from '../../ori/OriVersionProvider';
 import { useRegIntelToast } from './RegIntelToasts';
 
 function formatDateTime(iso: string): string {
@@ -94,6 +94,7 @@ export function RegIntelZoneCActionBar({
   setCertifiedAtByAlertId: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   onViewSourceDocument?: () => void;
 }) {
+  const { routes, regIntelRoutes } = useOriVersion();
   const { pushToast } = useRegIntelToast();
   const [showCertifyCelebration, setShowCertifyCelebration] = useState(false);
 
@@ -104,7 +105,7 @@ export function RegIntelZoneCActionBar({
       <>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link
-            href={REG_INTEL_ROUTES.rcsaWorkspace}
+            href={regIntelRoutes.rcsaWorkspace}
             className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-indigo-700 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Run Self-Assessment
@@ -257,7 +258,7 @@ export function RegIntelZoneCActionBar({
             Create Preventive Actions
           </button>
           <Link
-            href={REG_INTEL_ROUTES.issuesBoard}
+            href={regIntelRoutes.issuesBoard}
             className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:w-auto"
           >
             View in Issues Board
@@ -291,15 +292,15 @@ export function RegIntelZoneCActionBar({
               const anyLinked = alert.obligations.find((o) => o.linked_controls.length > 0);
               const ctrlId = (partial ?? anyLinked)?.linked_controls[0];
               return ctrlId
-                ? ORI_ROUTES.controlTestingForControl(ctrlId)
-                : REG_INTEL_ROUTES.controlTesting;
+                ? routes.controlTestingForControl(ctrlId)
+                : regIntelRoutes.controlTesting;
             })()}
             className="inline-flex min-h-[44px] items-center justify-center rounded-lg border-2 border-indigo-600 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-800 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Check Control Test Result
           </Link>
           <Link
-            href={REG_INTEL_ROUTES.evidenceWorkbench}
+            href={regIntelRoutes.evidenceWorkbench}
             className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             View Evidence Workbench
@@ -343,7 +344,7 @@ export function RegIntelZoneCActionBar({
             Sign &amp; Certify Closure
           </button>
           <Link
-            href={REG_INTEL_ROUTES.inspectionReadiness}
+            href={regIntelRoutes.inspectionReadiness}
             className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Open Inspection Pack

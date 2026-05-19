@@ -28,7 +28,7 @@ import {
 import { obligationCoverageRows } from '@/lib/IndianBankingAudit/obligationCoverageData';
 import { RegIntelSparkline } from '@/components/IndianBankingAudit/screens/regIntel/RegIntelSparkline';
 import { RegIntelHelpTip } from '@/components/IndianBankingAudit/screens/regIntel/RegIntelHelpTip';
-import { REG_INTEL_ROUTES } from '@/components/IndianBankingAudit/screens/regIntel/regIntelPaths';
+import { useOriVersion } from '@/components/IndianBankingAudit/ori/OriVersionProvider';
 import { OriStandalonePageShell } from '@/components/IndianBankingAudit/ori/OriStandalonePageShell';
 
 const STATUS_META: Record<
@@ -476,6 +476,7 @@ function ControlDetailPanel({
   obligations: typeof obligationCoverageRows;
   onClose: () => void;
 }) {
+  const { regIntelRoutes } = useOriVersion();
   const t = cesTone(control.ces_current, control.ces_target);
   return (
     <article className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -640,7 +641,7 @@ function ControlDetailPanel({
                     </p>
                   </div>
                   <Link
-                    href={REG_INTEL_ROUTES.obligationCoverage(o.id)}
+                    href={regIntelRoutes.obligationCoverage(o.id)}
                     className="inline-flex shrink-0 items-center gap-1 self-start rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                   >
                     Open in Obligation Coverage

@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  INDIAN_BANKING_PATHS,
+  INDIAN_BANKING_VERSION_SELECT_LABELS,
+  LATEST_INDIAN_BANKING_VERSION,
+  type IndianBankingAuditVersion,
+} from "./indianBankingAuditVersions";
 
 type UkVersion = "v1" | "v2" | "v3";
 
@@ -62,7 +68,7 @@ const REGION_OPTIONS: RegionOption[] = [
     title: "Indian Banking Audit",
     icon: "🏛️",
     accentSoftClass: "bg-blue-50 ring-blue-100",
-    href: "/IndianBankingAudit",
+    href: INDIAN_BANKING_PATHS[LATEST_INDIAN_BANKING_VERSION],
   },
   {
     id: "software-audit",
@@ -134,9 +140,55 @@ function UKBankingAuditCard({ option }: { option: RegionOption }) {
   );
 }
 
+function IndianBankingAuditCard({ option }: { option: RegionOption }) {
+  const router = useRouter();
+  const [version, setVersion] = useState<IndianBankingAuditVersion>(LATEST_INDIAN_BANKING_VERSION);
+
+  const openDashboard = () => {
+    router.push(INDIAN_BANKING_PATHS[version]);
+  };
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="relative mb-3">
+        <div className="flex justify-center">
+          <div
+            className={`flex h-14 w-14 items-center justify-center rounded-2xl ring-1 ${option.accentSoftClass}`}
+          >
+            <span className="text-2xl" aria-hidden>
+              {option.icon}
+            </span>
+          </div>
+        </div>
+        <select
+          id="indian-banking-audit-version"
+          value={version}
+          onChange={(e) => setVersion(e.target.value as IndianBankingAuditVersion)}
+          className="absolute right-0 top-0 h-7 w-[6.75rem] cursor-pointer rounded-md border border-slate-200 bg-slate-50/90 py-0 pl-2 pr-6 text-xs font-medium text-slate-600 outline-none transition hover:border-slate-300 hover:bg-white focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500/20"
+          aria-label="Indian Banking Audit version"
+        >
+          <option value="v2">{INDIAN_BANKING_VERSION_SELECT_LABELS.v2}</option>
+          <option value="v1">{INDIAN_BANKING_VERSION_SELECT_LABELS.v1}</option>
+        </select>
+      </div>
+
+      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">{option.title}</h2>
+      <p className="mt-1 text-center text-sm text-slate-500">Choose dashboard to continue</p>
+
+      <button
+        type="button"
+        onClick={openDashboard}
+        className="mt-4 min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      >
+        Open dashboard
+      </button>
+    </div>
+  );
+}
+
 function SoftwareAuditCard({ option }: { option: RegionOption }) {
   const router = useRouter();
-  const [version, setVersion] = useState<SoftwareAuditVersion>("v2");
+  const [version, setVersion] = useState<SoftwareAuditVersion>('v2');
 
   const openDashboard = () => {
     router.push(SOFTWARE_AUDIT_PATHS[version]);
@@ -184,6 +236,9 @@ function SoftwareAuditCard({ option }: { option: RegionOption }) {
 function RegionCard({ option }: { option: RegionOption }) {
   if (option.id === "uk-banking-audit") {
     return <UKBankingAuditCard option={option} />;
+  }
+  if (option.id === "indian-banking-audit") {
+    return <IndianBankingAuditCard option={option} />;
   }
   if (option.id === "software-audit") {
     return <SoftwareAuditCard option={option} />;

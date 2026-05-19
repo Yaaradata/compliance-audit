@@ -46,6 +46,13 @@ import {
   rcas,
   stepExecutionsForExecution,
 } from '../dataModel';
+import {
+  getReviewQueueInsight,
+  isSyntheticSaesInsight,
+  openAccountableIssueCount,
+  SAES_DATA_GAP_TOOLTIP,
+  seniorManagerIdFromSyntheticInsight,
+} from '../ori/saesDataIntegrity';
 import type { DrawerEntityType } from '../types';
 import {
   CESBreakdownCard,
@@ -79,104 +86,9 @@ const fmtDate = (iso: string | null | undefined) => {
 };
 
 // =====================================================================
-// RISK
+// RISK — PASS 5 substantive CRO record (drawer/riskDetail/)
 // =====================================================================
-export function RiskDetailPanel({
-  riskId,
-  drillFromDrawer,
-}: {
-  riskId: string;
-  drillFromDrawer: DrillFromDrawer;
-}) {
-  const risk = getRisk(riskId);
-  if (!risk) return <EmptyState message="Risk not found." />;
-  const sm = getSeniorManager(risk.accountable_senior_manager_id);
-  const regulationIds = Array.from(
-    new Set(
-      risk.linked_obligation_ids
-        .map((oid) => getObligation(oid))
-        .filter((o): o is NonNullable<typeof o> => !!o)
-        .map((o) => o.regulation_id)
-    )
-  );
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold text-slate-900">{risk.title}</h2>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <Chip label={`Domain · ${risk.domain_id}`} tone="indigo" />
-          <Chip label={`Inherent · ${risk.inherent_rating}`} tone="amber" />
-          <Chip label={`Residual · ${risk.residual_rating}`} tone="rose" />
-          <Chip label={`Trend · ${risk.residual_rating_trend}`} tone="slate" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <ScoreRing score={risk.res_score} band={risk.res_score >= 80 ? 'green' : risk.res_score >= 60 ? 'amber' : 'red'} label="RES" size={88} />
-        <div>
-          <KVRow k="Risk ID" v={risk.risk_id} mono />
-          <KVRow
-            k="Accountable SM"
-            v={
-              sm ? (
-                <button
-                  type="button"
-                  className="text-left text-xs font-semibold text-indigo-700 underline decoration-dotted hover:text-indigo-900"
-                  onClick={() => drillFromDrawer('seniorManager', risk.accountable_senior_manager_id)}
-                >
-                  {sm.name}
-                </button>
-              ) : (
-                risk.accountable_senior_manager_id
-              )
-            }
-          />
-          <KVRow k="KRIs" v={risk.kri_ids.join(', ') || '—'} />
-          <KVRow k="Appetite metrics" v={risk.appetite_metric_ids.join(', ') || '—'} />
-        </div>
-      </div>
-
-      <SectionCard title="Linked Obligations">
-        {risk.linked_obligation_ids.length ? (
-          <div className="flex flex-wrap gap-1.5">
-            {risk.linked_obligation_ids.map((id) => (
-              <Chip key={id} label={id} tone="violet" onClick={() => drillFromDrawer('obligation', id)} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState message="No obligations linked." />
-        )}
-      </SectionCard>
-
-      <SectionCard title="Regulations (via obligations)">
-        {regulationIds.length ? (
-          <div className="flex flex-wrap gap-1.5">
-            {regulationIds.map((rid) => {
-              const reg = getRegulation(rid);
-              return (
-                <Chip key={rid} label={reg?.title || rid} tone="slate" onClick={() => drillFromDrawer('regulation', rid)} />
-              );
-            })}
-          </div>
-        ) : (
-          <EmptyState message="No regulations resolved from linked obligations." />
-        )}
-      </SectionCard>
-
-      <SectionCard title="Linked Controls">
-        {risk.linked_control_ids.length ? (
-          <div className="flex flex-wrap gap-1.5">
-            {risk.linked_control_ids.map((id) => (
-              <Chip key={id} label={id} tone="indigo" onClick={() => drillFromDrawer('control', id)} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState message="No controls linked." />
-        )}
-      </SectionCard>
-    </div>
-  );
-}
+export { RiskDetailPanel } from './riskDetail/RiskDetailPanel';
 
 // =====================================================================
 // CONTROL
@@ -702,10 +614,13 @@ export function IssueDetailPanel({ issueId, drillFromDrawer }: { issueId: string
 // AI INSIGHT
 // =====================================================================
 export function AIInsightDetailPanel({ insightId, drillFromDrawer }: { insightId: string; drillFromDrawer: DrillFromDrawer }) {
-  const ins = getInsight(insightId);
+  const ins = getReviewQueueInsight(insightId);
   if (!ins) return <EmptyState message="Insight not found." />;
   const model = getModel(ins.model_id);
   const mrr = model ? modelRiskRecords.find((r) => r.model_id === model.model_id) || null : null;
+  const syntheticSaes = isSyntheticSaesInsight(insightId);
+  const smId = seniorManagerIdFromSyntheticInsight(insightId);
+  const accountableSm = smId ? getSeniorManager(smId) : null;
 
   return (
     <div className="space-y-4">
@@ -719,6 +634,23 @@ export function AIInsightDetailPanel({ insightId, drillFromDrawer }: { insightId
         </div>
       </div>
 
+      {syntheticSaes && accountableSm ? (
+        <SectionCard title="Accountability context" subtitle={SAES_DATA_GAP_TOOLTIP}>
+          <button
+            type="button"
+            className="mb-2 w-full rounded-lg border border-violet-100 bg-violet-50/80 p-3 text-left hover:bg-violet-50"
+            onClick={() => drillFromDrawer('seniorManager', accountableSm.senior_manager_id)}
+          >
+            <div className="font-mono text-[10px] text-violet-700">{accountableSm.senior_manager_id}</div>
+            <div className="text-sm font-semibold text-slate-900">{accountableSm.name}</div>
+            <div className="mt-1 text-xs text-slate-600">
+              SAES {accountableSm.saes} · {openAccountableIssueCount(accountableSm.senior_manager_id)} open accountable issue
+              {openAccountableIssueCount(accountableSm.senior_manager_id) === 1 ? '' : 's'}
+            </div>
+          </button>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="Recommendation">
         <p className="text-xs text-slate-700">{ins.recommendation}</p>
       </SectionCard>
@@ -726,6 +658,16 @@ export function AIInsightDetailPanel({ insightId, drillFromDrawer }: { insightId
       <SectionCard title="Risk if wrong (counter-factual)">
         <p className="text-xs text-slate-600">{ins.risk_if_wrong}</p>
       </SectionCard>
+
+      {ins.linked_control_ids.length > 0 ? (
+        <SectionCard title="Linked controls">
+          <div className="flex flex-wrap gap-1.5">
+            {ins.linked_control_ids.map((id) => (
+              <Chip key={id} label={id} tone="indigo" onClick={() => drillFromDrawer('control', id)} />
+            ))}
+          </div>
+        </SectionCard>
+      ) : null}
 
       <SectionCard title="Cited evidence">
         <div className="flex flex-wrap gap-1.5">

@@ -6,18 +6,18 @@ import {
   aggregateSAES,
   auditPacks,
   getControl,
-  getInsight,
   getSeniorManager,
   incidents,
   inspectionLenses,
   issues,
   pacNotes,
-  pendingAIInsights,
   preventiveActions,
   rcas,
   reportingClocks,
   seniorManagers,
 } from '../../dataModel';
+import { SeniorAccountabilityCard } from '../../ori/SeniorAccountabilityCard';
+import { AiPredictiveSignalsPanel } from './AiPredictiveSignalsPanel';
 import { Chip, ScoreRing, SectionCard, SeverityBadge, Stat } from '../../primitives';
 import { bandFromScore, oriCardHover, oriFocusRing } from '../../theme';
 import type { OpenDrawer, OrmCrossNavIntent, SetActiveScreen } from '../../types';
@@ -40,10 +40,13 @@ export function ExecutiveRiskPostureExtendedPanels({
   openDrawer,
   setActiveScreen,
   goOrm,
+  omitAiSignals = false,
 }: {
   openDrawer: OpenDrawer;
   setActiveScreen: SetActiveScreen;
   goOrm: (intent: OrmCrossNavIntent) => void;
+  /** v2 — AI panel is shown in the top hero row instead. */
+  omitAiSignals?: boolean;
 }) {
   const rts = aggregateRTS();
   const saes = aggregateSAES();
@@ -95,7 +98,7 @@ export function ExecutiveRiskPostureExtendedPanels({
           >
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Critical incidents (7d)</div>
             <div className="mt-1 text-2xl font-bold text-rose-800">{criticalIncidents7d}</div>
-            <div className="mt-2 text-xs text-indigo-700 underline">Open incident register →</div>
+            <div className="mt-2 text-xs text-indigo-700 underline">View incident register →</div>
           </button>
           <button
             type="button"
@@ -113,7 +116,7 @@ export function ExecutiveRiskPostureExtendedPanels({
           >
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">PAC notes blocked</div>
             <div className="mt-1 text-2xl font-bold text-violet-900">{pacNotesBlocked}</div>
-            <div className="mt-2 text-xs text-indigo-700 underline">Open PAC approvals →</div>
+            <div className="mt-2 text-xs text-indigo-700 underline">Review PAC approvals →</div>
           </button>
         </div>
       </SectionCard>
@@ -186,7 +189,7 @@ export function ExecutiveRiskPostureExtendedPanels({
             subtitle="ARS per lens — click for pack view"
             actions={
               <button type="button" className="text-xs font-semibold text-indigo-600" onClick={() => setActiveScreen('inspectionReadiness')}>
-                Open →
+                View inspection readiness →
               </button>
             }
           >
@@ -221,71 +224,38 @@ export function ExecutiveRiskPostureExtendedPanels({
         </div>
       </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-1">
+      <div className={omitAiSignals ? 'grid items-start gap-4' : 'grid items-start gap-4 lg:grid-cols-3'}>
+        <div className={omitAiSignals ? undefined : 'lg:col-span-1'}>
           <SectionCard
             title="Senior Accountability Snapshot"
             subtitle="SAES × open issues · click any to open ledger"
             actions={
               <button type="button" className="text-xs font-semibold text-indigo-600" onClick={() => setActiveScreen('accountability')}>
-                Open ledger →
+                View accountability register →
               </button>
             }
           >
-            <div className="grid grid-cols-2 gap-2">
+            <div className={`grid gap-2 ${omitAiSignals ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6' : 'grid-cols-2'}`}>
               {seniorManagers.slice(0, 6).map((sm) => {
-                const openIssues = issues.filter((i) => i.accountable_senior_manager_id === sm.senior_manager_id && !i.closed_at);
+                const openIssues = issues.filter((i) => i.accountable_senior_manager_id === sm.senior_manager_id && !i.closed_at).length;
                 return (
-                  <button
+                  <SeniorAccountabilityCard
                     key={sm.senior_manager_id}
-                    type="button"
+                    sm={sm}
+                    openIssues={openIssues}
                     onClick={() => openDrawer('seniorManager', sm.senior_manager_id, 'riskPosture')}
-                    className="flex items-center gap-2 rounded border border-slate-200 px-2 py-1.5 text-left hover:border-emerald-300"
-                  >
-                    <ScoreRing score={sm.saes} band={sm.saes >= 85 ? 'green' : sm.saes >= 70 ? 'amber' : 'red'} size={36} thickness={4} />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[11px] font-semibold text-slate-900">{sm.role}</div>
-                      <div className="text-[10px] text-slate-500">{openIssues.length} open</div>
-                    </div>
-                  </button>
+                  />
                 );
               })}
             </div>
           </SectionCard>
         </div>
 
-        <div className="lg:col-span-2">
-          <SectionCard
-            title="AI / predictive signals · this week"
-            subtitle="High-confidence signals touching your risk surface"
-            actions={
-              <button type="button" className="text-xs font-semibold text-indigo-600" onClick={() => setActiveScreen('aiInsights')}>
-                Review queue ({pendingAIInsights().length}) →
-              </button>
-            }
-          >
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              {pendingAIInsights().slice(0, 4).map((ai) => {
-                const ins = getInsight(ai.ai_insight_id);
-                if (!ins) return null;
-                return (
-                  <button
-                    key={ai.ai_insight_id}
-                    type="button"
-                    onClick={() => openDrawer('aiInsight', ai.ai_insight_id, 'riskPosture')}
-                    className="rounded-lg border border-violet-200 bg-violet-50 p-2.5 text-left hover:border-violet-400"
-                  >
-                    <div className="mb-1 flex items-center justify-between">
-                      <Chip label={`${ins.signal_id} · ${ins.signal_class.replace('_', ' ')}`} tone="violet" size="xs" />
-                      <span className="text-[10px] font-semibold text-violet-700">{(ins.confidence * 100).toFixed(0)}%</span>
-                    </div>
-                    <div className="text-[11px] font-semibold text-slate-900">{ins.title}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </SectionCard>
-        </div>
+        {!omitAiSignals ? (
+          <div className="lg:col-span-2">
+            <AiPredictiveSignalsPanel openDrawer={openDrawer} setActiveScreen={setActiveScreen} />
+          </div>
+        ) : null}
       </div>
     </>
   );

@@ -777,6 +777,48 @@ export const openIssuesForRisk = (riskId: string) =>
       i.linked_risk_ids.includes(riskId)
   );
 
+/** Controls linked via risk record, reverse linkage, or RCSA cells. */
+export const controlsForRisk = (riskId: string): Control[] => {
+  const ids = new Set<string>();
+  const risk = getRisk(riskId);
+  if (risk) {
+    for (const id of risk.linked_control_ids) ids.add(id);
+  }
+  for (const c of controls) {
+    if (c.linked_risks.includes(riskId)) ids.add(c.control_id);
+  }
+  for (const cell of rcsaCells) {
+    if (cell.risk_id !== riskId) continue;
+    for (const id of cell.control_ids) ids.add(id);
+  }
+  return Array.from(ids)
+    .map((id) => getControl(id))
+    .filter((c): c is Control => c != null);
+};
+
+/** Most recent population / design test for a control (excludes pending retests). */
+export const latestTestExecutionForControl = (controlId: string): TestExecution | null => {
+  const rows = testExecutions
+    .filter((t) => t.control_id === controlId && t.test_type !== 'retest' && t.as_of_date)
+    .sort((a, b) => (a.as_of_date! < b.as_of_date! ? 1 : -1));
+  return rows[0] ?? null;
+};
+
+/** Incidents citing this risk, discovered within the last N calendar days (default 90). */
+export const incidentsForRiskWithinDays = (riskId: string, days = 90): Incident[] => {
+  const cutoff = Date.now() - days * 86400000;
+  return incidents
+    .filter((inc) => {
+      if (!Array.isArray(inc.linked_risk_ids) || !inc.linked_risk_ids.includes(riskId)) return false;
+      const t = new Date(inc.discovered_date).getTime();
+      return !Number.isNaN(t) && t >= cutoff;
+    })
+    .sort((a, b) => (a.discovered_date < b.discovered_date ? 1 : -1));
+};
+
+export const rcsaCellsForRisk = (riskId: string): RcsaCell[] =>
+  rcsaCells.filter((c) => c.risk_id === riskId);
+
 const incidentById: Record<string, Incident> = {};
 for (const inc of incidents) {
   incidentById[inc.incident_id] = inc;
@@ -837,16 +879,57 @@ export const observationsForKRI = (kriId: string) =>
     .filter((o) => o.kri_id === kriId)
     .sort((a, b) => (a.as_of_ts < b.as_of_ts ? -1 : 1));
 
-/** % of KRIs whose latest observation value is at or beyond amber threshold (ORM breach band). */
-export const aggregateKRIBreachRatePct = (): number => {
-  if (!kris.length) return 0;
-  let breach = 0;
-  for (const k of kris) {
-    const obs = observationsForKRI(k.kri_id);
-    const last = obs.length ? obs[obs.length - 1] : null;
-    if (last && last.value >= k.threshold_amber) breach += 1;
+/** KRIs with at least one observation (active in monitoring). */
+export const activeKriCount = (): number => {
+  return kris.filter((k) => observationsForKRI(k.kri_id).length > 0).length;
+};
+
+/** Latest observation at or beyond amber threshold. */
+export function isKriAtOrAboveAmber(k: KRI, asOfTs?: number): boolean {
+  const obs = observationsForKRI(k.kri_id);
+  if (!obs.length) return false;
+  const last = asOfTs != null ? pickKriObsAtOrBefore(obs, asOfTs) : obs[obs.length - 1];
+  return last != null && last.value >= k.threshold_amber;
+}
+
+function pickKriObsAtOrBefore(obs: KRIObservation[], asOfTs: number): KRIObservation | null {
+  let pick: KRIObservation | null = null;
+  for (const o of obs) {
+    const t = new Date(o.as_of_ts).getTime();
+    if (t <= asOfTs && (!pick || t > new Date(pick.as_of_ts).getTime())) pick = o;
   }
-  return Math.round((100 * breach) / kris.length);
+  return pick;
+}
+
+/** Count and % of active KRIs at or above amber on latest observation. */
+export const aggregateKRIBreachCounts = (asOfTs?: number) => {
+  const active = kris.filter((k) => {
+    const obs = observationsForKRI(k.kri_id);
+    if (!obs.length) return false;
+    if (asOfTs == null) return true;
+    return obs.some((o) => new Date(o.as_of_ts).getTime() <= asOfTs);
+  });
+  const atAmber = active.filter((k) => isKriAtOrAboveAmber(k, asOfTs)).length;
+  const total = active.length;
+  const pct = total ? Math.round((100 * atAmber) / total) : 0;
+  return { atAmber, total, pct };
+};
+
+/** % of KRIs whose latest observation value is at or beyond amber threshold (ORM breach band). */
+export const aggregateKRIBreachRatePct = (): number => aggregateKRIBreachCounts().pct;
+
+/** Breach count grouped by risk domain code (for KPI tooltip). */
+export const kriBreachCountByDomain = (asOfTs?: number): { domainId: string; count: number }[] => {
+  const map = new Map<string, number>();
+  for (const k of kris) {
+    if (!isKriAtOrAboveAmber(k, asOfTs)) continue;
+    const risk = getRisk(k.linked_risk_id);
+    const domainId = risk?.domain_id ?? '—';
+    map.set(domainId, (map.get(domainId) ?? 0) + 1);
+  }
+  return [...map.entries()]
+    .map(([domainId, count]) => ({ domainId, count }))
+    .sort((a, b) => b.count - a.count || a.domainId.localeCompare(b.domainId));
 };
 
 const INCIDENT_CLOSED_AGG = new Set(['closed', 'closed_no_loss']);
@@ -855,16 +938,49 @@ function parseYmdLocalAgg(ymd: string): number {
   return new Date(ymd.includes('T') ? ymd : `${ymd}T12:00:00`).getTime();
 }
 
-/** Open incidents with discovered_at in the last 30 calendar days. */
-export const aggregateOpenIncidents30d = (): number => {
+/** Open incidents in last 30d window with escalated subset (ORM taxonomy). */
+export const aggregateOpenIncidents30dDetail = () => {
   const cutoff = new Date();
   cutoff.setHours(0, 0, 0, 0);
   cutoff.setDate(cutoff.getDate() - 30);
   const t0 = cutoff.getTime();
-  return incidents.filter((i) => {
+
+  const inWindow = incidents.filter((i) => {
     if (INCIDENT_CLOSED_AGG.has(i.status)) return false;
     return parseYmdLocalAgg(i.discovered_date) >= t0;
-  }).length;
+  });
+
+  const escalated = inWindow.filter(isIncidentEscalated).length;
+  return { open: inWindow.length, escalated };
+};
+
+export function isIncidentEscalated(i: Incident): boolean {
+  const status = (i.status || '').toLowerCase();
+  if (status.includes('escalat')) return true;
+  if (i.fmr_filed) return true;
+  if ((i.severity === 'high' || i.severity === 'critical') && i.rbi_reportable) return true;
+  return false;
+}
+
+/** Open incidents with discovered_at in the last 30 calendar days. */
+export const aggregateOpenIncidents30d = (): number => aggregateOpenIncidents30dDetail().open;
+
+/** Latest ingestion / observation timestamp for posture aggregates (floored to refresh cadence). */
+export const getPostureDataRefreshAt = (cadenceMinutes = 15): Date => {
+  let max = 0;
+  for (const o of kriObservations) {
+    max = Math.max(max, new Date(o.as_of_ts).getTime());
+  }
+  for (const o of appetiteObservations) {
+    max = Math.max(max, new Date(o.as_of_ts).getTime());
+  }
+  for (const s of reportingSubmissions) {
+    if (s.submitted_at) max = Math.max(max, new Date(s.submitted_at).getTime());
+  }
+  if (!max) max = Date.now();
+  const cadenceMs = cadenceMinutes * 60 * 1000;
+  const floored = Math.floor(max / cadenceMs) * cadenceMs;
+  return new Date(floored);
 };
 
 /** Preventive actions still open and past target_date (strict status = open). */

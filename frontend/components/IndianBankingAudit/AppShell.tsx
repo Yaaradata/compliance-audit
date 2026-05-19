@@ -32,26 +32,36 @@ export type PersonaCode = 'cro' | 'compliance' | 'audit';
 
 // Three primary personas per UI Pass 1 (PERSONA-001/002/003). ORI Pass 6a: display
 // labels follow ORI_SPEC; internal `code` keys stay cro | compliance | audit.
-export const PERSONA_META: Record<PersonaCode, { label: string; short: string; initials: string; description: string }> = {
+export const PERSONA_META: Record<
+  PersonaCode,
+  { label: string; short: string; initials: string; description: string; viewScope: string }
+> = {
   cro: {
     label: 'CRO / MD&CEO',
     short: 'CRO',
     initials: 'CR',
     description: 'Apex risk owner · BRMC Chair',
+    viewScope:
+      'Executive Risk Posture Cockpit, weekly deltas, supervisory readiness, senior accountability, loss data, KRIs, incidents, and strategic AI signals.',
   },
   compliance: {
     label: 'Head of ORM / CCO / MLRO-PO',
     short: 'ORM',
     initials: 'OR',
     description: 'Head of FC · Head of IT Risk · 2LoD coverage & assurance',
+    viewScope:
+      'Regulatory intelligence, RCSA, obligation coverage, control universe, process health, incidents, RCA/PAC queue, and lineage.',
   },
   audit: {
     label: 'VP-ORM / Control Tester',
     short: 'VP-ORM',
     initials: 'VP',
     description: 'Independent assurance · control testing · reperformance',
+    viewScope: 'Population control testing, evidence workbench, inspection pack builder, and readiness packs.',
   },
 };
+
+export const HOME_SCREEN: ScreenCode = 'riskPosture';
 
 // Persona-scoped navigation per Pass 4 §3.2
 // Each persona only sees the screens that answer their persona-questions.
@@ -86,8 +96,14 @@ export const SCREEN: Record<ScreenCode, { label: string; subtitle: string; icon:
   processHealth: { label: 'Process health', subtitle: 'S-07 · PVDS · drift', icon: '⇄' },
 };
 
+/**
+ * Screens that remain routable (deep links, demo, renderScreen) but are not listed in the sidebar.
+ * What Changed This Week is accessed from the Executive Risk Posture Cockpit, not as its own tab.
+ */
+export const SIDEBAR_HIDDEN_SCREENS: ReadonlySet<ScreenCode> = new Set(['whatChanged']);
+
 export const PERSONA_NAV: Record<PersonaCode, ScreenCode[]> = {
-  // CRO — board-room lens: posture, weekly deltas, RBI walk-in, accountability + cross-cuts
+  // CRO — board-room lens: posture, RBI walk-in, accountability + cross-cuts (whatChanged: deep-link / cockpit only)
   cro: ['riskPosture', 'whatChanged', 'inspectionReadiness', 'accountability', 'lossData', 'kriMonitoring', 'incidentRegister', 'aiInsights', 'issueBoard'],
   // CCO — coverage lens: obligations, RCM, drill-down, process drift, HITL, lineage, issues
   compliance: [
@@ -116,6 +132,11 @@ export const PERSONA_NAV: Record<PersonaCode, ScreenCode[]> = {
     'issueBoard',
   ],
 };
+
+/** Sidebar-visible screens for the active persona (filters {@link SIDEBAR_HIDDEN_SCREENS}). */
+export function sidebarScreensForPersona(persona: PersonaCode): ScreenCode[] {
+  return PERSONA_NAV[persona].filter((code) => !SIDEBAR_HIDDEN_SCREENS.has(code));
+}
 
 export const PERSONA_DEFAULT_SCREEN: Record<PersonaCode, ScreenCode> = {
   cro: 'riskPosture',
@@ -152,7 +173,7 @@ export const SCREEN_FUNCTIONAL_SUBTITLE: Record<ScreenCode, string> = {
 
 /** ORI Pass 6a — sidebar sectioning (§2.4 screen sets; section order A–D per reframe brief). */
 const ORI_NAV_SECTIONS: { id: string; label: string; codes: ScreenCode[] }[] = [
-  { id: 'posture', label: 'Posture', codes: ['riskPosture', 'whatChanged'] },
+  { id: 'posture', label: 'Posture', codes: ['riskPosture'] },
   {
     id: 'riskControl',
     label: 'Risk & Control Workspace',
@@ -185,30 +206,41 @@ export function PersonaSwitcher({
   activePersona,
   setActivePersona,
   disabled,
+  openRequested,
+  onOpenConsumed,
 }: {
   activePersona: PersonaCode;
   setActivePersona: (c: PersonaCode) => void;
   disabled?: boolean;
+  openRequested?: boolean;
+  onOpenConsumed?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const meta = PERSONA_META[activePersona];
 
+  React.useEffect(() => {
+    if (openRequested) {
+      setOpen(true);
+      onOpenConsumed?.();
+    }
+  }, [openRequested, onOpenConsumed]);
+
   return (
-    <div className="relative isolate inline-flex shrink-0 flex-nowrap items-center gap-2">
+    <div id="ori-persona-switcher" className="relative isolate inline-flex shrink-0 flex-nowrap items-center gap-2">
       <button
         type="button"
         aria-expanded={open}
         aria-haspopup="listbox"
         disabled={disabled}
-        title={disabled ? 'Finish or exit guided demo to switch persona' : undefined}
+        title={disabled ? 'Finish or exit guided demo to switch persona' : 'Switch role — choose persona view'}
         onClick={() => !disabled && setOpen((o) => !o)}
-        className={`flex flex-shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs font-semibold text-white ring-1 ring-white/20 ${
+        className={`flex max-w-[min(16rem,calc(100vw-10rem))] flex-shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs font-semibold text-white ring-1 ring-white/20 ${
           disabled ? 'cursor-not-allowed bg-white/5 opacity-50' : 'bg-white/15 hover:bg-white/25'
         }`}
       >
         <span className="text-[10px] font-medium uppercase tracking-wider text-white/70">Acting as</span>
-        <span className="max-w-[12rem] truncate sm:max-w-none">{meta.label}</span>
-        <span className={`inline-block text-[10px] transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden>
+        <span className="truncate">{meta.label}</span>
+        <span className={`inline-block shrink-0 text-[10px] transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden>
           ▾
         </span>
       </button>
@@ -263,7 +295,7 @@ export function PersonaSwitcher({
                     <div className="mt-0.5 truncate text-[11px] text-slate-500">
                       Default screen: {defaultScreen}
                     </div>
-                    <div className="mt-0.5 truncate text-[10px] text-slate-400">{m.description}</div>
+                    <p className="mt-1 text-[10px] leading-snug text-slate-600">{m.viewScope}</p>
                   </div>
                 </button>
               );
@@ -284,12 +316,16 @@ export function TopBar({
   activeScreen,
   demoMode,
   onStartGuidedDemo,
+  personaOpenRequested,
+  onPersonaOpenConsumed,
 }: {
   activePersona: PersonaCode;
   setActivePersona: (c: PersonaCode) => void;
   activeScreen: ScreenCode;
   demoMode?: boolean;
   onStartGuidedDemo?: () => void;
+  personaOpenRequested?: boolean;
+  onPersonaOpenConsumed?: () => void;
 }) {
   const screenLabel = SCREEN[activeScreen]?.label || 'Indian Banking Audit';
 
@@ -326,7 +362,13 @@ export function TopBar({
               Demo on
             </span>
           ) : null}
-          <PersonaSwitcher activePersona={activePersona} setActivePersona={setActivePersona} disabled={demoMode} />
+          <PersonaSwitcher
+            activePersona={activePersona}
+            setActivePersona={setActivePersona}
+            disabled={demoMode}
+            openRequested={personaOpenRequested}
+            onOpenConsumed={onPersonaOpenConsumed}
+          />
         </div>
       </div>
     </header>
@@ -349,7 +391,7 @@ export function MainNavigation({
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const meta = PERSONA_META[activePersona];
-  const personaOrder = PERSONA_NAV[activePersona];
+  const personaOrder = sidebarScreensForPersona(activePersona);
   const orderIndex = (code: ScreenCode) => {
     const i = personaOrder.indexOf(code);
     return i === -1 ? 999 : i;
@@ -396,6 +438,27 @@ export function MainNavigation({
       </div>
 
       <div className={`flex-1 overflow-y-auto py-3 ${isOpen ? 'px-2' : 'px-1.5'}`}>
+        <button
+          type="button"
+          title="Home — Executive Risk Posture Cockpit"
+          onClick={() => setActiveScreen(HOME_SCREEN)}
+          className={`mb-2 flex w-full rounded-md px-2.5 py-2 text-xs transition-colors ${
+            isOpen ? 'items-center gap-2.5 text-left' : 'items-center justify-center'
+          } ${
+            activeScreen === HOME_SCREEN
+              ? 'bg-indigo-50 font-semibold text-indigo-800 ring-1 ring-indigo-200'
+              : 'text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          <span
+            className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center text-base ${
+              activeScreen === HOME_SCREEN ? 'text-indigo-700' : 'text-slate-400'
+            }`}
+          >
+            ⌂
+          </span>
+          {isOpen ? <span className="truncate font-semibold">Home</span> : null}
+        </button>
         {sectionBlocks.map((block) => (
           <div key={block.id} className="mb-3 last:mb-0">
             {isOpen && (
@@ -407,7 +470,7 @@ export function MainNavigation({
                 <button
                   key={item.code}
                   type="button"
-                  title={!isOpen ? `${block.label}: ${item.label}` : undefined}
+                  title={`${item.label} — ${block.label}`}
                   onClick={() => setActiveScreen(item.code)}
                   className={`mb-0.5 flex w-full rounded-md px-2.5 py-2 text-xs transition-colors ${
                     isOpen ? 'items-start gap-2.5 text-left' : 'items-center justify-center text-center'
@@ -472,10 +535,14 @@ export function ScreenContainer({
   title: string;
   subtitle?: string;
   persona: PersonaCode;
-  /** `splitFill`: header + body fill viewport height for split list/detail panes. `default`: full-width scroll page. */
-  layout?: 'default' | 'splitFill';
+  /** `splitFill`: header + body fill viewport height for split list/detail panes. `cockpitV2`: PASS 1 two-scroll posture (no shell padding/header). `default`: full-width scroll page. */
+  layout?: 'default' | 'splitFill' | 'cockpitV2';
   children: React.ReactNode;
 }) {
+  if (layout === 'cockpitV2') {
+    return <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">{children}</div>;
+  }
+
   if (layout === 'splitFill') {
     return (
       <div className={`flex min-h-0 flex-1 flex-col ${SCREEN_SHELL}`}>

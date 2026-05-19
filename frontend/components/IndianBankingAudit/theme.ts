@@ -57,10 +57,10 @@ export const bandRing = (band: string) =>
 
 export const trendArrow = (trend: string) =>
   ({
-    improving: '↘',
+    improving: '↑',
     stable: '→',
-    deteriorating: '↗',
-    rapidly_deteriorating: '⇗',
+    deteriorating: '↓',
+    rapidly_deteriorating: '↓',
   }[trend] || '→');
 
 export const trendTone = (trend: string) =>
@@ -73,10 +73,10 @@ export const trendTone = (trend: string) =>
 
 export const severityBadge = (s: string) =>
   ({
-    critical: 'bg-rose-100 text-rose-800 border border-rose-300',
-    high: 'bg-rose-100 text-rose-800 border border-rose-300',
-    medium: 'bg-amber-100 text-amber-800 border border-amber-300',
-    low: 'bg-slate-100 text-slate-700 border border-slate-300',
+    critical: 'bg-red-50 text-red-600 border border-red-200',
+    high: 'bg-red-50 text-red-600 border border-red-200',
+    medium: 'bg-amber-50 text-amber-600 border border-amber-200',
+    low: 'bg-green-50 text-green-600 border border-green-200',
   }[s] || 'bg-slate-100 text-slate-700 border border-slate-300');
 
 // Five-label outcome distinction per Pass 4 §5.2

@@ -64,7 +64,7 @@ export function DetailDrawer({
     <>
       <div className="fixed inset-0 z-40 bg-slate-900/30" onClick={closeDrawer} role="presentation" aria-hidden />
       <div
-        className="ori-drawer-panel fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-slate-200 bg-white shadow-2xl md:w-[60%] xl:w-[55%] 2xl:w-[50%]"
+        className="ori-drawer-panel fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-slate-200 bg-white shadow-2xl md:w-[65%]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="ori-drawer-title"
@@ -137,7 +137,7 @@ function renderPanel(
 ) {
   switch (type) {
     case 'risk':
-      return <RiskDetailPanel riskId={id} drillFromDrawer={drillFromDrawer} />;
+      return <RiskDetailPanel riskId={id} drillFromDrawer={drillFromDrawer} setActiveScreen={setActiveScreen} />;
     case 'control':
       return <ControlDetailPanel controlId={id} drillFromDrawer={drillFromDrawer} />;
     case 'controlInstance':

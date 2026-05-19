@@ -11,6 +11,9 @@ import {
   type PersonaCode,
   type ScreenCode,
 } from './AppShell';
+import { AcronymExpansionProvider } from './ori/AcronymExpansion';
+import { NonDefaultPersonaBanner } from './ori/NonDefaultPersonaBanner';
+import { OriBreadcrumb } from './ori/OriBreadcrumb';
 import { DetailDrawer } from './DetailDrawer';
 import { auditPacks, controls, screens, testExecutions } from './dataModel';
 import type { DrawerEntityType, DrawerState, DrillFromDrawer, OrmCrossNavIntent } from './types';
@@ -41,6 +44,7 @@ import { RegulatoryIntelligenceInbox } from './screens/RegulatoryIntelligenceInb
 import { DemoModeBar } from './DemoModeBar';
 import { DEMO_STEP_COUNT, DEMO_STEPS, DEMO_STORY } from './demoGuidedStory';
 import { OriDemoProvider, type OriDemoUiHints } from './OriDemoContext';
+import { useOriVersion } from './ori/OriVersionProvider';
 
 export type IndianBankingAuditAppProps = {
   initialPersona?: PersonaCode;
@@ -64,6 +68,8 @@ export default function IndianBankingAuditApp({
 
   const [demoMode, setDemoMode] = useState(false);
   const [demoStep, setDemoStep] = useState(1);
+  const [personaOpenRequested, setPersonaOpenRequested] = useState(false);
+  const defaultPersona = initialPersona;
 
   const exitDemo = useCallback(() => {
     setDemoMode(false);
@@ -246,8 +252,13 @@ export default function IndianBankingAuditApp({
     };
   }, [activeScreen]);
 
+  const { version } = useOriVersion();
+
   /** Viewport-locked split panes (list/detail): main column uses overflow-hidden + flex fill. */
   const splitFillLayout = activeScreen === 'rcaWorkspace' || activeScreen === 'pacNoteApprovals';
+  const cockpitV2Layout =
+    version === 'v2' && (activeScreen === 'riskPosture' || activeScreen === 'whatChanged');
+  const screenLayout = splitFillLayout ? 'splitFill' : cockpitV2Layout ? 'cockpitV2' : 'default';
 
   return (
     <OriDemoProvider value={demoHints}>
@@ -258,6 +269,13 @@ export default function IndianBankingAuditApp({
           activeScreen={activeScreen}
           demoMode={demoMode}
           onStartGuidedDemo={startGuidedDemo}
+          personaOpenRequested={personaOpenRequested}
+          onPersonaOpenConsumed={() => setPersonaOpenRequested(false)}
+        />
+        <NonDefaultPersonaBanner
+          activePersona={activePersona}
+          defaultPersona={defaultPersona}
+          onSwitchRole={() => setPersonaOpenRequested(true)}
         />
         <div className="flex min-w-0 flex-1 overflow-hidden">
           <MainNavigation
@@ -268,16 +286,28 @@ export default function IndianBankingAuditApp({
           />
           <main
             className={`flex min-h-0 min-w-0 flex-1 flex-col ${
-              splitFillLayout ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'
+              splitFillLayout
+                ? 'overflow-hidden'
+                : 'overflow-y-auto overflow-x-hidden'
             }`}
           >
-            <ScreenContainer
-              title={screenMeta.title}
-              subtitle={screenMeta.subtitle}
-              persona={activePersona}
-              layout={splitFillLayout ? 'splitFill' : 'default'}
-            >
-              {renderScreen({
+            <OriBreadcrumb
+              activeScreen={activeScreen}
+              setActiveScreen={setActiveScreen}
+              crumbs={
+                version === 'v2' && activeScreen === 'whatChanged'
+                  ? [{ label: 'What Changed This Week' }]
+                  : []
+              }
+            />
+            <AcronymExpansionProvider screenKey={activeScreen}>
+              <ScreenContainer
+                title={screenMeta.title}
+                subtitle={screenMeta.subtitle}
+                persona={activePersona}
+                layout={screenLayout}
+              >
+                {renderScreen({
                 activeScreen,
                 openDrawer,
                 drillFromDrawer,
@@ -292,8 +322,9 @@ export default function IndianBankingAuditApp({
                 ormCrossNav,
                 consumeOrmCrossNav,
                 goOrm,
-              })}
-            </ScreenContainer>
+                })}
+              </ScreenContainer>
+            </AcronymExpansionProvider>
           </main>
         </div>
         <DetailDrawer
@@ -358,7 +389,7 @@ function renderScreen({
     case 'riskPosture':
       return <ExecutiveRiskPostureCockpit openDrawer={openDrawer} setActiveScreen={setScreen} goOrm={goOrm} />;
     case 'whatChanged':
-      return <WhatChangedThisWeek openDrawer={openDrawer} />;
+      return <WhatChangedThisWeek openDrawer={openDrawer} setActiveScreen={setScreen} />;
     case 'inspectionReadiness':
       return <InspectionReadiness openDrawer={openDrawer} setActiveScreen={setScreen} />;
     case 'accountability':

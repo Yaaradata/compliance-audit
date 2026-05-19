@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { aiInsights, getModel, modelRiskRecords } from '../dataModel';
+import { allReviewQueueInsights, getReviewQueueInsight } from '../ori/saesDataIntegrity';
 import { Chip, EmptyState, HITLBadge, KVRow, SectionCard } from '../primitives';
 import type { OpenDrawer } from '../types';
 
@@ -25,17 +26,16 @@ export function AiInsightsReviewQueue({ openDrawer }: { openDrawer: OpenDrawer }
   const [activeStatus, setActiveStatus] = useState<string>('pending');
   const [selectedId, setSelectedId] = useState<string | null>(aiInsights[0]?.ai_insight_id || null);
 
-  const filtered = useMemo(
-    () =>
-      aiInsights.filter((a) => {
-        if (activeClass !== 'all' && a.signal_class !== activeClass) return false;
-        if (activeStatus !== 'all' && a.human_approval_status !== activeStatus) return false;
-        return true;
-      }),
-    [activeClass, activeStatus]
-  );
+  const filtered = useMemo(() => {
+    const pool = activeStatus === 'pending' ? allReviewQueueInsights() : aiInsights;
+    return pool.filter((a) => {
+      if (activeClass !== 'all' && a.signal_class !== activeClass) return false;
+      if (activeStatus !== 'all' && a.human_approval_status !== activeStatus) return false;
+      return true;
+    });
+  }, [activeClass, activeStatus]);
 
-  const selected = aiInsights.find((a) => a.ai_insight_id === selectedId) || null;
+  const selected = selectedId ? getReviewQueueInsight(selectedId) ?? null : null;
   const model = selected ? getModel(selected.model_id) : null;
   const mrr = model ? modelRiskRecords.find((r) => r.model_id === model.model_id) : null;
 

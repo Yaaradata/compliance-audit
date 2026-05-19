@@ -1,10 +1,12 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useOriVersion } from '../ori/OriVersionProvider';
 import type { OpenDrawer, OrmCrossNavIntent, SetActiveScreen } from '../types';
 import { buildExecutiveRiskPostureViewModel } from './executiveRiskPosture/buildExecutiveRiskPostureViewModel';
 import { ExecutiveRiskPostureExtendedPanels } from './executiveRiskPosture/ExecutiveRiskPostureExtendedPanels';
-import { MetricStrip } from './executiveRiskPosture/MetricStrip';
+import { ExecutiveRiskPostureCockpitV2 } from './executiveRiskPosture/v2/ExecutiveRiskPostureCockpitV2';
+import { MetricStripClassic } from './executiveRiskPosture/MetricStripClassic';
 import { RiskDomainHeatmap } from './executiveRiskPosture/RiskDomainHeatmap';
 import type { DomainHeatmapCell } from './executiveRiskPosture/types';
 
@@ -17,7 +19,18 @@ export function ExecutiveRiskPostureCockpit({
   setActiveScreen: SetActiveScreen;
   goOrm: (intent: OrmCrossNavIntent) => void;
 }) {
+  const { version } = useOriVersion();
   const viewModel = useMemo(() => buildExecutiveRiskPostureViewModel(), []);
+
+  if (version === 'v2') {
+    return (
+      <ExecutiveRiskPostureCockpitV2
+        openDrawer={openDrawer}
+        setActiveScreen={setActiveScreen}
+        goOrm={goOrm}
+      />
+    );
+  }
 
   const handleDomainSelect = (cell: DomainHeatmapCell) => {
     if (cell.primaryRiskId) {
@@ -27,7 +40,7 @@ export function ExecutiveRiskPostureCockpit({
 
   return (
     <div className="space-y-5">
-      <MetricStrip metrics={viewModel.metrics} />
+      <MetricStripClassic metrics={viewModel.classicMetrics} />
 
       <RiskDomainHeatmap
         domains={viewModel.domains}
@@ -35,7 +48,11 @@ export function ExecutiveRiskPostureCockpit({
         onDomainSelect={handleDomainSelect}
       />
 
-      <ExecutiveRiskPostureExtendedPanels openDrawer={openDrawer} setActiveScreen={setActiveScreen} goOrm={goOrm} />
+      <ExecutiveRiskPostureExtendedPanels
+        openDrawer={openDrawer}
+        setActiveScreen={setActiveScreen}
+        goOrm={goOrm}
+      />
     </div>
   );
 }
