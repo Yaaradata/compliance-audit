@@ -8,11 +8,15 @@ import {
   COCKPIT_SURFACE,
   KPI_CARD_HEIGHT_PX,
   KPI_GRID_GAP_PX,
-  kpiAccentColor,
-  kpiTrendVisual,
-  kpiValueColor,
 } from './cockpitTokens';
-import { buildKpiSparklineSeries, KpiTrendSparkline } from './kpi';
+import {
+  buildKpiSparklineSeries,
+  KpiTrendSparkline,
+  kpiAccentColorForMetric,
+  kpiSparklineStrokeColor,
+  kpiValueColorForMetric,
+  kpiWowArrowVisual,
+} from './kpi';
 
 function MetricLabel({ metric }: { metric: ClassicPostureMetric }) {
   const base = metric.labelAbbr ? metric.label.replace(metric.labelAbbr, '').trimEnd() : metric.label;
@@ -39,14 +43,14 @@ function MetricLabel({ metric }: { metric: ClassicPostureMetric }) {
 }
 
 function KpiCard({ metric }: { metric: ClassicPostureMetric }) {
-  const accent = kpiAccentColor(metric.status);
-  const valueColor = kpiValueColor(metric.status);
+  const accent = kpiAccentColorForMetric(metric.id, metric.value);
+  const valueColor = kpiValueColorForMetric(metric.id, metric.value);
   const sparkline = useMemo(() => buildKpiSparklineSeries(metric), [metric]);
-  const trendVisual = useMemo(
-    () => kpiTrendVisual(metric.id, metric.trend, metric.status, sparkline),
-    [metric.id, metric.trend, metric.status, sparkline],
+  const wowArrow = useMemo(() => kpiWowArrowVisual(metric.id, metric.trend), [metric.id, metric.trend]);
+  const sparkStroke = useMemo(
+    () => kpiSparklineStrokeColor(metric.id, metric.trend),
+    [metric.id, metric.trend],
   );
-  const trendDisplay = trendVisual.arrow === '—' ? '→' : trendVisual.arrow;
 
   return (
     <article
@@ -67,10 +71,10 @@ function KpiCard({ metric }: { metric: ClassicPostureMetric }) {
           </span>
           <span
             className="text-lg font-normal leading-none"
-            style={{ color: trendVisual.textColor }}
+            style={{ color: wowArrow.textColor }}
             aria-label="Week-over-week trend"
           >
-            {trendDisplay}
+            {wowArrow.arrow}
           </span>
         </div>
         <p
@@ -82,7 +86,7 @@ function KpiCard({ metric }: { metric: ClassicPostureMetric }) {
       </div>
 
       <div className="flex w-[42%] max-w-[108px] shrink-0 items-center self-stretch border-l border-[#E8EAED] pl-1.5">
-        <KpiTrendSparkline data={sparkline} stroke={trendVisual.strokeColor} height={KPI_CARD_HEIGHT_PX - 20} />
+        <KpiTrendSparkline data={sparkline} stroke={sparkStroke} height={KPI_CARD_HEIGHT_PX - 20} />
       </div>
     </article>
   );

@@ -1,4 +1,5 @@
 import type { ClassicPostureMetric, MetricTrendArrow } from '../../types';
+import { resolveWowArrow } from './kpiVisualSemantics';
 
 const POINT_COUNT = 8;
 
@@ -22,14 +23,40 @@ function inferStartValue(current: number, trend: MetricTrendArrow): number {
   return current - delta * 0.35;
 }
 
+/** Nudge tail points so chart slope matches WoW direction used for stroke colour. */
+function alignSparklineTail(
+  series: number[],
+  direction: MetricTrendArrow,
+  current: number,
+  max: number,
+): number[] {
+  if (direction === '→' || series.length < 4) return series;
+
+  const out = [...series];
+  const n = out.length;
+  const bump = Math.max(0.6, current * 0.035);
+
+  if (direction === '↑') {
+    out[n - 3] = Math.round(clamp(current - bump * 2.2, 0, max) * 10) / 10;
+    out[n - 2] = Math.round(clamp(current - bump, 0, max) * 10) / 10;
+    out[n - 1] = current;
+  } else {
+    out[n - 3] = Math.round(clamp(current + bump * 2.2, 0, max) * 10) / 10;
+    out[n - 2] = Math.round(clamp(current + bump, 0, max) * 10) / 10;
+    out[n - 1] = current;
+  }
+
+  return out;
+}
+
 /** Eight-week demo series ending at the displayed KPI value (deterministic per metric). */
 export function buildKpiSparklineSeries(metric: ClassicPostureMetric): number[] {
   const current = parseMetricNumeric(metric.value);
   const isPercent = metric.value.includes('%');
-  const min = 0;
   const max = isPercent ? 100 : 100;
 
-  const start = inferStartValue(current, metric.trend);
+  const wowDirection = resolveWowArrow(metric.trend);
+  const start = inferStartValue(current, wowDirection);
   const phase = seedOffset(metric.id);
 
   const series: number[] = [];
@@ -38,8 +65,8 @@ export function buildKpiSparklineSeries(metric: ClassicPostureMetric): number[] 
     const base = start + (current - start) * t;
     const wobble = Math.sin((i + phase) * 0.95) * (max * 0.025);
     const point = i === POINT_COUNT - 1 ? current : base + wobble;
-    series.push(Math.round(clamp(point, min, max) * 10) / 10);
+    series.push(Math.round(clamp(point, 0, max) * 10) / 10);
   }
 
-  return series;
+  return alignSparklineTail(series, wowDirection, current, max);
 }

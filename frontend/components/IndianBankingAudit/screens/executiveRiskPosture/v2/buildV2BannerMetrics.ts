@@ -12,21 +12,8 @@ import {
   risks,
 } from '../../../dataModel';
 import type { ClassicPostureMetric, DomainHeatmapCell, MetricStatus, MetricTrendArrow } from '../types';
+import { kpiMetricStatus } from './kpi/kpiMetricSpec';
 import { POSTURE_DATA_REFRESH_CADENCE_MINUTES, RED_POSTURE_RES_THRESHOLD } from './constants';
-
-function metricStatusFromScore(score: number, opts?: { green?: number; amber?: number }): MetricStatus {
-  const green = opts?.green ?? 80;
-  const amber = opts?.amber ?? 60;
-  if (score >= green) return 'good';
-  if (score >= amber) return 'warning';
-  return 'danger';
-}
-
-function metricStatusFromKriBreach(pct: number): MetricStatus {
-  if (pct <= 15) return 'good';
-  if (pct <= 35) return 'warning';
-  return 'danger';
-}
 
 function metricStatusFromCount(count: number, goodMax: number, warnMax: number): MetricStatus {
   if (count <= goodMax) return 'good';
@@ -34,7 +21,7 @@ function metricStatusFromCount(count: number, goodMax: number, warnMax: number):
   return 'danger';
 }
 
-/** WoW arrow = how the metric value moved; color applies polarity in {@link kpiTrendColor}. */
+/** WoW arrow = how the metric value moved; colour applies polarity in kpiWowArrowVisual. */
 function wowTrend(current: number, prior: number | null): MetricTrendArrow {
   if (prior == null || Number.isNaN(prior)) return '—';
   if (current === prior) return '→';
@@ -138,7 +125,7 @@ function buildAllV2Metrics(domains: DomainHeatmapCell[]): ClassicPostureMetric[]
       labelTooltip: 'Residual Exposure Score — enterprise mean of risk-level residual scores across nine ORM domains',
       value: String(res),
       sub: 'Enterprise mean · 9 risk domains',
-      status: metricStatusFromScore(res),
+      status: kpiMetricStatus('res', res),
       trend: wowTrend(res, priorRes),
     },
     {
@@ -147,7 +134,7 @@ function buildAllV2Metrics(domains: DomainHeatmapCell[]): ClassicPostureMetric[]
       labelTooltip: 'Control Effectiveness Score — weighted mean of active control effectiveness ratings',
       value: ces != null ? String(ces) : '—',
       sub: 'Active controls · weighted mean',
-      status: ces != null ? metricStatusFromScore(ces) : 'neutral',
+      status: ces != null ? kpiMetricStatus('ces', ces) : 'neutral',
       trend: ces != null && priorCes != null ? wowTrend(ces, priorCes) : '—',
     },
     {
@@ -156,7 +143,7 @@ function buildAllV2Metrics(domains: DomainHeatmapCell[]): ClassicPostureMetric[]
       labelTooltip: 'Key Risk Indicator breach rate — share of monitored KRIs at or above the amber threshold on latest observation',
       value: `${kriNow.pct}%`,
       sub: `${kriNow.atAmber} of ${kriNow.total} active KRIs · at or above amber`,
-      status: metricStatusFromKriBreach(kriNow.pct),
+      status: kpiMetricStatus('kri', kriNow.pct),
       trend: wowTrend(kriPctNow, kriPctPrior),
       tileTooltip: kriDomainTip ? `By domain: ${kriDomainTip}` : 'No KRIs at amber threshold',
     },
@@ -187,7 +174,7 @@ function buildAllV2Metrics(domains: DomainHeatmapCell[]): ClassicPostureMetric[]
         'Audit Readiness Score — weighted composite across supervisory inspection packs',
       value: String(ars),
       sub: `${activePacks} packs active · weighted ARS`,
-      status: metricStatusFromScore(ars, { green: 85, amber: 70 }),
+      status: kpiMetricStatus('ars', ars), // ≥85 green · 70–84 amber · <70 red
       trend: arsTrend,
     },
   ];

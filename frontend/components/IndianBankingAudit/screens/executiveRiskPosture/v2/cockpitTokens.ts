@@ -59,67 +59,6 @@ export function kpiValueColor(status: MetricStatus): string {
   return STATUS_VALUE[status];
 }
 
-/** Green/red/gray from WoW direction × metric polarity (higher-is-better vs lower-is-better). */
-function trendIsImproving(metricId: string, trend: MetricTrendArrow): boolean {
-  const higherIsBetter = HIGHER_IS_BETTER[metricId] ?? true;
-  return (trend === '↑' && higherIsBetter) || (trend === '↓' && !higherIsBetter);
-}
-
-/** Infer value direction from sparkline endpoints when WoW is flat. */
-export function inferTrendFromSeries(series: number[]): MetricTrendArrow | null {
-  if (series.length < 2) return null;
-  const first = series[0];
-  const last = series[series.length - 1];
-  const eps = Math.max(0.05, Math.abs(first) * 0.008);
-  if (last > first + eps) return '↑';
-  if (last < first - eps) return '↓';
-  return null;
-}
-
-/**
- * Effective trend for color + sparkline: WoW arrow when ↑/↓; else sparkline slope;
- * flat plateau uses green only when status is good (never ash/grey).
- */
-export function resolveKpiEffectiveTrend(
-  metricId: string,
-  wowTrend: MetricTrendArrow,
-  series: number[],
-): MetricTrendArrow {
-  if (wowTrend === '↑' || wowTrend === '↓') return wowTrend;
-  return inferTrendFromSeries(series) ?? '→';
-}
-
-export type KpiTrendVisual = {
-  arrow: MetricTrendArrow;
-  textColor: string;
-  strokeColor: string;
-};
-
-/** Arrow + sparkline colors: direction × polarity; flat uses status (good = green, else red). */
-export function kpiTrendVisual(
-  metricId: string,
-  wowTrend: MetricTrendArrow,
-  status: MetricStatus,
-  series: number[],
-): KpiTrendVisual {
-  const arrow = resolveKpiEffectiveTrend(metricId, wowTrend, series);
-  const improved = arrow === '→' ? status === 'good' : trendIsImproving(metricId, arrow);
-  return {
-    arrow,
-    textColor: improved ? COCKPIT.green.text : COCKPIT.red.text,
-    strokeColor: improved ? COCKPIT.green.bar : COCKPIT.red.bar,
-  };
-}
-
-export function kpiTrendColor(metricId: string, trend: MetricTrendArrow, status: MetricStatus = 'neutral'): string {
-  return kpiTrendVisual(metricId, trend, status, []).textColor;
-}
-
-/** Sparkline stroke — same semantics as {@link kpiTrendColor}. */
-export function kpiTrendStroke(metricId: string, trend: MetricTrendArrow, status: MetricStatus = 'neutral'): string {
-  return kpiTrendVisual(metricId, trend, status, []).strokeColor;
-}
-
 export function heatmapScoreTone(score: number): 'green' | 'amber' | 'red' {
   if (score >= 75) return 'green';
   if (score >= 65) return 'amber';

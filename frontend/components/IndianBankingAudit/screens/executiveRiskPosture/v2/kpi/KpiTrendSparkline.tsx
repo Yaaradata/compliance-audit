@@ -23,8 +23,8 @@ export function KpiTrendSparkline({
   const pad = Math.max(0.5, (max - min) * 0.15);
 
   return (
-    <div className="h-full w-full min-w-0" style={{ height }} aria-hidden>
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="min-w-0 w-full" style={{ height, minHeight: height }} aria-hidden>
+      <ResponsiveContainer width="100%" height={height} minWidth={1}>
         <AreaChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">

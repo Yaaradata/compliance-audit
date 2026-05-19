@@ -447,14 +447,14 @@ export const mockData = {
   ],
 
   kris: [
-    { kri_id: "KRI-FC-001", name: "AML L1 alert backlog (count > SLA)", linked_risk_id: "R-FC-001", threshold_amber: 100, threshold_red: 250, unit: "alerts", formula_ref: "count(case_mgmt.case WHERE status='open' AND opened_at < now()-5BD)", breach_summary: "Open AML L1 queue sustained above 5 BD SLA for three consecutive weeks." },
-    { kri_id: "KRI-CD-001", name: "KFS-after-acceptance instances per 1000 disbursals", linked_risk_id: "R-CD-001", threshold_amber: 5, threshold_red: 25, unit: "per_1000", formula_ref: "count(CTRL-LND-002 outcome='Fail') / count(disbursals) * 1000", breach_summary: "Digital lending path showing rising KFS sequencing defects post LOS patch." },
+    { kri_id: "KRI-FC-001", name: "AML L1 alert backlog (count > SLA)", linked_risk_id: "R-FC-001", threshold_amber: 100, threshold_red: 250, unit: "alerts", formula_ref: "count(case_mgmt.case WHERE status='open' AND opened_at < now()-5BD)", breach_summary: null },
+    { kri_id: "KRI-CD-001", name: "KFS-after-acceptance instances per 1000 disbursals", linked_risk_id: "R-CD-001", threshold_amber: 5, threshold_red: 25, unit: "per_1000", formula_ref: "count(CTRL-LND-002 outcome='Fail') / count(disbursals) * 1000", breach_summary: null },
     { kri_id: "KRI-CO-001", name: "Re-KYC overdue UCICs", linked_risk_id: "R-CO-001", threshold_amber: 500, threshold_red: 2000, unit: "UCICs", formula_ref: "count(re_kyc_due_date < today() AND status='active')", breach_summary: null },
-    { kri_id: "KRI-OP-001", name: "BPO L1 SLA breach rate", linked_risk_id: "R-OP-001", threshold_amber: 0.05, threshold_red: 0.15, unit: "ratio", formula_ref: "count(case_mgmt SLA breach) / count(total cases)", breach_summary: "BPO Mumbai queue ageing; L1 breach ratio above amber band." },
+    { kri_id: "KRI-OP-001", name: "BPO L1 SLA breach rate", linked_risk_id: "R-OP-001", threshold_amber: 0.05, threshold_red: 0.15, unit: "ratio", formula_ref: "count(case_mgmt SLA breach) / count(total cases)", breach_summary: null },
     { kri_id: "KRI-TC-001", name: "Cyber incidents detection-to-CERT-In notification latency p95 (hours)", linked_risk_id: "R-TC-001", threshold_amber: 4, threshold_red: 6, unit: "hours_p95", formula_ref: "p95(cert_in_notified_at - incident_detected_at)", breach_summary: null },
     { kri_id: "KRI-CR-001", name: "Bureau pull > 90 days at sanction count", linked_risk_id: "R-CR-001", threshold_amber: 50, threshold_red: 200, unit: "count", formula_ref: "count(loans WHERE bureau_pull_at < sanction_at-90d)", breach_summary: "Retail sanction cohort showing growth in stale bureau pulls." },
     { kri_id: "KRI-TP-001", name: "Material vendors with overdue DDQ count", linked_risk_id: "R-TP-001", threshold_amber: 5, threshold_red: 15, unit: "vendors", formula_ref: "count(material_vendors WHERE ddq_overdue=true)", breach_summary: null },
-    { kri_id: "KRI-FR-001", name: "UPI mule cluster signal volume (Wave 2)", linked_risk_id: "R-FR-001", threshold_amber: 10, threshold_red: 50, unit: "clusters", formula_ref: "count(AI-001 fired)", breach_summary: "NPCI funnel-out pattern frequency elevated vs 12w baseline." },
+    { kri_id: "KRI-FR-001", name: "UPI mule cluster signal volume (Wave 2)", linked_risk_id: "R-FR-001", threshold_amber: 10, threshold_red: 50, unit: "clusters", formula_ref: "count(AI-001 fired)", breach_summary: null },
     { kri_id: "KRI-MR-001", name: "Models in MRR drift_status amber/red", linked_risk_id: "R-MR-001", threshold_amber: 2, threshold_red: 5, unit: "models", formula_ref: "count(MRR drift_status IN ('amber','red'))", breach_summary: null }
   ],
 

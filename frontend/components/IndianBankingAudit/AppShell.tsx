@@ -98,9 +98,9 @@ export const SCREEN: Record<ScreenCode, { label: string; subtitle: string; icon:
 
 /**
  * Screens that remain routable (deep links, demo, renderScreen) but are not listed in the sidebar.
- * What Changed This Week is accessed from the Executive Risk Posture Cockpit, not as its own tab.
+ * whatChanged — cockpit only. aiInsights — review queue links from cockpit / control drill-down.
  */
-export const SIDEBAR_HIDDEN_SCREENS: ReadonlySet<ScreenCode> = new Set(['whatChanged']);
+export const SIDEBAR_HIDDEN_SCREENS: ReadonlySet<ScreenCode> = new Set(['whatChanged', 'aiInsights']);
 
 export const PERSONA_NAV: Record<PersonaCode, ScreenCode[]> = {
   // CRO — board-room lens: posture, RBI walk-in, accountability + cross-cuts (whatChanged: deep-link / cockpit only)

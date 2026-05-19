@@ -3,16 +3,16 @@
 import { AcronymLabel, ACRONYM_TOOLTIPS } from '../../../../ori/AcronymExpansion';
 import { oriCardHover, oriFocusRing } from '../../../../theme';
 import type { ClassicPostureMetric } from '../../types';
-import { COCKPIT, kpiAccentColor, kpiTrendVisual, kpiValueColor } from '../cockpitTokens';
+import { COCKPIT } from '../cockpitTokens';
+import { kpiAccentColorForMetric, kpiValueColorForMetric, kpiWowArrowVisual } from '../kpi';
 import type { OrmCrossNavIntent } from '../../../../types';
 
 const ORM_CARD_H = 88;
 
 function DemotedKpiCard({ metric }: { metric: ClassicPostureMetric }) {
-  const accent = kpiAccentColor(metric.status);
-  const valueColor = kpiValueColor(metric.status);
-  const trendVisual = kpiTrendVisual(metric.id, metric.trend, metric.status, []);
-  const trendDisplay = trendVisual.arrow === '—' ? '→' : trendVisual.arrow;
+  const accent = kpiAccentColorForMetric(metric.id, metric.value);
+  const valueColor = kpiValueColorForMetric(metric.id, metric.value);
+  const wowArrow = kpiWowArrowVisual(metric.id, metric.trend);
 
   return (
     <div
@@ -25,8 +25,8 @@ function DemotedKpiCard({ metric }: { metric: ClassicPostureMetric }) {
         <span className="text-2xl font-bold leading-none" style={{ color: valueColor }}>
           {metric.value}
         </span>
-        <span className="text-base" style={{ color: trendVisual.textColor }} aria-hidden>
-          {trendDisplay}
+        <span className="text-base" style={{ color: wowArrow.textColor }} aria-hidden>
+          {wowArrow.arrow}
         </span>
       </div>
       <p className="line-clamp-2 text-[11px] leading-tight text-[#9CA3AF]">{metric.sub}</p>
