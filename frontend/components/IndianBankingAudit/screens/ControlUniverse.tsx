@@ -1,15 +1,34 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { aiInsightsForControl, controls, controlInstancesForControl, issuesForControl, processes } from '../dataModel';
-import { Chip, DimCell, OutcomeBadge, SectionCard, StatusBadge } from '../primitives';
-import { bandText } from '../theme';
-import type { OpenDrawer, SetActiveScreen } from '../types';
+import { useEffect, useMemo, useState } from 'react';
+import { controls, processes } from '../dataModel';
+import type { OpenDrawer } from '../types';
+import { ControlDetailPanel } from './ControlDrillDown';
+import { FIELD_LABEL, SELECT_CLASS } from './controlUniverse/controlUniverseLayout';
+import { ControlUniverseTable } from './controlUniverse/ControlUniverseTable';
 
-const TYPES = ['ALL', 'preventive', 'detective'];
-const NATURES = ['ALL', 'automated', 'hybrid', 'manual'];
+const TYPE_OPTIONS = [
+  { value: 'ALL', label: 'All types' },
+  { value: 'preventive', label: 'Preventive' },
+  { value: 'detective', label: 'Detective' },
+] as const;
 
-export function ControlUniverse({ openDrawer, setActiveScreen }: { openDrawer: OpenDrawer; setActiveScreen: SetActiveScreen }) {
+const NATURE_OPTIONS = [
+  { value: 'ALL', label: 'All natures' },
+  { value: 'automated', label: 'Automated' },
+  { value: 'hybrid', label: 'Hybrid' },
+  { value: 'manual', label: 'Manual' },
+] as const;
+
+export function ControlUniverse({
+  openDrawer,
+  selectedControlId,
+  setSelectedControlId,
+}: {
+  openDrawer: OpenDrawer;
+  selectedControlId: string | null;
+  setSelectedControlId: (id: string | null) => void;
+}) {
   const [activeType, setActiveType] = useState<string>('ALL');
   const [activeNature, setActiveNature] = useState<string>('ALL');
   const [activeProcess, setActiveProcess] = useState<string>('ALL');
@@ -25,37 +44,71 @@ export function ControlUniverse({ openDrawer, setActiveScreen }: { openDrawer: O
     });
   }, [activeType, activeNature, activeProcess, populationOnly]);
 
-  const dist = useMemo(() => {
-    const d = { green: 0, amber: 0, red: 0, grey: 0 };
-    filtered.forEach((c) => {
-      const b = (c.ces_band as keyof typeof d) || 'grey';
-      d[b] = (d[b] || 0) + 1;
-    });
-    return d;
-  }, [filtered]);
+  useEffect(() => {
+    if (!selectedControlId) return;
+    if (!filtered.some((c) => c.control_id === selectedControlId)) {
+      setSelectedControlId(null);
+    }
+  }, [filtered, selectedControlId, setSelectedControlId]);
+
+  const detailOpen = Boolean(
+    selectedControlId && filtered.some((c) => c.control_id === selectedControlId),
+  );
 
   return (
-    <div className="space-y-5">
-      {/* Distribution */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <DistTile label="Total" value={filtered.length} band="neutral" />
-        <DistTile label="Green CES" value={dist.green} band="green" />
-        <DistTile label="Amber CES" value={dist.amber} band="amber" />
-        <DistTile label="Red CES" value={dist.red} band="red" />
-        <DistTile label="Insufficient data" value={dist.grey} band="grey" />
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+          <div className="shrink-0 pr-2">
+            <span className={FIELD_LABEL}>Total</span>
+            <p className="text-2xl font-bold tabular-nums leading-none text-slate-900">{filtered.length}</p>
+          </div>
 
-      {/* Filter rail */}
-      <SectionCard title="Filters">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <FilterGroup label="Type" options={TYPES} value={activeType} onChange={setActiveType} />
-          <FilterGroup label="Nature" options={NATURES} value={activeNature} onChange={setActiveNature} />
-          <div>
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Process</label>
+          <div className="min-w-[9rem] flex-1 sm:max-w-[11rem]">
+            <label className={FIELD_LABEL} htmlFor="control-universe-type">
+              Type
+            </label>
             <select
+              id="control-universe-type"
+              value={activeType}
+              onChange={(e) => setActiveType(e.target.value)}
+              className={SELECT_CLASS}
+            >
+              {TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="min-w-[9rem] flex-1 sm:max-w-[11rem]">
+            <label className={FIELD_LABEL} htmlFor="control-universe-nature">
+              Nature
+            </label>
+            <select
+              id="control-universe-nature"
+              value={activeNature}
+              onChange={(e) => setActiveNature(e.target.value)}
+              className={SELECT_CLASS}
+            >
+              {NATURE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="min-w-[10rem] flex-[1.2] sm:max-w-[14rem]">
+            <label className={FIELD_LABEL} htmlFor="control-universe-process">
+              Process
+            </label>
+            <select
+              id="control-universe-process"
               value={activeProcess}
               onChange={(e) => setActiveProcess(e.target.value)}
-              className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-xs"
+              className={SELECT_CLASS}
             >
               <option value="ALL">All processes</option>
               {processes.map((p) => (
@@ -65,137 +118,58 @@ export function ControlUniverse({ openDrawer, setActiveScreen }: { openDrawer: O
               ))}
             </select>
           </div>
-          <div>
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Testability</label>
-            <label className="flex items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1.5 text-xs">
-              <input type="checkbox" checked={populationOnly} onChange={(e) => setPopulationOnly(e.target.checked)} />
+
+          <div className="min-w-[11rem] shrink-0 pb-0.5">
+            <span className={FIELD_LABEL}>Testability</span>
+            <label className="flex h-[30px] cursor-pointer items-center gap-2 rounded border border-slate-200 bg-white px-2 text-xs text-slate-700">
+              <input
+                type="checkbox"
+                checked={populationOnly}
+                onChange={(e) => setPopulationOnly(e.target.checked)}
+                className="rounded border-slate-300"
+              />
               Population-testable only
             </label>
           </div>
         </div>
-      </SectionCard>
+      </div>
 
-      {/* Control table */}
-      <SectionCard title={`Controls (${filtered.length})`} subtitle="Sortable RCM browser — click any row for drill-down">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
-              <tr>
-                <th className="px-2 py-2 text-left">Control</th>
-                <th className="px-2 py-2 text-left">Process</th>
-                <th className="px-2 py-2 text-left">Type · Nature</th>
-                <th className="px-2 py-2 text-left">CES</th>
-                <th className="px-2 py-2 text-left w-32">OperatingRate</th>
-                <th className="px-2 py-2 text-left w-32">CatchRate</th>
-                <th className="px-2 py-2 text-left w-32">EvidenceCompl.</th>
-                <th className="px-2 py-2 text-left">Outcome split</th>
-                <th className="px-2 py-2 text-left">AI / Issues</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c) => {
-                const insights = aiInsightsForControl(c.control_id);
-                const openIssues = issuesForControl(c.control_id);
-                const instances = controlInstancesForControl(c.control_id);
-                const pass = instances.filter((i) => i.outcome === 'Pass').length;
-                const fail = instances.filter((i) => i.outcome === 'Fail').length;
-                const evGap = instances.filter((i) => i.outcome === 'EvidenceGap').length;
-                const dGap = instances.filter((i) => i.outcome === 'DataGap').length;
-                return (
-                  <tr
-                    key={c.control_id}
-                    className="cursor-pointer border-t border-slate-100 hover:bg-slate-50"
-                    onClick={() => openDrawer('control', c.control_id, 'controlUniverse')}
-                  >
-                    <td className="px-2 py-2">
-                      <div className="font-mono text-[10px] text-slate-600">{c.control_id}</div>
-                      <div className="line-clamp-2 text-[11px] font-medium text-slate-900">{c.title}</div>
-                    </td>
-                    <td className="px-2 py-2 font-mono text-[10px] text-slate-600">{c.process_id}</td>
-                    <td className="px-2 py-2 text-[10px] text-slate-700">
-                      {c.type} · {c.nature}
-                    </td>
-                    <td className="px-2 py-2">
-                      <StatusBadge tone={c.ces_band} label={c.ces == null ? '—' : c.ces.toFixed(0)} size="xs" />
-                    </td>
-                    <td className="px-2 py-2"><DimCell value={c.ces_breakdown.operating_rate} band={cesCompBand(c.ces_breakdown.operating_rate)} /></td>
-                    <td className="px-2 py-2"><DimCell value={c.ces_breakdown.catch_rate} band={cesCompBand(c.ces_breakdown.catch_rate)} /></td>
-                    <td className="px-2 py-2"><DimCell value={c.ces_breakdown.evidence_completeness} band={cesCompBand(c.ces_breakdown.evidence_completeness)} /></td>
-                    <td className="px-2 py-2">
-                      <div className="flex items-center gap-1">
-                        {pass > 0 && <OutcomeBadge outcome="Pass" size="xs" />}
-                        {fail > 0 && <OutcomeBadge outcome="Fail" size="xs" />}
-                        {evGap > 0 && <OutcomeBadge outcome="EvidenceGap" size="xs" />}
-                        {dGap > 0 && <OutcomeBadge outcome="DataGap" size="xs" />}
-                      </div>
-                      <div className="mt-0.5 text-[10px] text-slate-500">{instances.length} CIs</div>
-                    </td>
-                    <td className="px-2 py-2">
-                      <div className="flex flex-wrap items-center gap-1">
-                        {insights.length > 0 && <Chip label={`AI ${insights.length}`} tone="violet" size="xs" />}
-                        {openIssues.length > 0 && <Chip label={`Iss ${openIssues.length}`} tone="amber" size="xs" />}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {!filtered.length && (
-                <tr>
-                  <td colSpan={9} className="px-2 py-6 text-center text-xs text-slate-500">
-                    No controls under the current filters — relax filters
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-
-      <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveScreen('populationTesting')}
-          className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+      <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden">
+        <div
+          className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-[width] duration-200 ${
+            detailOpen ? 'w-[min(100%,22rem)] shrink-0 lg:w-[38%] lg:max-w-md' : 'min-w-0 flex-1'
+          }`}
         >
-          Run population test on selection →
-        </button>
+          <div className="shrink-0 border-b border-slate-100 px-3 py-2">
+            <div className="text-xs font-semibold text-slate-800">Controls ({filtered.length})</div>
+            <p className="text-[10px] text-slate-500">
+              {detailOpen
+                ? 'Click another row or ← List to return to full table'
+                : 'Click a row for CES breakdown and population'}
+            </p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <ControlUniverseTable
+              controls={filtered}
+              detailOpen={detailOpen}
+              selectedControlId={selectedControlId}
+              onSelectControl={setSelectedControlId}
+            />
+          </div>
+        </div>
+
+        {detailOpen && selectedControlId ? (
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 lg:p-4">
+            <ControlDetailPanel
+              key={selectedControlId}
+              selectedControlId={selectedControlId}
+              openDrawer={openDrawer}
+              sourceScreen="controlUniverse"
+              onClose={() => setSelectedControlId(null)}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
-
-function FilterGroup({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (v: string) => void }) {
-  return (
-    <div>
-      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</label>
-      <div className="flex flex-wrap gap-1">
-        {options.map((o) => (
-          <button
-            key={o}
-            type="button"
-            onClick={() => onChange(o)}
-            className={`rounded px-2 py-0.5 text-[10px] font-medium ${value === o ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-          >
-            {o}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DistTile({ label, value, band }: { label: string; value: number; band: string }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
-      <div className={`text-2xl font-bold ${bandText(band)}`}>{value}</div>
-    </div>
-  );
-}
-
-const cesCompBand = (v: number | null) => {
-  if (v == null) return 'grey';
-  if (v >= 80) return 'green';
-  if (v >= 60) return 'amber';
-  return 'red';
-};

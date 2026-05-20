@@ -12,7 +12,6 @@ import {
   type ScreenCode,
 } from './AppShell';
 import { AcronymExpansionProvider } from './ori/AcronymExpansion';
-import { NonDefaultPersonaBanner } from './ori/NonDefaultPersonaBanner';
 import { OriBreadcrumb } from './ori/OriBreadcrumb';
 import { DetailDrawer } from './DetailDrawer';
 import { auditPacks, controls, screens, testExecutions } from './dataModel';
@@ -21,7 +20,6 @@ import { initialDrawer } from './types';
 
 import { AccountabilityLedger } from './screens/AccountabilityLedger';
 import { AiInsightsReviewQueue } from './screens/AiInsightsReviewQueue';
-import { ControlDrillDown } from './screens/ControlDrillDown';
 import { ControlUniverse } from './screens/ControlUniverse';
 import { EvidenceWorkbench } from './screens/EvidenceWorkbench';
 import { IncidentRegister } from './screens/IncidentRegister';
@@ -51,16 +49,24 @@ export type IndianBankingAuditAppProps = {
   initialScreen?: ScreenCode;
 };
 
+/** Legacy screen code → merged into Control Universe (inline drill-down). */
+function normalizeScreen(screen: ScreenCode): ScreenCode {
+  return screen === 'controlDrillDown' ? 'controlUniverse' : screen;
+}
+
 export default function IndianBankingAuditApp({
   initialPersona = 'cro',
   initialScreen = 'riskPosture',
 }: IndianBankingAuditAppProps = {}) {
   const [activePersona, setActivePersonaState] = useState<PersonaCode>(initialPersona);
-  const [activeScreen, setActiveScreen] = useState<ScreenCode>(initialScreen);
+  const [activeScreen, setActiveScreenState] = useState<ScreenCode>(() => normalizeScreen(initialScreen));
+  const setActiveScreen = useCallback((screen: ScreenCode) => {
+    setActiveScreenState(normalizeScreen(screen));
+  }, []);
   const [drawer, setDrawer] = useState<DrawerState>(initialDrawer());
 
   // Local selection state lifted for screens that take selected ids as props
-  const [selectedControlId, setSelectedControlId] = useState<string>(controls[0]?.control_id || '');
+  const [selectedControlId, setSelectedControlId] = useState<string | null>(null);
   const [selectedTestId, setSelectedTestId] = useState<string>(testExecutions[0]?.test_id || '');
   const [, setSelectedPackId] = useState<string>(auditPacks[0]?.audit_pack_id || '');
   const [selectedRcaId, setSelectedRcaId] = useState<string | null>(null);
@@ -69,7 +75,6 @@ export default function IndianBankingAuditApp({
   const [demoMode, setDemoMode] = useState(false);
   const [demoStep, setDemoStep] = useState(1);
   const [personaOpenRequested, setPersonaOpenRequested] = useState(false);
-  const defaultPersona = initialPersona;
 
   const exitDemo = useCallback(() => {
     setDemoMode(false);
@@ -79,17 +84,7 @@ export default function IndianBankingAuditApp({
     setOrmCrossNav(null);
     setActivePersonaState('cro');
     setActiveScreen('riskPosture');
-  }, []);
-
-  const startGuidedDemo = useCallback(() => {
-    setOrmCrossNav(null);
-    setDrawer(initialDrawer());
-    setSelectedRcaId(null);
-    setActivePersonaState('cro');
-    setActiveScreen('riskPosture');
-    setDemoStep(1);
-    setDemoMode(true);
-  }, []);
+  }, [setActiveScreen]);
 
   const consumeOrmCrossNav = useCallback(() => setOrmCrossNav(null), []);
 
@@ -102,14 +97,14 @@ export default function IndianBankingAuditApp({
       setOrmCrossNav(intent);
       setActiveScreen(intent.target);
     },
-    [demoMode, exitDemo]
+    [demoMode, exitDemo, setActiveScreen]
   );
 
   // Switching persona routes user to their default home
   const setActivePersona = useCallback((code: PersonaCode) => {
     setActivePersonaState(code);
     setActiveScreen(PERSONA_DEFAULT_SCREEN[code]);
-  }, []);
+  }, [setActiveScreen]);
 
   // Drawer helpers
   const openDrawer = useCallback(
@@ -130,7 +125,7 @@ export default function IndianBankingAuditApp({
   const onOpenRcaWorkspace = useCallback((rcaId: string) => {
     setSelectedRcaId(rcaId);
     setActiveScreen('rcaWorkspace');
-  }, []);
+  }, [setActiveScreen]);
 
   const drillFromDrawer = useCallback(
     (entityType: DrawerEntityType, entityId: string) => {
@@ -171,11 +166,7 @@ export default function IndianBankingAuditApp({
     });
   }, []);
 
-  // Pre-select control/test on route changes for nicer demos
   useEffect(() => {
-    if (activeScreen === 'controlDrillDown' && !selectedControlId && controls.length) {
-      setSelectedControlId(controls[0].control_id);
-    }
     if (activeScreen === 'populationTesting' && !selectedTestId && testExecutions.length) {
       setSelectedTestId(testExecutions[0].test_id);
     }
@@ -255,7 +246,8 @@ export default function IndianBankingAuditApp({
   const { version } = useOriVersion();
 
   /** Viewport-locked split panes (list/detail): main column uses overflow-hidden + flex fill. */
-  const splitFillLayout = activeScreen === 'rcaWorkspace' || activeScreen === 'pacNoteApprovals';
+  const splitFillLayout =
+    activeScreen === 'rcaWorkspace' || activeScreen === 'pacNoteApprovals' || activeScreen === 'controlUniverse';
   const cockpitV2Layout =
     version === 'v2' && (activeScreen === 'riskPosture' || activeScreen === 'whatChanged');
   const screenLayout = splitFillLayout ? 'splitFill' : cockpitV2Layout ? 'cockpitV2' : 'default';
@@ -268,14 +260,8 @@ export default function IndianBankingAuditApp({
           setActivePersona={setActivePersona}
           activeScreen={activeScreen}
           demoMode={demoMode}
-          onStartGuidedDemo={startGuidedDemo}
           personaOpenRequested={personaOpenRequested}
           onPersonaOpenConsumed={() => setPersonaOpenRequested(false)}
-        />
-        <NonDefaultPersonaBanner
-          activePersona={activePersona}
-          defaultPersona={defaultPersona}
-          onSwitchRole={() => setPersonaOpenRequested(true)}
         />
         <div className="flex min-w-0 flex-1 overflow-hidden">
           <MainNavigation
@@ -370,8 +356,8 @@ function renderScreen({
   openDrawer: (t: DrawerEntityType, id: string, src: string) => void;
   drillFromDrawer: DrillFromDrawer;
   setActiveScreen: (s: ScreenCode) => void;
-  selectedControlId: string;
-  setSelectedControlId: (id: string) => void;
+  selectedControlId: string | null;
+  setSelectedControlId: (id: string | null) => void;
   selectedTestId: string;
   setSelectedTestId: (id: string) => void;
   selectedRcaId: string | null;
@@ -426,22 +412,8 @@ function renderScreen({
       return (
         <ControlUniverse
           openDrawer={openDrawer}
-          setActiveScreen={(s) => {
-            if (s === 'controlDrillDown') {
-              setActiveScreen('controlDrillDown');
-            } else {
-              setActiveScreen(s as ScreenCode);
-            }
-          }}
-        />
-      );
-    case 'controlDrillDown':
-      return (
-        <ControlDrillDown
           selectedControlId={selectedControlId}
           setSelectedControlId={setSelectedControlId}
-          openDrawer={openDrawer}
-          setActiveScreen={setScreen}
         />
       );
     case 'aiInsights':

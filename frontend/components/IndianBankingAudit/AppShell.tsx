@@ -100,7 +100,7 @@ export const SCREEN: Record<ScreenCode, { label: string; subtitle: string; icon:
  * Screens that remain routable (deep links, demo, renderScreen) but are not listed in the sidebar.
  * whatChanged — cockpit only. aiInsights — review queue links from cockpit / control drill-down.
  */
-export const SIDEBAR_HIDDEN_SCREENS: ReadonlySet<ScreenCode> = new Set(['whatChanged', 'aiInsights']);
+export const SIDEBAR_HIDDEN_SCREENS: ReadonlySet<ScreenCode> = new Set(['whatChanged', 'aiInsights', 'controlDrillDown']);
 
 export const PERSONA_NAV: Record<PersonaCode, ScreenCode[]> = {
   // CRO — board-room lens: posture, RBI walk-in, accountability + cross-cuts (whatChanged: deep-link / cockpit only)
@@ -159,7 +159,7 @@ export const SCREEN_FUNCTIONAL_SUBTITLE: Record<ScreenCode, string> = {
   rcsaWorkspace: 'RCSA cycles across business units — refresh status, residual moves, and blocking actions.',
   riskRegister: 'Enterprise risk universe — inherent and residual ratings, RES, and open issues.',
   obligationCoverage: 'Obligation coverage, linked controls, and regulatory lens gaps.',
-  controlUniverse: 'RCM-style control browser — CES, obligations, and population testability.',
+  controlUniverse: '',
   controlDrillDown: 'Single-control CES breakdown, instances, and evidence quality.',
   aiInsights: 'Human-in-the-loop queue for model-backed signals and linked issues.',
   issueBoard: 'Open issues, remediation status, and RBI MRA / Section 47A flags.',
@@ -177,7 +177,7 @@ const ORI_NAV_SECTIONS: { id: string; label: string; codes: ScreenCode[] }[] = [
   {
     id: 'riskControl',
     label: 'Risk & Control Workspace',
-    codes: ['rcsaWorkspace', 'riskRegister', 'kriMonitoring', 'obligationCoverage', 'controlUniverse', 'controlDrillDown', 'sourceLineage', 'processHealth'],
+    codes: ['rcsaWorkspace', 'riskRegister', 'kriMonitoring', 'obligationCoverage', 'controlUniverse', 'sourceLineage', 'processHealth'],
   },
   { id: 'incidents', label: 'Incidents, RCA & KRI', codes: ['incidentRegister', 'rcaWorkspace', 'issueBoard', 'accountability', 'lossData'] },
   {
@@ -315,7 +315,6 @@ export function TopBar({
   setActivePersona,
   activeScreen,
   demoMode,
-  onStartGuidedDemo,
   personaOpenRequested,
   onPersonaOpenConsumed,
 }: {
@@ -323,7 +322,6 @@ export function TopBar({
   setActivePersona: (c: PersonaCode) => void;
   activeScreen: ScreenCode;
   demoMode?: boolean;
-  onStartGuidedDemo?: () => void;
   personaOpenRequested?: boolean;
   onPersonaOpenConsumed?: () => void;
 }) {
@@ -347,16 +345,6 @@ export function TopBar({
           <span className="hidden truncate rounded-md bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider md:inline">
             {screenLabel}
           </span>
-          {onStartGuidedDemo && !demoMode ? (
-            <button
-              type="button"
-              onClick={onStartGuidedDemo}
-              className="flex flex-shrink-0 items-center gap-1.5 rounded-md bg-white/15 px-2.5 py-1.5 text-left text-[11px] font-semibold text-white ring-1 ring-white/25 hover:bg-white/25"
-              aria-label="Run guided demo"
-            >
-              <span className="truncate">▶ Run guided demo</span>
-            </button>
-          ) : null}
           {demoMode ? (
             <span className="rounded-md bg-amber-400/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-900">
               Demo on
