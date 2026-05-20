@@ -19,7 +19,7 @@ function scoreTone(value: number): "green" | "amber" | "red" {
 export function RssDecomposition({ components, defs, bandText, bandBar }: Props) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="mb-3 text-sm font-semibold">RSS Decomposition</h3>
+      <h3 className="mb-3 text-sm font-semibold">My SM&CR List</h3>
       <ul className="space-y-2">
         {defs.map((def) => {
           const value = resolveRssComponentScore(components, def);

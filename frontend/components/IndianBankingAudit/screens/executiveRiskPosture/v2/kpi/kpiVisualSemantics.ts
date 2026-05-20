@@ -2,6 +2,8 @@ import type { MetricTrendArrow } from '../../types';
 import { COCKPIT } from '../cockpitTokens';
 import { kpiPolarity, kpiValueZone, parseKpiNumeric } from './kpiMetricSpec';
 
+export { kpiPolarity } from './kpiMetricSpec';
+
 export type KpiTrendColors = { text: string; stroke: string };
 
 /** WoW glyph — map missing data to flat. */
