@@ -1,7 +1,8 @@
 'use client';
 
-import type { ScreenCode } from '../AppShell';
+import type { PersonaCode, ScreenCode } from '../AppShell';
 import { SCREEN } from '../AppShell';
+import { homeScreenForPersona, isPersonaHomeScreen } from './personaNavigation';
 
 export type OriBreadcrumbCrumb = {
   label: string;
@@ -9,15 +10,18 @@ export type OriBreadcrumbCrumb = {
 };
 
 export function OriBreadcrumb({
+  activePersona,
   activeScreen,
   setActiveScreen,
   crumbs = [],
 }: {
+  activePersona: PersonaCode;
   activeScreen: ScreenCode;
   setActiveScreen: (s: ScreenCode) => void;
   crumbs?: OriBreadcrumbCrumb[];
 }) {
-  if (activeScreen === 'riskPosture' && crumbs.length === 0) return null;
+  const homeScreen = homeScreenForPersona(activePersona);
+  if (isPersonaHomeScreen(activePersona, activeScreen) && crumbs.length === 0) return null;
 
   const linkClass = 'font-semibold text-indigo-700 hover:text-indigo-900 hover:underline';
 
@@ -25,7 +29,7 @@ export function OriBreadcrumb({
     <nav aria-label="Breadcrumb" className="shrink-0 border-b border-slate-200 bg-white px-4 py-2 text-xs text-slate-600">
       <ol className="flex flex-wrap items-center gap-1">
         <li>
-          <button type="button" className={linkClass} onClick={() => setActiveScreen('riskPosture')}>
+          <button type="button" className={linkClass} onClick={() => setActiveScreen(homeScreen)}>
             Home
           </button>
         </li>

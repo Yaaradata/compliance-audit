@@ -225,29 +225,5 @@ export function computeFilteredAlerts(alerts: RegAlertRecord[], opts: RegIntelCo
   return filterAlertsBySearchTerm(core, opts.searchTerm ?? '');
 }
 
-/** Inbox sort: emergency → expedited → peer (by materiality) → standard/advisory → draft last (REG_INTEL_SPEC Pass 4). */
-export function sortInboxAlerts(alerts: RegAlertRecord[]): RegAlertRecord[] {
-  const tier = (a: RegAlertRecord): number => {
-    if (a.instrument_type === 'DRAFT DIRECTION') return 4;
-    if (a.is_peer_signal) return 2;
-    if (a.governance_track === 'emergency') return 0;
-    if (a.governance_track === 'expedited') return 1;
-    return 3;
-  };
-
-  const daysKey = (a: RegAlertRecord) =>
-    a.days_to_effective == null || a.days_to_effective < 0 ? 99999 : a.days_to_effective;
-
-  return [...alerts].sort((a, b) => {
-    const ta = tier(a);
-    const tb = tier(b);
-    if (ta !== tb) return ta - tb;
-    if (ta === 2) return b.materiality_score - a.materiality_score;
-    if (ta === 4) return b.publication_date.localeCompare(a.publication_date);
-    const da = daysKey(a);
-    const db = daysKey(b);
-    if (da !== db) return da - db;
-    if (b.materiality_score !== a.materiality_score) return b.materiality_score - a.materiality_score;
-    return b.publication_date.localeCompare(a.publication_date);
-  });
-}
+export { sortInboxAlerts, DEFAULT_INBOX_SORT } from './regIntelInboxSort';
+export type { RegIntelInboxSortState, RegIntelInboxSortDirection } from './regIntelInboxSort';

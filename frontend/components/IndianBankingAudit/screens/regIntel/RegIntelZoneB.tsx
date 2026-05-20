@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, Clock } from 'lucide-react';
 import type { RegAlertRecord } from '@/lib/IndianBankingAudit/regIntelMockData';
 import { RegIntelHelpTip } from './RegIntelHelpTip';
@@ -8,6 +8,9 @@ import { REG_INTEL_HELP } from './regIntelHelpCopy';
 import { RegIntelCountdownChip } from './RegIntelCountdownChip';
 import { RegIntelMaterialityRing } from './RegIntelMaterialityRing';
 import { getAlertStripeColor, getSourceColor } from './regIntelSourceColors';
+import { DEFAULT_INBOX_SORT, sortInboxAlerts } from './regIntelInboxSort';
+import { RegIntelInboxSortControl } from './RegIntelInboxSortControl';
+import type { RegIntelInboxSortState } from './regIntelInboxSort';
 
 const GOVERNANCE_TRACK: Record<
   RegAlertRecord['governance_track'],
@@ -476,6 +479,8 @@ export function RegIntelZoneB({
   preSearchMatchCount,
   onClearSearch,
   inboxLayout = 'flow',
+  inboxSort: controlledInboxSort,
+  onInboxSortChange,
 }: {
   alerts: RegAlertRecord[];
   selectedAlertId: string | null;
@@ -487,27 +492,50 @@ export function RegIntelZoneB({
   onClearSearch?: () => void;
   /** `flow`: list grows with the page (full-page scroll). `pane`: fill parent height; list body scrolls. */
   inboxLayout?: RegIntelInboxLayout;
+  /** Controlled sort (optional). When omitted, Zone B owns sort state locally. */
+  inboxSort?: RegIntelInboxSortState;
+  onInboxSortChange?: (next: RegIntelInboxSortState) => void;
 }) {
+  const [localInboxSort, setLocalInboxSort] = useState<RegIntelInboxSortState>(DEFAULT_INBOX_SORT);
+  const inboxSort = controlledInboxSort ?? localInboxSort;
+
+  const handleInboxSortChange = useCallback(
+    (next: RegIntelInboxSortState) => {
+      if (onInboxSortChange) onInboxSortChange(next);
+      else setLocalInboxSort(next);
+    },
+    [onInboxSortChange],
+  );
+
+  const displayAlerts = useMemo(
+    () => sortInboxAlerts(alerts, inboxSort),
+    [alerts, inboxSort],
+  );
+
   const [kbFocus, setKbFocus] = useState(0);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const q = searchTerm.trim();
-  const denom = preSearchMatchCount ?? alerts.length;
+  const denom = preSearchMatchCount ?? displayAlerts.length;
   const showSearchSummary = q.length > 0 && preSearchMatchCount !== undefined;
 
   useLayoutEffect(() => {
-    itemRefs.current = itemRefs.current.slice(0, alerts.length);
-  }, [alerts.length]);
+    itemRefs.current = itemRefs.current.slice(0, displayAlerts.length);
+  }, [displayAlerts.length]);
 
   useEffect(() => {
-    if (!selectedAlertId || !alerts.length) return;
-    const i = alerts.findIndex((a) => a.id === selectedAlertId);
+    if (!selectedAlertId || !displayAlerts.length) return;
+    const i = displayAlerts.findIndex((a) => a.id === selectedAlertId);
     if (i >= 0) setKbFocus(i);
-  }, [selectedAlertId, alerts]);
+  }, [selectedAlertId, displayAlerts]);
 
   useEffect(() => {
-    if (!dataReady || !alerts.length) return;
+    setKbFocus(0);
+  }, [inboxSort.direction]);
+
+  useEffect(() => {
+    if (!dataReady || !displayAlerts.length) return;
     itemRefs.current[kbFocus]?.focus();
-  }, [kbFocus, alerts.length, dataReady]);
+  }, [kbFocus, displayAlerts.length, dataReady]);
 
   const pane = inboxLayout === 'pane';
 
@@ -517,23 +545,20 @@ export function RegIntelZoneB({
         pane ? 'h-full min-h-0 max-h-full' : 'max-w-full min-h-0'
       }`}
     >
-      <header className="shrink-0 border-b border-slate-100 bg-white/95 px-3 py-2.5 backdrop-blur-sm sm:px-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="min-w-0 text-sm font-semibold text-slate-800">
+      <header className="ori-reg-intel-inbox-header shrink-0 border-b border-slate-100 bg-white px-3 py-2.5 sm:px-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="min-w-0 flex-1 text-sm font-semibold text-slate-800">
             {showSearchSummary ? (
               <span className="break-words">
-                {alerts.length} of {denom} alerts · matching &apos;{q}&apos;
+                {displayAlerts.length} of {denom} alerts · matching &apos;{q}&apos;
               </span>
             ) : (
               <span>
-                {alerts.length} {alerts.length === 1 ? 'alert' : 'alerts'}
+                {displayAlerts.length} {displayAlerts.length === 1 ? 'alert' : 'alerts'}
               </span>
             )}
           </span>
-          <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-            <span aria-hidden>⇅</span>
-            Sorted by urgency
-          </span>
+          <RegIntelInboxSortControl sort={inboxSort} onSortChange={handleInboxSortChange} />
         </div>
       </header>
       <div
@@ -541,7 +566,7 @@ export function RegIntelZoneB({
       >
         {!dataReady ? (
           <InboxSkeletonCards />
-        ) : alerts.length === 0 && q.length > 0 ? (
+        ) : displayAlerts.length === 0 && q.length > 0 ? (
           <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
             <EmptyInboxIllustration />
             <h3 className="mt-4 text-sm font-bold text-slate-800">No alerts match your search</h3>
@@ -556,7 +581,7 @@ export function RegIntelZoneB({
               Clear Search
             </button>
           </div>
-        ) : alerts.length === 0 ? (
+        ) : displayAlerts.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
             <EmptyInboxIllustration />
             <h3 className="mt-4 text-sm font-bold text-slate-800">No alerts match these filters</h3>
@@ -573,7 +598,7 @@ export function RegIntelZoneB({
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
-            {alerts.map((alert, i) => (
+            {displayAlerts.map((alert, i) => (
               <li key={alert.id}>
                 {renderCard(alert, selectedAlertId === alert.id, () => onSelectAlert(alert.id), {
                   elRef: (el) => {
@@ -583,10 +608,10 @@ export function RegIntelZoneB({
                   id: `reg-inbox-card-${alert.id}`,
                   onFocus: () => setKbFocus(i),
                   onKeyDown: (e) => {
-                    if (!dataReady || !alerts.length) return;
+                    if (!dataReady || !displayAlerts.length) return;
                     if (e.key === 'ArrowDown') {
                       e.preventDefault();
-                      setKbFocus(Math.min(i + 1, alerts.length - 1));
+                      setKbFocus(Math.min(i + 1, displayAlerts.length - 1));
                     } else if (e.key === 'ArrowUp') {
                       e.preventDefault();
                       setKbFocus(Math.max(i - 1, 0));

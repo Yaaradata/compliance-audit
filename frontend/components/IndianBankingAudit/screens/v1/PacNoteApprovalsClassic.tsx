@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -7,25 +7,15 @@ import {
   getProcess,
   getRca,
   getSeniorManager,
+  pacNotes,
   preventiveActions,
   type PacNote,
   type PreventiveAction,
-} from '../dataModel';
-import { EmptyState } from '../primitives';
-import { oriFocusRing } from '../theme';
-import { useOriDemoHints } from '../OriDemoContext';
-import { featuresForVersion } from '../ori/oriVersionConfig';
-import { useOriVersion } from '../ori/OriVersionProvider';
-import {
-  oriWorkflowStore,
-  useEffectivePacNote,
-  useEffectivePacNotes,
-  type PacNoteOverlay,
-} from '../ori/oriWorkflowStore';
-import { PacNoteApprovalsClassic } from './v1/PacNoteApprovalsClassic';
-import type { OpenDrawer, OrmCrossNavIntent } from '../types';
-
-const APPROVER_ROLE = 'Head of ORM';
+} from '../../dataModel';
+import { EmptyState } from '../../primitives';
+import { oriFocusRing } from '../../theme';
+import { useOriDemoHints } from '../../OriDemoContext';
+import type { OpenDrawer, OrmCrossNavIntent } from '../../types';
 
 const PENDING = 'pending_orm_review';
 const OPEN_PA = (s: string) => s === 'open';
@@ -42,14 +32,14 @@ function parseTs(iso?: string | null) {
 }
 
 function fmtDate(iso?: string | null) {
-  if (!iso) return '—';
+  if (!iso) return 'ΓÇö';
   const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function fmtDateTime(iso?: string | null) {
-  if (!iso) return '—';
+  if (!iso) return 'ΓÇö';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -57,7 +47,7 @@ function fmtDateTime(iso?: string | null) {
 
 function relativeFrom(iso: string) {
   const t = parseTs(iso);
-  if (Number.isNaN(t)) return '—';
+  if (Number.isNaN(t)) return 'ΓÇö';
   const diff = Date.now() - t;
   const days = Math.floor(diff / 86400000);
   if (days <= 0) return 'today';
@@ -67,9 +57,9 @@ function relativeFrom(iso: string) {
 
 function daysWaiting(pn: PacNote) {
   const sub = pn.submitted_at || pn.comments?.[0]?.at;
-  if (!sub) return '—';
+  if (!sub) return 'ΓÇö';
   const start = new Date(sub.includes('T') ? sub : `${sub}T12:00:00`);
-  if (Number.isNaN(start.getTime())) return '—';
+  if (Number.isNaN(start.getTime())) return 'ΓÇö';
   start.setHours(0, 0, 0, 0);
   const d = Math.floor((startOfToday() - start.getTime()) / 86400000);
   return d < 0 ? '0' : String(d);
@@ -116,14 +106,13 @@ function statusChipClass(st?: string) {
   if (st === 'conditional_approval') return 'border-violet-200 bg-violet-50 text-violet-900';
   if (st === 'approved') return 'border-emerald-200 bg-emerald-50 text-emerald-900';
   if (st === 'rejected') return 'border-rose-200 bg-rose-50 text-rose-900';
-  if (st === 'returned_for_revision') return 'border-orange-200 bg-orange-50 text-orange-900';
   return 'border-slate-200 bg-slate-50 text-slate-700';
 }
 
 function paOverdueDays(pa: PreventiveAction, todayStart: number) {
-  if (!OPEN_PA(pa.status)) return '—';
+  if (!OPEN_PA(pa.status)) return 'ΓÇö';
   const td = parseTs(pa.target_date?.includes('T') ? pa.target_date : `${pa.target_date}T00:00:00`);
-  if (Number.isNaN(td)) return '—';
+  if (Number.isNaN(td)) return 'ΓÇö';
   if (td >= todayStart) return '0';
   return String(Math.floor((todayStart - td) / 86400000));
 }
@@ -143,33 +132,20 @@ function useHasMinWidth(px: number) {
 
 function defaultTitle(pn: PacNote) {
   if (pn.title) return pn.title;
-  return `${docTypeLabel(pn.document_type)} · ${pn.business_unit || 'ORM'}`;
+  return `${docTypeLabel(pn.document_type)} ┬╖ ${pn.business_unit || 'ORM'}`;
 }
 
-type PacNoteApprovalsProps = {
-  openDrawer: OpenDrawer;
-  onOpenRcaWorkspace: (rcaId: string) => void;
-  ormCrossNav?: OrmCrossNavIntent | null;
-  consumeOrmCrossNav?: () => void;
-};
-
-/** Routes to v1 demo queue or v2 persistent SOP approval workflow. */
-export function PacNoteApprovals(props: PacNoteApprovalsProps) {
-  const { version } = useOriVersion();
-  if (!featuresForVersion(version).pacWorkflowV2) {
-    return <PacNoteApprovalsClassic {...props} />;
-  }
-  return <PacNoteApprovalsV2 {...props} />;
-}
-
-function PacNoteApprovalsV2({
+export function PacNoteApprovalsClassic({
   openDrawer,
   onOpenRcaWorkspace,
   ormCrossNav,
   consumeOrmCrossNav,
-}: PacNoteApprovalsProps) {
-  const pacNotes = useEffectivePacNotes();
-
+}: {
+  openDrawer: OpenDrawer;
+  onOpenRcaWorkspace: (rcaId: string) => void;
+  ormCrossNav?: OrmCrossNavIntent | null;
+  consumeOrmCrossNav?: () => void;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const flash = useCallback((msg: string) => {
@@ -181,7 +157,6 @@ function PacNoteApprovalsV2({
   const [docFilter, setDocFilter] = useState('');
   const [buFilter, setBuFilter] = useState('');
   const [blockedOnly, setBlockedOnly] = useState(false);
-  const [commentDraft, setCommentDraft] = useState('');
 
   const clearFilters = useCallback(() => {
     setStatusFilter('');
@@ -219,9 +194,9 @@ function PacNoteApprovalsV2({
     return () => window.clearTimeout(t);
   }, [demo?.scrollPacBlocking, demo?.step, selectedId]);
 
-  const statusOpts = useMemo(() => Array.from(new Set(pacNotes.map((p) => p.status).filter(Boolean))).sort() as string[], [pacNotes]);
-  const docOpts = useMemo(() => Array.from(new Set(pacNotes.map((p) => p.document_type).filter(Boolean))).sort() as string[], [pacNotes]);
-  const buOpts = useMemo(() => Array.from(new Set(pacNotes.map((p) => p.business_unit).filter(Boolean))).sort() as string[], [pacNotes]);
+  const statusOpts = useMemo(() => Array.from(new Set(pacNotes.map((p) => p.status).filter(Boolean))).sort() as string[], []);
+  const docOpts = useMemo(() => Array.from(new Set(pacNotes.map((p) => p.document_type).filter(Boolean))).sort() as string[], []);
+  const buOpts = useMemo(() => Array.from(new Set(pacNotes.map((p) => p.business_unit).filter(Boolean))).sort() as string[], []);
 
   const kpis = useMemo(() => {
     const pending = pacNotes.filter((p) => p.status === PENDING).length;
@@ -237,7 +212,7 @@ function PacNoteApprovalsV2({
     }
     const med = medianDays(cycles);
     return { pending, blocked, med };
-  }, [pacNotes]);
+  }, []);
 
   const filtered = useMemo(() => {
     return pacNotes.filter((p) => {
@@ -248,9 +223,9 @@ function PacNoteApprovalsV2({
       if (buFilter && bu !== buFilter) return false;
       return true;
     });
-  }, [pacNotes, statusFilter, docFilter, buFilter, blockedOnly]);
+  }, [statusFilter, docFilter, buFilter, blockedOnly]);
 
-  const filterSelectClass = `w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 shadow-sm outline-none ring-offset-1 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200 ${oriFocusRing}`;
+  const filterSelectClass = `w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-2 text-xs text-slate-800 shadow-sm outline-none ring-offset-1 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200 ${oriFocusRing}`;
   const hasListFilters = !!(statusFilter || docFilter || buFilter || blockedOnly);
 
   const sortedQueue = useMemo(() => {
@@ -264,7 +239,7 @@ function PacNoteApprovalsV2({
     });
   }, [filtered]);
 
-  const { effective: selected, overlay: selectedOverlay } = useEffectivePacNote(selectedId);
+  const selected = selectedId ? pacNotes.find((p) => p.pac_note_id === selectedId) || null : null;
   const blockOpen = selected ? blockingOpenPas(selected) : [];
   const nBlock = blockOpen.length;
 
@@ -279,14 +254,13 @@ function PacNoteApprovalsV2({
 
   useEffect(() => {
     if (selectedId && !pacNotes.some((p) => p.pac_note_id === selectedId)) setSelectedId(null);
-  }, [pacNotes, selectedId]);
+  }, [selectedId]);
 
   useEffect(() => {
     setCondOpen(false);
     setCondText('');
     setRetOpen(false);
     setRetText('');
-    setCommentDraft('');
   }, [selectedId]);
 
   return (
@@ -318,87 +292,81 @@ function PacNoteApprovalsV2({
           hasSelection && !isLg ? 'hidden' : 'flex'
         } ${splitView ? 'w-full shrink-0 lg:w-[40%] lg:max-w-[460px] lg:flex-none' : 'w-full min-h-0 flex-1'}`}
       >
-        <div className="shrink-0 border-b border-slate-100 px-3 pt-3 pb-2.5">
-          <div className="grid grid-cols-3 gap-1.5">
-            <div className="flex min-w-0 flex-col gap-0.5 rounded-md border border-slate-200/80 bg-slate-50/60 px-2 py-1.5">
-              <span className="text-[9px] font-semibold uppercase leading-none tracking-wide text-slate-500">
-                Pending
-              </span>
-              <span className="text-base font-bold tabular-nums leading-none text-slate-900">{kpis.pending}</span>
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5 rounded-md border border-rose-200/80 bg-rose-50/50 px-2 py-1.5">
-              <span className="text-[9px] font-semibold uppercase leading-none tracking-wide text-rose-700/90">
-                Blocked
-              </span>
-              <span className="text-base font-bold tabular-nums leading-none text-rose-800">{kpis.blocked}</span>
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5 rounded-md border border-slate-200/80 bg-slate-50/60 px-2 py-1.5">
-              <span className="text-[9px] font-semibold uppercase leading-none tracking-wide text-slate-500">
-                Median
-              </span>
-              <span className="text-base font-bold tabular-nums leading-none text-indigo-800">
-                {kpis.med == null ? '—' : `${kpis.med}d`}
-              </span>
-              <span className="text-[8px] leading-none text-slate-400">approved only</span>
-            </div>
-          </div>
+        <header className="border-b border-slate-100 px-4 pb-3 pt-4">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Approval queue</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-900">PAC notes ┬╖ ORM first line</p>
+        </header>
 
-          <div className="mt-2 grid grid-cols-3 gap-1.5">
-            <label className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Status</span>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className={filterSelectClass}
-                aria-label="Filter by status"
-              >
-                <option value="">All statuses</option>
-                {statusOpts.map((v) => (
-                  <option key={v} value={v}>
-                    {v.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Doc</span>
-              <select
-                value={docFilter}
-                onChange={(e) => setDocFilter(e.target.value)}
-                className={filterSelectClass}
-                aria-label="Filter by document type"
-              >
-                <option value="">All document types</option>
-                {docOpts.map((v) => (
-                  <option key={v} value={v}>
-                    {v.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Unit</span>
-              <select
-                value={buFilter}
-                onChange={(e) => setBuFilter(e.target.value)}
-                className={filterSelectClass}
-                aria-label="Filter by business unit"
-              >
-                <option value="">All units</option>
-                {buOpts.map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </label>
+        <div className="grid grid-cols-3 gap-2 border-b border-slate-100 px-3 py-3">
+          <div className="rounded-lg border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 px-2 py-2.5 text-center shadow-sm">
+            <div className="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500">Pending review</div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-slate-900">{kpis.pending}</div>
           </div>
+          <div className="rounded-lg border border-rose-100 bg-gradient-to-b from-rose-50/90 to-white px-2 py-2.5 text-center shadow-sm">
+            <div className="text-[9px] font-semibold uppercase leading-tight tracking-wide text-rose-800/80">Blocked by open PAs</div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-rose-800">{kpis.blocked}</div>
+          </div>
+          <div className="rounded-lg border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 px-2 py-2.5 text-center shadow-sm">
+            <div className="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500">Median cycle</div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-indigo-800">{kpis.med == null ? 'ΓÇö' : `${kpis.med}d`}</div>
+            <div className="text-[8px] text-slate-400">approved only</div>
+          </div>
+        </div>
 
+        <div className="flex flex-wrap items-end gap-2 border-b border-slate-100 px-3 py-2.5">
+          <label className="flex min-w-0 flex-1 basis-[6.5rem] flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Status</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={filterSelectClass}
+              aria-label="Filter by status"
+            >
+              <option value="">All statuses</option>
+              {statusOpts.map((v) => (
+                <option key={v} value={v}>
+                  {v.replace(/_/g, ' ')}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-1 basis-[6.5rem] flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Doc</span>
+            <select
+              value={docFilter}
+              onChange={(e) => setDocFilter(e.target.value)}
+              className={filterSelectClass}
+              aria-label="Filter by document type"
+            >
+              <option value="">All document types</option>
+              {docOpts.map((v) => (
+                <option key={v} value={v}>
+                  {v.replace(/_/g, ' ')}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-1 basis-[6.5rem] flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Unit</span>
+            <select
+              value={buFilter}
+              onChange={(e) => setBuFilter(e.target.value)}
+              className={filterSelectClass}
+              aria-label="Filter by business unit"
+            >
+              <option value="">All units</option>
+              {buOpts.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </label>
           {hasListFilters ? (
             <button
               type="button"
               onClick={clearFilters}
-              className={`mt-1.5 w-full rounded-md py-1 text-center text-[10px] font-semibold text-indigo-600 hover:bg-indigo-50/80 hover:text-indigo-800 ${oriFocusRing}`}
+              className={`shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-600 shadow-sm hover:border-slate-300 hover:bg-slate-50 ${oriFocusRing}`}
             >
               Clear filters
             </button>
@@ -438,7 +406,7 @@ function PacNoteApprovalsV2({
                       <div className="mt-1 line-clamp-2 text-[13px] font-semibold leading-snug tracking-tight text-slate-900">{defaultTitle(pn)}</div>
                       <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-600">
                         <span>{pn.business_unit}</span>
-                        <span className="text-slate-300">·</span>
+                        <span className="text-slate-300">┬╖</span>
                         <span className="font-mono text-[10px] text-slate-500">v{pn.document_version ?? '1.0'}</span>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -447,13 +415,13 @@ function PacNoteApprovalsV2({
                         </span>
                         {sub ? (
                           <span className="text-[10px] text-slate-500">
-                            {fmtDateTime(sub)} · <span className="font-medium text-slate-700">{relativeFrom(sub)}</span>
+                            {fmtDateTime(sub)} ┬╖ <span className="font-medium text-slate-700">{relativeFrom(sub)}</span>
                           </span>
                         ) : null}
                       </div>
                       {ob > 0 ? (
                         <div className="mt-2 inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-900">
-                          <span aria-hidden>🔒</span>
+                          <span aria-hidden>≡ƒöÆ</span>
                           Blocked by {ob} PA{ob === 1 ? '' : 's'}
                         </div>
                       ) : null}
@@ -474,7 +442,7 @@ function PacNoteApprovalsV2({
             className="text-xs font-semibold text-indigo-700 hover:underline"
             onClick={() => setSelectedId(null)}
           >
-            {isLg ? '← Full queue' : '← Back to queue'}
+            {isLg ? 'ΓåÉ Full queue' : 'ΓåÉ Back to queue'}
           </button>
         </div>
         {selected ? (
@@ -486,9 +454,9 @@ function PacNoteApprovalsV2({
                     <h1 className="text-lg font-bold tracking-tight text-slate-900">{defaultTitle(selected)}</h1>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                       <span className="font-mono text-[11px] text-slate-500">{selected.pac_note_id}</span>
-                      <span className="text-slate-300">·</span>
+                      <span className="text-slate-300">┬╖</span>
                       <span className="font-mono text-[11px]">v{selected.document_version ?? '1.0'}</span>
-                      <span className="text-slate-300">·</span>
+                      <span className="text-slate-300">┬╖</span>
                       <span className="capitalize text-slate-700">{docTypeLabel(selected.document_type)}</span>
                       <span
                         className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold capitalize ${statusChipClass(selected.status)}`}
@@ -499,10 +467,10 @@ function PacNoteApprovalsV2({
                   </div>
                   <button
                     type="button"
-                    onClick={() => flash('Document viewer is not wired in this prototype — your click was logged for demo.')}
+                    onClick={() => flash('Document viewer is not wired in this prototype ΓÇö your click was logged for demo.')}
                     className={`flex-shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/50 ${oriFocusRing}`}
                   >
-                    Open document ↗
+                    Open document Γåù
                   </button>
                 </div>
 
@@ -511,7 +479,7 @@ function PacNoteApprovalsV2({
                   <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
                     <div className="flex justify-between gap-3 border-b border-slate-50 pb-2 sm:block sm:border-0 sm:pb-0">
                       <dt className="text-slate-500">Submitted by</dt>
-                      <dd className="font-medium text-slate-900">{selected.submitted_by_role || '—'}</dd>
+                      <dd className="font-medium text-slate-900">{selected.submitted_by_role || 'ΓÇö'}</dd>
                     </div>
                     <div className="flex justify-between gap-3 border-b border-slate-50 pb-2 sm:block sm:border-0 sm:pb-0">
                       <dt className="text-slate-500">Submitted at</dt>
@@ -530,7 +498,7 @@ function PacNoteApprovalsV2({
                       <dd className="text-right font-medium text-slate-900">
                         {selected.accountable_senior_manager_id
                           ? getSeniorManager(selected.accountable_senior_manager_id)?.name || selected.accountable_senior_manager_id
-                          : '—'}
+                          : 'ΓÇö'}
                       </dd>
                     </div>
                   </dl>
@@ -574,7 +542,7 @@ function PacNoteApprovalsV2({
                               onClick={() => openDrawer('process', pid, 'pacNoteApprovals')}
                               className="max-w-full truncate rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-left text-[11px] font-medium text-indigo-900 transition hover:bg-indigo-100"
                             >
-                              {pr ? `${pid} · ${pr.name}` : pid}
+                              {pr ? `${pid} ┬╖ ${pr.name}` : pid}
                             </button>
                           );
                         })
@@ -590,7 +558,7 @@ function PacNoteApprovalsV2({
                     <div className="border-b border-rose-200/80 bg-rose-100/40 px-4 py-3">
                       <h3 className="text-sm font-bold text-rose-950">
                         <span className="mr-1.5" aria-hidden>
-                          ⚠
+                          ΓÜá
                         </span>
                         Blocked by {nBlock} open preventive action{nBlock === 1 ? '' : 's'}
                       </h3>
@@ -618,9 +586,9 @@ function PacNoteApprovalsV2({
                                 onClick={() => openDrawer('preventiveAction', pa.preventive_action_id, 'pacNoteApprovals')}
                               >
                                 <td className="py-2 pr-2 font-mono text-[10px] text-rose-950">{pa.preventive_action_id}</td>
-                                <td className="max-w-[14rem] py-2 pr-2 font-medium text-rose-950">{pa.title || '—'}</td>
-                                <td className="py-2 pr-2 text-rose-900">{sm?.name || '—'}</td>
-                                <td className="py-2 pr-2 font-mono text-[10px]">{pa.target_date || '—'}</td>
+                                <td className="max-w-[14rem] py-2 pr-2 font-medium text-rose-950">{pa.title || 'ΓÇö'}</td>
+                                <td className="py-2 pr-2 text-rose-900">{sm?.name || 'ΓÇö'}</td>
+                                <td className="py-2 pr-2 font-mono text-[10px]">{pa.target_date || 'ΓÇö'}</td>
                                 <td className="py-2 pr-2 capitalize text-rose-900">{pa.status}</td>
                                 <td className="py-2 font-semibold tabular-nums text-rose-950">{paOverdueDays(pa, todayStart)}</td>
                               </tr>
@@ -635,7 +603,7 @@ function PacNoteApprovalsV2({
                   </section>
                 ) : (
                   <section className="rounded-xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-950 shadow-sm">
-                    <span className="font-semibold">✓</span> No open preventive actions blocking this approval.
+                    <span className="font-semibold">Γ£ô</span> No open preventive actions blocking this approval.
                   </section>
                 )}
 
@@ -646,7 +614,7 @@ function PacNoteApprovalsV2({
                       {selected.referenced_rca_ids!.map((rid) => {
                         const rca = getRca(rid);
                         const inc = rca ? getIncident(rca.incident_id) : null;
-                        const approved = rca?.rca_completed_at ? fmtDate(rca.rca_completed_at) : '—';
+                        const approved = rca?.rca_completed_at ? fmtDate(rca.rca_completed_at) : 'ΓÇö';
                         return (
                           <div
                             key={rid}
@@ -655,7 +623,7 @@ function PacNoteApprovalsV2({
                             <div className="min-w-0">
                               <div className="font-mono text-[10px] text-slate-500">{rid}</div>
                               <div className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900">{inc?.title || rca?.incident_id || 'Incident'}</div>
-                              <div className="mt-1 text-[11px] text-slate-600">RCA approval / completion · {approved}</div>
+                              <div className="mt-1 text-[11px] text-slate-600">RCA approval / completion ┬╖ {approved}</div>
                             </div>
                             <div className="flex flex-shrink-0 flex-col gap-2 sm:items-end">
                               <button
@@ -663,7 +631,7 @@ function PacNoteApprovalsV2({
                                 onClick={() => onOpenRcaWorkspace(rid)}
                                 className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-900 transition hover:bg-indigo-100"
                               >
-                                View RCA →
+                                View RCA ΓåÆ
                               </button>
                               <button
                                 type="button"
@@ -680,51 +648,8 @@ function PacNoteApprovalsV2({
                   </section>
                 ) : null}
 
-                {selectedOverlay?.approval_conditions ? (
-                  <section className="rounded-xl border border-violet-200 bg-violet-50/80 p-4 shadow-sm">
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">
-                      Conditional approval — open conditions
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-violet-950">
-                      {selectedOverlay.approval_conditions}
-                    </p>
-                  </section>
-                ) : null}
-
-                {selectedOverlay?.revision_rounds.length ? (
-                  <section className="rounded-xl border border-orange-200/80 bg-orange-50/80 p-4 shadow-sm">
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-800">
-                      Revision rounds ({selectedOverlay.revision_rounds.length})
-                    </h3>
-                    <ol className="mt-3 space-y-3">
-                      {selectedOverlay.revision_rounds.map((r) => (
-                        <li
-                          key={`round-${r.round}`}
-                          className="rounded-lg border border-orange-200 bg-white/80 px-3 py-2.5 text-xs leading-relaxed text-orange-950"
-                        >
-                          <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <span className="font-semibold">Round {r.round}</span>
-                            <span className="font-mono text-[10px] text-orange-700/80">
-                              {fmtDateTime(r.opened_at)}
-                              {r.resubmitted_at ? ` → resubmitted ${fmtDateTime(r.resubmitted_at)}` : ' · awaiting resubmit'}
-                            </span>
-                          </div>
-                          <div className="mt-1 text-[11px] text-orange-900/80">
-                            Returned by {r.returned_by_role}
-                            {r.resubmitted_by_role ? ` · resubmitted by ${r.resubmitted_by_role}` : ''}
-                          </div>
-                          <p className="mt-1.5 text-[12px] text-orange-950">{r.notes}</p>
-                        </li>
-                      ))}
-                    </ol>
-                  </section>
-                ) : null}
-
                 <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Comment thread</h3>
-                    <span className="text-[10px] text-slate-500">{(selected.comments || []).length} entries</span>
-                  </div>
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Comment thread</h3>
                   <ol className="relative mt-4 space-y-4 border-l border-slate-200 pl-5">
                     {(selected.comments || [])
                       .slice()
@@ -737,45 +662,13 @@ function PacNoteApprovalsV2({
                               {c.author_role}
                             </span>
                             <time className="text-[10px] text-slate-500" dateTime={c.at}>
-                              {relativeFrom(c.at)} · {fmtDateTime(c.at)}
+                              {relativeFrom(c.at)} ┬╖ {fmtDateTime(c.at)}
                             </time>
                           </div>
                           <p className="mt-2 text-sm leading-relaxed text-slate-800">{c.text}</p>
                         </li>
                       ))}
                   </ol>
-                  <div className="mt-4 border-t border-slate-100 pt-3">
-                    <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500" htmlFor="pac-add-comment">
-                      Add comment
-                    </label>
-                    <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:items-start">
-                      <textarea
-                        id="pac-add-comment"
-                        rows={2}
-                        value={commentDraft}
-                        onChange={(e) => setCommentDraft(e.target.value)}
-                        placeholder="Add context to the thread (visible to BAU + ORM reviewers)…"
-                        className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-900 shadow-inner outline-none ring-indigo-200 focus:ring-2"
-                      />
-                      <button
-                        type="button"
-                        disabled={!commentDraft.trim() || !selected}
-                        onClick={() => {
-                          if (!selected || !commentDraft.trim()) return;
-                          oriWorkflowStore.addPacComment(selected.pac_note_id, APPROVER_ROLE, commentDraft);
-                          setCommentDraft('');
-                          flash('Comment added to thread.');
-                        }}
-                        className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold shadow-sm ${
-                          commentDraft.trim()
-                            ? 'border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700'
-                            : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
-                        }`}
-                      >
-                        Post comment
-                      </button>
-                    </div>
-                  </div>
                 </section>
 
                 <div className="h-28 shrink-0 xl:h-32" aria-hidden />
@@ -843,46 +736,18 @@ function PacNoteApprovalsV2({
                           : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
                       }`}
                       onClick={() => {
-                        if (!canApprove || !selected) return;
-                        oriWorkflowStore.approvePacNote(
-                          selected.pac_note_id,
-                          APPROVER_ROLE,
-                          `Approved v${selected.document_version || '1.0'} — dispatching SOP to repository.`,
-                        );
-                        flash('Approved — comment thread updated; SOP queued for repository dispatch.');
+                        if (!canApprove) return;
+                        flash('Marked approved ΓÇö ORM team will be notified; BAU to upload signed PAC to repository (demo).');
                       }}
                     >
                       Approve
                     </button>
                   )}
-                  {selected?.status === 'returned_for_revision' ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!selected) return;
-                        oriWorkflowStore.resubmitPacNote(
-                          selected.pac_note_id,
-                          'Business Unit',
-                          `Resubmitting v${selected.document_version} after addressing revision notes.`,
-                        );
-                        flash('Resubmitted — PAC is back in the ORM queue.');
-                      }}
-                      className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
-                    >
-                      Resubmit for review
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     onClick={() => {
-                      if (!selected) return;
                       if (condOpen) {
-                        if (!condText.trim()) {
-                          flash('Please enter conditions or cancel.');
-                          return;
-                        }
-                        oriWorkflowStore.conditionalApprove(selected.pac_note_id, APPROVER_ROLE, condText.trim());
-                        flash('Conditional approval recorded — conditions appended to thread.');
+                        flash(condText.trim() ? 'Conditional approval noted ΓÇö accountable SM will receive the conditions (demo).' : 'Please enter conditions or cancel.');
                         setCondOpen(false);
                         setCondText('');
                         return;
@@ -896,14 +761,8 @@ function PacNoteApprovalsV2({
                   <button
                     type="button"
                     onClick={() => {
-                      if (!selected) return;
                       if (retOpen) {
-                        if (!retText.trim()) {
-                          flash('Please add revision notes or cancel.');
-                          return;
-                        }
-                        oriWorkflowStore.returnForRevision(selected.pac_note_id, APPROVER_ROLE, retText.trim());
-                        flash('Returned for revision — version bumped, comment thread updated.');
+                        flash(retText.trim() ? 'Returned for revision ΓÇö submitter has been copied on email (demo).' : 'Please add revision notes or cancel.');
                         setRetOpen(false);
                         setRetText('');
                         return;
@@ -917,10 +776,9 @@ function PacNoteApprovalsV2({
                   <button
                     type="button"
                     onClick={() => {
-                      if (!selected) return;
-                      if (!window.confirm('Reject this PAC note? Status will be set to rejected and the thread updated.')) return;
-                      oriWorkflowStore.rejectPacNote(selected.pac_note_id, APPROVER_ROLE, 'Rejected — resubmit with clarifications.');
-                      flash('Rejected — status updated, comment recorded.');
+                      if (window.confirm('Reject this PAC note? This is a demo ΓÇö no data will change.')) {
+                        flash('Rejected ΓÇö ORM will ask BAU to resubmit with clarifications (demo).');
+                      }
                     }}
                     className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-50"
                   >

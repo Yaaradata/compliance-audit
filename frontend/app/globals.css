@@ -704,3 +704,20 @@ body {
 [data-ori-root] .ori-reg-intel-certify-burst {
   animation: ori-reg-intel-certify-burst 0.6s ease-out both;
 }
+
+/* Regulatory Intelligence — inbox sort: text-only appearance, still a real control */
+[data-ori-root] .ori-reg-intel-inbox-sort-text {
+  pointer-events: auto;
+  position: relative;
+  z-index: 40;
+  appearance: none;
+  -webkit-appearance: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+[data-ori-root] .ori-reg-intel-inbox-header {
+  position: relative;
+  z-index: 30;
+  pointer-events: auto;
+  isolation: isolate;
+}

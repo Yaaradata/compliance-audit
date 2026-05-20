@@ -2,6 +2,13 @@
 
 import React, { useState } from 'react';
 import { personas } from './dataModel';
+import {
+  controlUniverseSubtitleForVersion,
+  navSectionsForVersion,
+  sidebarHiddenScreensForVersion,
+} from './ori/oriVersionConfig';
+import { PERSONA_DEFAULT_SCREEN, sidebarScreenCodesExcludingHome } from './ori/personaNavigation';
+import { useOriVersion } from './ori/OriVersionProvider';
 import { personaAccent } from './theme';
 
 export type ScreenCode =
@@ -61,8 +68,6 @@ export const PERSONA_META: Record<
   },
 };
 
-export const HOME_SCREEN: ScreenCode = 'riskPosture';
-
 // Persona-scoped navigation per Pass 4 §3.2
 // Each persona only sees the screens that answer their persona-questions.
 type ScreenEntry = { code: ScreenCode; label: string; subtitle: string; icon: string };
@@ -97,8 +102,8 @@ export const SCREEN: Record<ScreenCode, { label: string; subtitle: string; icon:
 };
 
 /**
- * Screens that remain routable (deep links, demo, renderScreen) but are not listed in the sidebar.
- * whatChanged — cockpit only. aiInsights — review queue links from cockpit / control drill-down.
+ * Screens hidden from sidebar for v2 (legacy export). Prefer {@link sidebarHiddenScreensForVersion}.
+ * v1: only whatChanged hidden. v2: also aiInsights + controlDrillDown (merged into control universe).
  */
 export const SIDEBAR_HIDDEN_SCREENS: ReadonlySet<ScreenCode> = new Set(['whatChanged', 'aiInsights', 'controlDrillDown']);
 
@@ -133,16 +138,38 @@ export const PERSONA_NAV: Record<PersonaCode, ScreenCode[]> = {
   ],
 };
 
-/** Sidebar-visible screens for the active persona (filters {@link SIDEBAR_HIDDEN_SCREENS}). */
-export function sidebarScreensForPersona(persona: PersonaCode): ScreenCode[] {
-  return PERSONA_NAV[persona].filter((code) => !SIDEBAR_HIDDEN_SCREENS.has(code));
+/** Sidebar-visible screens for the active persona (version-aware). */
+export function sidebarScreensForPersona(persona: PersonaCode, version: 'v1' | 'v2' = 'v2'): ScreenCode[] {
+  const hidden = sidebarHiddenScreensForVersion(version);
+  return PERSONA_NAV[persona].filter((code) => !hidden.has(code));
 }
 
-export const PERSONA_DEFAULT_SCREEN: Record<PersonaCode, ScreenCode> = {
-  cro: 'riskPosture',
-  compliance: 'rcsaWorkspace',
-  audit: 'populationTesting',
+export { PERSONA_DEFAULT_SCREEN } from './ori/personaNavigation';
+
+/** @deprecated Prefer `homeScreenForPersona` from `./ori/personaNavigation`. CRO landing only. */
+export const HOME_SCREEN: ScreenCode = 'riskPosture';
+
+export type PersonaHomeNavMeta = {
+  screen: ScreenCode;
+  label: 'Home';
+  destinationLabel: string;
+  subtitle: string;
+  icon: string;
+  title: string;
 };
+
+export function personaHomeNavMeta(persona: PersonaCode): PersonaHomeNavMeta {
+  const screen = PERSONA_DEFAULT_SCREEN[persona];
+  const destinationLabel = SCREEN[screen].label;
+  return {
+    screen,
+    label: 'Home',
+    destinationLabel,
+    subtitle: SCREEN_FUNCTIONAL_SUBTITLE[screen],
+    icon: SCREEN[screen].icon,
+    title: `Home — ${destinationLabel}`,
+  };
+}
 
 /** User-facing screen straplines (functional copy — not spec IDs). */
 export const SCREEN_FUNCTIONAL_SUBTITLE: Record<ScreenCode, string> = {
@@ -170,30 +197,6 @@ export const SCREEN_FUNCTIONAL_SUBTITLE: Record<ScreenCode, string> = {
   processHealth: 'Process variants, PVDS drift, and linked controls.',
   pacNoteApprovals: 'ORM queue for PAC notes — blocking preventive actions and RCA references.',
 };
-
-/** ORI Pass 6a — sidebar sectioning (§2.4 screen sets; section order A–D per reframe brief). */
-const ORI_NAV_SECTIONS: { id: string; label: string; codes: ScreenCode[] }[] = [
-  { id: 'posture', label: 'Posture', codes: ['riskPosture'] },
-  {
-    id: 'riskControl',
-    label: 'Risk & Control Workspace',
-    codes: ['rcsaWorkspace', 'riskRegister', 'kriMonitoring', 'obligationCoverage', 'controlUniverse', 'sourceLineage', 'processHealth'],
-  },
-  { id: 'incidents', label: 'Incidents, RCA & KRI', codes: ['incidentRegister', 'rcaWorkspace', 'issueBoard', 'accountability', 'lossData'] },
-  {
-    id: 'regulatory',
-    label: 'Regulatory & Inspection',
-    codes: [
-      'regulatoryIntelligence',
-      'populationTesting',
-      'evidenceWorkbench',
-      'pacNoteApprovals',
-      'workpaperAuditPackBuilder',
-      'inspectionReadiness',
-      'aiInsights',
-    ],
-  },
-];
 
 // ────────────────────────────────────────────────────────────────────────────
 // PersonaSwitcher — TopBar dropdown ("Acting as ▾"), USBankingAudit pattern
@@ -315,6 +318,7 @@ export function TopBar({
   setActivePersona,
   activeScreen,
   demoMode,
+  onStartGuidedDemo,
   personaOpenRequested,
   onPersonaOpenConsumed,
 }: {
@@ -322,6 +326,7 @@ export function TopBar({
   setActivePersona: (c: PersonaCode) => void;
   activeScreen: ScreenCode;
   demoMode?: boolean;
+  onStartGuidedDemo?: () => void;
   personaOpenRequested?: boolean;
   onPersonaOpenConsumed?: () => void;
 }) {
@@ -345,6 +350,16 @@ export function TopBar({
           <span className="hidden truncate rounded-md bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider md:inline">
             {screenLabel}
           </span>
+          {onStartGuidedDemo && !demoMode ? (
+            <button
+              type="button"
+              onClick={onStartGuidedDemo}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-md bg-white/15 px-2.5 py-1.5 text-left text-[11px] font-semibold text-white ring-1 ring-white/25 hover:bg-white/25"
+              aria-label="Run guided demo"
+            >
+              <span className="truncate">▶ Run guided demo</span>
+            </button>
+          ) : null}
           {demoMode ? (
             <span className="rounded-md bg-amber-400/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-900">
               Demo on
@@ -378,21 +393,30 @@ export function MainNavigation({
   demoMode?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(true);
+  const { version } = useOriVersion();
   const meta = PERSONA_META[activePersona];
-  const personaOrder = sidebarScreensForPersona(activePersona);
+  const home = personaHomeNavMeta(activePersona);
+  const personaOrder = sidebarScreenCodesExcludingHome(
+    activePersona,
+    sidebarScreensForPersona(activePersona, version),
+  );
+  const navSections = navSectionsForVersion(version);
   const orderIndex = (code: ScreenCode) => {
     const i = personaOrder.indexOf(code);
     return i === -1 ? 999 : i;
   };
 
-  const sectionBlocks = ORI_NAV_SECTIONS.map((section) => {
+  const sectionBlocks = navSections.map((section) => {
     const entries = section.codes
       .filter((code) => personaOrder.includes(code))
       .sort((a, b) => orderIndex(a) - orderIndex(b))
       .map((code) => ({
         code,
         label: SCREEN[code].label,
-        subtitle: SCREEN_FUNCTIONAL_SUBTITLE[code],
+        subtitle:
+          code === 'controlUniverse'
+            ? controlUniverseSubtitleForVersion(version) || SCREEN_FUNCTIONAL_SUBTITLE[code]
+            : SCREEN_FUNCTIONAL_SUBTITLE[code],
         icon: SCREEN[code].icon,
       }));
     return { ...section, entries };
@@ -428,24 +452,36 @@ export function MainNavigation({
       <div className={`flex-1 overflow-y-auto py-3 ${isOpen ? 'px-2' : 'px-1.5'}`}>
         <button
           type="button"
-          title="Home — Executive Risk Posture Cockpit"
-          onClick={() => setActiveScreen(HOME_SCREEN)}
+          title={home.title}
+          aria-current={activeScreen === home.screen ? 'page' : undefined}
+          onClick={() => setActiveScreen(home.screen)}
           className={`mb-2 flex w-full rounded-md px-2.5 py-2 text-xs transition-colors ${
-            isOpen ? 'items-center gap-2.5 text-left' : 'items-center justify-center'
+            isOpen ? 'items-start gap-2.5 text-left' : 'items-center justify-center'
           } ${
-            activeScreen === HOME_SCREEN
+            activeScreen === home.screen
               ? 'bg-indigo-50 font-semibold text-indigo-800 ring-1 ring-indigo-200'
               : 'text-slate-700 hover:bg-slate-50'
           }`}
         >
           <span
-            className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center text-base ${
-              activeScreen === HOME_SCREEN ? 'text-indigo-700' : 'text-slate-400'
+            className={`mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center text-base ${
+              activeScreen === home.screen ? 'text-indigo-700' : 'text-slate-400'
             }`}
           >
             ⌂
           </span>
-          {isOpen ? <span className="truncate font-semibold">Home</span> : null}
+          {isOpen ? (
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-semibold">{home.label}</span>
+              <span
+                className={`block truncate text-[10px] font-normal ${
+                  activeScreen === home.screen ? 'text-indigo-600' : 'text-slate-400'
+                }`}
+              >
+                {home.destinationLabel}
+              </span>
+            </span>
+          ) : null}
         </button>
         {sectionBlocks.map((block) => (
           <div key={block.id} className="mb-3 last:mb-0">

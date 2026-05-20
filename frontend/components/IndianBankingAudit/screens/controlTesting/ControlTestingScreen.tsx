@@ -30,6 +30,7 @@ import { RegIntelSparkline } from '@/components/IndianBankingAudit/screens/regIn
 import { RegIntelHelpTip } from '@/components/IndianBankingAudit/screens/regIntel/RegIntelHelpTip';
 import { useOriVersion } from '@/components/IndianBankingAudit/ori/OriVersionProvider';
 import { OriStandalonePageShell } from '@/components/IndianBankingAudit/ori/OriStandalonePageShell';
+import { oriWorkflowStore, useTestRunsForControl } from '@/components/IndianBankingAudit/ori/oriWorkflowStore';
 
 const STATUS_META: Record<
   ControlTestStatus,
@@ -74,7 +75,13 @@ function cesTone(current: number, target: number): { color: string; bg: string; 
   return { color: '#991B1B', bg: '#FEE2E2', label: 'below target' };
 }
 
-export function ControlTestingScreen({ controlIdParam }: { controlIdParam: string | null }) {
+export function ControlTestingScreen({
+  controlIdParam,
+  embedded = false,
+}: {
+  controlIdParam: string | null;
+  embedded?: boolean;
+}) {
   const [statusFilter, setStatusFilter] = useState<'all' | ControlTestStatus>('all');
   const [domainFilter, setDomainFilter] = useState<'all' | ControlDomain>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,16 +152,8 @@ export function ControlTestingScreen({ controlIdParam }: { controlIdParam: strin
     setSearchTerm('');
   };
 
-  return (
-    <OriStandalonePageShell
-      title="Control Testing"
-      subtitle="2LoD operating-effectiveness evidence over the bank's control universe, joined to the obligations they cover."
-      rightSlot={
-        <span className="hidden rounded-md bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700 ring-1 ring-indigo-200 sm:inline-flex">
-          {universeKpi.total} controls · {universeKpi.linkedObligations} obligations linked
-        </span>
-      }
-    >
+  const body = (
+    <>
       {/* KPI strip */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile value={universeKpi.total} label="Total controls" tone="indigo" />
@@ -312,6 +311,24 @@ export function ControlTestingScreen({ controlIdParam }: { controlIdParam: strin
           </aside>
         )}
       </section>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-6">{body}</div>;
+  }
+
+  return (
+    <OriStandalonePageShell
+      title="Control Testing"
+      subtitle="2LoD operating-effectiveness evidence over the bank's control universe, joined to the obligations they cover."
+      rightSlot={
+        <span className="hidden rounded-md bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700 ring-1 ring-indigo-200 sm:inline-flex">
+          {universeKpi.total} controls · {universeKpi.linkedObligations} obligations linked
+        </span>
+      }
+    >
+      {body}
     </OriStandalonePageShell>
   );
 }
@@ -551,64 +568,8 @@ function ControlDetailPanel({
           <p className="mt-1 text-sm leading-relaxed text-slate-700">{control.testing_narrative}</p>
         </section>
 
-        <section>
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Recent test runs</h3>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-            >
-              <PlayCircle className="h-3 w-3" aria-hidden />
-              Run new test
-            </button>
-          </div>
-          <div className="overflow-hidden rounded-lg border border-slate-200">
-            <table className="min-w-full text-left text-xs">
-              <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th className="px-3 py-2">Date</th>
-                  <th className="px-3 py-2">Tester</th>
-                  <th className="px-3 py-2">Sample</th>
-                  <th className="px-3 py-2">Exceptions</th>
-                  <th className="px-3 py-2">Evidence</th>
-                  <th className="px-3 py-2">Result</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {control.test_runs.map((run) => {
-                  const rm = RESULT_META[run.result];
-                  return (
-                    <tr key={run.id} className="align-top">
-                      <td className="whitespace-nowrap px-3 py-2 font-mono text-slate-700">{formatDate(run.test_date)}</td>
-                      <td className="px-3 py-2 text-slate-700">
-                        <div className="font-semibold text-slate-900">{run.tester}</div>
-                        <div className="text-[10px] text-slate-500">{run.tester_role}</div>
-                      </td>
-                      <td className="px-3 py-2 tabular-nums text-slate-700">{run.sample_size}</td>
-                      <td className="px-3 py-2 tabular-nums">
-                        <span
-                          className={`font-semibold ${run.exceptions === 0 ? 'text-emerald-700' : 'text-amber-700'}`}
-                        >
-                          {run.exceptions}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 tabular-nums text-slate-700">{run.evidence_count}</td>
-                      <td className="px-3 py-2">
-                        <span
-                          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-                          style={{ backgroundColor: rm.bg, color: rm.color }}
-                        >
-                          {rm.label}
-                        </span>
-                        <p className="mt-1 text-[11px] leading-snug text-slate-600">{run.narrative}</p>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <ControlTestRuns control={control} />
+
 
         <section>
           <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -730,3 +691,177 @@ function ControlDetailPanel({
     </article>
   );
 }
+
+function ControlTestRuns({ control }: { control: ControlRecord }) {
+  const persistedRuns = useTestRunsForControl(control.id);
+  const [busy, setBusy] = useState<'idle' | 'pass' | 'pass_with_exception' | 'fail'>('idle');
+
+  function runTest(result: ControlTestRunRecordResult) {
+    setBusy(result);
+    const popSize = Math.max(control.sample_size_latest * 6, 240);
+    const sampled = Math.max(20, Math.round(control.sample_size_latest * 0.95));
+    let exceptions = 0;
+    if (result === 'pass_with_exception') exceptions = Math.max(1, Math.round(sampled * 0.03));
+    if (result === 'fail') exceptions = Math.max(2, Math.round(sampled * 0.09));
+    const passed = sampled - exceptions;
+    oriWorkflowStore.addTestRun({
+      run_id: `RUN-${control.id}-${Date.now().toString(36).toUpperCase()}`,
+      control_id: control.id,
+      ran_at: new Date().toISOString(),
+      ran_by_role: control.tester_2lod_role || 'Control Tester (2LoD)',
+      population_size: popSize,
+      sampled,
+      passed,
+      failed: result === 'fail' ? exceptions : 0,
+      exceptions,
+      result,
+      notes:
+        result === 'pass'
+          ? 'Sample reperformance — design and operating effectiveness confirmed.'
+          : result === 'pass_with_exception'
+            ? 'Operating effectiveness confirmed with minor exceptions — to be tracked.'
+            : 'Operating effectiveness gaps observed — preventive action recommended.',
+    });
+    window.setTimeout(() => setBusy('idle'), 400);
+  }
+
+  return (
+    <section>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          Recent test runs ({control.test_runs.length + persistedRuns.length})
+        </h3>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => runTest('pass')}
+            disabled={busy !== 'idle'}
+            className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100 disabled:opacity-60"
+          >
+            <PlayCircle className="h-3 w-3" aria-hidden />
+            Run test (pass)
+          </button>
+          <button
+            type="button"
+            onClick={() => runTest('pass_with_exception')}
+            disabled={busy !== 'idle'}
+            className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-900 shadow-sm hover:bg-amber-100 disabled:opacity-60"
+          >
+            <PlayCircle className="h-3 w-3" aria-hidden />
+            Run test (exception)
+          </button>
+          <button
+            type="button"
+            onClick={() => runTest('fail')}
+            disabled={busy !== 'idle'}
+            className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-rose-800 shadow-sm hover:bg-rose-100 disabled:opacity-60"
+          >
+            <PlayCircle className="h-3 w-3" aria-hidden />
+            Run test (fail)
+          </button>
+        </div>
+      </div>
+
+      {persistedRuns.length ? (
+        <div className="mb-3 overflow-hidden rounded-lg border border-indigo-200 bg-indigo-50/60">
+          <div className="border-b border-indigo-200/80 bg-indigo-100/70 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-800">
+            Live test runs ({persistedRuns.length}) — persisted
+          </div>
+          <table className="min-w-full text-left text-xs">
+            <thead className="bg-indigo-100/30 text-[10px] font-bold uppercase tracking-wider text-indigo-800">
+              <tr>
+                <th className="px-3 py-2">Ran at</th>
+                <th className="px-3 py-2">Tester</th>
+                <th className="px-3 py-2">Population</th>
+                <th className="px-3 py-2">Sampled</th>
+                <th className="px-3 py-2">Exceptions</th>
+                <th className="px-3 py-2">Result</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-indigo-100">
+              {persistedRuns.map((run) => {
+                const rm = RESULT_META[run.result];
+                return (
+                  <tr key={run.run_id} className="align-top">
+                    <td className="whitespace-nowrap px-3 py-2 font-mono text-[10px] text-indigo-900">
+                      {new Date(run.ran_at).toLocaleString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td className="px-3 py-2 text-indigo-900">{run.ran_by_role}</td>
+                    <td className="px-3 py-2 tabular-nums text-indigo-900">{run.population_size}</td>
+                    <td className="px-3 py-2 tabular-nums text-indigo-900">{run.sampled}</td>
+                    <td className="px-3 py-2 tabular-nums">
+                      <span className={`font-semibold ${run.exceptions === 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        {run.exceptions}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span
+                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                        style={{ backgroundColor: rm.bg, color: rm.color }}
+                      >
+                        {rm.label}
+                      </span>
+                      <p className="mt-1 max-w-md text-[11px] leading-snug text-indigo-900/85">{run.notes}</p>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      <div className="overflow-hidden rounded-lg border border-slate-200">
+        <table className="min-w-full text-left text-xs">
+          <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <tr>
+              <th className="px-3 py-2">Date</th>
+              <th className="px-3 py-2">Tester</th>
+              <th className="px-3 py-2">Sample</th>
+              <th className="px-3 py-2">Exceptions</th>
+              <th className="px-3 py-2">Evidence</th>
+              <th className="px-3 py-2">Result</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {control.test_runs.map((run) => {
+              const rm = RESULT_META[run.result];
+              return (
+                <tr key={run.id} className="align-top">
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-slate-700">{formatDate(run.test_date)}</td>
+                  <td className="px-3 py-2 text-slate-700">
+                    <div className="font-semibold text-slate-900">{run.tester}</div>
+                    <div className="text-[10px] text-slate-500">{run.tester_role}</div>
+                  </td>
+                  <td className="px-3 py-2 tabular-nums text-slate-700">{run.sample_size}</td>
+                  <td className="px-3 py-2 tabular-nums">
+                    <span className={`font-semibold ${run.exceptions === 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      {run.exceptions}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 tabular-nums text-slate-700">{run.evidence_count}</td>
+                  <td className="px-3 py-2">
+                    <span
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                      style={{ backgroundColor: rm.bg, color: rm.color }}
+                    >
+                      {rm.label}
+                    </span>
+                    <p className="mt-1 text-[11px] leading-snug text-slate-600">{run.narrative}</p>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+type ControlTestRunRecordResult = 'pass' | 'pass_with_exception' | 'fail';

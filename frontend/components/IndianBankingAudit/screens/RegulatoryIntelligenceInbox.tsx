@@ -17,8 +17,8 @@ import {
   computeKpiSummary,
   countAlertsBySubTab,
   filterAlertsBySearchTerm,
-  sortInboxAlerts,
 } from './regIntel/regIntelFilters';
+import { DEFAULT_INBOX_SORT, type RegIntelInboxSortState } from './regIntel/regIntelInboxSort';
 import { RegIntelZoneA } from './regIntel/RegIntelZoneA';
 import { RegIntelZoneB } from './regIntel/RegIntelZoneB';
 import { RegIntelZoneC } from './regIntel/RegIntelZoneC';
@@ -146,6 +146,7 @@ function RegulatoryIntelligenceInboxInner() {
   const [customDateTo, setCustomDateTo] = useState('');
   const [penaltyOnlyFilter, setPenaltyOnlyFilter] = useState(false);
   const [ccoMetricsDrawerOpen, setCcoMetricsDrawerOpen] = useState(false);
+  const [inboxSort, setInboxSort] = useState<RegIntelInboxSortState>(DEFAULT_INBOX_SORT);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDataReady(true), 800);
@@ -238,8 +239,6 @@ function RegulatoryIntelligenceInboxInner() {
     () => filterAlertsBySearchTerm(preSearchAlerts, searchTerm),
     [preSearchAlerts, searchTerm]
   );
-
-  const sortedInboxAlerts = useMemo(() => sortInboxAlerts(filteredAlerts), [filteredAlerts]);
 
   const selectedAlert = useMemo(
     () => (selectedAlertId ? alerts.find((a) => a.id === selectedAlertId) ?? null : null),
@@ -375,7 +374,7 @@ function RegulatoryIntelligenceInboxInner() {
         >
           <div className="flex min-w-0 flex-col">
             <RegIntelZoneB
-              alerts={sortedInboxAlerts}
+              alerts={filteredAlerts}
               selectedAlertId={selectedAlertId}
               onSelectAlert={onSelectAlert}
               onClearFilters={onClearFilters}
@@ -384,6 +383,8 @@ function RegulatoryIntelligenceInboxInner() {
               preSearchMatchCount={preSearchAlerts.length}
               onClearSearch={onClearSearch}
               inboxLayout="flow"
+              inboxSort={inboxSort}
+              onInboxSortChange={setInboxSort}
             />
           </div>
           {selectedAlert ? (

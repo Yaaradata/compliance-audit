@@ -207,6 +207,15 @@ export function RcsaWorkspace({ openDrawer }: { openDrawer: OpenDrawer }) {
     window.setTimeout(() => setToast(null), 2600);
   }, []);
 
+  const toggleCycleExpanded = useCallback((cycleId: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(cycleId)) next.delete(cycleId);
+      else next.add(cycleId);
+      return next;
+    });
+  }, []);
+
   const cellsByCycle = useMemo(() => {
     const m = new Map<string, RcsaCell[]>();
     for (const c of rcsaCells) {
@@ -362,7 +371,7 @@ export function RcsaWorkspace({ openDrawer }: { openDrawer: OpenDrawer }) {
         </div>
       </SectionCard>
 
-      <SectionCard title="RCSA cycles" subtitle="Expand a row to inspect assessed cells · FY26-H1">
+      <SectionCard title="RCSA cycles" subtitle="Click a row to inspect assessed cells · FY26-H1">
         {!filteredCycles.length ? (
           <EmptyState
             message="No RCSA cycles match these filters."
@@ -396,7 +405,20 @@ export function RcsaWorkspace({ openDrawer }: { openDrawer: OpenDrawer }) {
                   const open = expanded.has(c.rcsa_cycle_id);
                   return (
                     <React.Fragment key={c.rcsa_cycle_id}>
-                      <tr className="border-t border-slate-100 hover:bg-slate-50">
+                      <tr
+                        className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${open ? 'bg-indigo-50/50' : ''} ${oriFocusRing}`}
+                        onClick={() => toggleCycleExpanded(c.rcsa_cycle_id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleCycleExpanded(c.rcsa_cycle_id);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-expanded={open}
+                        aria-label={`${open ? 'Collapse' : 'Expand'} RCSA cycle for ${c.business_unit || c.cycle_name}`}
+                      >
                         <td className="px-2 py-2 font-medium text-slate-800">{c.business_unit || c.cycle_name}</td>
                         <td className="px-2 py-2 text-slate-600">
                           {c.fiscal_period_label} · {fmtDate(c.period_start)} – {fmtDate(c.period_end)}
@@ -410,22 +432,8 @@ export function RcsaWorkspace({ openDrawer }: { openDrawer: OpenDrawer }) {
                         </td>
                         <td className={`px-2 py-2 text-right font-bold ${days < 0 ? 'text-rose-700' : 'text-slate-700'}`}>{days}</td>
                         <td className="px-2 py-2 text-slate-700">{sm?.name ?? c.owner_senior_manager_id}</td>
-                        <td className="px-2 py-2 text-center">
-                          <button
-                            type="button"
-                            className="rounded border border-slate-200 px-2 py-0.5 font-mono text-[10px] text-slate-600 hover:bg-white"
-                            aria-expanded={open}
-                            onClick={() =>
-                              setExpanded((prev) => {
-                                const n = new Set(prev);
-                                if (n.has(c.rcsa_cycle_id)) n.delete(c.rcsa_cycle_id);
-                                else n.add(c.rcsa_cycle_id);
-                                return n;
-                              })
-                            }
-                          >
-                            {open ? '⌄' : '>'}
-                          </button>
+                        <td className="px-2 py-2 text-center text-slate-400" aria-hidden>
+                          <span className="inline-block font-mono text-[11px] leading-none">{open ? '⌄' : '›'}</span>
                         </td>
                       </tr>
                       {open && (

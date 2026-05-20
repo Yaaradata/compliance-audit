@@ -29,6 +29,8 @@ import { IssueRemediationBoard } from './screens/IssueRemediationBoard';
 import { KriMonitoring } from './screens/KriMonitoring';
 import { LossDataRegister } from './screens/LossDataRegister';
 import { ObligationCoverageMap } from './screens/ObligationCoverageMap';
+import { ControlTestingScreen } from './screens/controlTesting/ControlTestingScreen';
+import { ControlDrillDownClassic } from './screens/v1/ControlDrillDownClassic';
 import { PopulationTesting } from './screens/PopulationTesting';
 import { ProcessHealth } from './screens/ProcessHealth';
 import { RcaWorkspace } from './screens/RcaWorkspace';
@@ -42,6 +44,7 @@ import { RegulatoryIntelligenceInbox } from './screens/RegulatoryIntelligenceInb
 import { DemoModeBar } from './DemoModeBar';
 import { DEMO_STEP_COUNT, DEMO_STEPS, DEMO_STORY } from './demoGuidedStory';
 import { OriDemoProvider, type OriDemoUiHints } from './OriDemoContext';
+import { featuresForVersion, normalizeScreenForVersion } from './ori/oriVersionConfig';
 import { useOriVersion } from './ori/OriVersionProvider';
 
 export type IndianBankingAuditAppProps = {
@@ -49,20 +52,24 @@ export type IndianBankingAuditAppProps = {
   initialScreen?: ScreenCode;
 };
 
-/** Legacy screen code → merged into Control Universe (inline drill-down). */
-function normalizeScreen(screen: ScreenCode): ScreenCode {
-  return screen === 'controlDrillDown' ? 'controlUniverse' : screen;
-}
 
 export default function IndianBankingAuditApp({
   initialPersona = 'cro',
   initialScreen = 'riskPosture',
 }: IndianBankingAuditAppProps = {}) {
+  const { version } = useOriVersion();
+  const features = featuresForVersion(version);
+
   const [activePersona, setActivePersonaState] = useState<PersonaCode>(initialPersona);
-  const [activeScreen, setActiveScreenState] = useState<ScreenCode>(() => normalizeScreen(initialScreen));
-  const setActiveScreen = useCallback((screen: ScreenCode) => {
-    setActiveScreenState(normalizeScreen(screen));
-  }, []);
+  const [activeScreen, setActiveScreenState] = useState<ScreenCode>(() =>
+    normalizeScreenForVersion(initialScreen, version),
+  );
+  const setActiveScreen = useCallback(
+    (screen: ScreenCode) => {
+      setActiveScreenState(normalizeScreenForVersion(screen, version));
+    },
+    [version],
+  );
   const [drawer, setDrawer] = useState<DrawerState>(initialDrawer());
 
   // Local selection state lifted for screens that take selected ids as props
@@ -236,18 +243,21 @@ export default function IndianBankingAuditApp({
   const screenMeta = useMemo(() => {
     const list = Array.isArray(screens) ? screens : [];
     const s = list.find((sc) => sc.code === activeScreen);
-    const strap = SCREEN_FUNCTIONAL_SUBTITLE[activeScreen];
+    let strap = SCREEN_FUNCTIONAL_SUBTITLE[activeScreen];
+    if (activeScreen === 'controlUniverse' && version === 'v1') {
+      strap = 'RCM-style control browser — CES, obligations, and population testability.';
+    }
     return {
       title: s?.title || SCREEN[activeScreen]?.label || 'Indian Banking Audit',
       subtitle: strap || undefined,
     };
-  }, [activeScreen]);
-
-  const { version } = useOriVersion();
+  }, [activeScreen, version]);
 
   /** Viewport-locked split panes (list/detail): main column uses overflow-hidden + flex fill. */
   const splitFillLayout =
-    activeScreen === 'rcaWorkspace' || activeScreen === 'pacNoteApprovals' || activeScreen === 'controlUniverse';
+    activeScreen === 'rcaWorkspace' ||
+    activeScreen === 'pacNoteApprovals' ||
+    (features.controlUniverseInlineDetail && activeScreen === 'controlUniverse');
   const cockpitV2Layout =
     version === 'v2' && (activeScreen === 'riskPosture' || activeScreen === 'whatChanged');
   const screenLayout = splitFillLayout ? 'splitFill' : cockpitV2Layout ? 'cockpitV2' : 'default';
@@ -260,6 +270,7 @@ export default function IndianBankingAuditApp({
           setActivePersona={setActivePersona}
           activeScreen={activeScreen}
           demoMode={demoMode}
+          onStartGuidedDemo={features.guidedDemoButton ? () => setDemoMode(true) : undefined}
           personaOpenRequested={personaOpenRequested}
           onPersonaOpenConsumed={() => setPersonaOpenRequested(false)}
         />
@@ -278,6 +289,7 @@ export default function IndianBankingAuditApp({
             }`}
           >
             <OriBreadcrumb
+              activePersona={activePersona}
               activeScreen={activeScreen}
               setActiveScreen={setActiveScreen}
               crumbs={
@@ -294,6 +306,8 @@ export default function IndianBankingAuditApp({
                 layout={screenLayout}
               >
                 {renderScreen({
+                version,
+                features,
                 activeScreen,
                 openDrawer,
                 drillFromDrawer,
@@ -337,6 +351,8 @@ export default function IndianBankingAuditApp({
 }
 
 function renderScreen({
+  version,
+  features,
   activeScreen,
   openDrawer,
   drillFromDrawer,
@@ -352,6 +368,8 @@ function renderScreen({
   consumeOrmCrossNav,
   goOrm,
 }: {
+  version: 'v1' | 'v2';
+  features: ReturnType<typeof featuresForVersion>;
   activeScreen: ScreenCode;
   openDrawer: (t: DrawerEntityType, id: string, src: string) => void;
   drillFromDrawer: DrillFromDrawer;
@@ -408,12 +426,22 @@ function renderScreen({
       return <RiskRegister openDrawer={openDrawer} />;
     case 'obligationCoverage':
       return <ObligationCoverageMap openDrawer={openDrawer} setActiveScreen={setScreen} />;
+    case 'controlDrillDown':
+      return (
+        <ControlDrillDownClassic
+          selectedControlId={selectedControlId || controls[0]?.control_id || ''}
+          setSelectedControlId={setSelectedControlId}
+          openDrawer={openDrawer}
+          setActiveScreen={setScreen}
+        />
+      );
     case 'controlUniverse':
       return (
         <ControlUniverse
           openDrawer={openDrawer}
           selectedControlId={selectedControlId}
           setSelectedControlId={setSelectedControlId}
+          setActiveScreen={setScreen}
         />
       );
     case 'aiInsights':
@@ -434,7 +462,9 @@ function renderScreen({
     case 'evidenceWorkbench':
       return <EvidenceWorkbench openDrawer={openDrawer} />;
     case 'populationTesting':
-      return (
+      return features.controlTestingV2 ? (
+        <ControlTestingScreen controlIdParam={null} embedded />
+      ) : (
         <PopulationTesting
           selectedTestId={selectedTestId}
           setSelectedTestId={setSelectedTestId}
