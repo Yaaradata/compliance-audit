@@ -15,9 +15,17 @@ import {
   Workflow, GitBranch, MinusCircle, Info, UserRound,
   CalendarClock, MapPin, Mail, Hash,
   Sparkles,
+  Radio,
 } from 'lucide-react';
 import AuditCard, { AuditCardSkeleton } from '@/components/Indian_Process_Audit/AuditCard';
 import { useIpaVersion } from '@/components/Indian_Process_Audit/ipa/IpaVersionProvider';
+import FastTagAuditDashboard from '@/app/Indian_Process_Audit/v2/Fast-Tag/FastTagAuditDashboard';
+import {
+  FASTAG_CONTROL_COUNT,
+  getFastTagDomainAuditCard,
+  getFastTagProcessMappingRow,
+} from '@/app/Indian_Process_Audit/v2/Fast-Tag/auditData';
+import { buildFastTagEvidence } from '@/app/Indian_Process_Audit/v2/Fast-Tag/buildFastTagEvidence';
 import { getProcessAuditData } from '@/lib/Indian_Process_Audit';
 import type { AuditControl, EvidenceDrawerState, ProcessAuditTabId } from '@/lib/Indian_Process_Audit/types';
 
@@ -685,7 +693,7 @@ const ResidualRiskBanner = () => {
   );
 };
 
-const DomainProcessMappingSection = () => (
+const DomainProcessMappingSection = ({ extraRows = [] }) => (
   <section className="overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
     <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
@@ -707,7 +715,7 @@ const DomainProcessMappingSection = () => (
           </tr>
         </thead>
         <tbody className="text-slate-800">
-          {D.DOMAIN_PROCESS_MAPPING_ROWS.map((r) => (
+          {[...D.DOMAIN_PROCESS_MAPPING_ROWS, ...extraRows].map((r) => (
             <tr key={r.id} className="border-t border-slate-100">
               <td className="max-w-[220px] truncate py-2 pr-3 font-medium" title={r.domain}>
                 {r.domain}
@@ -819,13 +827,14 @@ const FindingsSummaryDrillSection = ({ onDrillDown }) => {
   );
 };
 
-const OverviewTab = ({ onDrillDown }) => {
-  const sortedDomains = useMemo(
-    () => [...D.DOMAIN_AUDIT_VIEW].sort(
-      (a, b) => (b.violations * 10 + b.overdueRemediation) - (a.violations * 10 + a.overdueRemediation)
-    ),
-    []
-  );
+const OverviewTab = ({ onDrillDown, isV2 = false }) => {
+  const sortedDomains = useMemo(() => {
+    const rows = isV2 ? [...D.DOMAIN_AUDIT_VIEW, getFastTagDomainAuditCard()] : D.DOMAIN_AUDIT_VIEW;
+    return [...rows].sort(
+      (a, b) => (b.violations * 10 + b.overdueRemediation) - (a.violations * 10 + a.overdueRemediation),
+    );
+  }, [isV2]);
+  const mappingExtraRows = isV2 ? [getFastTagProcessMappingRow()] : [];
   const [cardsLoading, setCardsLoading] = useState(true);
 
   useEffect(() => {
@@ -849,7 +858,7 @@ const OverviewTab = ({ onDrillDown }) => {
         intelligencePanel={<AiAuditIntelligenceCard onDrillDown={onDrillDown} />}
       />
 
-      <DomainProcessMappingSection />
+      <DomainProcessMappingSection extraRows={mappingExtraRows} />
 
       {/* Audit domains — interactive cards with trends, AI focus hierarchy and drill-in expand */}
       <section className="bg-white ring-1 ring-slate-200 rounded-lg overflow-hidden">
@@ -936,7 +945,13 @@ const StageHealthPill = ({ health }) => {
   );
 };
 
-const SopProcessView = ({ sop, controls, onOpenEvidence, domainLabel }) => {
+const SopProcessView = ({
+  sop,
+  controls,
+  onOpenEvidence,
+  domainLabel,
+  getAuditorFocusForControl = D.getAuditorFocusForControl,
+}) => {
   const stageAgg = useMemo(
     () => sop.stages.map((s) => ({ ...s, ...aggregateStage(s, controls) })),
     [sop, controls]
@@ -949,38 +964,64 @@ const SopProcessView = ({ sop, controls, onOpenEvidence, domainLabel }) => {
   const totalViolations = stageAgg.reduce((s, st) => s + st.violations, 0);
   const missedStages    = stageAgg.filter((s) => s.health !== 'ok').length;
 
+  const sopMetricCards = [
+    {
+      label: 'SOP stages',
+      value: sop.stages.length,
+      labelClass: 'text-slate-500',
+      valueClass: 'text-slate-900',
+      cardClass: 'bg-slate-50/80 ring-slate-200',
+    },
+    {
+      label: 'Stages w/ miss',
+      value: missedStages,
+      labelClass: 'text-red-700',
+      valueClass: 'text-red-700',
+      cardClass: 'bg-red-50/50 ring-red-200',
+    },
+    {
+      label: 'Failed cases',
+      value: totalExceptions,
+      labelClass: 'text-amber-800',
+      valueClass: 'text-amber-700',
+      cardClass: 'bg-amber-50/50 ring-amber-200',
+    },
+    {
+      label: 'Critical failures',
+      value: totalViolations,
+      labelClass: 'text-red-700',
+      valueClass: 'text-red-700',
+      cardClass: 'bg-red-50/80 ring-red-200',
+    },
+  ];
+
   return (
     <div className="space-y-5">
       {/* SOP header */}
-      <div className="bg-white rounded-lg ring-1 ring-slate-200 p-5">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-md bg-slate-900 text-white flex items-center justify-center">
-              <Workflow className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">{sop.name}</h3>
-              <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">{sop.purpose}</p>
-            </div>
+      <div className="bg-white rounded-lg ring-1 ring-slate-200 p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 shrink-0 rounded-md bg-slate-900 text-white flex items-center justify-center">
+            <Workflow className="w-5 h-5" />
           </div>
-          <div className="flex gap-5 text-right text-xs">
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">SOP stages</div>
-              <div className="text-lg font-semibold text-slate-900">{sop.stages.length}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-red-700 font-semibold">Stages w/ miss</div>
-              <div className="text-lg font-semibold text-red-700">{missedStages}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-amber-700 font-semibold">Failed cases</div>
-              <div className="text-lg font-semibold text-amber-700">{totalExceptions}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-red-700 font-semibold">Critical failures</div>
-              <div className="text-lg font-semibold text-red-700">{totalViolations}</div>
-            </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900">{sop.name}</h3>
+            <p className="text-xs text-slate-500 mt-0.5 max-w-3xl">{sop.purpose}</p>
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {sopMetricCards.map((m) => (
+            <div
+              key={m.label}
+              className={`rounded-lg px-4 py-3 ring-1 ${m.cardClass}`}
+            >
+              <div className={`text-[10px] font-bold uppercase tracking-wider ${m.labelClass}`}>
+                {m.label}
+              </div>
+              <div className={`mt-1 text-2xl font-semibold tabular-nums leading-none ${m.valueClass}`}>
+                {m.value.toLocaleString('en-IN')}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -1110,7 +1151,7 @@ const SopProcessView = ({ sop, controls, onOpenEvidence, domainLabel }) => {
                                         {hasMiss ? 'Why this is a miss' : 'Auditor note'}
                                       </div>
                                       <p className="text-[13px] text-slate-800 leading-relaxed">
-                                        {D.getAuditorFocusForControl(c)}
+                                        {getAuditorFocusForControl(c)}
                                       </p>
                                     </div>
 
@@ -1196,32 +1237,57 @@ const getJourneyAuditCategory = (kase) => {
   return 'compliant';
 };
 
-const getJourneyExceptionCellText = (kase) => {
+const getJourneyExceptionCellText = (kase, controlExceptionLabels) => {
   if (kase.journeyException) return kase.journeyException;
   if (kase.overallStatus === 'compliant') return '—';
   const fs = kase.trail.find((t) => t.status === 'rejected' || t.status === 'pending');
   if (!fs) return '—';
-  const hint = D.CONTROL_EXCEPTION_LABEL[kase.failControlId] || kase.failControlId || 'Deviation';
+  const hint =
+    (controlExceptionLabels && controlExceptionLabels[kase.failControlId]) ||
+    D.CONTROL_EXCEPTION_LABEL[kase.failControlId] ||
+    kase.failControlId ||
+    'Deviation';
   if (fs.status === 'pending') return `Awaiting: ${hint}`;
   return hint;
 };
 
-/** One cell in the journey matrix — matches dashboard reference styling */
-const JourneyStageCell = ({ status, stageName }) => {
+/** One cell in the journey matrix — accepted/rejected cells open stage detail below */
+const JourneyStageCell = ({ status, stageName, onSelect, isSelected }) => {
   const title = `${stageName} — ${status}`;
-  if (status === 'accepted') {
+  const clickable = (status === 'accepted' || status === 'rejected') && onSelect;
+  const selectRing = isSelected ? 'ring-2 ring-indigo-500 ring-offset-1' : 'ring-1';
+  const hoverRing = clickable && !isSelected ? 'hover:ring-2 hover:ring-indigo-300' : '';
+
+  const wrap = (cls, children) => {
+    const className = `inline-flex h-8 w-8 items-center justify-center rounded-md ${selectRing} ${hoverRing} ${cls} ${clickable ? 'cursor-pointer' : ''}`;
+    if (clickable) {
+      return (
+        <button
+          type="button"
+          title={`${title} — click for stage detail`}
+          className={className}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
+          aria-pressed={isSelected}
+        >
+          {children}
+        </button>
+      );
+    }
     return (
-      <div title={title} className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-50 ring-1 ring-emerald-200">
-        <CheckCircle2 className="h-4 w-4 text-emerald-600" strokeWidth={2.25} />
+      <div title={title} className={className}>
+        {children}
       </div>
     );
+  };
+
+  if (status === 'accepted') {
+    return wrap('bg-emerald-50 ring-emerald-200', <CheckCircle2 className="h-4 w-4 text-emerald-600" strokeWidth={2.25} />);
   }
   if (status === 'rejected') {
-    return (
-      <div title={title} className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-red-50 ring-1 ring-red-200">
-        <XCircle className="h-4 w-4 text-red-600" strokeWidth={2.25} />
-      </div>
-    );
+    return wrap('bg-red-50 ring-red-200', <XCircle className="h-4 w-4 text-red-600" strokeWidth={2.25} />);
   }
   if (status === 'pending') {
     return (
@@ -1237,6 +1303,232 @@ const JourneyStageCell = ({ status, stageName }) => {
   );
 };
 
+/** Single-stage evidence trail (matrix cell click) or one step in full case trail. */
+const JourneyStageDetailBlock = ({ kase, item, idx, controlsById, domainLabel, onOpenEvidence, embedded = false }) => {
+  const stageCtrlIds = item.stage.controlIds;
+  const statusRingMap = {
+    accepted: 'ring-emerald-200 bg-white',
+    rejected: 'ring-red-300 bg-red-50/30',
+    pending: 'ring-amber-300 bg-amber-50/30',
+    blocked: 'ring-slate-200 bg-slate-50/60',
+  };
+
+  return (
+    <div>
+      {!embedded && (
+        <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-3">
+          Stage detail · {item.stage.name} · {kase.id}
+        </div>
+      )}
+      <div className={`rounded-lg ring-1 p-4 ${statusRingMap[item.status] || statusRingMap.blocked}`}>
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-slate-900">Stage {idx + 1} · {item.stage.name}</span>
+              <StageStatusChip status={item.status} />
+            </div>
+            <p className="text-[11px] text-slate-600 mt-1">{item.stage.description}</p>
+          </div>
+          <div className="flex items-center gap-2 bg-white rounded-md ring-1 ring-slate-200 px-3 py-2">
+            <Avatar name={item.submittedBy?.name} />
+            <div className="text-right">
+              <div className="text-xs font-semibold text-slate-900 leading-tight">
+                {item.submittedBy?.name || 'Not yet submitted'}
+              </div>
+              <div className="text-[10px] text-slate-500 leading-tight">
+                {item.stage.owner.role} · {item.stage.owner.team}
+              </div>
+              {item.submittedBy && (
+                <div className="text-[10px] text-slate-400 leading-tight font-mono mt-0.5">
+                  {item.submittedBy.empId} · {item.submittedBy.location}
+                </div>
+              )}
+              {item.submittedAt && (
+                <div className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                  <CalendarClock className="w-2.5 h-2.5 inline -mt-0.5 mr-0.5" />
+                  {item.submittedAt}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 text-[11px] text-slate-500">
+          <span className="font-semibold text-slate-600">Accountable to submit: </span>
+          {item.stage.owner.submits}
+        </div>
+        {item.evidenceItems.length > 0 && (
+          <div className="mt-3">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
+              Evidence submitted ({item.evidenceItems.length})
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+              {item.evidenceItems.map((ev, i) => (
+                <div key={i} className="flex items-center justify-between bg-white ring-1 ring-slate-200 rounded px-2.5 py-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-[11px] text-slate-800 font-medium truncate">{ev.name}</div>
+                      <div className="text-[10px] text-slate-500 truncate">{ev.system}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[10px] uppercase text-slate-500">{ev.type}</span>
+                    <span className="text-[10px] text-slate-400">{ev.size}</span>
+                    <Download className="w-3 h-3 text-slate-400" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {item.evidenceItems.length === 0 && item.status === 'blocked' && (
+          <div className="mt-3 text-[11px] text-slate-500 bg-slate-100 rounded px-3 py-2">
+            No evidence expected yet — this stage is blocked until the upstream stage is resolved.
+          </div>
+        )}
+        <div className="mt-3">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
+            Controls at this stage ({stageCtrlIds.length})
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {stageCtrlIds.map((cid) => {
+              const ctrl = controlsById[cid];
+              const result = item.controlResults[cid] || 'not-started';
+              const colors = {
+                pass: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+                fail: 'bg-red-50 text-red-700 ring-red-200',
+                pending: 'bg-amber-50 text-amber-700 ring-amber-200',
+                'not-started': 'bg-slate-50 text-slate-500 ring-slate-200',
+              };
+              const resultIcon = {
+                pass: <CheckCircle2 className="w-3 h-3" />,
+                fail: <XCircle className="w-3 h-3" />,
+                pending: <Clock className="w-3 h-3" />,
+                'not-started': <MinusCircle className="w-3 h-3" />,
+              }[result];
+              return (
+                <button
+                  key={cid}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (ctrl) onOpenEvidence(ctrl, domainLabel);
+                  }}
+                  className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded font-medium ring-1 hover:shadow-sm transition ${colors[result]}`}
+                  title={ctrl?.name}
+                >
+                  {resultIcon}
+                  <span className="font-mono">{cid}</span>
+                  <span className="hidden md:inline truncate max-w-[140px]">{ctrl?.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {item.status === 'rejected' && (
+          <div className="mt-3 bg-red-50 ring-1 ring-red-200 rounded p-2 text-[11px] text-red-800">
+            <div className="font-semibold mb-0.5 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" /> Auditor observation
+            </div>
+            Evidence did not satisfy control <span className="font-mono font-semibold">{kase.failControlId}</span>.
+            Owner informed; corrective action required before stage can be re-submitted.
+          </div>
+        )}
+        {item.status === 'accepted' && (
+          <div className="mt-3 bg-emerald-50/80 ring-1 ring-emerald-200 rounded p-2 text-[11px] text-emerald-900">
+            <div className="font-semibold mb-0.5 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Stage passed
+            </div>
+            All controls at this stage satisfied with accepted evidence.
+          </div>
+        )}
+        {item.status === 'pending' && (
+          <div className="mt-3 bg-amber-50 ring-1 ring-amber-200 rounded p-2 text-[11px] text-amber-800">
+            <div className="font-semibold mb-0.5 flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Awaiting submission
+            </div>
+            Accountable owner has not yet submitted required evidence for this stage. SLA breach trigger.
+          </div>
+        )}
+        {item.status === 'blocked' && (
+          <div className="mt-3 bg-slate-100 ring-1 ring-slate-200 rounded p-2 text-[11px] text-slate-600">
+            <div className="font-semibold mb-0.5 flex items-center gap-1">
+              <MinusCircle className="w-3 h-3" /> Blocked
+            </div>
+            Cannot begin until the upstream stage is resolved.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/** Full case trail — all SOP stages (issuance case column click). */
+const JourneyFullCaseTrail = ({ kase, controlsById, domainLabel, onOpenEvidence }) => (
+  <div>
+    <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-3">
+      Full submission trail · {kase.trail.length} stages · each submitted by the accountable role
+    </div>
+    <ol className="space-y-3 relative">
+      {kase.trail.map((item, idx) => {
+        const isLast = idx === kase.trail.length - 1;
+        return (
+          <li key={idx} className="relative pl-8">
+            {!isLast && <div className="absolute left-[11px] top-7 bottom-[-12px] w-px bg-slate-200" />}
+            <div
+              className={`absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ${
+                item.status === 'accepted'
+                  ? 'bg-emerald-500 text-white ring-emerald-100'
+                  : item.status === 'rejected'
+                    ? 'bg-red-500 text-white ring-red-100'
+                    : item.status === 'pending'
+                      ? 'bg-amber-500 text-white ring-amber-100'
+                      : 'bg-slate-300 text-white ring-slate-100'
+              }`}
+            >
+              {idx + 1}
+            </div>
+            <JourneyStageDetailBlock
+              embedded
+              kase={kase}
+              item={item}
+              idx={idx}
+              controlsById={controlsById}
+              domainLabel={domainLabel}
+              onOpenEvidence={onOpenEvidence}
+            />
+          </li>
+        );
+      })}
+    </ol>
+    <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2">
+      <div className="text-[11px] text-slate-500">
+        <UserCheck className="w-3 h-3 inline -mt-0.5 mr-1" />
+        Auditor verdict:{' '}
+        {kase.overallStatus === 'compliant'
+          ? 'Case fully satisfies all controls across all submitters.'
+          : kase.overallStatus === 'failure'
+            ? 'Case contains control failure requiring remediation before closure.'
+            : 'Case cannot be closed — evidence submission pending from accountable owner.'}
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="text-[11px] font-medium text-slate-700 bg-white ring-1 ring-slate-300 hover:bg-slate-100 rounded-md px-2.5 py-1 inline-flex items-center gap-1"
+        >
+          <Download className="w-3 h-3" /> Download case pack
+        </button>
+        <button
+          type="button"
+          className="text-[11px] font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md px-2.5 py-1 inline-flex items-center gap-1"
+        >
+          <UserCheck className="w-3 h-3" /> Mark as reviewed
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 const JourneyAuditPill = ({ category }) => {
   const map = {
     compliant: { cls: 'bg-emerald-50 text-emerald-800 ring-emerald-200', label: 'Compliant' },
@@ -1251,30 +1543,58 @@ const JourneyAuditPill = ({ category }) => {
   );
 };
 
-const CasesView = ({ domainId, sop, cases, entity, domainLabel, onOpenEvidence, controls }) => {
-  const [expanded, setExpanded] = useState({});
+const CasesView = ({
+  domainId,
+  sop,
+  cases,
+  entity,
+  domainLabel,
+  onOpenEvidence,
+  controls,
+  journeyTitle: journeyTitleProp,
+  getStageHeader,
+  controlExceptionLabels,
+  hideJourneyHeader = false,
+}) => {
+  /** Panel below matrix: full case trail or single stage ({ caseId, view }). */
+  const [casePanel, setCasePanel] = useState(null);
   const controlsById = Object.fromEntries(controls.map((c) => [c.id, c]));
-  const journeyTitle = D.JOURNEY_TITLE_BY_DOMAIN[domainId] || D.JOURNEY_TITLE_BY_DOMAIN.customer;
+  const journeyTitle = journeyTitleProp || D.JOURNEY_TITLE_BY_DOMAIN[domainId] || D.JOURNEY_TITLE_BY_DOMAIN.customer;
   const stageColSpan = 3 + (sop?.stages?.length || 0);
 
-  const toggle = (id) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleFullCase = (caseId) => {
+    setCasePanel((prev) =>
+      prev?.caseId === caseId && prev.view === 'full' ? null : { caseId, view: 'full' },
+    );
+  };
+
+  const toggleStageDetail = (caseId, stageIndex, status) => {
+    if (status !== 'accepted' && status !== 'rejected') return;
+    setCasePanel((prev) =>
+      prev?.caseId === caseId && prev.view === 'stage' && prev.stageIndex === stageIndex
+        ? null
+        : { caseId, view: 'stage', stageIndex },
+    );
+  };
 
   return (
     <div className="space-y-4">
 
       {/* Journey matrix — stage-wise control compliance (same pattern for every domain) */}
       <div className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
-        <div className="border-b border-slate-200 bg-slate-100/90 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-600" aria-hidden />
-            <h3 className="text-[11px] font-bold uppercase tracking-[0.06em] text-indigo-950 md:text-xs">
-              {journeyTitle}
-            </h3>
+        {!hideJourneyHeader && (
+          <div className="border-b border-slate-200 bg-slate-100/90 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-600" aria-hidden />
+              <h3 className="text-[11px] font-bold uppercase tracking-[0.06em] text-indigo-950 md:text-xs">
+                {journeyTitle}
+              </h3>
+            </div>
+            <p className="mt-1 pl-4 text-[11px] leading-relaxed text-slate-600">
+              Each column is an SOP stage. <span className="font-semibold text-slate-700">Green</span> = passed, <span className="font-semibold text-red-700">Red</span> = failed, <span className="font-semibold text-sky-700">R</span> = in review / pending, <span className="font-semibold text-slate-500">Grey</span> = blocked. Click the <span className="font-semibold text-slate-700">{entity.singular}</span> for all stages; click a <span className="font-semibold text-slate-700">green or red</span> cell for one stage only.
+            </p>
           </div>
-          <p className="mt-1 pl-4 text-[11px] leading-relaxed text-slate-600">
-            Each column is an SOP stage. <span className="font-semibold text-slate-700">Green</span> = passed, <span className="font-semibold text-red-700">Red</span> = failed, <span className="font-semibold text-sky-700">R</span> = in review / pending, <span className="font-semibold text-slate-500">Grey</span> = blocked. Click a row to expand the full evidence trail (who submitted what).
-          </p>
-        </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px] border-collapse text-sm">
@@ -1283,7 +1603,7 @@ const CasesView = ({ domainId, sop, cases, entity, domainLabel, onOpenEvidence, 
                 <th className="whitespace-nowrap px-3 py-2.5 pl-4">{entity.singular}</th>
                 {sop.stages.map((st) => (
                   <th key={st.id} className="px-1 py-2.5 text-center font-semibold" title={st.name}>
-                    {D.getJourneyStageHeader(domainId, st)}
+                    {getStageHeader ? getStageHeader(st) : D.getJourneyStageHeader(domainId, st)}
                   </th>
                 ))}
                 <th className="min-w-[120px] px-2 py-2.5">Exception</th>
@@ -1292,32 +1612,48 @@ const CasesView = ({ domainId, sop, cases, entity, domainLabel, onOpenEvidence, 
             </thead>
             <tbody className="divide-y divide-slate-100">
           {cases.map((kase) => {
-            const isOpen = !!expanded[kase.id];
+            const panelOpen = casePanel?.caseId === kase.id;
+            const showFullTrail = panelOpen && casePanel.view === 'full';
+            const showStagePanel =
+              panelOpen &&
+              casePanel.view === 'stage' &&
+              (() => {
+                const item = kase.trail[casePanel.stageIndex];
+                return item && (item.status === 'accepted' || item.status === 'rejected');
+              })();
+            const openItem = showStagePanel ? kase.trail[casePanel.stageIndex] : null;
             const auditCat = getJourneyAuditCategory(kase);
-            const excText = getJourneyExceptionCellText(kase);
+            const excText = getJourneyExceptionCellText(kase, controlExceptionLabels);
             const excBadge = auditCat !== 'compliant' && excText !== '—';
 
             return (
               <React.Fragment key={kase.id}>
-                <tr
-                  onClick={() => toggle(kase.id)}
-                  className="cursor-pointer bg-white transition-colors hover:bg-slate-50/80"
-                >
+                <tr className="bg-white transition-colors hover:bg-slate-50/80">
                   <td className="max-w-[220px] px-3 py-2.5 pl-4 align-middle">
-                    <div className="flex items-start gap-2">
-                      <span className="mt-0.5 text-slate-400">
-                        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <button
+                      type="button"
+                      onClick={() => toggleFullCase(kase.id)}
+                      className="flex w-full items-start gap-2 text-left rounded-md -m-1 p-1 hover:bg-slate-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                      aria-expanded={showFullTrail}
+                    >
+                      <span className="mt-0.5 text-slate-400 shrink-0">
+                        {panelOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </span>
                       <div className="min-w-0">
                         <div className="font-semibold leading-snug text-slate-900">{kase.subject}</div>
                         <div className="mt-0.5 font-mono text-[10px] text-slate-500">{kase.id}</div>
                         <div className="mt-0.5 line-clamp-1 text-[10px] text-slate-500">{kase.segment}</div>
                       </div>
-                    </div>
+                    </button>
                   </td>
-                  {kase.trail.map((t) => (
+                  {kase.trail.map((t, stageIdx) => (
                     <td key={t.stage.id} className="px-1 py-2 text-center align-middle">
-                      <JourneyStageCell status={t.status} stageName={t.stage.name} />
+                      <JourneyStageCell
+                        status={t.status}
+                        stageName={t.stage.name}
+                        isSelected={showStagePanel && casePanel.stageIndex === stageIdx}
+                        onSelect={() => toggleStageDetail(kase.id, stageIdx, t.status)}
+                      />
                     </td>
                   ))}
                   <td className="px-2 py-2 align-middle">
@@ -1334,190 +1670,35 @@ const CasesView = ({ domainId, sop, cases, entity, domainLabel, onOpenEvidence, 
                   </td>
                 </tr>
 
-                {/* Expanded stage-by-stage trail */}
-                {isOpen && (
+                {(showFullTrail || showStagePanel) && (
                   <tr className="bg-slate-50/90">
                     <td colSpan={stageColSpan} className="border-t border-slate-100 px-4 py-4">
-                    <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-3">
-                      Full submission trail · {kase.trail.length} stages · each submitted by the accountable role
-                    </div>
-
-                    <ol className="space-y-3 relative">
-                      {kase.trail.map((item, idx) => {
-                        const isLast = idx === kase.trail.length - 1;
-                        const stageCtrlIds = item.stage.controlIds;
-                        const statusRingMap = {
-                          accepted: 'ring-emerald-200 bg-white',
-                          rejected: 'ring-red-300 bg-red-50/30',
-                          pending:  'ring-amber-300 bg-amber-50/30',
-                          blocked:  'ring-slate-200 bg-slate-50/60',
-                        };
-
-                        return (
-                          <li key={idx} className="relative pl-8">
-                            {/* Timeline spine */}
-                            {!isLast && <div className="absolute left-[11px] top-7 bottom-[-12px] w-px bg-slate-200" />}
-                            {/* Stage index bubble */}
-                            <div className={`absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ${
-                              item.status === 'accepted' ? 'bg-emerald-500 text-white ring-emerald-100' :
-                              item.status === 'rejected' ? 'bg-red-500 text-white ring-red-100' :
-                              item.status === 'pending'  ? 'bg-amber-500 text-white ring-amber-100' :
-                                                            'bg-slate-300 text-white ring-slate-100'
-                            }`}>
-                              {idx + 1}
-                            </div>
-
-                            <div className={`rounded-lg ring-1 p-4 ${statusRingMap[item.status]}`}>
-                              {/* Stage header */}
-                              <div className="flex items-start justify-between flex-wrap gap-3">
-                                <div>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-sm font-semibold text-slate-900">Stage {idx + 1} · {item.stage.name}</span>
-                                    <StageStatusChip status={item.status} />
-                                  </div>
-                                  <p className="text-[11px] text-slate-600 mt-1">{item.stage.description}</p>
-                                </div>
-
-                                {/* Submitter */}
-                                <div className="flex items-center gap-2 bg-white rounded-md ring-1 ring-slate-200 px-3 py-2">
-                                  <Avatar name={item.submittedBy?.name} />
-                                  <div className="text-right">
-                                    <div className="text-xs font-semibold text-slate-900 leading-tight">
-                                      {item.submittedBy?.name || 'Not yet submitted'}
-                                    </div>
-                                    <div className="text-[10px] text-slate-500 leading-tight">
-                                      {item.stage.owner.role} · {item.stage.owner.team}
-                                    </div>
-                                    {item.submittedBy && (
-                                      <div className="text-[10px] text-slate-400 leading-tight font-mono mt-0.5">
-                                        {item.submittedBy.empId} · {item.submittedBy.location}
-                                      </div>
-                                    )}
-                                    {item.submittedAt && (
-                                      <div className="text-[10px] text-slate-400 leading-tight mt-0.5">
-                                        <CalendarClock className="w-2.5 h-2.5 inline -mt-0.5 mr-0.5" />
-                                        {item.submittedAt}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* What should be submitted */}
-                              <div className="mt-3 text-[11px] text-slate-500">
-                                <span className="font-semibold text-slate-600">Accountable to submit: </span>
-                                {item.stage.owner.submits}
-                              </div>
-
-                              {/* Evidence items */}
-                              {item.evidenceItems.length > 0 && (
-                                <div className="mt-3">
-                                  <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
-                                    Evidence submitted ({item.evidenceItems.length})
-                                  </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                                    {item.evidenceItems.map((ev, i) => (
-                                      <div key={i} className="flex items-center justify-between bg-white ring-1 ring-slate-200 rounded px-2.5 py-1.5">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <FileText className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                                          <div className="min-w-0">
-                                            <div className="text-[11px] text-slate-800 font-medium truncate">{ev.name}</div>
-                                            <div className="text-[10px] text-slate-500 truncate">{ev.system}</div>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                          <span className="text-[10px] uppercase text-slate-500">{ev.type}</span>
-                                          <span className="text-[10px] text-slate-400">{ev.size}</span>
-                                          <Download className="w-3 h-3 text-slate-400" />
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              {item.evidenceItems.length === 0 && (
-                                <div className="mt-3 text-[11px] text-slate-500 bg-slate-100 rounded px-3 py-2">
-                                  No evidence expected yet — this stage is blocked until the upstream stage is resolved.
-                                </div>
-                              )}
-
-                              {/* Controls fired at this stage */}
-                              <div className="mt-3">
-                                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
-                                  Controls at this stage ({stageCtrlIds.length})
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {stageCtrlIds.map((cid) => {
-                                    const ctrl = controlsById[cid];
-                                    const result = item.controlResults[cid] || 'not-started';
-                                    const colors = {
-                                      pass:         'bg-emerald-50 text-emerald-700 ring-emerald-200',
-                                      fail:         'bg-red-50 text-red-700 ring-red-200',
-                                      pending:      'bg-amber-50 text-amber-700 ring-amber-200',
-                                      'not-started':'bg-slate-50 text-slate-500 ring-slate-200',
-                                    };
-                                    const resultIcon = {
-                                      pass: <CheckCircle2 className="w-3 h-3" />,
-                                      fail: <XCircle className="w-3 h-3" />,
-                                      pending: <Clock className="w-3 h-3" />,
-                                      'not-started': <MinusCircle className="w-3 h-3" />,
-                                    }[result];
-                                    return (
-                                      <button
-                                        key={cid}
-                                        onClick={(e) => { e.stopPropagation(); if (ctrl) onOpenEvidence(ctrl, domainLabel); }}
-                                        className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded font-medium ring-1 hover:shadow-sm transition ${colors[result]}`}
-                                        title={ctrl?.name}
-                                      >
-                                        {resultIcon}
-                                        <span className="font-mono">{cid}</span>
-                                        <span className="hidden md:inline truncate max-w-[140px]">{ctrl?.name}</span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              {/* Auditor note on rejection / pending */}
-                              {item.status === 'rejected' && (
-                                <div className="mt-3 bg-red-50 ring-1 ring-red-200 rounded p-2 text-[11px] text-red-800">
-                                  <div className="font-semibold mb-0.5 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Auditor observation</div>
-                                  Evidence did not satisfy control <span className="font-mono font-semibold">{kase.failControlId}</span>. Owner informed; corrective action required before stage can be re-submitted.
-                                </div>
-                              )}
-                              {item.status === 'pending' && (
-                                <div className="mt-3 bg-amber-50 ring-1 ring-amber-200 rounded p-2 text-[11px] text-amber-800">
-                                  <div className="font-semibold mb-0.5 flex items-center gap-1"><Clock className="w-3 h-3" /> Awaiting submission</div>
-                                  Accountable owner has not yet submitted required evidence for this stage. SLA breach trigger.
-                                </div>
-                              )}
-                              {item.status === 'blocked' && (
-                                <div className="mt-3 bg-slate-100 ring-1 ring-slate-200 rounded p-2 text-[11px] text-slate-600">
-                                  <div className="font-semibold mb-0.5 flex items-center gap-1"><MinusCircle className="w-3 h-3" /> Blocked</div>
-                                  Cannot begin until the upstream stage is resolved.
-                                </div>
-                              )}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ol>
-
-                    {/* Auditor footer */}
-                    <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2">
-                      <div className="text-[11px] text-slate-500">
-                        <UserCheck className="w-3 h-3 inline -mt-0.5 mr-1" />
-                        Auditor verdict: {kase.overallStatus === 'compliant' ? 'Case fully satisfies all controls across all submitters.' : kase.overallStatus === 'failure' ? 'Case contains control failure requiring remediation before closure.' : 'Case cannot be closed — evidence submission pending from accountable owner.'}
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="text-[11px] font-medium text-slate-700 bg-white ring-1 ring-slate-300 hover:bg-slate-100 rounded-md px-2.5 py-1 inline-flex items-center gap-1">
-                          <Download className="w-3 h-3" /> Download case pack
-                        </button>
-                        <button className="text-[11px] font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md px-2.5 py-1 inline-flex items-center gap-1">
-                          <UserCheck className="w-3 h-3" /> Mark as reviewed
+                      {showFullTrail ? (
+                        <JourneyFullCaseTrail
+                          kase={kase}
+                          controlsById={controlsById}
+                          domainLabel={domainLabel}
+                          onOpenEvidence={onOpenEvidence}
+                        />
+                      ) : (
+                        <JourneyStageDetailBlock
+                          kase={kase}
+                          item={openItem}
+                          idx={casePanel.stageIndex}
+                          controlsById={controlsById}
+                          domainLabel={domainLabel}
+                          onOpenEvidence={onOpenEvidence}
+                        />
+                      )}
+                      <div className="mt-4 pt-3 border-t border-slate-200 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setCasePanel(null)}
+                          className="text-[11px] font-medium text-slate-700 bg-white ring-1 ring-slate-300 hover:bg-slate-100 rounded-md px-2.5 py-1"
+                        >
+                          Close
                         </button>
                       </div>
-                    </div>
                     </td>
                   </tr>
                 )}
@@ -1543,24 +1724,63 @@ const CasesView = ({ domainId, sop, cases, entity, domainLabel, onOpenEvidence, 
 // DOMAIN TAB — lists ALL controls for the selected domain
 // ============================================================================
 
-const DomainTab = ({ domainId, onOpenEvidence }) => {
-  const domain = D.DOMAINS.find((d) => d.id === domainId);
-  const controls = D.CONTROLS_BY_DOMAIN[domainId] || [];
-  const sop = D.SOP_BY_DOMAIN[domainId];
-  const cases = D.CASES_BY_DOMAIN[domainId] || [];
-  const entity = D.CASE_ENTITY[domainId] || { singular: 'Case', plural: 'Cases', entity: 'case' };
-  const [view, setView] = useState('sop'); // 'sop' | 'register' | 'cases'
+/** Optional extra tabs (e.g. Fast-Tag Toll settlement). */
+export type DomainWorkspaceExtraTab = {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  content: React.ReactNode;
+};
+
+export function DomainAuditWorkspace({
+  domainId,
+  domainLabel,
+  controls,
+  sop,
+  cases,
+  entity,
+  onOpenEvidence,
+  buildEvidence: _buildEvidence,
+  journeyTitle,
+  getStageHeader,
+  controlExceptionLabels,
+  getAuditorFocusForControl,
+  defaultView = 'sop',
+  registerControlsFirst = false,
+  extraTabs = [],
+}: {
+  domainId: string;
+  domainLabel: string;
+  controls: AuditControl[];
+  sop: { name: string; purpose: string; stages: unknown[] } | undefined;
+  cases: unknown[];
+  entity: { singular: string; plural: string; entity: string };
+  onOpenEvidence: (control: AuditControl, domainLabel: string) => void;
+  buildEvidence?: (control: AuditControl, domainLabel: string) => unknown;
+  journeyTitle?: string;
+  getStageHeader?: (stage: { id: string; name: string }) => string;
+  controlExceptionLabels?: Record<string, string>;
+  getAuditorFocusForControl?: (control: AuditControl) => string;
+  defaultView?: string;
+  registerControlsFirst?: boolean;
+  extraTabs?: DomainWorkspaceExtraTab[];
+}) {
+  const [view, setView] = useState(defaultView);
   const [filter, setFilter] = useState('all'); // all | effective | needs-attention | deficient
   const [query, setQuery]   = useState('');
 
   const filtered = useMemo(() => {
-    return controls.filter((c) => {
+    const rows = controls.filter((c) => {
       const matchStatus = filter === 'all' || c.status === filter;
       const q = query.trim().toLowerCase();
       const matchQ = !q || c.id.toLowerCase().includes(q) || c.name.toLowerCase().includes(q) || (c.regulatory || '').toLowerCase().includes(q);
       return matchStatus && matchQ;
     });
-  }, [controls, filter, query]);
+    if (registerControlsFirst) {
+      return [...rows].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+    }
+    return rows;
+  }, [controls, filter, query, registerControlsFirst]);
 
   const totals = useMemo(
     () => ({
@@ -1572,40 +1792,65 @@ const DomainTab = ({ domainId, onOpenEvidence }) => {
     [controls],
   );
 
+  const workspaceTabs = useMemo(() => {
+    const core = registerControlsFirst
+      ? [
+          { id: 'register', label: 'Control register', icon: ListChecks },
+          { id: 'sop', label: 'Process flow', icon: Workflow },
+          { id: 'cases', label: `${entity.plural} — Journey matrix`, icon: UserRound },
+        ]
+      : [
+          { id: 'sop', label: 'Process flow', icon: Workflow },
+          { id: 'cases', label: `${entity.plural} — Journey matrix`, icon: UserRound },
+          { id: 'register', label: 'Control register', icon: ListChecks },
+        ];
+    const extra = (extraTabs || []).map((t) => ({ id: t.id, label: t.label, icon: t.icon }));
+    return [...core, ...extra];
+  }, [registerControlsFirst, entity.plural, extraTabs]);
+
   return (
     <div className="space-y-5">
       {/* View toggle: Process flow / Control register / Cases */}
-      <div className="bg-white rounded-lg ring-1 ring-slate-200 p-1.5 inline-flex items-center gap-1">
-        <button
-          onClick={() => setView('sop')}
-          className={`inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            view === 'sop' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          <Workflow className="w-4 h-4" /> Process flow
-        </button>
-        <button
-          onClick={() => setView('cases')}
-          className={`inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            view === 'cases' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          <UserRound className="w-4 h-4" /> {entity.plural} — Journey matrix
-        </button>
-        <button
-          onClick={() => setView('register')}
-          className={`inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            view === 'register' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          <ListChecks className="w-4 h-4" /> Control register
-        </button>
+      <div className="bg-white rounded-lg ring-1 ring-slate-200 p-1.5 inline-flex items-center gap-1 flex-wrap">
+        {workspaceTabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setView(tab.id)}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                view === tab.id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Icon className="w-4 h-4" /> {tab.label}
+            </button>
+          );
+        })}
       </div>
+
+      {extraTabs?.map(
+        (tab) => view === tab.id && <React.Fragment key={tab.id}>{tab.content}</React.Fragment>,
+      )}
 
       {/* ===== CASES — EVIDENCE TRAIL VIEW ===== */}
       {view === 'cases' && (
         sop
-          ? <CasesView domainId={domainId} sop={sop} cases={cases} entity={entity} domainLabel={domain.label} onOpenEvidence={onOpenEvidence} controls={controls} />
+          ? (
+            <CasesView
+              domainId={domainId}
+              sop={sop}
+              cases={cases}
+              entity={entity}
+              domainLabel={domainLabel}
+              onOpenEvidence={onOpenEvidence}
+              controls={controls}
+              journeyTitle={journeyTitle}
+              getStageHeader={getStageHeader}
+              controlExceptionLabels={controlExceptionLabels}
+              hideJourneyHeader={registerControlsFirst}
+            />
+          )
           : (
             <div className="bg-white rounded-lg ring-1 ring-slate-200 p-10 text-center text-sm text-slate-500">
               <MinusCircle className="w-6 h-6 mx-auto mb-2 text-slate-400" />
@@ -1617,7 +1862,15 @@ const DomainTab = ({ domainId, onOpenEvidence }) => {
       {/* ===== SOP / PROCESS-FLOW VIEW ===== */}
       {view === 'sop' && (
         sop
-          ? <SopProcessView sop={sop} controls={controls} onOpenEvidence={onOpenEvidence} domainLabel={domain.label} />
+          ? (
+            <SopProcessView
+              sop={sop}
+              controls={controls}
+              onOpenEvidence={onOpenEvidence}
+              domainLabel={domainLabel}
+              getAuditorFocusForControl={getAuditorFocusForControl}
+            />
+          )
           : (
             <div className="bg-white rounded-lg ring-1 ring-slate-200 p-10 text-center text-sm text-slate-500">
               <MinusCircle className="w-6 h-6 mx-auto mb-2 text-slate-400" />
@@ -1629,6 +1882,7 @@ const DomainTab = ({ domainId, onOpenEvidence }) => {
       {/* ===== CONTROL REGISTER VIEW ===== */}
       {view === 'register' && (
       <>
+      {!registerControlsFirst && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-white rounded-lg ring-1 ring-slate-200 p-5">
           <h3 className="text-sm font-semibold text-slate-900 mb-1">Control-level compliance</h3>
@@ -1672,8 +1926,8 @@ const DomainTab = ({ domainId, onOpenEvidence }) => {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Filters */}
       <div className="bg-white rounded-lg ring-1 ring-slate-200 p-4 flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 bg-slate-50 rounded-md px-3 py-1.5 text-sm w-80 ring-1 ring-slate-200">
           <Search className="w-4 h-4 text-slate-400" />
@@ -1704,7 +1958,6 @@ const DomainTab = ({ domainId, onOpenEvidence }) => {
         </div>
       </div>
 
-      {/* FULL CONTROLS TABLE — every control shown, evidence behind a button */}
       <div className="bg-white rounded-lg ring-1 ring-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -1745,7 +1998,7 @@ const DomainTab = ({ domainId, onOpenEvidence }) => {
                   <td className="px-3 py-3 align-top"><StatusBadge status={c.status} /></td>
                   <td className="px-3 py-3 text-right align-top">
                     <button
-                      onClick={() => onOpenEvidence(c, domain.label)}
+                      onClick={() => onOpenEvidence(c, domainLabel)}
                       className="inline-flex items-center gap-1 text-xs font-medium text-slate-700 bg-white ring-1 ring-slate-200 hover:bg-slate-900 hover:text-white hover:ring-slate-900 rounded-md px-2.5 py-1.5 transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" /> View evidence
@@ -1765,9 +2018,71 @@ const DomainTab = ({ domainId, onOpenEvidence }) => {
           </table>
         </div>
       </div>
+
+      {registerControlsFirst && (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 bg-white rounded-lg ring-1 ring-slate-200 p-5">
+          <h3 className="text-sm font-semibold text-slate-900 mb-1">Control-level compliance</h3>
+          <p className="text-xs text-slate-500 mb-4">Summary chart — all controls listed above.</p>
+          <div style={{ height: Math.max(280, controls.length * 34) }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={controls} layout="vertical" margin={{ top: 0, right: 40, left: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                <XAxis type="number" domain={[75, 100]} fontSize={11} stroke="#64748b" tickFormatter={(v) => `${v}%`} />
+                <YAxis type="category" dataKey="id" fontSize={11} stroke="#64748b" width={60} />
+                <Tooltip
+                  contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                  formatter={(v) => [`${v}%`, 'Compliance']}
+                  labelFormatter={(l) => controls.find((c) => c.id === l)?.name || l}
+                />
+                <Bar dataKey="compliance" radius={[0, 4, 4, 0]}>
+                  {controls.map((p, i) => (
+                    <Cell key={i} fill={p.compliance >= 95 ? '#10b981' : p.compliance >= 90 ? '#f59e0b' : '#ef4444'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg ring-1 ring-slate-200 p-5">
+          <h3 className="text-sm font-semibold text-slate-900 mb-1">Violations vs exceptions</h3>
+          <p className="text-xs text-slate-500 mb-3">Per control in this domain</p>
+          <div style={{ height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={controls} margin={{ top: 8, right: 8, left: -16, bottom: 30 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="id" fontSize={10} stroke="#64748b" angle={-30} textAnchor="end" interval={0} height={48} />
+                <YAxis fontSize={11} stroke="#64748b" />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="violations" stackId="a" fill="#ef4444" name="Violations" />
+                <Bar dataKey="exceptions" stackId="a" fill="#f59e0b" name="Exceptions" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+      )}
       </>
       )}
     </div>
+  );
+};
+
+const DomainTab = ({ domainId, onOpenEvidence }) => {
+  const domain = D.DOMAINS.find((d) => d.id === domainId);
+  return (
+    <DomainAuditWorkspace
+      domainId={domainId}
+      domainLabel={domain.label}
+      controls={D.CONTROLS_BY_DOMAIN[domainId] || []}
+      sop={D.SOP_BY_DOMAIN[domainId]}
+      cases={D.CASES_BY_DOMAIN[domainId] || []}
+      entity={D.CASE_ENTITY[domainId] || { singular: 'Case', plural: 'Cases', entity: 'case' }}
+      onOpenEvidence={onOpenEvidence}
+      buildEvidence={D.buildEvidence}
+    />
   );
 };
 
@@ -2076,14 +2391,33 @@ const EvidenceDrawer = ({ open, evidence, onClose }) => {
 // MAIN COMPONENT
 // ============================================================================
 
+type ProcessAuditDashboardTab = ProcessAuditTabId | 'fast-tag';
+
+/** v2-only sidebar entry — same shape as `ProcessAuditDomainDef` for unified nav rendering. */
+const FAST_TAG_SIDEBAR_ITEM = {
+  id: 'fast-tag' as const,
+  label: 'Fast-Tag',
+  icon: Radio,
+  color: '#f97316',
+};
+
 export default function ProcessAuditDashboard() {
   const ipaVersion = useIpaVersion();
-  const [activeTab, setActiveTab] = useState<ProcessAuditTabId>('overview');
+  const isV2 = ipaVersion === 'v2';
+  const [activeTab, setActiveTab] = useState<ProcessAuditDashboardTab>('overview');
   const [drawer, setDrawer] = useState<EvidenceDrawerState>({ open: false, evidence: null });
   const [domainsRailOpen, setDomainsRailOpen] = useState(false);
 
+  const sidebarDomains = isV2 ? [...D.DOMAINS, FAST_TAG_SIDEBAR_ITEM] : D.DOMAINS;
+
   const openEvidence = (control: AuditControl, domainLabel: string) =>
-    setDrawer({ open: true, evidence: D.buildEvidence(control, domainLabel) });
+    setDrawer({
+      open: true,
+      evidence:
+        domainLabel === 'Fast-Tag'
+          ? buildFastTagEvidence(control, domainLabel)
+          : D.buildEvidence(control, domainLabel),
+    });
   const closeEvidence = () => setDrawer({ open: false, evidence: null });
 
   return (
@@ -2137,16 +2471,21 @@ export default function ProcessAuditDashboard() {
             )}
           </div>
           <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-1.5 space-y-0.5">
-            {D.DOMAINS.map((d) => {
+            {sidebarDomains.map((d) => {
               const Icon = d.icon;
               const isActive = activeTab === d.id;
-              const count = d.id === 'overview' ? null : (D.CONTROLS_BY_DOMAIN[d.id] || []).length;
+              const count =
+                d.id === 'overview'
+                  ? null
+                  : d.id === 'fast-tag'
+                    ? FASTAG_CONTROL_COUNT
+                    : (D.CONTROLS_BY_DOMAIN[d.id as ProcessAuditTabId] || []).length;
               return (
                 <button
                   key={d.id}
                   type="button"
                   title={d.label}
-                  onClick={() => setActiveTab(d.id)}
+                  onClick={() => setActiveTab(d.id as ProcessAuditDashboardTab)}
                   className={`flex w-full items-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
                     domainsRailOpen ? 'justify-start px-2' : 'justify-center px-0'
                   } ${
@@ -2179,33 +2518,39 @@ export default function ProcessAuditDashboard() {
         {/* Body — sole vertical scroll region so header + domain rail stay fixed */}
         <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto">
           <div className="mx-auto max-w-[1600px] px-6 py-6">
-            <div className="flex items-center justify-between mb-5">
+            <div className="mb-5 flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-semibold text-slate-900">
-                  {D.DOMAINS.find((d) => d.id === activeTab)?.label}
+                  {sidebarDomains.find((d) => d.id === activeTab)?.label}
                 </h1>
-                <p className="text-sm text-slate-500 mt-0.5">
+                <p className="mt-0.5 text-sm text-slate-500">
                   {activeTab === 'overview'
                     ? `Cross-domain compliance posture across ${D.TOTAL_CONTROLS} controls and 10 auditor domains`
-                    : `All controls in scope · regulatory references · evidence on demand`}
+                    : activeTab === 'fast-tag'
+                      ? 'FASTag issuance & toll lifecycle audit · NETC / NPCI OV1T · control testing Q1 2026'
+                      : `All controls in scope · regulatory references · evidence on demand`}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <button className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-slate-700 bg-white ring-1 ring-slate-200 rounded-md hover:bg-slate-50">
+                <button className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
                   <Filter className="w-4 h-4" /> Filter
                 </button>
-                <button className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-slate-700 bg-white ring-1 ring-slate-200 rounded-md hover:bg-slate-50">
+                <button className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
                   <Download className="w-4 h-4" /> Export
                 </button>
-                <button className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-white bg-slate-900 rounded-md hover:bg-slate-800">
+                <button className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800">
                   <Eye className="w-4 h-4" /> Auditor view
                 </button>
               </div>
             </div>
 
-            {activeTab === 'overview'
-              ? <OverviewTab onDrillDown={(id) => setActiveTab(id)} />
-              : <DomainTab domainId={activeTab} onOpenEvidence={openEvidence} />}
+            {activeTab === 'fast-tag' && isV2 ? (
+              <FastTagAuditDashboard onOpenEvidence={openEvidence} />
+            ) : activeTab === 'overview' ? (
+              <OverviewTab onDrillDown={(id) => setActiveTab(id)} isV2={isV2} />
+            ) : (
+              <DomainTab domainId={activeTab as ProcessAuditTabId} onOpenEvidence={openEvidence} />
+            )}
           </div>
         </main>
       </div>

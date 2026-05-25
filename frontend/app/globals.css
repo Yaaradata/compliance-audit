@@ -507,6 +507,49 @@ body {
   box-shadow: var(--interactive-glow-subtle);
 }
 
+/* Scope 3 emissions — readable canvas & selection */
+.scope-3-emissions-root {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.scope-3-emissions-root ::selection {
+  background-color: color-mix(in srgb, var(--primary) 22%, var(--primary-muted));
+  color: var(--foreground);
+}
+
+/* Scope 3 vertical dashboards — colorful canvas (automotive, banking, pharma) */
+.scope-3-emissions-root .auto-scope3-dashboard,
+.auto-scope3-dashboard {
+  --auto-teal: #0d9488;
+  --auto-blue: #2563eb;
+  --auto-violet: #7c3aed;
+  --auto-amber: #d97706;
+}
+
+.scope-3-emissions-root .auto-scope3-content-panel,
+.auto-scope3-dashboard .auto-scope3-content-panel {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--card) 92%, #dbeafe) 0%,
+    var(--card) 28%,
+    color-mix(in srgb, var(--card) 96%, #ecfdf5) 100%
+  );
+  border-color: color-mix(in srgb, var(--primary) 14%, var(--border));
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 1px color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+[data-theme="dark"] .scope-3-emissions-root .auto-scope3-content-panel,
+[data-theme="dark"] .auto-scope3-dashboard .auto-scope3-content-panel {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--card) 88%, #1e3a5f) 0%,
+    var(--card) 35%,
+    color-mix(in srgb, var(--card) 94%, #0f2922) 100%
+  );
+}
+
 /* ─── ORI (IndianBankingAudit) prototype — drawer + focus (scoped) ─── */
 @keyframes ori-drawer-in {
   from {
