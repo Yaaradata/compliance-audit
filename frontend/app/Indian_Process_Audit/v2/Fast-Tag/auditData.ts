@@ -19,14 +19,14 @@ export const FASTAG_JOURNEY_TITLE =
   'FASTAG ISSUANCE JOURNEY — STAGE-WISE CONTROL COMPLIANCE';
 
 export const FASTAG_STAGE_SHORT: Record<string, string> = {
-  intake: 'Intake',
+  intake: 'Eligibility',
   identity: 'OTP',
   kyc: 'KYC',
-  ovt: 'OV1T',
+  ovt: 'Mapper',
   wallet: 'Wallet',
-  issue: 'Issue',
-  fitment: 'Fit',
-  activate: 'Active',
+  issue: 'Issuance',
+  fitment: 'Fitment',
+  activate: 'Activation',
 };
 
 export const FASTAG_CONTROL_EXCEPTION_LABEL: Record<string, string> = {
@@ -203,7 +203,7 @@ export const FASTAG_SOP: FastTagSop = {
   stages: [
     {
       id: 'intake',
-      name: 'Eligibility & consent',
+      name: 'Eligibility',
       description: 'Vehicle type, issuer policy, and customer consent captured.',
       controlIds: ['FT-02', 'FT-05'],
       owner: {
@@ -214,7 +214,7 @@ export const FASTAG_SOP: FastTagSop = {
     },
     {
       id: 'identity',
-      name: 'Mobile OTP & identity',
+      name: 'OTP',
       description: 'Registered mobile verified; session bound to customer.',
       controlIds: ['FT-03'],
       owner: {
@@ -225,7 +225,7 @@ export const FASTAG_SOP: FastTagSop = {
     },
     {
       id: 'kyc',
-      name: 'KYC / CKYCR',
+      name: 'KYC',
       description: 'PAN, CKYCR pull, address proof within RBI KYC norms.',
       controlIds: ['FT-04'],
       owner: {
@@ -236,7 +236,7 @@ export const FASTAG_SOP: FastTagSop = {
     },
     {
       id: 'ovt',
-      name: 'OV1T / NETC mapper',
+      name: 'Mapper',
       description: 'NPCI OV1T check; NETC mapper updated or conflict escalated.',
       controlIds: ['FT-01', 'FT-02'],
       owner: {
@@ -247,7 +247,7 @@ export const FASTAG_SOP: FastTagSop = {
     },
     {
       id: 'wallet',
-      name: 'Wallet load',
+      name: 'Wallet',
       description: 'Minimum balance loaded via approved payment rail.',
       controlIds: ['FT-06', 'FT-07'],
       owner: {
@@ -258,7 +258,7 @@ export const FASTAG_SOP: FastTagSop = {
     },
     {
       id: 'issue',
-      name: 'Tag issuance',
+      name: 'Issuance',
       description: 'EPC generated; tag ID linked to wallet and VRN.',
       controlIds: ['FT-08'],
       owner: {
@@ -269,7 +269,7 @@ export const FASTAG_SOP: FastTagSop = {
     },
     {
       id: 'fitment',
-      name: 'Fitment & QA',
+      name: 'Fitment',
       description: 'Installer attestation; RFID read test recorded.',
       controlIds: ['FT-09'],
       owner: {
@@ -280,7 +280,7 @@ export const FASTAG_SOP: FastTagSop = {
     },
     {
       id: 'activate',
-      name: 'NETC activation & toll readiness',
+      name: 'Activation',
       description: 'Tag activated on NETC; settlement profile live; disputes logged.',
       controlIds: ['FT-10', 'FT-11', 'FT-12'],
       owner: {
