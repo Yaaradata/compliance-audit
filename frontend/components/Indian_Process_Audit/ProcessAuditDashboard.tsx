@@ -1,16 +1,16 @@
 // @ts-nocheck — presentation layer; data from @/lib/Indian_Process_Audit
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Cell, Legend, ComposedChart, Line,
 } from 'recharts';
 import {
-  Shield, AlertTriangle, AlertCircle, CheckCircle2, XCircle,
+  Shield, AlertTriangle, AlertCircle, Check, CheckCircle2, XCircle,
   Activity, Users, Briefcase, CreditCard, AlertOctagon, Server,
   Database, DollarSign, UserCog, Search, Filter, Download, Clock,
-  FileText, ChevronRight, ChevronDown, Building2, Eye, X, FileCheck2, ListChecks,
+  FileText, ChevronRight, ChevronLeft, ChevronDown, Building2, Eye, X, FileCheck2, ListChecks, ClipboardList,
   UserCheck, Gavel, BadgeCheck, FolderSearch,
   Workflow, GitBranch, MinusCircle, Info, UserRound,
   CalendarClock, MapPin, Mail, Hash,
@@ -18,8 +18,13 @@ import {
   Radio,
 } from 'lucide-react';
 import AuditCard, { AuditCardSkeleton } from '@/components/Indian_Process_Audit/AuditCard';
+import { Scope3KpiStrip } from '@/components/scope3emissions/scope3-kpi';
 import { useIpaVersion } from '@/components/Indian_Process_Audit/ipa/IpaVersionProvider';
-import FastTagAuditDashboard from '@/app/Indian_Process_Audit/v2/Fast-Tag/FastTagAuditDashboard';
+import FastTagAuditDashboard, {
+  FastTagPageHeader,
+} from '@/app/Indian_Process_Audit/v2/Fast-Tag/FastTagAuditDashboard';
+import DomainJourneyCasesView from '@/components/Indian_Process_Audit/journey/DomainJourneyCasesView';
+import { getJourneyDomainConfig } from '@/components/Indian_Process_Audit/journey/journeyDomainConfigs';
 import {
   FASTAG_CONTROL_COUNT,
   getFastTagDomainAuditCard,
@@ -952,6 +957,7 @@ const SopProcessView = ({
   domainLabel,
   getAuditorFocusForControl = D.getAuditorFocusForControl,
 }) => {
+  const isV2 = useIpaVersion() === 'v2';
   const stageAgg = useMemo(
     () => sop.stages.map((s) => ({ ...s, ...aggregateStage(s, controls) })),
     [sop, controls]
@@ -962,38 +968,78 @@ const SopProcessView = ({
 
   const totalExceptions = stageAgg.reduce((s, st) => s + st.exceptions, 0);
   const totalViolations = stageAgg.reduce((s, st) => s + st.violations, 0);
-  const missedStages    = stageAgg.filter((s) => s.health !== 'ok').length;
+  const missedStages = stageAgg.filter((s) => s.health !== 'ok').length;
+  const stageCount = sop.stages.length;
 
-  const sopMetricCards = [
-    {
-      label: 'SOP stages',
-      value: sop.stages.length,
-      labelClass: 'text-slate-500',
-      valueClass: 'text-slate-900',
-      cardClass: 'bg-slate-50/80 ring-slate-200',
-    },
-    {
-      label: 'Stages w/ miss',
-      value: missedStages,
-      labelClass: 'text-red-700',
-      valueClass: 'text-red-700',
-      cardClass: 'bg-red-50/50 ring-red-200',
-    },
-    {
-      label: 'Failed cases',
-      value: totalExceptions,
-      labelClass: 'text-amber-800',
-      valueClass: 'text-amber-700',
-      cardClass: 'bg-amber-50/50 ring-amber-200',
-    },
-    {
-      label: 'Critical failures',
-      value: totalViolations,
-      labelClass: 'text-red-700',
-      valueClass: 'text-red-700',
-      cardClass: 'bg-red-50/80 ring-red-200',
-    },
-  ];
+  const sopMetricCardsV1 = useMemo(
+    () => [
+      {
+        label: 'SOP stages',
+        value: stageCount,
+        labelClass: 'text-slate-500',
+        valueClass: 'text-slate-900',
+        cardClass: 'bg-slate-50/80 ring-slate-200',
+      },
+      {
+        label: 'Stages w/ miss',
+        value: missedStages,
+        labelClass: 'text-red-700',
+        valueClass: 'text-red-700',
+        cardClass: 'bg-red-50/50 ring-red-200',
+      },
+      {
+        label: 'Failed cases',
+        value: totalExceptions,
+        labelClass: 'text-amber-800',
+        valueClass: 'text-amber-700',
+        cardClass: 'bg-amber-50/50 ring-amber-200',
+      },
+      {
+        label: 'Critical failures',
+        value: totalViolations,
+        labelClass: 'text-red-700',
+        valueClass: 'text-red-700',
+        cardClass: 'bg-red-50/80 ring-red-200',
+      },
+    ],
+    [stageCount, missedStages, totalExceptions, totalViolations],
+  );
+
+  const sopKpiItemsV2 = useMemo(() => {
+    const missPct =
+      stageCount > 0 ? Math.round((missedStages / stageCount) * 1000) / 10 : 0;
+
+    return [
+      {
+        label: 'SOP stages',
+        value: String(stageCount),
+        sub: 'Lifecycle steps in scope',
+        tone: 'slate',
+        icon: ListChecks,
+      },
+      {
+        label: 'Stages w/ miss',
+        value: String(missedStages),
+        sub: missedStages > 0 ? `${missPct}% of stages` : 'All stages within tolerance',
+        tone: missedStages > 0 ? 'rose' : 'emerald',
+        icon: AlertTriangle,
+      },
+      {
+        label: 'Failed cases',
+        value: String(totalExceptions),
+        sub: 'Case-level exceptions in sample',
+        tone: totalExceptions > 0 ? 'amber' : 'emerald',
+        icon: ClipboardList,
+      },
+      {
+        label: 'Critical',
+        value: String(totalViolations),
+        sub: 'Rejected control',
+        tone: totalViolations > 0 ? 'rose' : 'emerald',
+        icon: XCircle,
+      },
+    ];
+  }, [stageCount, missedStages, totalExceptions, totalViolations]);
 
   return (
     <div className="space-y-5">
@@ -1005,24 +1051,33 @@ const SopProcessView = ({
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">{sop.name}</h3>
-            <p className="text-xs text-slate-500 mt-0.5 max-w-3xl">{sop.purpose}</p>
+            <p
+              className={`mt-0.5 text-xs leading-snug text-slate-500 ${
+                domainLabel === 'Fast-Tag'
+                  ? 'overflow-x-auto whitespace-nowrap'
+                  : 'max-w-3xl'
+              }`}
+            >
+              {sop.purpose}
+            </p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {sopMetricCards.map((m) => (
-            <div
-              key={m.label}
-              className={`rounded-lg px-4 py-3 ring-1 ${m.cardClass}`}
-            >
-              <div className={`text-[10px] font-bold uppercase tracking-wider ${m.labelClass}`}>
-                {m.label}
+        {isV2 ? (
+          <Scope3KpiStrip cols="grid-cols-2 lg:grid-cols-4" items={sopKpiItemsV2} />
+        ) : (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {sopMetricCardsV1.map((m) => (
+              <div key={m.label} className={`rounded-lg px-4 py-3 ring-1 ${m.cardClass}`}>
+                <div className={`text-[10px] font-bold uppercase tracking-wider ${m.labelClass}`}>
+                  {m.label}
+                </div>
+                <div className={`mt-1 text-2xl font-semibold tabular-nums leading-none ${m.valueClass}`}>
+                  {m.value.toLocaleString('en-IN')}
+                </div>
               </div>
-              <div className={`mt-1 text-2xl font-semibold tabular-nums leading-none ${m.valueClass}`}>
-                {m.value.toLocaleString('en-IN')}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Stage-by-stage summary table */}
@@ -1229,7 +1284,7 @@ const Avatar = ({ name }) => {
   );
 };
 
-/** Matrix audit outcome: Compliant | Exception (incl. pending / soft findings) | Critical */
+/** Matrix audit outcome: Completed | Exception (incl. pending / soft findings) | Critical */
 const getJourneyAuditCategory = (kase) => {
   if (kase.overallStatus === 'failure') return 'critical';
   if (kase.overallStatus === 'pending') return 'exception';
@@ -1304,7 +1359,16 @@ const JourneyStageCell = ({ status, stageName, onSelect, isSelected }) => {
 };
 
 /** Single-stage evidence trail (matrix cell click) or one step in full case trail. */
-const JourneyStageDetailBlock = ({ kase, item, idx, controlsById, domainLabel, onOpenEvidence, embedded = false }) => {
+const JourneyStageDetailBlock = ({
+  kase,
+  item,
+  idx,
+  controlsById,
+  domainLabel,
+  onOpenEvidence,
+  embedded = false,
+  onClose,
+}) => {
   const stageCtrlIds = item.stage.controlIds;
   const statusRingMap = {
     accepted: 'ring-emerald-200 bg-white',
@@ -1316,8 +1380,19 @@ const JourneyStageDetailBlock = ({ kase, item, idx, controlsById, domainLabel, o
   return (
     <div>
       {!embedded && (
-        <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-3">
-          Stage detail · {item.stage.name} · {kase.id}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Stage detail · {item.stage.name} · {kase.id}
+          </div>
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="ml-auto shrink-0 rounded-md bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-100"
+            >
+              Close
+            </button>
+          ) : null}
         </div>
       )}
       <div className={`rounded-lg ring-1 p-4 ${statusRingMap[item.status] || statusRingMap.blocked}`}>
@@ -1464,10 +1539,21 @@ const JourneyStageDetailBlock = ({ kase, item, idx, controlsById, domainLabel, o
 };
 
 /** Full case trail — all SOP stages (issuance case column click). */
-const JourneyFullCaseTrail = ({ kase, controlsById, domainLabel, onOpenEvidence }) => (
+const JourneyFullCaseTrail = ({ kase, controlsById, domainLabel, onOpenEvidence, onClose }) => (
   <div>
-    <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-3">
-      Full submission trail · {kase.trail.length} stages · each submitted by the accountable role
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="min-w-0 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        Full submission trail · {kase.trail.length} stages · each submitted by the accountable role
+      </div>
+      {onClose ? (
+        <button
+          type="button"
+          onClick={onClose}
+          className="ml-auto shrink-0 rounded-md bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-100"
+        >
+          Close
+        </button>
+      ) : null}
     </div>
     <ol className="space-y-3 relative">
       {kase.trail.map((item, idx) => {
@@ -1531,7 +1617,7 @@ const JourneyFullCaseTrail = ({ kase, controlsById, domainLabel, onOpenEvidence 
 
 const JourneyAuditPill = ({ category }) => {
   const map = {
-    compliant: { cls: 'bg-emerald-50 text-emerald-800 ring-emerald-200', label: 'Compliant' },
+    compliant: { cls: 'bg-emerald-50 text-emerald-800 ring-emerald-200', label: 'Completed' },
     exception: { cls: 'bg-amber-50 text-amber-900 ring-amber-200',       label: 'Exception' },
     critical:  { cls: 'bg-red-50 text-red-800 ring-red-200',            label: 'Critical' },
   };
@@ -1543,7 +1629,29 @@ const JourneyAuditPill = ({ category }) => {
   );
 };
 
-const CasesView = ({
+/**
+ * @typedef {Object} CasesViewProps
+ * @property {string} domainId
+ * @property {{ stages: { id: string; name: string }[] }} sop
+ * @property {object[]} cases
+ * @property {{ singular: string; plural: string; entity: string }} entity
+ * @property {string} domainLabel
+ * @property {function} onOpenEvidence
+ * @property {object[]} controls
+ * @property {string} [journeyTitle]
+ * @property {function} getStageHeader
+ * @property {Record<string, string>} [controlExceptionLabels]
+ * @property {boolean} [hideJourneyHeader]
+ * @property {string} [emptyCasesMessage]
+ * @property {string | null} [selectedCaseId]
+ * @property {function} [onCaseRowSelect]
+ * @property {number} [pageSize]
+ * @property {function} [onPageChange]
+ * @property {function} [formatCaseSubject]
+ */
+
+/** @param {CasesViewProps} props */
+export const CasesView = ({
   domainId,
   sop,
   cases,
@@ -1555,12 +1663,42 @@ const CasesView = ({
   getStageHeader,
   controlExceptionLabels,
   hideJourneyHeader = false,
+  emptyCasesMessage,
+  selectedCaseId = null,
+  onCaseRowSelect,
+  pageSize,
+  onPageChange,
+  formatCaseSubject,
 }) => {
   /** Panel below matrix: full case trail or single stage ({ caseId, view }). */
   const [casePanel, setCasePanel] = useState(null);
+  const [page, setPage] = useState(0);
   const controlsById = Object.fromEntries(controls.map((c) => [c.id, c]));
   const journeyTitle = journeyTitleProp || D.JOURNEY_TITLE_BY_DOMAIN[domainId] || D.JOURNEY_TITLE_BY_DOMAIN.customer;
   const stageColSpan = 3 + (sop?.stages?.length || 0);
+
+  const paginationEnabled = typeof pageSize === 'number' && pageSize > 0;
+  const totalPages = paginationEnabled ? Math.max(1, Math.ceil(cases.length / pageSize)) : 1;
+
+  useEffect(() => {
+    setPage(0);
+    setCasePanel(null);
+  }, [cases, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages - 1) setPage(Math.max(0, totalPages - 1));
+  }, [page, totalPages]);
+
+  const paginatedCases = useMemo(() => {
+    if (!paginationEnabled) return cases;
+    const start = page * pageSize;
+    return cases.slice(start, start + pageSize);
+  }, [cases, page, pageSize, paginationEnabled]);
+
+  const rangeStart = cases.length === 0 ? 0 : paginationEnabled ? page * pageSize + 1 : 1;
+  const rangeEnd = paginationEnabled
+    ? Math.min(cases.length, (page + 1) * pageSize)
+    : cases.length;
 
   const toggleFullCase = (caseId) => {
     setCasePanel((prev) =>
@@ -1611,7 +1749,7 @@ const CasesView = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-          {cases.map((kase) => {
+          {paginatedCases.map((kase) => {
             const panelOpen = casePanel?.caseId === kase.id;
             const showFullTrail = panelOpen && casePanel.view === 'full';
             const showStagePanel =
@@ -1626,13 +1764,27 @@ const CasesView = ({
             const excText = getJourneyExceptionCellText(kase, controlExceptionLabels);
             const excBadge = auditCat !== 'compliant' && excText !== '—';
 
+            const isRowSelected = selectedCaseId === kase.id;
+
             return (
               <React.Fragment key={kase.id}>
-                <tr className="bg-white transition-colors hover:bg-slate-50/80">
+                <tr
+                  className={`bg-white transition-colors hover:bg-slate-50/80 ${
+                    isRowSelected ? 'bg-indigo-50/60 ring-1 ring-inset ring-indigo-300' : ''
+                  } ${onCaseRowSelect ? 'cursor-pointer' : ''}`}
+                  onClick={
+                    onCaseRowSelect
+                      ? () => onCaseRowSelect(kase)
+                      : undefined
+                  }
+                >
                   <td className="max-w-[220px] px-3 py-2.5 pl-4 align-middle">
                     <button
                       type="button"
-                      onClick={() => toggleFullCase(kase.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFullCase(kase.id);
+                      }}
                       className="flex w-full items-start gap-2 text-left rounded-md -m-1 p-1 hover:bg-slate-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
                       aria-expanded={showFullTrail}
                     >
@@ -1640,14 +1792,20 @@ const CasesView = ({
                         {panelOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </span>
                       <div className="min-w-0">
-                        <div className="font-semibold leading-snug text-slate-900">{kase.subject}</div>
+                        <div className="font-semibold leading-snug text-slate-900">
+                          {formatCaseSubject ? formatCaseSubject(kase) : kase.subject}
+                        </div>
                         <div className="mt-0.5 font-mono text-[10px] text-slate-500">{kase.id}</div>
                         <div className="mt-0.5 line-clamp-1 text-[10px] text-slate-500">{kase.segment}</div>
                       </div>
                     </button>
                   </td>
                   {kase.trail.map((t, stageIdx) => (
-                    <td key={t.stage.id} className="px-1 py-2 text-center align-middle">
+                    <td
+                      key={t.stage.id}
+                      className="px-1 py-2 text-center align-middle"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <JourneyStageCell
                         status={t.status}
                         stageName={t.stage.name}
@@ -1679,6 +1837,7 @@ const CasesView = ({
                           controlsById={controlsById}
                           domainLabel={domainLabel}
                           onOpenEvidence={onOpenEvidence}
+                          onClose={() => setCasePanel(null)}
                         />
                       ) : (
                         <JourneyStageDetailBlock
@@ -1688,17 +1847,9 @@ const CasesView = ({
                           controlsById={controlsById}
                           domainLabel={domainLabel}
                           onOpenEvidence={onOpenEvidence}
+                          onClose={() => setCasePanel(null)}
                         />
                       )}
-                      <div className="mt-4 pt-3 border-t border-slate-200 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setCasePanel(null)}
-                          className="text-[11px] font-medium text-slate-700 bg-white ring-1 ring-slate-300 hover:bg-slate-100 rounded-md px-2.5 py-1"
-                        >
-                          Close
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 )}
@@ -1708,13 +1859,57 @@ const CasesView = ({
           {cases.length === 0 && (
             <tr>
               <td colSpan={stageColSpan} className="py-10 text-center text-sm text-slate-500">
-                No cases configured for this domain yet.
+                {emptyCasesMessage || 'No cases configured for this domain yet.'}
               </td>
             </tr>
           )}
             </tbody>
           </table>
         </div>
+
+        {paginationEnabled && cases.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/90 px-4 py-2.5">
+            <p className="text-xs text-slate-600">
+              Showing{' '}
+              <span className="font-medium tabular-nums text-slate-800">
+                {rangeStart}–{rangeEnd}
+              </span>{' '}
+              of <span className="font-medium tabular-nums text-slate-800">{cases.length}</span>{' '}
+              {entity.plural.toLowerCase()}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 0}
+                onClick={() => {
+                  setPage((p) => Math.max(0, p - 1));
+                  setCasePanel(null);
+                  onPageChange?.();
+                }}
+                className="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-300 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+                Previous
+              </button>
+              <span className="min-w-[5.5rem] text-center text-xs tabular-nums text-slate-600">
+                Page {page + 1} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={page >= totalPages - 1}
+                onClick={() => {
+                  setPage((p) => Math.min(totalPages - 1, p + 1));
+                  setCasePanel(null);
+                  onPageChange?.();
+                }}
+                className="inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-300 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -1723,6 +1918,109 @@ const CasesView = ({
 // ============================================================================
 // DOMAIN TAB — lists ALL controls for the selected domain
 // ============================================================================
+
+export type JourneyStageFilterOption = { id: string; label: string };
+
+export type DomainWorkspaceTabBarContext = {
+  caseStageFilter: string | null;
+  setCaseStageFilter: (stageId: string | null) => void;
+  caseRegionFilter: string | null;
+  setCaseRegionFilter: (regionId: string | null) => void;
+};
+
+/** Build stage filter options from domain SOP (journey matrix columns). */
+export function buildJourneyStageFilterOptions(
+  domainId: string,
+  sop: { stages: { id: string; name: string }[] } | undefined,
+  getStageHeader?: (stage: { id: string; name: string }) => string,
+): JourneyStageFilterOption[] {
+  if (!sop?.stages?.length) return [];
+  return sop.stages.map((st) => ({
+    id: st.id,
+    label: getStageHeader ? getStageHeader(st) : D.getJourneyStageHeader(domainId, st),
+  }));
+}
+
+/** Journey matrix filter — show cases that failed (red) at the selected stage. */
+export function JourneyMatrixStageFilter({
+  options,
+  ctx,
+}: {
+  options: readonly JourneyStageFilterOption[];
+  ctx: DomainWorkspaceTabBarContext;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { caseStageFilter: value, setCaseStageFilter: onChange } = ctx;
+  const activeLabel = options.find((o) => o.id === value)?.label;
+
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, []);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => setOpen((v) => !v)}
+        className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ring-1 transition-colors ${
+          value
+            ? 'bg-slate-900 text-white ring-slate-900 hover:bg-slate-800'
+            : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'
+        }`}
+      >
+        <Filter className="h-4 w-4 shrink-0" aria-hidden />
+        {value ? `Filter: ${activeLabel}` : 'Filter'}
+      </button>
+      {open ? (
+        <div
+          role="listbox"
+          aria-label="Filter by failed journey stage"
+          className="absolute right-0 z-30 mt-1.5 max-h-[min(70vh,22rem)] min-w-[11rem] overflow-y-auto overscroll-contain rounded-lg border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-slate-200/80 [scrollbar-gutter:stable]"
+        >
+          <button
+            type="button"
+            role="option"
+            aria-selected={value === null}
+            onClick={() => {
+              onChange(null);
+              setOpen(false);
+            }}
+            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+          >
+            All cases
+            {value === null ? <Check className="h-4 w-4 shrink-0 text-slate-700" aria-hidden /> : null}
+          </button>
+          <div className="my-1 border-t border-slate-100" aria-hidden />
+          {options.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              role="option"
+              aria-selected={value === opt.id}
+              onClick={() => {
+                onChange(opt.id);
+                setOpen(false);
+              }}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+            >
+              {opt.label}
+              {value === opt.id ? (
+                <Check className="h-4 w-4 shrink-0 text-slate-700" aria-hidden />
+              ) : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /** Optional extra tabs (e.g. Fast-Tag Toll settlement). */
 export type DomainWorkspaceExtraTab = {
@@ -1748,6 +2046,11 @@ export function DomainAuditWorkspace({
   defaultView = 'sop',
   registerControlsFirst = false,
   extraTabs = [],
+  tabBarTrailing,
+  journeyStageFilterOptions,
+  caseRegionFilterOptions,
+  caseRegionResolver,
+  renderCasesView,
 }: {
   domainId: string;
   domainLabel: string;
@@ -1764,10 +2067,70 @@ export function DomainAuditWorkspace({
   defaultView?: string;
   registerControlsFirst?: boolean;
   extraTabs?: DomainWorkspaceExtraTab[];
+  tabBarTrailing?: React.ReactNode | ((activeView: string, ctx: DomainWorkspaceTabBarContext) => React.ReactNode);
+  journeyStageFilterOptions?: { id: string; label: string }[];
+  caseRegionFilterOptions?: { id: string; label: string }[];
+  caseRegionResolver?: (kase: { subject?: string; trail?: { stage: { id: string }; status: string }[] }) => string | null;
+  renderCasesView?: (args: {
+    cases: unknown[];
+    filteredCases: unknown[];
+    tabBarCtx: DomainWorkspaceTabBarContext;
+  }) => React.ReactNode;
 }) {
   const [view, setView] = useState(defaultView);
   const [filter, setFilter] = useState('all'); // all | effective | needs-attention | deficient
   const [query, setQuery]   = useState('');
+  const [caseStageFilter, setCaseStageFilter] = useState<string | null>(null);
+  const [caseRegionFilter, setCaseRegionFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (view !== 'cases') {
+      setCaseStageFilter(null);
+      setCaseRegionFilter(null);
+    }
+  }, [view]);
+
+  const tabBarCtx = useMemo<DomainWorkspaceTabBarContext>(
+    () => ({ caseStageFilter, setCaseStageFilter, caseRegionFilter, setCaseRegionFilter }),
+    [caseStageFilter, caseRegionFilter],
+  );
+
+  const filteredCases = useMemo(() => {
+    let rows = cases;
+    if (caseRegionFilter && caseRegionResolver) {
+      rows = rows.filter((kase) => caseRegionResolver(kase) === caseRegionFilter);
+    }
+    if (caseStageFilter) {
+      rows = rows.filter((kase) => {
+        const stageItem = kase.trail.find((t) => t.stage.id === caseStageFilter);
+        return stageItem?.status === 'rejected';
+      });
+    }
+    return rows;
+  }, [cases, caseStageFilter, caseRegionFilter, caseRegionResolver]);
+
+  const caseStageFilterLabel = caseStageFilter
+    ? journeyStageFilterOptions?.find((o) => o.id === caseStageFilter)?.label
+    : null;
+
+  const caseRegionFilterLabel = caseRegionFilter
+    ? caseRegionFilterOptions?.find((o) => o.id === caseRegionFilter)?.label
+    : null;
+
+  const journeyEmptyFilterMessage = useMemo(() => {
+    if (filteredCases.length > 0 || (!caseStageFilter && !caseRegionFilter)) return undefined;
+    const parts: string[] = [];
+    if (caseRegionFilter) parts.push(caseRegionFilterLabel ?? caseRegionFilter);
+    if (caseStageFilter) parts.push(`failed at ${caseStageFilterLabel ?? 'stage'}`);
+    return `No ${entity.plural.toLowerCase()} matching ${parts.join(' · ')}.`;
+  }, [
+    filteredCases.length,
+    caseStageFilter,
+    caseRegionFilter,
+    caseStageFilterLabel,
+    caseRegionFilterLabel,
+    entity.plural,
+  ]);
 
   const filtered = useMemo(() => {
     const rows = controls.filter((c) => {
@@ -1795,8 +2158,8 @@ export function DomainAuditWorkspace({
   const workspaceTabs = useMemo(() => {
     const core = registerControlsFirst
       ? [
-          { id: 'register', label: 'Control register', icon: ListChecks },
           { id: 'sop', label: 'Process flow', icon: Workflow },
+          { id: 'register', label: 'Control register', icon: ListChecks },
           { id: 'cases', label: `${entity.plural} — Journey matrix`, icon: UserRound },
         ]
       : [
@@ -1811,22 +2174,29 @@ export function DomainAuditWorkspace({
   return (
     <div className="space-y-5">
       {/* View toggle: Process flow / Control register / Cases */}
-      <div className="bg-white rounded-lg ring-1 ring-slate-200 p-1.5 inline-flex items-center gap-1 flex-wrap">
-        {workspaceTabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setView(tab.id)}
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                view === tab.id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <Icon className="w-4 h-4" /> {tab.label}
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="bg-white rounded-lg ring-1 ring-slate-200 p-1.5 inline-flex items-center gap-1 flex-wrap">
+          {workspaceTabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setView(tab.id)}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  view === tab.id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <Icon className="w-4 h-4" /> {tab.label}
+              </button>
+            );
+          })}
+        </div>
+        {(() => {
+          const trailing =
+            typeof tabBarTrailing === 'function' ? tabBarTrailing(view, tabBarCtx) : tabBarTrailing;
+          return trailing ? <div className="ml-auto shrink-0">{trailing}</div> : null;
+        })()}
       </div>
 
       {extraTabs?.map(
@@ -1836,11 +2206,16 @@ export function DomainAuditWorkspace({
       {/* ===== CASES — EVIDENCE TRAIL VIEW ===== */}
       {view === 'cases' && (
         sop
-          ? (
+          ? renderCasesView
+            ? (
+              renderCasesView({ cases, filteredCases, tabBarCtx })
+            )
+            : (
             <CasesView
+              key={`${caseStageFilter ?? 'all'}-${caseRegionFilter ?? 'all'}`}
               domainId={domainId}
               sop={sop}
-              cases={cases}
+              cases={filteredCases}
               entity={entity}
               domainLabel={domainLabel}
               onOpenEvidence={onOpenEvidence}
@@ -1849,8 +2224,9 @@ export function DomainAuditWorkspace({
               getStageHeader={getStageHeader}
               controlExceptionLabels={controlExceptionLabels}
               hideJourneyHeader={registerControlsFirst}
+              emptyCasesMessage={journeyEmptyFilterMessage}
             />
-          )
+            )
           : (
             <div className="bg-white rounded-lg ring-1 ring-slate-200 p-10 text-center text-sm text-slate-500">
               <MinusCircle className="w-6 h-6 mx-auto mb-2 text-slate-400" />
@@ -2071,17 +2447,70 @@ export function DomainAuditWorkspace({
 };
 
 const DomainTab = ({ domainId, onOpenEvidence }) => {
+  const isV2 = useIpaVersion() === 'v2';
   const domain = D.DOMAINS.find((d) => d.id === domainId);
+  const sop = D.SOP_BY_DOMAIN[domainId];
+  const entity = D.CASE_ENTITY[domainId] || { singular: 'Case', plural: 'Cases', entity: 'case' };
+  const journeyStageFilterOptions = useMemo(
+    () => buildJourneyStageFilterOptions(domainId, sop),
+    [domainId, sop],
+  );
+  const getStageHeader = useMemo(
+    () => (stage: { id: string; name: string }) => D.getJourneyStageHeader(domainId, stage),
+    [domainId],
+  );
+  const cases = D.CASES_BY_DOMAIN[domainId] || [];
+  const journeyTitle = D.JOURNEY_TITLE_BY_DOMAIN[domainId];
+
+  const journeyConfig = getJourneyDomainConfig(domainId);
+
+  if (isV2 && journeyConfig && sop) {
+    return (
+      <DomainAuditWorkspace
+        domainId={domainId}
+        domainLabel={domain.label}
+        controls={D.CONTROLS_BY_DOMAIN[domainId] || []}
+        sop={sop}
+        cases={cases}
+        entity={entity}
+        onOpenEvidence={onOpenEvidence}
+        buildEvidence={D.buildEvidence}
+        journeyTitle={journeyTitle}
+        getStageHeader={getStageHeader}
+        renderCasesView={() => (
+          <DomainJourneyCasesView
+            config={journeyConfig}
+            domainId={domainId}
+            domainLabel={domain.label}
+            sop={sop}
+            cases={cases}
+            entity={entity}
+            controls={D.CONTROLS_BY_DOMAIN[domainId] || []}
+            journeyTitle={journeyTitle}
+            getStageHeader={getStageHeader}
+            onOpenEvidence={onOpenEvidence}
+          />
+        )}
+      />
+    );
+  }
+
   return (
     <DomainAuditWorkspace
       domainId={domainId}
       domainLabel={domain.label}
       controls={D.CONTROLS_BY_DOMAIN[domainId] || []}
-      sop={D.SOP_BY_DOMAIN[domainId]}
-      cases={D.CASES_BY_DOMAIN[domainId] || []}
-      entity={D.CASE_ENTITY[domainId] || { singular: 'Case', plural: 'Cases', entity: 'case' }}
+      sop={sop}
+      cases={cases}
+      entity={entity}
       onOpenEvidence={onOpenEvidence}
       buildEvidence={D.buildEvidence}
+      journeyStageFilterOptions={journeyStageFilterOptions}
+      tabBarTrailing={(view, ctx) =>
+        view === 'cases' && journeyStageFilterOptions.length > 0 ? (
+          <JourneyMatrixStageFilter options={journeyStageFilterOptions} ctx={ctx} />
+        ) : null
+      }
     />
   );
 };
@@ -2518,31 +2947,44 @@ export default function ProcessAuditDashboard() {
         {/* Body — sole vertical scroll region so header + domain rail stay fixed */}
         <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto">
           <div className="mx-auto max-w-[1600px] px-6 py-6">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-semibold text-slate-900">
-                  {sidebarDomains.find((d) => d.id === activeTab)?.label}
-                </h1>
-                <p className="mt-0.5 text-sm text-slate-500">
-                  {activeTab === 'overview'
-                    ? `Cross-domain compliance posture across ${D.TOTAL_CONTROLS} controls and 10 auditor domains`
-                    : activeTab === 'fast-tag'
-                      ? 'FASTag issuance & toll lifecycle audit · NETC / NPCI OV1T · control testing Q1 2026'
-                      : `All controls in scope · regulatory references · evidence on demand`}
-                </p>
+            {activeTab === 'fast-tag' && isV2 ? (
+              <FastTagPageHeader />
+            ) : (
+              <div className="mb-5 flex items-center justify-between">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-xl font-semibold text-slate-900">
+                    {sidebarDomains.find((d) => d.id === activeTab)?.label}
+                  </h1>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    {activeTab === 'overview'
+                      ? `Cross-domain compliance posture across ${D.TOTAL_CONTROLS} controls and 10 auditor domains`
+                      : activeTab === 'fast-tag'
+                        ? 'FASTag issuance & toll lifecycle audit · NETC / NPCI OV1T · control testing Q1 2026'
+                        : `All controls in scope · regulatory references · evidence on demand`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                  >
+                    <Filter className="h-4 w-4" /> Filter
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                  >
+                    <Download className="h-4 w-4" /> Export
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
+                  >
+                    <Eye className="h-4 w-4" /> Auditor view
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
-                  <Filter className="w-4 h-4" /> Filter
-                </button>
-                <button className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
-                  <Download className="w-4 h-4" /> Export
-                </button>
-                <button className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800">
-                  <Eye className="w-4 h-4" /> Auditor view
-                </button>
-              </div>
-            </div>
+            )}
 
             {activeTab === 'fast-tag' && isV2 ? (
               <FastTagAuditDashboard onOpenEvidence={openEvidence} />

@@ -3,9 +3,10 @@ import { FASTAG_DOMAIN_META } from './fastTagAuditContent';
 import { finalizeFastTagControl, type FastTagControlSeed } from './fastTagMetrics';
 import {
   buildFastTagCaseJourney,
-  type FastTagCasePoolRecord,
   type FastTagSop,
 } from './fastTagCaseBuilder';
+import { buildFastTagCasePool } from './fastTagCasePool';
+import { INDIA_STATE_NAME_TO_RTO } from './indiaStateRto';
 
 export const FASTAG_DOMAIN_ID = 'fasttag';
 
@@ -18,6 +19,12 @@ export const FASTAG_ENTITY = {
 export const FASTAG_JOURNEY_TITLE =
   'FASTAG ISSUANCE JOURNEY — STAGE-WISE CONTROL COMPLIANCE';
 
+/** National scope heading in summary panel (was “All India”). */
+export const FASTAG_INDIA_SCOPE_HEADING = 'India';
+
+/** Map control to select portfolio-wide scope (was “All India”). */
+export const FASTAG_OVERALL_SCOPE_BUTTON = 'Overall';
+
 export const FASTAG_STAGE_SHORT: Record<string, string> = {
   intake: 'Eligibility',
   identity: 'OTP',
@@ -28,6 +35,69 @@ export const FASTAG_STAGE_SHORT: Record<string, string> = {
   fitment: 'Fitment',
   activate: 'Activation',
 };
+
+/** RTO state codes on VRN (subject line) → region label for journey filters / map tooltips. */
+export const FASTAG_REGION_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(INDIA_STATE_NAME_TO_RTO).map(([name, code]) => [code, name]),
+);
+
+/** Parse RTO region code from case subject (e.g. "VRN MH12AB1234 …" → "MH"). */
+export function getFastTagCaseRegion(kase: { subject?: string }): string | null {
+  const m = kase.subject?.match(/VRN\s+([A-Z]{2})\d/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+/** Table display — strip optional trailing state label from legacy subjects. */
+export function getFastTagCaseDisplaySubject(subject?: string): string {
+  if (!subject) return '';
+  return subject.replace(/\s+\([^)]+\)\s*$/, '').trim();
+}
+
+type FastTagCaseRegionLike = {
+  subject?: string;
+  trail?: { status: string }[];
+};
+
+/** All issuance cases per RTO code (for region map volume). */
+export function getFastTagRegionCaseCounts(cases: FastTagCaseRegionLike[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const kase of cases) {
+    const code = getFastTagCaseRegion(kase);
+    if (code) counts[code] = (counts[code] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/** Failed issuance cases per RTO code (for map tooltips / drill-down context). */
+export function getFastTagRegionFailedCounts(
+  cases: FastTagCaseRegionLike[],
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const kase of cases) {
+    const code = getFastTagCaseRegion(kase);
+    if (!code) continue;
+    if (kase.trail?.some((t) => t.status === 'rejected' || t.status === 'pending')) {
+      counts[code] = (counts[code] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
+export function getFastTagRegionFilterOptions(
+  cases: { subject?: string }[],
+): { id: string; label: string }[] {
+  const codes = new Set<string>();
+  for (const kase of cases) {
+    const code = getFastTagCaseRegion(kase);
+    if (code) codes.add(code);
+  }
+  return [...codes]
+    .sort((a, b) => (FASTAG_REGION_LABEL[a] ?? a).localeCompare(FASTAG_REGION_LABEL[b] ?? b))
+    .map((code) => ({
+      id: code,
+      label: FASTAG_REGION_LABEL[code] ? `${FASTAG_REGION_LABEL[code]} (${code})` : code,
+    }));
+}
 
 export const FASTAG_CONTROL_EXCEPTION_LABEL: Record<string, string> = {
   'FT-01': 'OV1T / mapper gap',
@@ -199,7 +269,7 @@ export const FASTAG_CONTROLS: AuditControl[] = CONTROL_SEEDS.map(finalizeFastTag
 export const FASTAG_SOP: FastTagSop = {
   name: 'FASTag Issuance & Toll Lifecycle SOP',
   purpose:
-    'End-to-end issuer process — every FASTag issuance must clear eligibility, identity, KYC, OV1T, wallet load, issuance, fitment, and NETC activation before toll use. Post-activation toll settlement and disputes are in scope for FT-11 / FT-12.',
+    'End-to-end issuer process — every FASTag issuance must clear eligibility, identity, KYC, OV1T, wallet load, issuance, fitment, and NETC activation before toll use · Post-activation toll settlement and disputes in scope for FT-11 / FT-12.',
   stages: [
     {
       id: 'intake',
@@ -292,137 +362,7 @@ export const FASTAG_SOP: FastTagSop = {
   ],
 };
 
-const CASE_POOL: FastTagCasePoolRecord[] = [
-  {
-    id: 'FT-20260417-8801',
-    subject: 'VRN MH12AB1234 — Retail car',
-    segment: 'Class 4 · UPI load',
-    opened: '17 Apr 2026 09:08',
-    scenario: 'clean',
-  },
-  {
-    id: 'FT-20260417-8802',
-    subject: 'VRN DL01CD9999 — Mapper conflict',
-    segment: 'Class 4 · NETC hold',
-    opened: '17 Apr 2026 09:14',
-    scenario: 'rejected',
-    failStageId: 'ovt',
-    failControlId: 'FT-01',
-    journeyException: 'Active tag on VRN (NETC)',
-  },
-  {
-    id: 'FT-20260417-8803',
-    subject: 'VRN KA05EF2200 — CKYCR pending',
-    segment: 'Class 4 · Branch',
-    opened: '17 Apr 2026 09:22',
-    scenario: 'pending',
-    failStageId: 'kyc',
-    failControlId: 'FT-04',
-  },
-  {
-    id: 'FT-20260417-8804',
-    subject: 'VRN TN09GH4500 — Wallet load fail',
-    segment: 'Class 5 · NEFT',
-    opened: '17 Apr 2026 09:31',
-    scenario: 'rejected',
-    failStageId: 'wallet',
-    failControlId: 'FT-06',
-  },
-  {
-    id: 'FT-20260417-8805',
-    subject: 'VRN GJ01JK7788 — Fitment QA gap',
-    segment: 'Class 6 · Fleet',
-    opened: '17 Apr 2026 10:02',
-    scenario: 'rejected',
-    failStageId: 'fitment',
-    failControlId: 'FT-09',
-  },
-  {
-    id: 'FT-20260417-8806',
-    subject: 'VRN HR26LM3344 — Activated clean',
-    segment: 'Class 4 · Net banking',
-    opened: '17 Apr 2026 10:18',
-    scenario: 'clean',
-  },
-  {
-    id: 'FT-20260417-8807',
-    subject: 'VRN UP14MN8821 — Blacklist override',
-    segment: 'Class 4 · Branch',
-    opened: '17 Apr 2026 10:25',
-    scenario: 'rejected',
-    failStageId: 'intake',
-    failControlId: 'FT-02',
-    journeyException: 'Issuer blacklist hit',
-  },
-  {
-    id: 'FT-20260417-8808',
-    subject: 'VRN WB22PQ1190 — OTP session mismatch',
-    segment: 'Class 4 · Digital',
-    opened: '17 Apr 2026 10:33',
-    scenario: 'rejected',
-    failStageId: 'identity',
-    failControlId: 'FT-03',
-  },
-  {
-    id: 'FT-20260417-8809',
-    subject: 'VRN RJ14RS5500 — IMPS no reversal',
-    segment: 'Class 4 · IMPS',
-    opened: '17 Apr 2026 10:41',
-    scenario: 'rejected',
-    failStageId: 'wallet',
-    failControlId: 'FT-07',
-    journeyException: 'CBS debit failed',
-  },
-  {
-    id: 'FT-20260417-8810',
-    subject: 'VRN MP09TU6611 — EPC batch collision',
-    segment: 'Class 5 · Courier',
-    opened: '17 Apr 2026 10:52',
-    scenario: 'rejected',
-    failStageId: 'issue',
-    failControlId: 'FT-08',
-  },
-  {
-    id: 'FT-20260417-8811',
-    subject: 'VRN PB10UV7722 — Early NETC activation',
-    segment: 'Class 4 · Field',
-    opened: '17 Apr 2026 11:05',
-    scenario: 'rejected',
-    failStageId: 'activate',
-    failControlId: 'FT-10',
-    journeyException: 'Activation before fitment QA',
-  },
-  {
-    id: 'FT-20260417-8812',
-    subject: 'VRN KL07WX9933 — Plaza settlement break',
-    segment: 'Class 4 · Active tag',
-    opened: '17 Apr 2026 11:18',
-    scenario: 'rejected',
-    failStageId: 'activate',
-    failControlId: 'FT-11',
-    journeyException: 'Plaza file break ₹420',
-  },
-  {
-    id: 'FT-20260417-8813',
-    subject: 'VRN AP39YZ1144 — Double toll dispute',
-    segment: 'Class 6 · Fleet',
-    opened: '17 Apr 2026 11:26',
-    scenario: 'pending',
-    failStageId: 'activate',
-    failControlId: 'FT-12',
-    journeyException: 'Dispute > 7d SLA',
-  },
-  {
-    id: 'FT-20260417-8814',
-    subject: 'VRN BR06YZ2255 — Wrong tag class',
-    segment: 'Class 4 issued on LCV',
-    opened: '17 Apr 2026 11:35',
-    scenario: 'rejected',
-    failStageId: 'intake',
-    failControlId: 'FT-05',
-    journeyException: 'Class 4 on commercial VRN',
-  },
-];
+const CASE_POOL = buildFastTagCasePool();
 
 export const FASTAG_CASES = CASE_POOL.map((c) =>
   buildFastTagCaseJourney(c, FASTAG_SOP, FASTAG_CONTROLS),
