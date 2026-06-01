@@ -25,6 +25,11 @@ export function hasModernIpaFeatures(version: IpaVersion): boolean {
   return version === 'v2' || version === 'v3';
 }
 
+/** v3 journey matrix — stage funnel, action queue, and case drawer (excludes Fast-Tag). */
+export function hasV3JourneyCommandCenter(version: IpaVersion): boolean {
+  return version === 'v3';
+}
+
 export function getIpaBasePath(version: IpaVersion): string {
   return IPA_BASE_PATHS[version];
 }

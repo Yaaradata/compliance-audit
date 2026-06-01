@@ -12,6 +12,7 @@ import { getProcessAuditData } from '@/lib/Indian_Process_Audit';
 |------|------|
 | `types.ts` | Domain types (`AuditControl`, `EvidenceBundle`, …) |
 | `assembleSnapshot.ts` | Raw controls, SOPs, cases, journeys, overview KPIs, AI intel (built once) |
+| `riskCommandCenter/` | V3 cockpit + journey mock (`auditData.ts`, `cockpitData.ts`) |
 | `index.ts` | `getProcessAuditData()` singleton export |
 
 ## App / components
@@ -22,7 +23,7 @@ import { getProcessAuditData } from '@/lib/Indian_Process_Audit';
 
 ## Versioning
 
-- **v3** — default route; new Fast-Tag and journey work under `app/Indian_Process_Audit/v3/`.
+- **v3** — default route; Overview = Executive Risk Posture Cockpit (`components/.../cockpit/v3/`). Domain journey matrix = funnel drill (`components/.../journey/v3/`). Fast-Tag under `app/Indian_Process_Audit/v3/Fast-Tag/`.
 - **v2** — frozen snapshot for comparison.
 - **v1** — classic process flow (no Fast-Tag tab).
 

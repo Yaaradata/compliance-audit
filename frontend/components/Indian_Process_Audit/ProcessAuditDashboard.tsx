@@ -20,7 +20,11 @@ import {
 import AuditCard, { AuditCardSkeleton } from '@/components/Indian_Process_Audit/AuditCard';
 import { Scope3KpiStrip } from '@/components/scope3emissions/scope3-kpi';
 import { useIpaVersion } from '@/components/Indian_Process_Audit/ipa/IpaVersionProvider';
-import { hasModernIpaFeatures } from '@/components/Indian_Process_Audit/ipa/ipaVersion';
+import {
+  hasModernIpaFeatures,
+  hasV3JourneyCommandCenter,
+} from '@/components/Indian_Process_Audit/ipa/ipaVersion';
+import JourneyCommandCenterView from '@/components/Indian_Process_Audit/journey/v3/JourneyCommandCenterView';
 import { getIpaFastTagModule } from '@/app/Indian_Process_Audit/_shared/ipaFastTagModule';
 import DomainJourneyCasesView from '@/components/Indian_Process_Audit/journey/DomainJourneyCasesView';
 import { getJourneyDomainConfig } from '@/components/Indian_Process_Audit/journey/journeyDomainConfigs';
@@ -825,7 +829,11 @@ const FindingsSummaryDrillSection = ({ onDrillDown }) => {
   );
 };
 
-const OverviewTab = ({ onDrillDown, hasModern = false, fastTagModule = null }) => {
+const OverviewTab = ({
+  onDrillDown,
+  hasModern = false,
+  fastTagModule = null,
+}) => {
   const sortedDomains = useMemo(() => {
     const rows =
       hasModern && fastTagModule
@@ -2444,7 +2452,9 @@ export function DomainAuditWorkspace({
 };
 
 const DomainTab = ({ domainId, onOpenEvidence }) => {
-  const hasModern = hasModernIpaFeatures(useIpaVersion());
+  const ipaVersion = useIpaVersion();
+  const hasModern = hasModernIpaFeatures(ipaVersion);
+  const hasV3Journey = hasV3JourneyCommandCenter(ipaVersion);
   const domain = D.DOMAINS.find((d) => d.id === domainId);
   const sop = D.SOP_BY_DOMAIN[domainId];
   const entity = D.CASE_ENTITY[domainId] || { singular: 'Case', plural: 'Cases', entity: 'case' };
@@ -2460,6 +2470,24 @@ const DomainTab = ({ domainId, onOpenEvidence }) => {
   const journeyTitle = D.JOURNEY_TITLE_BY_DOMAIN[domainId];
 
   const journeyConfig = getJourneyDomainConfig(domainId);
+
+  if (hasV3Journey && journeyConfig && sop) {
+    return (
+      <DomainAuditWorkspace
+        domainId={domainId}
+        domainLabel={domain.label}
+        controls={D.CONTROLS_BY_DOMAIN[domainId] || []}
+        sop={sop}
+        cases={cases}
+        entity={entity}
+        onOpenEvidence={onOpenEvidence}
+        buildEvidence={D.buildEvidence}
+        journeyTitle={journeyTitle}
+        getStageHeader={getStageHeader}
+        renderCasesView={() => <JourneyCommandCenterView domainId={domainId} />}
+      />
+    );
+  }
 
   if (hasModern && journeyConfig && sop) {
     return (

@@ -17,3 +17,9 @@ export function getProcessAuditData(): ProcessAuditSnapshot {
 
 export type { ProcessAuditSnapshot } from './assembleSnapshot';
 export * from './types';
+export {
+  getRiskCommandCenterDomain,
+  getRiskCommandCenterPortfolio,
+  RCC_JOURNEY_DOMAIN_IDS,
+} from './riskCommandCenter';
+export type { RccCase, RccDomain } from './riskCommandCenter';
