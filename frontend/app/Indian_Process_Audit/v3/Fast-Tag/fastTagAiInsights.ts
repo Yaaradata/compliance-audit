@@ -12,7 +12,6 @@ export type FastTagAiInsightBlock = {
 };
 
 export type FastTagAiInsightsMemo = {
-  audience: string;
   headline: string;
   confidencePct: number;
   blocks: FastTagAiInsightBlock[];
@@ -147,7 +146,6 @@ export function buildFastTagAiInsightsMemo(summary: FastTagSelectionSummary): Fa
         : `${summary.heading} read-out`;
 
   return {
-    audience: 'CRO · Operations · FastTag lead',
     headline,
     confidencePct: confidenceFromPosture(summary),
     blocks,

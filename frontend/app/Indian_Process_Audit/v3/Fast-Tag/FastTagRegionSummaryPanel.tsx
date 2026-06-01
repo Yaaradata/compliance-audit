@@ -203,7 +203,6 @@ function FastTagAiInsightsPanel({ summary }: { summary: FastTagSelectionSummary 
             <Sparkles className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
             <h3 className="text-sm font-semibold text-slate-900">AI Insights</h3>
           </div>
-          <p className="mt-0.5 text-[11px] text-slate-500">For: {memo.audience}</p>
         </div>
         <span className="inline-flex w-fit shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-amber-800 ring-1 ring-amber-200/90">
           {memo.confidencePct}% confidence
@@ -321,10 +320,7 @@ export default function FastTagRegionSummaryPanel({
     <section className={`overflow-hidden rounded-xl bg-white shadow-sm ring-1 ${style.ring}`}>
       {/* Header */}
       <div className={`border-b border-slate-200/90 bg-gradient-to-br px-5 py-5 ${style.accent}`}>
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-indigo-700">
-          Issuance audit snapshot
-        </p>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h2 className="flex items-center gap-2 text-2xl font-semibold leading-none tracking-tight text-slate-900 sm:text-[1.65rem]">
               <MapPin className="h-6 w-6 shrink-0 text-indigo-600 sm:h-7 sm:w-7" aria-hidden />
@@ -406,9 +402,10 @@ export default function FastTagRegionSummaryPanel({
               stateClusterMaxPx != null ? { maxHeight: stateClusterMaxPx } : undefined
             }
           >
-            <div className="flex min-h-0 flex-col rounded-xl bg-white p-4 ring-1 ring-slate-200/90 sm:p-5">
+            <div className="flex h-full min-h-0 flex-col rounded-xl bg-white p-4 ring-1 ring-slate-200/90 sm:p-5">
               <FastTagStateClusterPanel
                 cases={cases}
+                allIndianStates={summary.mode === 'national'}
                 selectedRegionCode={selectedRegionCode}
                 onSelectRegion={onSelectRegion}
                 panelMaxHeightPx={stateClusterMaxPx}

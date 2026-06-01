@@ -184,7 +184,7 @@ function buildPrimaryInsight(input: {
   } = input;
 
   if (totalCases === 0) {
-    return 'No issuance cases match the current map and heatmap selection.';
+    return 'No issuance cases match the current map selection.';
   }
 
   if (withFindings === 0) {

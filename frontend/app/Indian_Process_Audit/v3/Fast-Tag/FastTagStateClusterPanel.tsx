@@ -5,20 +5,20 @@ import { ArrowDown, ArrowUp, Minus, Search } from 'lucide-react';
 import type { FastTagHeatRisk } from './fastTagJourneyHeatmap';
 import { buildFastTagStateClusterRows, type FastTagStateClusterRow } from './fastTagStateCluster';
 
-type CaseLike = { id?: string; subject?: string; trail?: { status: string }[] };
-
-/** Default rows when not beside the insight column (mobile). */
-const DEFAULT_VISIBLE_STATES = 10;
-/** At most this many states render — never the full national list. */
-const MAX_VISIBLE_STATES = 14;
-const PANEL_CHROME_PX = 118;
-const ROW_HEIGHT_PX = 54;
+type CaseLike = {
+  id?: string;
+  subject?: string;
+  overallStatus?: string;
+  trail?: { status: string }[];
+};
 
 type Props = {
   cases: CaseLike[];
   selectedRegionCode?: string;
   onSelectRegion?: (regionCode: string) => void;
-  /** Max height from the left insight stack (lg); used to fit a few more rows, not all states. */
+  /** When true, list all Indian states/UTs (map RTO set), not only states with cases. */
+  allIndianStates?: boolean;
+  /** Max height from the left insight stack (lg); table body scrolls inside. */
   panelMaxHeightPx?: number | null;
 };
 
@@ -68,6 +68,36 @@ function TrendSparkline({ values, risk }: { values: number[]; risk: FastTagHeatR
           style={{ height: `${Math.max(12, Math.round((v / max) * 100))}%` }}
         />
       ))}
+    </div>
+  );
+}
+
+function OutcomeMix({ row }: { row: FastTagStateClusterRow }) {
+  if (row.caseCount === 0) {
+    return <span className="text-[11px] text-slate-400">—</span>;
+  }
+  return (
+    <div
+      className="flex flex-wrap items-center justify-end gap-x-1.5 gap-y-0.5 text-[10px] font-semibold tabular-nums"
+      title="Completed · Critical · Exception"
+    >
+      <span className="text-emerald-700">✓{row.compliantCount}</span>
+      <span className="text-red-600">!{row.criticalCount}</span>
+      <span className="text-sky-700">~{row.exceptionCount}</span>
+    </div>
+  );
+}
+
+function FindingsCell({ row }: { row: FastTagStateClusterRow }) {
+  if (row.caseCount === 0) {
+    return <span className="text-[11px] text-slate-400">—</span>;
+  }
+  return (
+    <div className="text-right">
+      <p className="text-sm font-semibold tabular-nums text-slate-900">{row.failRatePct}%</p>
+      <p className="mt-0.5 text-[10px] text-slate-500 tabular-nums">
+        {row.failedCount} w/ finding{row.failedCount === 1 ? '' : 's'}
+      </p>
     </div>
   );
 }
@@ -138,9 +168,21 @@ function ClusterRow({
           </span>
           <DeltaBadge delta={row.deltaVsPrior} />
         </p>
+        <p className="mt-1 text-[10px] leading-snug text-slate-600 sm:hidden">
+          <span className="font-semibold tabular-nums text-slate-800">{row.failRatePct}%</span> w/
+          findings
+          <span className="text-slate-300" aria-hidden>
+            {' '}
+            ·{' '}
+          </span>
+          ✓{row.compliantCount} !{row.criticalCount} ~{row.exceptionCount}
+        </p>
       </td>
-      <td className="hidden px-2 py-2.5 text-right tabular-nums text-lg font-semibold text-slate-900 sm:table-cell">
-        {row.caseCount}
+      <td className="hidden px-2 py-2.5 sm:table-cell">
+        <OutcomeMix row={row} />
+      </td>
+      <td className="hidden px-2 py-2.5 sm:table-cell">
+        <FindingsCell row={row} />
       </td>
       <td className="px-2 py-2.5">
         <div className="flex justify-center">
@@ -197,9 +239,13 @@ export default function FastTagStateClusterPanel({
   cases,
   selectedRegionCode = '',
   onSelectRegion,
+  allIndianStates = false,
   panelMaxHeightPx = null,
 }: Props) {
-  const rows = useMemo(() => buildFastTagStateClusterRows(cases), [cases]);
+  const rows = useMemo(
+    () => buildFastTagStateClusterRows(cases, { allIndianStates }),
+    [cases, allIndianStates],
+  );
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
   const [sortBy, setSortBy] = useState<SortKey>('cases');
@@ -210,21 +256,11 @@ export default function FastTagStateClusterPanel({
     [rows, search, riskFilter, trendFilter, sortBy],
   );
 
-  const visibleLimit = useMemo(() => {
-    if (panelMaxHeightPx == null || panelMaxHeightPx <= PANEL_CHROME_PX) {
-      return Math.min(filteredRows.length, DEFAULT_VISIBLE_STATES);
-    }
-    const fit = Math.floor((panelMaxHeightPx - PANEL_CHROME_PX) / ROW_HEIGHT_PX);
-    return Math.min(
-      filteredRows.length,
-      Math.max(DEFAULT_VISIBLE_STATES, Math.min(MAX_VISIBLE_STATES, fit)),
-    );
-  }, [panelMaxHeightPx, filteredRows.length]);
+  const bounded = panelMaxHeightPx != null && panelMaxHeightPx > 0;
 
-  const visibleRows = useMemo(
-    () => filteredRows.slice(0, visibleLimit),
-    [filteredRows, visibleLimit],
-  );
+  const tableScrollClassName = bounded
+    ? 'mt-2 h-0 min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain rounded-lg ring-1 ring-slate-200/90 [scrollbar-gutter:stable] [scrollbar-width:thin]'
+    : 'mt-2 max-h-[min(32rem,70vh)] overflow-y-auto overflow-x-auto overscroll-contain rounded-lg ring-1 ring-slate-200/90 [scrollbar-gutter:stable] [scrollbar-width:thin]';
 
   const filtersActive =
     search.trim() !== '' || riskFilter !== 'all' || trendFilter !== 'all' || sortBy !== 'cases';
@@ -243,7 +279,7 @@ export default function FastTagStateClusterPanel({
   }
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className={bounded ? 'flex h-full min-h-0 flex-col' : 'flex min-h-0 flex-col'}>
       <div className="shrink-0 space-y-1">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
         <h3 className="shrink-0 text-sm font-semibold text-slate-900">State cluster</h3>
@@ -319,15 +355,22 @@ export default function FastTagStateClusterPanel({
       </div>
 
       <div
-        className="mt-2 overflow-x-auto rounded-lg ring-1 ring-slate-200/90"
+        className={tableScrollClassName}
         role="region"
-        aria-label={`State cluster — ${visibleRows.length} of ${filteredRows.length} states shown`}
+        aria-label={`State cluster — ${filteredRows.length} states`}
+        tabIndex={bounded ? 0 : undefined}
       >
-        <table className="w-full min-w-[320px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[360px] border-collapse text-left text-sm">
           <thead className="sticky top-0 z-10 bg-slate-50/95 shadow-[0_1px_0_0_rgb(226,232,240)] backdrop-blur-sm">
             <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
               <th className="px-3 py-2.5 sm:px-4">State</th>
-              <th className="hidden px-2 py-2.5 text-right sm:table-cell">Cases</th>
+              <th
+                className="hidden px-2 py-2.5 text-right sm:table-cell"
+                title="Completed · Critical · Exception"
+              >
+                Outcomes
+              </th>
+              <th className="hidden px-2 py-2.5 text-right sm:table-cell">Findings</th>
               <th className="px-2 py-2.5 text-center">Trend 7d</th>
               <th className="px-3 py-2.5 text-right sm:px-4">Risk</th>
             </tr>
@@ -335,12 +378,12 @@ export default function FastTagStateClusterPanel({
           <tbody>
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">
                   No states match these filters.
                 </td>
               </tr>
             ) : (
-              visibleRows.map((row) => (
+              filteredRows.map((row) => (
                 <ClusterRow
                   key={row.regionCode}
                   row={row}

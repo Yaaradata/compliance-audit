@@ -216,7 +216,7 @@ export default function FastTagIndiaRegionMap({
             viewBox={`0 0 ${MAP_W} ${MAP_H}`}
             className="mx-auto block h-auto w-full max-w-full"
             role="img"
-            aria-label="India map colored by failed-case share per state, matching stage heatmap scale"
+            aria-label="India map colored by failed-case share per state"
           >
             {paths.map((p) => (
               <path
