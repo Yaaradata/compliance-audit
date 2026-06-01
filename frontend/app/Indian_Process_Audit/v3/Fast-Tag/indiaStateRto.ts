@@ -1,0 +1,43 @@
+/** GeoJSON `ST_NM` (jbrobst / datameet states) → Indian RTO state code. */
+export const INDIA_STATE_NAME_TO_RTO: Record<string, string> = {
+  'Andaman & Nicobar': 'AN',
+  'Andhra Pradesh': 'AP',
+  'Arunachal Pradesh': 'AR',
+  Assam: 'AS',
+  Bihar: 'BR',
+  Chandigarh: 'CH',
+  Chhattisgarh: 'CG',
+  'Dadra and Nagar Haveli and Daman and Diu': 'DD',
+  Delhi: 'DL',
+  Goa: 'GA',
+  Gujarat: 'GJ',
+  Haryana: 'HR',
+  'Himachal Pradesh': 'HP',
+  'Jammu & Kashmir': 'JK',
+  Jharkhand: 'JH',
+  Karnataka: 'KA',
+  Kerala: 'KL',
+  Ladakh: 'LA',
+  Lakshadweep: 'LD',
+  'Madhya Pradesh': 'MP',
+  Maharashtra: 'MH',
+  Manipur: 'MN',
+  Meghalaya: 'ML',
+  Mizoram: 'MZ',
+  Nagaland: 'NL',
+  Odisha: 'OD',
+  Puducherry: 'PY',
+  Punjab: 'PB',
+  Rajasthan: 'RJ',
+  Sikkim: 'SK',
+  'Tamil Nadu': 'TN',
+  Telangana: 'TS',
+  Tripura: 'TR',
+  'Uttar Pradesh': 'UP',
+  Uttarakhand: 'UK',
+  'West Bengal': 'WB',
+};
+
+export function getRtoFromStateName(stateName: string): string | null {
+  return INDIA_STATE_NAME_TO_RTO[stateName] ?? null;
+}

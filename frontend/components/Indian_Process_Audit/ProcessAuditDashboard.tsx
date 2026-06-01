@@ -20,17 +20,10 @@ import {
 import AuditCard, { AuditCardSkeleton } from '@/components/Indian_Process_Audit/AuditCard';
 import { Scope3KpiStrip } from '@/components/scope3emissions/scope3-kpi';
 import { useIpaVersion } from '@/components/Indian_Process_Audit/ipa/IpaVersionProvider';
-import FastTagAuditDashboard, {
-  FastTagPageHeader,
-} from '@/app/Indian_Process_Audit/v2/Fast-Tag/FastTagAuditDashboard';
+import { hasModernIpaFeatures } from '@/components/Indian_Process_Audit/ipa/ipaVersion';
+import { getIpaFastTagModule } from '@/app/Indian_Process_Audit/_shared/ipaFastTagModule';
 import DomainJourneyCasesView from '@/components/Indian_Process_Audit/journey/DomainJourneyCasesView';
 import { getJourneyDomainConfig } from '@/components/Indian_Process_Audit/journey/journeyDomainConfigs';
-import {
-  FASTAG_CONTROL_COUNT,
-  getFastTagDomainAuditCard,
-  getFastTagProcessMappingRow,
-} from '@/app/Indian_Process_Audit/v2/Fast-Tag/auditData';
-import { buildFastTagEvidence } from '@/app/Indian_Process_Audit/v2/Fast-Tag/buildFastTagEvidence';
 import { getProcessAuditData } from '@/lib/Indian_Process_Audit';
 import type { AuditControl, EvidenceDrawerState, ProcessAuditTabId } from '@/lib/Indian_Process_Audit/types';
 
@@ -832,14 +825,18 @@ const FindingsSummaryDrillSection = ({ onDrillDown }) => {
   );
 };
 
-const OverviewTab = ({ onDrillDown, isV2 = false }) => {
+const OverviewTab = ({ onDrillDown, hasModern = false, fastTagModule = null }) => {
   const sortedDomains = useMemo(() => {
-    const rows = isV2 ? [...D.DOMAIN_AUDIT_VIEW, getFastTagDomainAuditCard()] : D.DOMAIN_AUDIT_VIEW;
+    const rows =
+      hasModern && fastTagModule
+        ? [...D.DOMAIN_AUDIT_VIEW, fastTagModule.getFastTagDomainAuditCard()]
+        : D.DOMAIN_AUDIT_VIEW;
     return [...rows].sort(
       (a, b) => (b.violations * 10 + b.overdueRemediation) - (a.violations * 10 + a.overdueRemediation),
     );
-  }, [isV2]);
-  const mappingExtraRows = isV2 ? [getFastTagProcessMappingRow()] : [];
+  }, [hasModern, fastTagModule]);
+  const mappingExtraRows =
+    hasModern && fastTagModule ? [fastTagModule.getFastTagProcessMappingRow()] : [];
   const [cardsLoading, setCardsLoading] = useState(true);
 
   useEffect(() => {
@@ -957,7 +954,7 @@ const SopProcessView = ({
   domainLabel,
   getAuditorFocusForControl = D.getAuditorFocusForControl,
 }) => {
-  const isV2 = useIpaVersion() === 'v2';
+  const hasModern = hasModernIpaFeatures(useIpaVersion());
   const stageAgg = useMemo(
     () => sop.stages.map((s) => ({ ...s, ...aggregateStage(s, controls) })),
     [sop, controls]
@@ -1062,7 +1059,7 @@ const SopProcessView = ({
             </p>
           </div>
         </div>
-        {isV2 ? (
+        {hasModern ? (
           <Scope3KpiStrip cols="grid-cols-2 lg:grid-cols-4" items={sopKpiItemsV2} />
         ) : (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -1539,7 +1536,7 @@ const JourneyStageDetailBlock = ({
 };
 
 /** Full case trail — all SOP stages (issuance case column click). */
-const JourneyFullCaseTrail = ({ kase, controlsById, domainLabel, onOpenEvidence, onClose }) => (
+export const JourneyFullCaseTrail = ({ kase, controlsById, domainLabel, onOpenEvidence, onClose }) => (
   <div>
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
       <div className="min-w-0 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
@@ -2447,7 +2444,7 @@ export function DomainAuditWorkspace({
 };
 
 const DomainTab = ({ domainId, onOpenEvidence }) => {
-  const isV2 = useIpaVersion() === 'v2';
+  const hasModern = hasModernIpaFeatures(useIpaVersion());
   const domain = D.DOMAINS.find((d) => d.id === domainId);
   const sop = D.SOP_BY_DOMAIN[domainId];
   const entity = D.CASE_ENTITY[domainId] || { singular: 'Case', plural: 'Cases', entity: 'case' };
@@ -2464,7 +2461,7 @@ const DomainTab = ({ domainId, onOpenEvidence }) => {
 
   const journeyConfig = getJourneyDomainConfig(domainId);
 
-  if (isV2 && journeyConfig && sop) {
+  if (hasModern && journeyConfig && sop) {
     return (
       <DomainAuditWorkspace
         domainId={domainId}
@@ -2822,7 +2819,7 @@ const EvidenceDrawer = ({ open, evidence, onClose }) => {
 
 type ProcessAuditDashboardTab = ProcessAuditTabId | 'fast-tag';
 
-/** v2-only sidebar entry — same shape as `ProcessAuditDomainDef` for unified nav rendering. */
+/** v2/v3 sidebar entry — same shape as `ProcessAuditDomainDef` for unified nav rendering. */
 const FAST_TAG_SIDEBAR_ITEM = {
   id: 'fast-tag' as const,
   label: 'Fast-Tag',
@@ -2832,19 +2829,22 @@ const FAST_TAG_SIDEBAR_ITEM = {
 
 export default function ProcessAuditDashboard() {
   const ipaVersion = useIpaVersion();
-  const isV2 = ipaVersion === 'v2';
+  const hasModern = hasModernIpaFeatures(ipaVersion);
+  const fastTagModule = useMemo(() => getIpaFastTagModule(ipaVersion), [ipaVersion]);
+  const FastTagAuditDashboard = fastTagModule?.FastTagAuditDashboard ?? null;
+  const FastTagPageHeader = fastTagModule?.FastTagPageHeader ?? null;
   const [activeTab, setActiveTab] = useState<ProcessAuditDashboardTab>('overview');
   const [drawer, setDrawer] = useState<EvidenceDrawerState>({ open: false, evidence: null });
   const [domainsRailOpen, setDomainsRailOpen] = useState(false);
 
-  const sidebarDomains = isV2 ? [...D.DOMAINS, FAST_TAG_SIDEBAR_ITEM] : D.DOMAINS;
+  const sidebarDomains = hasModern ? [...D.DOMAINS, FAST_TAG_SIDEBAR_ITEM] : D.DOMAINS;
 
   const openEvidence = (control: AuditControl, domainLabel: string) =>
     setDrawer({
       open: true,
       evidence:
-        domainLabel === 'Fast-Tag'
-          ? buildFastTagEvidence(control, domainLabel)
+        domainLabel === 'Fast-Tag' && fastTagModule
+          ? fastTagModule.buildFastTagEvidence(control, domainLabel)
           : D.buildEvidence(control, domainLabel),
     });
   const closeEvidence = () => setDrawer({ open: false, evidence: null });
@@ -2907,7 +2907,7 @@ export default function ProcessAuditDashboard() {
                 d.id === 'overview'
                   ? null
                   : d.id === 'fast-tag'
-                    ? FASTAG_CONTROL_COUNT
+                    ? (fastTagModule?.FASTAG_CONTROL_COUNT ?? 0)
                     : (D.CONTROLS_BY_DOMAIN[d.id as ProcessAuditTabId] || []).length;
               return (
                 <button
@@ -2947,7 +2947,7 @@ export default function ProcessAuditDashboard() {
         {/* Body — sole vertical scroll region so header + domain rail stay fixed */}
         <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto">
           <div className="mx-auto max-w-[1600px] px-6 py-6">
-            {activeTab === 'fast-tag' && isV2 ? (
+            {activeTab === 'fast-tag' && hasModern && FastTagPageHeader ? (
               <FastTagPageHeader />
             ) : (
               <div className="mb-5 flex items-center justify-between">
@@ -2986,10 +2986,14 @@ export default function ProcessAuditDashboard() {
               </div>
             )}
 
-            {activeTab === 'fast-tag' && isV2 ? (
+            {activeTab === 'fast-tag' && hasModern && FastTagAuditDashboard ? (
               <FastTagAuditDashboard onOpenEvidence={openEvidence} />
             ) : activeTab === 'overview' ? (
-              <OverviewTab onDrillDown={(id) => setActiveTab(id)} isV2={isV2} />
+              <OverviewTab
+                onDrillDown={(id) => setActiveTab(id)}
+                hasModern={hasModern}
+                fastTagModule={fastTagModule}
+              />
             ) : (
               <DomainTab domainId={activeTab as ProcessAuditTabId} onOpenEvidence={openEvidence} />
             )}

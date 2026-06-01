@@ -11,6 +11,7 @@ import {
 } from "./indianBankingAuditVersions";
 import {
   INDIAN_PROCESS_AUDIT_PATHS,
+  INDIAN_PROCESS_AUDIT_VERSION_ORDER,
   INDIAN_PROCESS_AUDIT_VERSION_SELECT_LABELS,
   LATEST_INDIAN_PROCESS_AUDIT_VERSION,
   type IndianProcessAuditVersion,
@@ -173,8 +174,11 @@ function IndianProcessAuditCard({ option }: { option: RegionOption }) {
           className="absolute right-0 top-0 h-7 w-[6.75rem] cursor-pointer rounded-md border border-slate-200 bg-slate-50/90 py-0 pl-2 pr-6 text-xs font-medium text-slate-600 outline-none transition hover:border-slate-300 hover:bg-white focus:border-amber-400 focus:ring-1 focus:ring-amber-500/20"
           aria-label="Indian Process Audit version"
         >
-          <option value="v2">{INDIAN_PROCESS_AUDIT_VERSION_SELECT_LABELS.v2}</option>
-          <option value="v1">{INDIAN_PROCESS_AUDIT_VERSION_SELECT_LABELS.v1}</option>
+          {INDIAN_PROCESS_AUDIT_VERSION_ORDER.map((v) => (
+            <option key={v} value={v}>
+              {INDIAN_PROCESS_AUDIT_VERSION_SELECT_LABELS[v]}
+            </option>
+          ))}
         </select>
       </div>
 

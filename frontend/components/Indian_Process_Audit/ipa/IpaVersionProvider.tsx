@@ -3,7 +3,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import type { IpaVersion } from './ipaVersion';
 
-const IpaVersionContext = createContext<IpaVersion>('v2');
+const IpaVersionContext = createContext<IpaVersion>('v3');
 
 export function IpaVersionProvider({ version, children }: { version: IpaVersion; children: ReactNode }) {
   const value = useMemo(() => version, [version]);

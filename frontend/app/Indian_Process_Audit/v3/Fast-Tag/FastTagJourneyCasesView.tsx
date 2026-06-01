@@ -23,6 +23,12 @@ import {
   getFastTagRegionOptions,
   layoutFastTagHeatmapGrid,
 } from './fastTagJourneyHeatmap';
+import {
+  type FastTagOutcomeDrill,
+  type FastTagOutcomeSlice,
+  outcomeDrillLabel,
+  outcomeSliceToDrill,
+} from './fastTagOutcomeDrill';
 import { buildFastTagSelectionSummary } from './fastTagRegionSummary';
 
 type FastTagCase = {
@@ -66,7 +72,7 @@ export default function FastTagJourneyCasesView({
   const [stageFilter, setStageFilter] = useState<string | null>(null);
   const [viewAllIndia, setViewAllIndia] = useState(true);
   const [viewAllInRegion, setViewAllInRegion] = useState(false);
-  const [showTable, setShowTable] = useState(false);
+  const [outcomeDrill, setOutcomeDrill] = useState<FastTagOutcomeDrill | null>(null);
 
   const resetToAllIndia = () => {
     setViewAllIndia(true);
@@ -76,7 +82,7 @@ export default function FastTagJourneyCasesView({
   };
 
   useEffect(() => {
-    setShowTable(false);
+    setOutcomeDrill(null);
   }, [regionCode, stageFilter, viewAllIndia, viewAllInRegion]);
 
   const regionOptions = useMemo(() => getFastTagRegionOptions(cases), [cases]);
@@ -142,7 +148,12 @@ export default function FastTagJourneyCasesView({
 
   const clearCaseFilters = () => {
     resetToAllIndia();
-    setShowTable(false);
+    setOutcomeDrill(null);
+  };
+
+  const handleOutcomeSelect = (slice: FastTagOutcomeSlice) => {
+    const drill = outcomeSliceToDrill(slice);
+    if (drill) setOutcomeDrill(drill);
   };
 
   const handleAllIndia = () => {
@@ -194,6 +205,31 @@ export default function FastTagJourneyCasesView({
       filtersReady,
     ],
   );
+
+  const drillCases = useMemo(() => {
+    if (!outcomeDrill) return filteredCases;
+    if (outcomeDrill.mode === 'compliant-details') {
+      return filteredCases.filter((kase) => kase.overallStatus === 'compliant');
+    }
+    if (outcomeDrill.mode === 'matrix' && outcomeDrill.status) {
+      return filteredCases.filter((kase) => kase.overallStatus === outcomeDrill.status);
+    }
+    return filteredCases;
+  }, [filteredCases, outcomeDrill]);
+
+  const drillEmptyMessage = useMemo(() => {
+    if (!outcomeDrill || drillCases.length > 0) return emptyMessage;
+    if (outcomeDrill.mode === 'compliant-details') {
+      return `No completed ${entity.plural.toLowerCase()} in this selection.`;
+    }
+    if (outcomeDrill.status === 'failure') {
+      return `No critical ${entity.plural.toLowerCase()} in this selection.`;
+    }
+    if (outcomeDrill.status === 'pending') {
+      return `No exception ${entity.plural.toLowerCase()} in this selection.`;
+    }
+    return emptyMessage;
+  }, [outcomeDrill, drillCases.length, emptyMessage, entity.plural]);
 
   const filterPrompt = useMemo(() => {
     if (filtersReady) return null;
@@ -335,33 +371,51 @@ export default function FastTagJourneyCasesView({
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           {filtersReady && selectionSummary ? (
             <>
-              {!showTable ? (
+              {!outcomeDrill ? (
                 <FastTagRegionSummaryPanel
                   summary={selectionSummary}
-                  onViewTable={() => setShowTable(true)}
+                  cases={filteredCases}
+                  selectedRegionCode={regionCode}
+                  onSelectRegion={(code) => {
+                    setViewAllIndia(false);
+                    setViewAllInRegion(false);
+                    setRegionCode(code);
+                    setStageFilter(null);
+                    setOutcomeDrill(null);
+                  }}
+                  onViewTable={() => setOutcomeDrill({ mode: 'matrix' })}
+                  onOutcomeSelect={handleOutcomeSelect}
                 />
               ) : (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <button
                       type="button"
-                      onClick={() => setShowTable(false)}
+                      onClick={() => setOutcomeDrill(null)}
                       className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
                     >
                       <ArrowLeft className="h-4 w-4" aria-hidden />
                       Back to summary
                     </button>
                     <p className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <Table2 className="h-3.5 w-3.5" aria-hidden />
-                      {selectionSummary.heading} · {filteredCases.length} case
-                      {filteredCases.length === 1 ? '' : 's'}
+                      {outcomeDrill.mode === 'matrix' ? (
+                        <Table2 className="h-3.5 w-3.5" aria-hidden />
+                      ) : null}
+                      {selectionSummary.heading} · {outcomeDrillLabel(outcomeDrill)}
                     </p>
                   </div>
+
+                  {outcomeDrill.mode === 'compliant-details' ? (
+                    <p className="rounded-lg bg-emerald-50/80 px-4 py-2.5 text-[11px] leading-relaxed text-emerald-950 ring-1 ring-emerald-200/90">
+                      Completed cases — click a case name in the matrix below to expand the full
+                      submission trail for all SOP stages.
+                    </p>
+                  ) : null}
 
                   <CasesView
                     domainId={domainId}
                     sop={sop}
-                    cases={filteredCases}
+                    cases={drillCases}
                     entity={entity}
                     domainLabel={domainLabel}
                     onOpenEvidence={onOpenEvidence}
@@ -370,9 +424,11 @@ export default function FastTagJourneyCasesView({
                     getStageHeader={getStageHeader}
                     controlExceptionLabels={controlExceptionLabels}
                     hideJourneyHeader
-                    emptyCasesMessage={emptyMessage}
+                    emptyCasesMessage={drillEmptyMessage}
                     pageSize={10}
-                    formatCaseSubject={(kase: FastTagCase) => getFastTagCaseDisplaySubject(kase.subject)}
+                    formatCaseSubject={(kase: FastTagCase) =>
+                      getFastTagCaseDisplaySubject(kase.subject)
+                    }
                     onCaseRowSelect={undefined}
                     onPageChange={undefined}
                   />

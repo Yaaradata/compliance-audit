@@ -12,5 +12,5 @@ export default async function IndianProcessAuditIndexPage({ searchParams }: Page
     else if (Array.isArray(value)) value.forEach((v) => qs.append(key, v));
   }
   const query = qs.toString();
-  redirect(`/Indian_Process_Audit/v2${query ? `?${query}` : ''}`);
+  redirect(`/Indian_Process_Audit/v3${query ? `?${query}` : ''}`);
 }
