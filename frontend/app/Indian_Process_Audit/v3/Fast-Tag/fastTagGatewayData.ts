@@ -142,7 +142,7 @@ export const HOB_GATEWAY_TILES: FastTagGatewayTile[] = [
     aiInsight:
       'Customer positivity 62% and partner SLA 54% — both under target. Double-deduction and plaza recon strain partners; recharge failures top customer pain.',
     highlights: [
-      { label: 'Would recommend', value: '41%', sub: 'Target 55%', pct: 41, tone: 'warn' },
+      { label: 'First contact resolve', value: '48%', sub: 'Target 65%', pct: 48, tone: 'warn' },
       { label: 'Avg resolution', value: '78h', sub: 'vs 48h promise', tone: 'bad' },
       { label: 'Double-deduction', value: '1.4K', sub: 'Open complaints', tone: 'bad' },
       { label: 'Social sentiment', value: '↑287%', sub: '#FASTagFail mentions', tone: 'bad' },

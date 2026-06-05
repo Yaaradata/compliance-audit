@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { FastTagAiLogo } from "@/app/Indian_Process_Audit/_shared/FastTagAiLogo";
+import { DrillOpsKpiGrid } from './fastTagDrillOpsKpi';
 import { performanceTheme } from './fastTagDrilldownTheme';
 import {
-  ChartHint,
   DrillCrumbBar,
   DrillPeriodFilter,
   InsightSectionHead,
@@ -273,56 +273,6 @@ function shortHeroKpiLabel(label) {
   return label;
 }
 
-function heroKpiDeltaTone(delta) {
-  if (!delta) return "flat";
-  if (/▼|↓|−|-\s*\d|flat|0%/i.test(delta)) return "down";
-  if (/▲|↑|\+/i.test(delta)) return "up";
-  return "flat";
-}
-
-/** Per-KPI micro trend series (fits inside compact card). */
-function heroKpiSparkData(label, snap) {
-  if (/toll throughput/i.test(label)) return [82, 84, 86, 88, 91, 94];
-  if (/net revenue/i.test(label)) return snap.revTrend.slice(-6);
-  if (/active tags/i.test(label)) return [78, 79, 80, 81, 83, 84];
-  if (/daily transactions|transactions \(24h\)/i.test(label)) return [16.0, 16.4, 17.0, 17.6, 18.0, 18.4];
-  return [50, 52, 54, 56, 58, 60];
-}
-
-function KpiMicroSpark({ data, color, flexible = false }) {
-  const w = flexible ? 120 : 40;
-  const h = flexible ? 14 : 12;
-  if (!data?.length) return null;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const span = max - min || 1;
-  const sx = w / Math.max(1, data.length - 1);
-  const y = (v) => h - 1.5 - ((v - min) / span) * (h - 3);
-  const pts = data.map((v, i) => `${(i * sx).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-
-  return (
-    <div className={`pf-kpi-micro-spark-wrap${flexible ? " pf-kpi-micro-spark-wrap--flex" : ""}`}>
-      <svg
-        className="pf-kpi-micro-spark"
-        width={flexible ? "100%" : w}
-        height={h}
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-        aria-hidden
-      >
-        <polyline
-          points={pts}
-          fill="none"
-          stroke={color}
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
-  );
-}
-
 /* ------------------------------- SECTIONS ------------------------------- */
 function Header({ snap }) {
   const [activeTopic, setActiveTopic] = useState("positive");
@@ -333,39 +283,8 @@ function Header({ snap }) {
     <div className="pf-panel pf-hero-panel">
       <div className="pf-hero-layout">
         <div className="pf-hero-left">
-          <span className="pf-hero-icon" aria-hidden>◷</span>
-          <div className="pf-hero-title-stack">
-            <div className="pf-hero-title-text">How is the overall FASTag business performing?</div>
-            <div className="pf-label pf-hero-subtitle">
-              Revenue · cash · consumer vs partner · float · {snap.caption}
-            </div>
-          </div>
           <div className="pf-hero-metrics">
-            <div className="pf-hero-kpis">
-              {snap.headline.map((k) => {
-                const deltaTone = heroKpiDeltaTone(k.d);
-                const sparkData = heroKpiSparkData(k.label, snap);
-                return (
-                  <div className={`pf-kpi pf-kpi-stat pf-kpi--${k.tone}`} key={k.label}>
-                    <span className="pf-kpi-stat-accent" aria-hidden />
-                    <div className="pf-kpi-stat-body">
-                      <div className="pf-kpi-stat-label-row">
-                        <span className="pf-kpi-stat-label" title={k.label}>
-                          {shortHeroKpiLabel(k.label)}
-                        </span>
-                        <span className={`pf-kpi-delta pf-kpi-delta--${deltaTone}`}>{k.d}</span>
-                      </div>
-                      <div className="pf-kpi-stat-value-row">
-                        <span className="pf-kpi-stat-value" style={{ color: k.color }}>
-                          {k.v}
-                        </span>
-                        <KpiMicroSpark data={sparkData} color={k.color} flexible />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <DrillOpsKpiGrid prefix="pf" kpis={snap.headline} shortLabel={shortHeroKpiLabel} />
           </div>
         </div>
 
@@ -547,11 +466,6 @@ function CashFlow({ snap }) {
             );
           })}
         </div>
-        {!isInflow ? (
-          <ChartHint prefix="pf">
-            Acquirer share and marketing are the top outflows — still below total inflows.
-          </ChartHint>
-        ) : null}
       </div>
 
       {aiOpen ? <CashFlowAiPopover isInflow={isInflow} totalCr={total} onClose={() => setAiOpen(false)} /> : null}
@@ -707,7 +621,6 @@ export default function FastagPerformanceDrilldown({ onBack = () => {}, cases = 
 
       <DrillCrumbBar
         prefix="pf"
-        color={C.violet}
         onBack={onBack}
         periodFilter={
           <DrillPeriodFilter
@@ -718,7 +631,10 @@ export default function FastagPerformanceDrilldown({ onBack = () => {}, cases = 
           />
         }
       >
-        ⚡ FASTag · overall business performance
+        <span className="pf-crumb-icon" aria-hidden>
+          ◷
+        </span>
+        <span className="pf-crumb-text">How is the overall FASTag business performing?</span>
       </DrillCrumbBar>
 
       <div className="pf-stack">

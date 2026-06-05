@@ -477,6 +477,38 @@ export function drillVizStyles(prefix) {
   .${p}-viz-root-actions-col{ min-width:0; }
   .${p}-viz-root-actions-label{ margin:0 0 6px; display:block; }
   .${p}-viz-actions-table{ min-width:360px; }
+  .${p}-viz-cx-trend{ min-width:0; margin-bottom:8px; }
+  .${p}-viz-cx-trend-head{
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px; margin-bottom:4px;
+  }
+  .${p}-viz-cx-trend-chart{ min-height:88px; }
+  .${p}-viz-cx-trend-hint{ margin:4px 0 0; font-size:9.5px; line-height:1.4; color:${C.textDim}; }
+  .${p}-viz-region-channel{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start; min-width:0;
+  }
+  .${p}-viz-region-channel-col{ min-width:0; }
+  .${p}-viz-region-channel-label{ margin:0 0 6px; display:block; }
+  .${p}-viz-channel-row--rising .${p}-td{ background:rgba(220,38,38,0.04); }
+  .${p}-viz-resolution{ min-width:0; display:flex; flex-direction:column; gap:8px; }
+  .${p}-viz-resolution-kpis{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:6px;
+  }
+  .${p}-viz-resolution-kpi{
+    padding:6px 8px; border:1px solid ${C.borderSoft}; border-radius:8px; background:${C.bg};
+    display:flex; flex-direction:column; gap:2px; min-width:0;
+  }
+  .${p}-viz-resolution-kpi-val{ font-size:15px; font-weight:800; line-height:1.1; }
+  .${p}-viz-resolution-chart{ min-height:120px; }
+  .${p}-viz-resolution-gap{ margin:6px 0 0; font-size:9.5px; line-height:1.4; color:${C.textDim}; }
+  .${p}-viz-resolution-causes{ min-width:0; }
+  .${p}-section-stack{ display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .${p}-verdict-badge{
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px; white-space:nowrap;
+    color:#b45309; background:rgba(217,119,6,0.12); border:1px solid rgba(217,119,6,0.28);
+  }
+  .${p}-verdict-badge--bad{
+    color:#dc2626; background:rgba(220,38,38,0.1); border-color:rgba(220,38,38,0.28);
+  }
   @media(max-width:640px){
     .${p}-viz-stack-legend{ grid-template-columns:1fr; }
     .${p}-viz-stage-flow-step, .${p}-viz-pass-flow-step{ width:80px; }
@@ -501,6 +533,8 @@ export function drillVizStyles(prefix) {
     .${p}-viz-happiness-grid{ grid-template-columns:1fr; }
     .${p}-viz-churn-grid{ grid-template-columns:1fr; }
     .${p}-viz-root-actions-split{ grid-template-columns:1fr; }
+    .${p}-viz-region-channel{ grid-template-columns:1fr; }
+    .${p}-viz-resolution-kpis{ grid-template-columns:repeat(2,1fr); }
   }
 `;
 }

@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FastTagAiLogo } from "@/app/Indian_Process_Audit/_shared/FastTagAiLogo";
+import { DrillOpsKpiGrid } from './fastTagDrillOpsKpi';
 import { issuesTheme } from './fastTagDrilldownTheme';
 import {
   DrillCrumbBar,
@@ -10,24 +11,37 @@ import {
 import { DRILL_PERIOD_OPTIONS } from './fastTagDrillPeriod';
 import { buildIssuesPeriodSnapshot } from './fastTagIssuesPeriodData';
 import {
-  IssuesChurnRiskChart,
-  IssuesComplaintMixChart,
-  IssuesHappinessChart,
-  IssuesImpactChart,
-  IssuesPartnerScorecardChart,
-  IssuesRootCauseActionsChart,
-  IssuesSentimentChart,
+  IssuesAttritionChart,
+  IssuesLowRatingChart,
+  IssuesComplaintSpikeChart,
+  IssuesCxDirectionChart,
+  IssuesResolutionThroughputChart,
 } from './fastTagIssuesCharts';
+import {
+  IssuesComplaintFilterToggle,
+  IssuesCxDirectionLegend,
+  IssuesLossViewToggle,
+  IssuesRatingBandToggle,
+} from './fastTagIssuesViz';
 
 /**
- * FASTag — Head of Business
- * Drill-down page for the card: "Is Customer and Partners are happy?"
+ * FASTag — Head of Business · Customer & partner experience
  *
- * Opens when the happiness card's chevron is clicked. Every section ladders up to
- * whether customers and partners are satisfied with the FASTag experience.
+ * Four executive questions, each with dedicated data + visualization:
+ *  1) Is customer experience improving or getting worse?
+ *  2) Are complaints increasing in any region/channel?
+ *  3) Where are we losing customers & partners?
+ *  4) Complaints vs resolving — are we keeping up with time?
+ *  5) What % of users are giving low ratings (1–2 stars)?
  */
 
 const { C, styleTag } = issuesTheme();
+
+const Q1 = "Is customer experience improving or getting worse?";
+const Q2 = "Are complaints increasing in any region/channel?";
+const Q3 = "Where are we losing customers & Partners?";
+const Q4 = "Complaints vs resolving and how we keep up with time?";
+const Q5 = "What % of users are giving low ratings (1–2 stars)?";
 
 const ISSUES_TOPIC_PANELS = [
   {
@@ -36,9 +50,9 @@ const ISSUES_TOPIC_PANELS = [
     title: "Positives",
     tone: "positive",
     items: [
-      { label: "Happy partners", detail: "Issuing Bank B at 88% partner happiness — lowest strain in the network." },
-      { label: "Faster refunds", detail: "Auto-reverse pilot lifted customer satisfaction on duplicate-charge cases 12% WoW." },
-      { label: "Retention touch", detail: "8 of 12 unhappy fleet accounts already in KAM happiness outreach." },
+      { label: "First response", detail: "Median first response at 4.2h — within 4h target on wallet failures." },
+      { label: "Stable issuer", detail: "Issuing Bank B health 88% — only partner not signalling attrition." },
+      { label: "East region", detail: "East complaints +12% — slowest regional acceleration." },
     ],
   },
   {
@@ -47,9 +61,9 @@ const ISSUES_TOPIC_PANELS = [
     title: "Negatives",
     tone: "negative",
     items: [
-      { label: "Unhappy fleets", detail: "12 accounts likely to leave; ₹4.2M relationship value at risk." },
-      { label: "Strained acquirer", detail: "Acquirer A at 62% partner happiness; 640 cases eroding trust." },
-      { label: "Slow refunds", detail: "Refund queue is the top reason customers say they are not happy." },
+      { label: "CX deteriorating", detail: "Customer score down 11 pts since W1; partner score tracking lower in parallel." },
+      { label: "Regional spikes", detail: "West +42% and social channel +61% — both crossed +30% alert threshold." },
+      { label: "B2B exposure", detail: "12 fleet accounts at risk with ₹4.2M annual spend exposure." },
     ],
   },
   {
@@ -58,9 +72,9 @@ const ISSUES_TOPIC_PANELS = [
     title: "Critical",
     tone: "critical",
     items: [
-      { label: "Double deduction", detail: "1,420 complaints (+38%); ₹47L spend at risk; high churn link." },
-      { label: "Blacklist disputes", detail: "980 cases (+62%) on low-balance blocks — reputation drag." },
-      { label: "Recharge failure", detail: "1,180 wallet failures (+24%) affecting 4,800 wallets." },
+      { label: "Resolution gap", detail: "Inflow beat outflow every week since W5 — 18 days to clear backlog." },
+      { label: "Acquirer attrition", detail: "Acquirer Bank A health 62% — recon SLA breach eroding issuer trust." },
+      { label: "SLA breach", detail: "18% of cases past committed window; median resolve 3.8d vs 2.5d target." },
     ],
   },
 ];
@@ -72,29 +86,29 @@ const HERO_AI_BY_TOPIC = {
     blocks: [
       {
         tone: "ok",
-        label: "Partners",
+        label: "CX holding",
         points: [
-          "Issuing Bank B at 88% partner happiness — lowest strain in the network",
-          "Co-brand referral SLA holding above 85% for 3 consecutive weeks",
-          "Plaza mis-read rate down 2 pts on top-10 corridors",
+          "First-response SLA within target on wallet-failure corridor",
+          "East region slowest complaint acceleration at +12%",
+          "Issuing Bank B stable — no attrition signal",
         ],
       },
       {
         tone: "ok",
-        label: "CX wins",
+        label: "Channels",
         points: [
-          "Auto-reverse pilot lifted duplicate-charge satisfaction 12% WoW",
-          "8 of 12 at-risk fleet accounts already in KAM outreach",
-          "First-response SLA improved to 4.2h on wallet failures",
+          "B2B fleet portal +14% — only channel below +30% threshold",
+          "Central region +8% — lowest regional pressure",
+          "≤4h resolution bucket holds 42% of closed cases",
         ],
       },
       {
         tone: "info",
-        label: "Retention",
+        label: "Watch",
         points: [
-          "Would-recommend proxy stable at 41% despite complaint spike",
-          "Refund queue clearing faster on UPI rail after gateway fail-over",
-          "BPO Vendor Beta reroute freeing 310 backlog cases",
+          "Retail wallet segment: 34 at-risk but only 9 churned in 30d",
+          "Annual Pass holders: blacklist disputes containable with FAQ push",
+          "Social flare moderating after W10 but still elevated",
         ],
       },
     ],
@@ -105,29 +119,29 @@ const HERO_AI_BY_TOPIC = {
     blocks: [
       {
         tone: "warn",
-        label: "Customers",
+        label: "Q1 · Experience",
         points: [
-          "Happiness fell 9 pts because recharge failures and blacklist disputes dominate",
-          "Only 41% would recommend FASTag this week",
-          "4.9K open complaints — +38% vs prior period",
+          "Customer CX score fell from 70 → 59 — experience is getting worse",
+          "CSAT, NPS proxy, and FCR all down 7–9 pts vs prior period",
+          "Partner CX tracking customer decline — joint SLA pressure",
         ],
       },
       {
         tone: "warn",
-        label: "Partners",
+        label: "Q2 · Complaints",
         points: [
-          "18 partners sit below the happiness bar",
-          "Acquirer recon delays eroding issuer and toll-partner confidence",
-          "Plaza mis-reads driving duplicate-deduction narrative",
+          "4 of 5 regions rising; West +42% led by double deduction",
+          "Social / email +61% — fastest channel acceleration",
+          "Partner / issuer channel +48% — acquirer recon surfacing",
         ],
       },
       {
         tone: "warn",
-        label: "Exposure",
+        label: "Q3 · Loss",
         points: [
-          "₹47L spend at risk on double-deduction alone",
-          "12 fleet accounts signal closure intent",
-          "Social mentions accelerating after week-8 outage",
+          "12 B2B fleet accounts at risk — ₹4.2M spend exposure",
+          "Acquirer A and BPO Beta in critical attrition zone",
+          "Retail wallet: 34 at-risk on recharge failure loop",
         ],
       },
     ],
@@ -138,29 +152,29 @@ const HERO_AI_BY_TOPIC = {
     blocks: [
       {
         tone: "warn",
-        label: "Double deduction",
+        label: "Q4 · Resolution",
         points: [
-          "1,420 complaints (+38%); high churn link on 8,900 tags",
-          "₹47L spend at risk — top happiness drag",
-          "Auto-reverse + acquirer recon SLA is P0",
+          "Complaints in exceed resolved out every week since W5",
+          "Backlog 3.4K — 18 days to clear at current resolve rate",
+          "Median resolution 3.8d vs 2.5d target; 18% SLA breached",
         ],
       },
       {
         tone: "warn",
-        label: "Recharge",
+        label: "Root cause",
         points: [
-          "1,180 wallet failures (+24%) affecting 4,800 wallets",
-          "Gateway timeouts are #2 root cause at 26% share",
-          "Fail-over gateway + proactive notify needed this week",
+          "Acquirer recon delays drive both complaint spike and slow close",
+          "Gateway timeouts on recharge — second-largest inflow source",
+          "BPO queue overflow — KYC cases aging past SLA",
         ],
       },
       {
         tone: "info",
-        label: "Next steps",
+        label: "P0",
         points: [
-          "Stabilise recharge paths and close partner recon gaps first",
-          "KAM touch 12 at-risk fleets within 48h",
-          "Publish blacklist FAQ to dampen social flare",
+          "Surge resolve capacity on West double-deduction queue",
+          "Auto-reverse + acquirer recon SLA within 48h",
+          "KAM outreach to 12 at-risk fleets before churn window closes",
         ],
       },
     ],
@@ -168,61 +182,11 @@ const HERO_AI_BY_TOPIC = {
 };
 
 function shortHeroKpiLabel(label) {
-  if (/customer happy/i.test(label)) return "Customer";
-  if (/partner happy/i.test(label)) return "Partner";
-  if (/open complaints/i.test(label)) return "Complaints";
-  if (/would recommend/i.test(label)) return "Recommend";
+  if (/cx score/i.test(label)) return "CX score";
+  if (/complaint inflow/i.test(label)) return "Inflow";
+  if (/at-risk/i.test(label)) return "At risk";
+  if (/backlog/i.test(label)) return "Backlog";
   return label;
-}
-
-function heroKpiDeltaTone(delta) {
-  if (!delta) return "flat";
-  if (/tgt|proxy|vs/i.test(delta)) return "flat";
-  if (/▼|↓|−|-\s*\d|flat|0%/i.test(delta)) return "down";
-  if (/▲|↑|\+/.test(delta)) return "up";
-  return "flat";
-}
-
-function heroKpiSparkData(label, snap) {
-  if (/customer/i.test(label)) return snap.trend.map((v) => Math.round(v * 0.88));
-  if (/partner/i.test(label)) return snap.trend.map((v) => Math.round(v * 0.76));
-  if (/complaints/i.test(label)) return [32, 35, 38, 36, 40, 42, 45, 44, 46, 48, 49];
-  if (/recommend/i.test(label)) return [48, 47, 46, 45, 44, 43, 42, 42, 41, 41, 41];
-  return snap.trend;
-}
-
-function KpiMicroSpark({ data, color, prefix }) {
-  const w = 120;
-  const h = 14;
-  if (!data?.length) return null;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const span = max - min || 1;
-  const sx = w / Math.max(1, data.length - 1);
-  const y = (v) => h - 1.5 - ((v - min) / span) * (h - 3);
-  const pts = data.map((v, i) => `${(i * sx).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-
-  return (
-    <div className={`${prefix}-kpi-micro-spark-wrap ${prefix}-kpi-micro-spark-wrap--flex`}>
-      <svg
-        className={`${prefix}-kpi-micro-spark`}
-        width="100%"
-        height={h}
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-        aria-hidden
-      >
-        <polyline
-          points={pts}
-          fill="none"
-          stroke={color}
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
-  );
 }
 
 function Header({ snap }) {
@@ -234,39 +198,8 @@ function Header({ snap }) {
     <div className="dd-panel dd-hero-panel">
       <div className="dd-hero-layout">
         <div className="dd-hero-left">
-          <span className="dd-hero-icon" aria-hidden>♥</span>
-          <div className="dd-hero-title-stack">
-            <div className="dd-hero-title-text">Is Customer and Partners are happy?</div>
-            <div className="dd-label dd-hero-subtitle">
-              Customers · Partners · Satisfaction · {snap.caption}
-            </div>
-          </div>
           <div className="dd-hero-metrics">
-            <div className="dd-hero-kpis">
-              {snap.headline.map((k) => {
-                const deltaTone = heroKpiDeltaTone(k.d);
-                const sparkData = heroKpiSparkData(k.label, snap);
-                return (
-                  <div className={`dd-kpi dd-kpi-stat dd-kpi--${k.tone}`} key={k.label}>
-                    <span className="dd-kpi-stat-accent" aria-hidden />
-                    <div className="dd-kpi-stat-body">
-                      <div className="dd-kpi-stat-label-row">
-                        <span className="dd-kpi-stat-label" title={k.label}>
-                          {shortHeroKpiLabel(k.label)}
-                        </span>
-                        <span className={`dd-kpi-delta dd-kpi-delta--${deltaTone}`}>{k.d}</span>
-                      </div>
-                      <div className="dd-kpi-stat-value-row">
-                        <span className="dd-kpi-stat-value" style={{ color: k.color }}>
-                          {k.v}
-                        </span>
-                        <KpiMicroSpark data={sparkData} color={k.color} prefix="dd" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <DrillOpsKpiGrid prefix="dd" kpis={snap.headline} shortLabel={shortHeroKpiLabel} />
           </div>
         </div>
 
@@ -280,7 +213,7 @@ function Header({ snap }) {
                 <FastTagAiLogo />
                 AI Insights
               </span>
-              <div className="dd-hero-ai-topic-btns" role="group" aria-label="Happiness signal topics">
+              <div className="dd-hero-ai-topic-btns" role="group" aria-label="Experience signal topics">
                 {topicPanels.map((panel) => (
                   <button
                     key={panel.id}
@@ -316,85 +249,18 @@ function Header({ snap }) {
   );
 }
 
-function ImpactMap({ snap }) {
-  return (
-    <div className="dd-panel dd-panel--highlight dd-panel--impact">
-      <InsightSectionHead
-        prefix="dd"
-        n="1"
-        accent={C.red}
-        insight={snap.impactInsight}
-        right={<span className="dd-faint" style={{ fontSize: 10 }}>ranked by exposure</span>}
-      />
-      <IssuesImpactChart rows={snap.impact} />
-    </div>
-  );
-}
-
-function ComplaintBreakdown({ snap }) {
-  return (
-    <div className="dd-panel">
-      <InsightSectionHead prefix="dd" n="2" accent={C.amber} insight={snap.complaintInsight} />
-      <IssuesComplaintMixChart slices={snap.complaints} />
-    </div>
-  );
-}
-
-function HappinessGauges({ snap }) {
-  return (
-    <div className="dd-panel">
-      <InsightSectionHead prefix="dd" n="3" accent={C.red} insight={snap.happinessInsight} />
-      <IssuesHappinessChart metrics={snap.happiness} />
-    </div>
-  );
-}
-
-function PartnerScorecard({ snap }) {
-  return (
-    <div className="dd-panel">
-      <InsightSectionHead
-        prefix="dd"
-        n="4"
-        accent={C.blue}
-        insight={snap.partnerInsight}
-        right={<span className="dd-faint" style={{ fontSize: 10 }}>partner happiness</span>}
-      />
-      <IssuesPartnerScorecardChart partners={snap.partners} />
-    </div>
-  );
-}
-
-function ChurnLinkage({ snap }) {
-  return (
-    <div className="dd-panel">
-      <InsightSectionHead prefix="dd" n="5" accent={C.amber} insight={snap.churnInsight} />
-      <IssuesChurnRiskChart metrics={snap.churn} note={snap.churnNote} />
-    </div>
-  );
-}
-
-function Reputation({ snap }) {
-  return (
-    <div className="dd-panel">
-      <InsightSectionHead prefix="dd" n="6" accent={C.amber} insight={snap.sentimentInsight} />
-      <IssuesSentimentChart points={snap.sentiment} tag={snap.sentimentTag} />
-    </div>
-  );
-}
-
-function RootCauseActions({ snap }) {
-  return (
-    <div className="dd-panel">
-      <InsightSectionHead prefix="dd" n="7" accent={C.green} insight={snap.actionsInsight} />
-      <IssuesRootCauseActionsChart rootCauses={snap.rootCauses} actions={snap.actions} />
-    </div>
-  );
-}
-
 export default function FastagIssuesDrilldown({ onBack = () => {} }) {
   const [period, setPeriod] = useState("month");
+  const [q3View, setQ3View] = useState("customers");
+  const [q4Filter, setQ4Filter] = useState("all");
+  const [q5Band, setQ5Band] = useState("low");
   const snap = useMemo(() => buildIssuesPeriodSnapshot(period), [period]);
-  const periodLabel = DRILL_PERIOD_OPTIONS.find((o) => o.id === period)?.label ?? "Month";
+
+  useEffect(() => {
+    setQ3View("customers");
+    setQ4Filter("all");
+    setQ5Band("low");
+  }, [period]);
 
   return (
     <div className="dd-root">
@@ -402,7 +268,6 @@ export default function FastagIssuesDrilldown({ onBack = () => {} }) {
 
       <DrillCrumbBar
         prefix="dd"
-        color={C.amber}
         onBack={onBack}
         periodFilter={
           <DrillPeriodFilter
@@ -413,7 +278,10 @@ export default function FastagIssuesDrilldown({ onBack = () => {} }) {
           />
         }
       >
-        ⚡ FASTag · customer & partner happiness · {periodLabel}
+        <span className="dd-crumb-icon" aria-hidden>
+          ♥
+        </span>
+        <span className="dd-crumb-text">Is Customer and Partners are happy?</span>
       </DrillCrumbBar>
 
       <div className="dd-stack">
@@ -421,15 +289,67 @@ export default function FastagIssuesDrilldown({ onBack = () => {} }) {
 
         <div className="dd-grid2">
           <div className="dd-col-stack">
-            <ImpactMap snap={snap} />
-            <ComplaintBreakdown snap={snap} />
-            <PartnerScorecard snap={snap} />
+            <div className="dd-panel dd-panel--highlight">
+              <InsightSectionHead
+                prefix="dd"
+                n="1"
+                accent={C.red}
+                insight={Q1}
+                right={<IssuesCxDirectionLegend prefix="dd" />}
+              />
+              <IssuesCxDirectionChart data={snap.q1} />
+            </div>
+
+            <div className="dd-panel">
+              <InsightSectionHead
+                prefix="dd"
+                n="3"
+                accent={C.red}
+                insight={Q3}
+                right={
+                  <IssuesLossViewToggle prefix="dd" view={q3View} onViewChange={setQ3View} />
+                }
+              />
+              <IssuesAttritionChart data={snap.q3} view={q3View} />
+            </div>
+
+            <div className="dd-panel">
+              <InsightSectionHead
+                prefix="dd"
+                n="5"
+                accent={C.violet}
+                insight={Q5}
+                right={
+                  <IssuesRatingBandToggle prefix="dd" band={q5Band} onBandChange={setQ5Band} />
+                }
+              />
+              <IssuesLowRatingChart data={snap.q5} band={q5Band} />
+            </div>
           </div>
+
           <div className="dd-col-stack">
-            <HappinessGauges snap={snap} />
-            <ChurnLinkage snap={snap} />
-            <Reputation snap={snap} />
-            <RootCauseActions snap={snap} />
+            <div className="dd-panel">
+              <InsightSectionHead
+                prefix="dd"
+                n="2"
+                accent={C.amber}
+                insight={Q2}
+              />
+              <IssuesComplaintSpikeChart data={snap.q2} />
+            </div>
+
+            <div className="dd-panel">
+              <InsightSectionHead
+                prefix="dd"
+                n="4"
+                accent={C.green}
+                insight={Q4}
+                right={
+                  <IssuesComplaintFilterToggle prefix="dd" filter={q4Filter} onFilterChange={setQ4Filter} />
+                }
+              />
+              <IssuesResolutionThroughputChart data={snap.q4} filter={q4Filter} />
+            </div>
           </div>
         </div>
       </div>
