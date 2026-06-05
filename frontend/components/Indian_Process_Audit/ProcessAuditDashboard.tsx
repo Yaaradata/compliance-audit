@@ -2056,6 +2056,8 @@ export function DomainAuditWorkspace({
   caseRegionFilterOptions,
   caseRegionResolver,
   renderCasesView,
+  workspaceNavigate,
+  onWorkspaceNavigateHandled,
 }: {
   domainId: string;
   domainLabel: string;
@@ -2081,12 +2083,33 @@ export function DomainAuditWorkspace({
     filteredCases: unknown[];
     tabBarCtx: DomainWorkspaceTabBarContext;
   }) => React.ReactNode;
+  /** Deep-link from executive tabs into workspace views / filters. */
+  workspaceNavigate?: {
+    view: string;
+    registerFilter?: 'all' | 'effective' | 'needs-attention' | 'deficient';
+    caseRegion?: string | null;
+    caseStage?: string | null;
+    controlId?: string;
+  } | null;
+  onWorkspaceNavigateHandled?: () => void;
 }) {
   const [view, setView] = useState(defaultView);
   const [filter, setFilter] = useState('all'); // all | effective | needs-attention | deficient
   const [query, setQuery]   = useState('');
   const [caseStageFilter, setCaseStageFilter] = useState<string | null>(null);
   const [caseRegionFilter, setCaseRegionFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!workspaceNavigate) return;
+    setView(workspaceNavigate.view);
+    if (workspaceNavigate.registerFilter) setFilter(workspaceNavigate.registerFilter);
+    if (workspaceNavigate.controlId) setQuery(workspaceNavigate.controlId);
+    if (workspaceNavigate.view === 'cases') {
+      if (workspaceNavigate.caseRegion !== undefined) setCaseRegionFilter(workspaceNavigate.caseRegion);
+      if (workspaceNavigate.caseStage) setCaseStageFilter(workspaceNavigate.caseStage);
+    }
+    onWorkspaceNavigateHandled?.();
+  }, [workspaceNavigate, onWorkspaceNavigateHandled]);
 
   useEffect(() => {
     if (view !== 'cases') {
@@ -2864,6 +2887,7 @@ export default function ProcessAuditDashboard() {
   const [activeTab, setActiveTab] = useState<ProcessAuditDashboardTab>('overview');
   const [drawer, setDrawer] = useState<EvidenceDrawerState>({ open: false, evidence: null });
   const [domainsRailOpen, setDomainsRailOpen] = useState(false);
+  const [fastTagImmersive, setFastTagImmersive] = useState(false);
 
   const sidebarDomains = hasModern ? [...D.DOMAINS, FAST_TAG_SIDEBAR_ITEM] : D.DOMAINS;
 
@@ -2974,48 +2998,59 @@ export default function ProcessAuditDashboard() {
 
         {/* Body — sole vertical scroll region so header + domain rail stay fixed */}
         <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto">
-          <div className="mx-auto max-w-[1600px] px-6 py-6">
-            {activeTab === 'fast-tag' && hasModern && FastTagPageHeader ? (
-              <FastTagPageHeader />
-            ) : (
-              <div className="mb-5 flex items-center justify-between">
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-xl font-semibold text-slate-900">
-                    {sidebarDomains.find((d) => d.id === activeTab)?.label}
-                  </h1>
-                  <p className="mt-0.5 text-sm text-slate-500">
-                    {activeTab === 'overview'
-                      ? `Cross-domain compliance posture across ${D.TOTAL_CONTROLS} controls and 10 auditor domains`
-                      : activeTab === 'fast-tag'
-                        ? 'FASTag issuance & toll lifecycle audit · NETC / NPCI OV1T · control testing Q1 2026'
-                        : `All controls in scope · regulatory references · evidence on demand`}
-                  </p>
+          <div
+            className={
+              fastTagImmersive
+                ? 'mx-auto max-w-[1600px] px-4 py-4'
+                : 'mx-auto max-w-[1600px] px-6 py-6'
+            }
+          >
+            {!fastTagImmersive ? (
+              activeTab === 'fast-tag' && hasModern && FastTagPageHeader ? (
+                <FastTagPageHeader />
+              ) : (
+                <div className="mb-5 flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-xl font-semibold text-slate-900">
+                      {sidebarDomains.find((d) => d.id === activeTab)?.label}
+                    </h1>
+                    <p className="mt-0.5 text-sm text-slate-500">
+                      {activeTab === 'overview'
+                        ? `Cross-domain compliance posture across ${D.TOTAL_CONTROLS} controls and 10 auditor domains`
+                        : activeTab === 'fast-tag'
+                          ? 'FASTag issuance & toll lifecycle audit · NETC / NPCI OV1T · control testing Q1 2026'
+                          : `All controls in scope · regulatory references · evidence on demand`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                    >
+                      <Filter className="h-4 w-4" /> Filter
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                    >
+                      <Download className="h-4 w-4" /> Export
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
+                    >
+                      <Eye className="h-4 w-4" /> Auditor view
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-                  >
-                    <Filter className="h-4 w-4" /> Filter
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-                  >
-                    <Download className="h-4 w-4" /> Export
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
-                  >
-                    <Eye className="h-4 w-4" /> Auditor view
-                  </button>
-                </div>
-              </div>
-            )}
+              )
+            ) : null}
 
             {activeTab === 'fast-tag' && hasModern && FastTagAuditDashboard ? (
-              <FastTagAuditDashboard onOpenEvidence={openEvidence} />
+              <FastTagAuditDashboard
+                onOpenEvidence={openEvidence}
+                onImmersiveChange={setFastTagImmersive}
+              />
             ) : activeTab === 'overview' ? (
               <OverviewTab
                 onDrillDown={(id) => setActiveTab(id)}

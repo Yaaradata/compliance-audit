@@ -1,20 +1,35 @@
 'use client';
 
-import { useMemo } from 'react';
-import { Landmark } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BarChart3, Headphones, Landmark } from 'lucide-react';
 import {
   DomainAuditWorkspace,
   type DomainWorkspaceExtraTab,
 } from '@/components/Indian_Process_Audit/ProcessAuditDashboard';
 import { getFastTagAuditorFocus } from './fastTagAuditContent';
 import { buildFastTagEvidence } from './buildFastTagEvidence';
-import { getFastTagAuditBundle, getFastTagOverviewStrip } from './auditData';
+import {
+  getFastTagAuditBundle,
+  getFastTagCaseRegion,
+  getFastTagOverviewStrip,
+} from './auditData';
+import { getRegionOptions } from './fastTagExecutiveMetrics';
+import type { FastTagExecutiveContext, FastTagWorkspaceNavigate } from './fastTagExecutiveTypes';
 import FastTagTollSettlementView from './FastTagTollSettlementView';
+import FastTagHoBView from './FastTagHoBView';
+import FastTagCOHView from './FastTagCOHView';
 import FastTagJourneyCasesView from './FastTagJourneyCasesView';
+import FastTagHoBGatewayDrill from './FastTagHoBGatewayDrill';
+import {
+  isFastTagHoBGatewayDrill,
+  type FastTagGatewayTileId,
+} from './fastTagGatewayData';
 import type { AuditControl } from '@/lib/Indian_Process_Audit/types';
 
 type Props = {
   onOpenEvidence: (control: AuditControl, domainLabel: string) => void;
+  /** Hide FASTag page header + workspace tabs when performance gateway drill is open. */
+  onImmersiveChange?: (active: boolean) => void;
 };
 
 const FAST_TAG_SEVERITY_BADGES = [
@@ -62,11 +77,11 @@ export function FastTagPageHeader() {
   return (
     <header className="mb-5 border-b border-slate-200/80 pb-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
-        <div className="min-w-0 shrink-0">
-          <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-2xl">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+          <h1 className="shrink-0 text-[22px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-2xl">
             FASTag
           </h1>
-          <p className="mt-1 whitespace-nowrap text-[13px] leading-snug text-slate-500 sm:text-sm">
+          <p className="min-w-0 text-[13px] font-normal leading-snug text-slate-500 sm:text-sm">
             FASTag issuance &amp; toll lifecycle audit · NETC / NPCI OV1T · Q1 2026
           </p>
         </div>
@@ -98,9 +113,66 @@ export function FastTagPageHeader() {
   );
 }
 
-export default function FastTagAuditDashboard({ onOpenEvidence }: Props) {
+export default function FastTagAuditDashboard({ onOpenEvidence, onImmersiveChange }: Props) {
   const bundle = getFastTagAuditBundle();
   const ft11 = useMemo(() => bundle.controls.find((c) => c.id === 'FT-11'), [bundle.controls]);
+
+  const [workspaceNav, setWorkspaceNav] = useState<FastTagWorkspaceNavigate | null>(null);
+  const [tollPlazaBreakId, setTollPlazaBreakId] = useState<string | null>(null);
+  const [gatewayDrill, setGatewayDrill] = useState<FastTagGatewayTileId | null>(null);
+
+  useEffect(() => {
+    onImmersiveChange?.(isFastTagHoBGatewayDrill(gatewayDrill));
+    return () => onImmersiveChange?.(false);
+  }, [gatewayDrill, onImmersiveChange]);
+
+  const handleExecutiveNav = useCallback((req: FastTagWorkspaceNavigate) => {
+    if (req.tollPlazaBreakId) setTollPlazaBreakId(req.tollPlazaBreakId);
+    setWorkspaceNav(req);
+  }, []);
+
+  const handleGatewayDrill = useCallback((tileId: FastTagGatewayTileId) => {
+    setWorkspaceNav({ view: 'hob' });
+    setGatewayDrill(tileId);
+  }, []);
+
+  const execCtx = useMemo<FastTagExecutiveContext>(
+    () => ({
+      controls: bundle.controls,
+      onOpenEvidence,
+      onNavigate: handleExecutiveNav,
+      regionCode: null,
+      setRegionCode: () => {},
+      deficientOnly: false,
+      setDeficientOnly: () => {},
+    }),
+    [bundle.controls, onOpenEvidence, handleExecutiveNav],
+  );
+
+  const caseRegionOptions = useMemo(
+    () => getRegionOptions().map((r) => ({ id: r.code, label: r.label })),
+    [],
+  );
+
+  const journeyStageFilterOptions = useMemo(
+    () =>
+      bundle.sop.stages.map((s) => ({
+        id: s.id,
+        label: bundle.getStageHeader(s),
+      })),
+    [bundle.sop.stages, bundle.getStageHeader],
+  );
+
+  const workspaceNavigatePayload = useMemo(() => {
+    if (!workspaceNav) return null;
+    return {
+      view: workspaceNav.view,
+      registerFilter: workspaceNav.registerFilter,
+      caseRegion: workspaceNav.caseRegion,
+      caseStage: workspaceNav.caseStage,
+      controlId: workspaceNav.controlId,
+    };
+  }, [workspaceNav]);
 
   const extraTabs = useMemo<DomainWorkspaceExtraTab[]>(
     () => [
@@ -109,15 +181,62 @@ export default function FastTagAuditDashboard({ onOpenEvidence }: Props) {
         label: 'Toll settlement',
         icon: Landmark,
         content: (
-          <FastTagTollSettlementView ft11Control={ft11} onOpenEvidence={onOpenEvidence} />
+          <FastTagTollSettlementView
+            ft11Control={ft11}
+            onOpenEvidence={onOpenEvidence}
+            initialPlazaBreakId={tollPlazaBreakId}
+            onInitialPlazaBreakHandled={() => setTollPlazaBreakId(null)}
+          />
+        ),
+      },
+      {
+        id: 'hob',
+        label: 'Operations',
+        icon: BarChart3,
+        content: (
+          <FastTagHoBView
+            ctx={execCtx}
+            cases={bundle.cases}
+            allCases={bundle.cases}
+            controls={bundle.controls}
+            sop={bundle.sop}
+            getStageHeader={bundle.getStageHeader}
+            onGatewayDrill={handleGatewayDrill}
+          />
+        ),
+      },
+      {
+        id: 'coh',
+        label: 'User Complaints',
+        icon: Headphones,
+        content: (
+          <FastTagCOHView
+            ctx={execCtx}
+            cases={bundle.cases}
+            allCases={bundle.cases}
+            controls={bundle.controls}
+            sop={bundle.sop}
+            getStageHeader={bundle.getStageHeader}
+          />
         ),
       },
     ],
-    [ft11, onOpenEvidence],
+    [ft11, onOpenEvidence, execCtx, bundle, tollPlazaBreakId, setGatewayDrill],
   );
+
+  const gatewayDrillOpen = isFastTagHoBGatewayDrill(gatewayDrill);
 
   return (
     <div className="space-y-5">
+      {gatewayDrillOpen ? (
+        <FastTagHoBGatewayDrill
+          drillId={gatewayDrill}
+          cases={bundle.cases}
+          onBack={() => setGatewayDrill(null)}
+          immersive
+        />
+      ) : null}
+      <div hidden={gatewayDrillOpen}>
       <DomainAuditWorkspace
         domainId={bundle.domainId}
         domainLabel={bundle.domainLabel}
@@ -134,6 +253,11 @@ export default function FastTagAuditDashboard({ onOpenEvidence }: Props) {
         defaultView="sop"
         registerControlsFirst
         extraTabs={extraTabs}
+        caseRegionResolver={getFastTagCaseRegion}
+        caseRegionFilterOptions={caseRegionOptions}
+        journeyStageFilterOptions={journeyStageFilterOptions}
+        workspaceNavigate={workspaceNavigatePayload}
+        onWorkspaceNavigateHandled={() => setWorkspaceNav(null)}
         renderCasesView={() => (
           <FastTagJourneyCasesView
             domainId={bundle.domainId}
@@ -149,6 +273,7 @@ export default function FastTagAuditDashboard({ onOpenEvidence }: Props) {
           />
         )}
       />
+      </div>
     </div>
   );
 }

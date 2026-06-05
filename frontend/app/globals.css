@@ -764,3 +764,19 @@ body {
   pointer-events: auto;
   isolation: isolate;
 }
+
+/* FASTag executive cockpit — live ticker */
+@keyframes fasttag-exec-ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.fasttag-exec-ticker-track {
+  animation: fasttag-exec-ticker 28s linear infinite;
+}
+.fasttag-exec-ticker:hover .fasttag-exec-ticker-track {
+  animation-play-state: paused;
+}

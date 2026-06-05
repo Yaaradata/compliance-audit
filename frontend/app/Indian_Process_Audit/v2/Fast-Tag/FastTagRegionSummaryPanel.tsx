@@ -8,11 +8,11 @@ import {
   ClipboardList,
   MapPin,
   ShieldAlert,
-  Sparkles,
   Table2,
   XCircle,
 } from 'lucide-react';
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { FastTagAiLogo } from '@/app/Indian_Process_Audit/_shared/FastTagAiLogo';
 import { buildFastTagAiInsightsMemo, type FastTagAiInsightTone } from './fastTagAiInsights';
 import { Scope3KpiStrip } from '@/components/scope3emissions/scope3-kpi';
 import { getFastTagKpiTones } from './fastTagRegionSummary';
@@ -191,7 +191,7 @@ function FastTagAiInsightsPanel({ summary }: { summary: FastTagSelectionSummary 
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <Sparkles className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+            <FastTagAiLogo />
             <h3 className="text-sm font-semibold text-slate-900">AI Insights</h3>
           </div>
           <p className="mt-0.5 text-[10px] text-slate-500">For: {memo.audience}</p>

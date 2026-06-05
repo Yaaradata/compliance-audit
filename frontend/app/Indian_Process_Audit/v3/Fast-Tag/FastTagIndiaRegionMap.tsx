@@ -49,6 +49,7 @@ type StatePath = {
 type Props = {
   selectedCode: string;
   allIndiaActive?: boolean;
+  compact?: boolean;
   /** RTO codes that appear in the issuance case sample */
   availableCodes: readonly string[];
   /** All issuance cases per RTO (drives map color) */
@@ -138,6 +139,7 @@ function buildPaths(
 export default function FastTagIndiaRegionMap({
   selectedCode,
   allIndiaActive = false,
+  compact = false,
   availableCodes,
   caseCounts = {},
   failedCounts = {},
@@ -188,9 +190,12 @@ export default function FastTagIndiaRegionMap({
   };
 
   return (
-    <div className="space-y-2">
+    <div className={compact ? 'space-y-1.5' : 'space-y-2'}>
       <div className="flex items-center justify-between gap-2">
-        <p className="min-w-0 truncate text-xs font-medium text-slate-800" title={selectedLabel}>
+        <p
+          className={`min-w-0 truncate font-medium text-slate-800 ${compact ? 'text-[10px]' : 'text-xs'}`}
+          title={selectedLabel}
+        >
           {selectedLabel}
         </p>
         <button
@@ -214,7 +219,7 @@ export default function FastTagIndiaRegionMap({
         ) : (
           <svg
             viewBox={`0 0 ${MAP_W} ${MAP_H}`}
-            className="mx-auto block h-auto w-full max-w-full"
+            className={`mx-auto block h-auto w-full max-w-full ${compact ? 'max-h-[108px]' : ''}`}
             role="img"
             aria-label="India map colored by failed-case share per state"
           >
@@ -274,18 +279,21 @@ export default function FastTagIndiaRegionMap({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap gap-2 text-[10px] text-slate-500">
+      <div className={`flex flex-wrap gap-1.5 text-slate-500 ${compact ? 'text-[9px]' : 'gap-2 text-[10px]'}`}>
         {MAP_LEGEND.map(({ risk, label, swatch }) => (
-          <span key={risk} className="inline-flex items-center gap-1">
-            <span className={`h-2.5 w-2.5 rounded-sm ring-1 ${swatch}`} /> {label}
+          <span key={risk} className="inline-flex items-center gap-0.5">
+            <span className={`rounded-sm ring-1 ${swatch} ${compact ? 'h-2 w-2' : 'h-2.5 w-2.5'}`} />{' '}
+            {label}
           </span>
         ))}
       </div>
 
-      <p className="text-[10px] leading-snug text-slate-500">
-        Colors rank each state vs others (None = no findings, Low → Critical = higher
-        exception density in the 10-case sample). Tooltip shows total and failed counts.
-      </p>
+      {!compact ? (
+        <p className="text-[10px] leading-snug text-slate-500">
+          Colors rank each state vs others (None = no findings, Low → Critical = higher
+          exception density in the 10-case sample). Tooltip shows total and failed counts.
+        </p>
+      ) : null}
     </div>
   );
 }

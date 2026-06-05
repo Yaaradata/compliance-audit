@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, ChevronRight, Eye, Landmark } from 'lucide-react';
 import type { AuditControl } from '@/lib/Indian_Process_Audit/types';
 import TollSettlementDrillDrawer from './TollSettlementDrillDrawer';
@@ -19,6 +19,9 @@ import {
 type Props = {
   ft11Control: AuditControl | undefined;
   onOpenEvidence: (control: AuditControl, domainLabel: string) => void;
+  /** Open plaza-break drill when routed from executive COH view. */
+  initialPlazaBreakId?: string | null;
+  onInitialPlazaBreakHandled?: () => void;
 };
 
 const TH =
@@ -96,8 +99,19 @@ function chargebackRowClass(row: ChargebackRecord) {
 const DRILL_ROW =
   'cursor-pointer transition-colors hover:bg-indigo-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-inset';
 
-export default function FastTagTollSettlementView({ ft11Control, onOpenEvidence }: Props) {
+export default function FastTagTollSettlementView({
+  ft11Control,
+  onOpenEvidence,
+  initialPlazaBreakId,
+  onInitialPlazaBreakHandled,
+}: Props) {
   const [drill, setDrill] = useState<TollDrillState>(null);
+
+  useEffect(() => {
+    if (!initialPlazaBreakId) return;
+    setDrill({ kind: 'plaza-break', id: initialPlazaBreakId });
+    onInitialPlazaBreakHandled?.();
+  }, [initialPlazaBreakId, onInitialPlazaBreakHandled]);
 
   const openDrill = useCallback((next: TollDrillState) => setDrill(next), []);
   const closeDrill = useCallback(() => setDrill(null), []);

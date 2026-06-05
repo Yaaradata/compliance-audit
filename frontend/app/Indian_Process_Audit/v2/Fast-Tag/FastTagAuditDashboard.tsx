@@ -15,6 +15,7 @@ import type { AuditControl } from '@/lib/Indian_Process_Audit/types';
 
 type Props = {
   onOpenEvidence: (control: AuditControl, domainLabel: string) => void;
+  onImmersiveChange?: (active: boolean) => void;
 };
 
 const FAST_TAG_SEVERITY_BADGES = [
@@ -98,7 +99,7 @@ export function FastTagPageHeader() {
   );
 }
 
-export default function FastTagAuditDashboard({ onOpenEvidence }: Props) {
+export default function FastTagAuditDashboard({ onOpenEvidence, onImmersiveChange: _onImmersiveChange }: Props) {
   const bundle = getFastTagAuditBundle();
   const ft11 = useMemo(() => bundle.controls.find((c) => c.id === 'FT-11'), [bundle.controls]);
 

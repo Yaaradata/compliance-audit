@@ -26,6 +26,10 @@ export type FastTagStateClusterRow = {
   trend7d: number[];
   risk: FastTagHeatRisk;
   riskLabel: 'Low' | 'Medium' | 'High';
+  /** Illustrative state P&L for business drill-down (₹Cr). */
+  profitCr: number;
+  lossCr: number;
+  marginPct: number;
 };
 
 type CaseLike = {
@@ -64,6 +68,19 @@ function deltaVsPriorPeriod(regionCode: string, caseCount: number, failedCount: 
 }
 
 /** Seven-day volume spark — deterministic shape per state for UI trend column. */
+/** Deterministic state-level profit / loss / margin for HoB performance view. */
+function buildStateBusinessMetrics(
+  regionCode: string,
+  caseCount: number,
+): Pick<FastTagStateClusterRow, 'profitCr' | 'lossCr' | 'marginPct'> {
+  const h = stableHash(`biz:${regionCode}`);
+  const vol = Math.max(caseCount, 1);
+  const profitCr = Math.round((1.4 + (h % 85) / 10) * (0.6 + vol / 10) * 10) / 10;
+  const lossCr = Math.round((0.25 + (h % 35) / 25) * (0.4 + vol / 14) * 10) / 10;
+  const marginPct = Math.min(34, Math.round(11 + (h % 17) + Math.min(9, vol / 2.5)));
+  return { profitCr, lossCr, marginPct };
+}
+
 function buildTrend7d(regionCode: string, caseCount: number): number[] {
   const base = Math.max(1, Math.round(caseCount / 7));
   const bars: number[] = [];
@@ -122,6 +139,7 @@ export function buildFastTagStateClusterRows(
     const failRatePct =
       caseCount > 0 ? Math.round((failedCount / caseCount) * 1000) / 10 : 0;
     const risk = getFastTagRegionMapRisk(failedCount, caseCount, peers);
+    const business = buildStateBusinessMetrics(regionCode, caseCount);
     return {
       regionCode,
       label: FASTAG_REGION_LABEL[regionCode] ?? regionCode,
@@ -135,6 +153,7 @@ export function buildFastTagStateClusterRows(
       trend7d: buildTrend7d(regionCode, caseCount),
       risk,
       riskLabel: riskToLabel(risk),
+      ...business,
     };
   });
 }

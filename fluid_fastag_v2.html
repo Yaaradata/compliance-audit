@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Fluid · FASTag Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@300;400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#06080e;
+  --s1:#0b0e18;
+  --s2:#0f1320;
+  --s3:#141826;
+  --s4:#1a1f2e;
+  --s5:#1f2538;
+  --border:#ffffff08;
+  --b2:#ffffff10;
+  --b3:#ffffff18;
+  --b4:#ffffff24;
+  --text:#eef0f8;
+  --t2:#8b93b0;
+  --t3:#4a5070;
+  --t4:#2e344d;
+  --blue:#3b82f6;
+  --blue2:#2563eb;
+  --blue-g:rgba(59,130,246,0.12);
+  --green:#10d97a;
+  --green-g:rgba(16,217,122,0.1);
+  --red:#f43f5e;
+  --red-g:rgba(244,63,94,0.1);
+  --amber:#f59e0b;
+  --amber-g:rgba(245,158,11,0.1);
+  --cyan:#06b6d4;
+  --purple:#8b5cf6;
+  --display:'Bricolage Grotesque',sans-serif;
+  --body:'DM Sans',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--body);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:var(--b3);border-radius:2px}
+
+/* ═══ LAYOUT ═══ */
+.app{display:grid;grid-template-columns:200px 1fr;grid-template-rows:auto 1fr auto;min-height:100vh}
+
+/* ═══ SIDEBAR ═══ */
+.sidebar{
+  grid-row:1/4;
+  background:var(--s1);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.logo-wrap{padding:18px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
+.logo-mark{
+  width:28px;height:28px;border-radius:7px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  display:grid;place-items:center;
+  box-shadow:0 0 12px rgba(59,130,246,0.3);
+}
+.logo-mark svg{width:14px;height:14px}
+.logo-name{font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:-0.3px}
+.logo-sub{font-size:9px;color:var(--t3);letter-spacing:0.8px;text-transform:uppercase;font-weight:500;margin-top:1px}
+
+.nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:1px}
+.nav-group{font-size:9px;font-weight:600;color:var(--t3);letter-spacing:0.9px;text-transform:uppercase;padding:12px 8px 4px}
+.nav-item{
+  display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;
+  cursor:pointer;color:var(--t2);font-size:12px;font-weight:500;
+  transition:all 0.12s;border:none;background:transparent;width:100%;text-align:left;
+  position:relative;
+}
+.nav-item svg{width:14px;height:14px;flex-shrink:0}
+.nav-item:hover{background:var(--s3);color:var(--text)}
+.nav-item.active{background:rgba(59,130,246,0.12);color:var(--blue)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:2px;height:60%;background:var(--blue);border-radius:1px}
+.nav-dot{width:5px;height:5px;border-radius:50%;margin-left:auto;flex-shrink:0}
+
+.sidebar-footer{padding:12px 16px;border-top:1px solid var(--border)}
+.user-row{display:flex;align-items:center;gap:8px}
+.user-ava{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple));display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.user-name{font-size:12px;font-weight:600;color:var(--text)}
+.user-role{font-size:10px;color:var(--t3)}
+
+/* ═══ HEADER ═══ */
+.header{
+  grid-column:2;
+  background:rgba(11,14,24,0.85);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  padding:0 20px;height:52px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+}
+.header-left{display:flex;align-items:center;gap:14px}
+.page-h{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-0.2px}
+.live-badge{
+  display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;
+  color:var(--green);background:var(--green-g);border:1px solid rgba(16,217,122,0.2);
+  border-radius:20px;padding:3px 9px;letter-spacing:0.3px;
+}
+.live-pulse{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 1.8s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+.header-right{display:flex;align-items:center;gap:10px}
+.view-toggle{display:flex;background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:3px;gap:2px}
+.vt-btn{
+  font-size:11px;font-weight:600;padding:5px 14px;border-radius:5px;
+  border:none;cursor:pointer;transition:all 0.15s;color:var(--t2);background:transparent;
+  font-family:var(--body);letter-spacing:0.2px;
+}
+.vt-btn.on{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,0.4)}
+.h-clock{font-family:var(--mono);font-size:11px;color:var(--t3)}
+.h-btn{
+  display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;
+  border:1px solid var(--b2);background:transparent;color:var(--t2);font-size:11px;
+  font-family:var(--body);cursor:pointer;transition:all 0.12s;font-weight:500;
+}
+.h-btn:hover{background:var(--s3);color:var(--text);border-color:var(--b3)}
+.h-btn svg{width:13px;height:13px}
+
+/* ═══ CONTENT ═══ */
+.content{grid-column:2;padding:16px 20px 24px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
+
+/* ═══ PANELS ═══ */
+.panel{display:none;flex-direction:column;gap:14px;animation:fadein 0.2s ease}
+.panel.on{display:flex}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ═══ KPI STRIP ═══ */
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{
+  background:var(--s2);border:1px solid var(--b2);border-radius:12px;
+  padding:14px 16px;cursor:default;transition:border-color 0.15s;
+  position:relative;overflow:hidden;
+}
+.kpi::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:1.5px;border-radius:12px 12px 0 0;
+}
+.kpi.b::after{background:linear-gradient(90deg,var(--blue),transparent)}
+.kpi.g::after{background:linear-gradient(90deg,var(--green),transparent)}
+.kpi.r::after{background:linear-gradient(90deg,var(--red),transparent)}
+.kpi.a::after{background:linear-gradient(90deg,var(--amber),transparent)}
+.kpi:hover{border-color:var(--b3)}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.kpi-lbl{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:0.7px}
+.kpi-badge{font-size:9px;font-weight:700;border-radius:4px;padding:2px 6px;letter-spacing:0.4px}
+.kb-r{background:var(--red-g);color:var(--red);border:1px solid rgba(244,63,94,0.2)}
+.kb-g{background:var(--green-g);color:var(--green);border:1px solid rgba(16,217,122,0.2)}
+.kb-a{background:var(--amber-g);color:var(--amber);border:1px solid rgba(245,158,11,0.2)}
+.kb-b{background:var(--blue-g);color:var(--blue);border:1px solid rgba(59,130,246,0.2)}
+.kpi-val{font-family:var(--display);font-size:28px;font-weight:700;letter-spacing:-1.2px;line-height:1;margin-bottom:6px;transition:all 0.3s}
+.kpi-trend{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600}
+.kpi-spark{margin-top:8px;height:28px;position:relative}
+.kpi-spark canvas{position:absolute;top:0;left:0;width:100%!important;height:100%!important}
+.t-up{color:var(--green)} .t-dn{color:var(--red)} .t-warn{color:var(--amber)} .t-neu{color:var(--t2)}
+.kpi-sub{font-size:10px;color:var(--t3);font-weight:400;margin-left:2px}
+
+/* ═══ GRID LAYOUTS ═══ */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.full{grid-column:1/-1}
+
+/* ═══ CARD ═══ */
+.card{
+  background:var(--s2);border:1px solid var(--b2);
+  border-radius:12px;overflow:hidden;display:flex;flex-direction:column;
+  transition:border-color 0.15s;
+}
+.card:hover{border-color:var(--b3)}
+.card-head{
+  padding:12px 16px 10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-shrink:0;
+}
+.ch-left{display:flex;align-items:center;gap:9px}
+.ch-icon{
+  width:30px;height:30px;border-radius:8px;
+  display:grid;place-items:center;flex-shrink:0;
+}
+.ch-icon svg{width:15px;height:15px}
+.ch-title{font-family:var(--display);font-size:13px;font-weight:700;color:var(--text);letter-spacing:-0.1px}
+.ch-sub{font-size:10px;color:var(--t3);margin-top:1px;font-weight:500}
+.ch-tag{font-size:9px;font-weight:700;border-radius:5px;padding:3px 8px;letter-spacing:0.4px;flex-shrink:0}
+
+/* Chart area */
+.chart-area{padding:12px 14px;flex:1;position:relative;min-height:0}
+.chart-area canvas{display:block}
+
+/* ═══ METRICS ROW (inside cards) ═══ */
+.metrics-row{display:flex;border-bottom:1px solid var(--border)}
+.metric{flex:1;padding:10px 14px;border-right:1px solid var(--border)}
+.metric:last-child{border-right:none}
+.metric-val{font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:-0.6px;line-height:1;transition:all 0.3s}
+.metric-lbl{font-size:9px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;margin-top:3px}
+.metric-d{font-size:10px;font-weight:600;margin-top:2px}
+
+/* ═══ ALERT LIST ═══ */
+.alert-list{display:flex;flex-direction:column}
+.a-row{
+  display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border-bottom:1px solid var(--border);transition:background 0.12s;cursor:default;
+}
+.a-row:last-child{border-bottom:none}
+.a-row:hover{background:var(--s3)}
+.a-accent{width:2px;border-radius:1px;height:32px;flex-shrink:0}
+.a-body{flex:1;min-width:0}
+.a-title{font-size:12px;font-weight:600;color:var(--text);line-height:1.4}
+.a-desc{font-size:10px;color:var(--t2);margin-top:2px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.a-impact{font-family:var(--mono);font-size:11px;font-weight:500;white-space:nowrap}
+.a-btn{
+  font-size:10px;font-weight:600;padding:4px 10px;border-radius:6px;
+  border:1px solid var(--b2);background:transparent;color:var(--t2);
+  font-family:var(--body);cursor:pointer;transition:all 0.12s;white-space:nowrap;
+}
+.a-btn:hover{background:var(--s4);color:var(--text);border-color:var(--b3)}
+.a-btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.a-btn.primary:hover{background:var(--blue2)}
+
+/* ═══ PLAZA TABLE ═══ */
+.pt{width:100%;border-collapse:collapse}
+.pt th{
+  padding:8px 14px;text-align:left;font-size:9px;font-weight:600;
+  color:var(--t3);text-transform:uppercase;letter-spacing:0.7px;
+  background:var(--s3);border-bottom:1px solid var(--b2);
+}
+.pt td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;color:var(--t2);vertical-align:middle}
+.pt tr:last-child td{border-bottom:none}
+.pt tr:hover td{background:var(--s3)}
+.pt td:first-child{color:var(--text);font-weight:600;font-size:12px}
+.pt-bar{height:3px;background:var(--b2);border-radius:2px;margin-top:4px;overflow:hidden;width:80px}
+.pt-fill{height:100%;border-radius:2px;transition:width 0.6s ease}
+.tag{font-size:9px;font-weight:700;border-radius:4px;padding:2px 7px;letter-spacing:0.3px}
+.tag-r{background:var(--red-g);color:var(--red)} .tag-a{background:var(--amber-g);color:var(--amber)} .tag-g{background:var(--green-g);color:var(--green)} .tag-b{background:var(--blue-g);color:var(--blue)}
+
+/* ═══ HEATMAP ═══ */
+.heatmap{padding:10px 14px 14px}
+.hm-times{display:flex;gap:3px;margin-bottom:4px;padding:0 34px 0 0}
+.hm-time{font-size:8px;color:var(--t3);flex:1;text-align:center;font-family:var(--mono)}
+.hm-row{display:flex;align-items:center;gap:3px;margin-bottom:2px}
+.hm-day{font-size:9px;color:var(--t3);width:28px;flex-shrink:0;font-family:var(--mono)}
+.hm-cells{display:flex;gap:3px;flex:1}
+.hm-cell{
+  flex:1;height:20px;border-radius:3px;cursor:default;transition:transform 0.12s,opacity 0.12s;
+  position:relative;
+}
+.hm-cell:hover{transform:scale(1.2);z-index:10}
+.hm-legend{display:flex;align-items:center;gap:6px;margin-top:8px;justify-content:flex-end}
+.hm-leg-lbl{font-size:9px;color:var(--t3)}
+.hm-leg-cells{display:flex;gap:2px}
+.hm-leg-cell{width:12px;height:8px;border-radius:2px}
+
+/* ═══ GAUGE ═══ */
+.gauge-wrap{display:flex;align-items:center;justify-content:center;padding:16px 14px 8px}
+.gauge-canvas{position:relative}
+
+/* ═══ FUNNEL ═══ */
+.funnel{padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.funnel-row{display:flex;align-items:center;gap:10px}
+.funnel-lbl{font-size:11px;color:var(--t2);width:90px;flex-shrink:0}
+.funnel-track{flex:1;height:22px;background:var(--s3);border-radius:4px;overflow:hidden;position:relative}
+.funnel-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:600;transition:width 0.8s cubic-bezier(0.34,1.56,0.64,1)}
+.funnel-pct{font-family:var(--mono);font-size:10px;color:var(--t2);width:36px;text-align:right}
+.funnel-drop{font-size:9px;color:var(--red);font-weight:600;width:36px;text-align:right}
+
+/* ═══ SEGMENT BARS ═══ */
+.seg-list{padding:6px 0}
+.seg{display:flex;align-items:center;gap:10px;padding:8px 14px}
+.seg-name{font-size:11px;color:var(--t2);width:100px;flex-shrink:0;font-weight:500}
+.seg-track{flex:1;height:5px;background:var(--b2);border-radius:3px;overflow:hidden}
+.seg-fill2{height:100%;border-radius:3px;transition:width 0.8s ease}
+.seg-num{font-family:var(--mono);font-size:11px;color:var(--text);width:50px;text-align:right}
+.seg-d2{font-size:10px;font-weight:600;width:38px;text-align:right}
+
+/* ═══ RISK ROWS ═══ */
+.risk-list{display:flex;flex-direction:column}
+.risk-row{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;
+  border-bottom:1px solid var(--border);transition:background 0.12s;
+}
+.risk-row:last-child{border-bottom:none}
+.risk-row:hover{background:var(--s3)}
+.risk-num{font-family:var(--mono);font-size:10px;width:18px;flex-shrink:0}
+.risk-body{flex:1;min-width:0}
+.risk-title{font-size:12px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:2px}
+.risk-desc{font-size:10px;color:var(--t2);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.risk-val{font-family:var(--mono);font-size:12px;font-weight:500;flex-shrink:0}
+.risk-btn{font-size:10px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid var(--b2);background:transparent;color:var(--t2);font-family:var(--body);cursor:pointer;transition:all 0.12s;flex-shrink:0}
+.risk-btn:hover{background:var(--s4);color:var(--text);border-color:var(--b3)}
+
+/* ═══ FOOTER ═══ */
+.footer{
+  grid-column:2;
+  background:var(--s1);border-top:1px solid var(--border);
+  padding:7px 20px;display:flex;align-items:center;gap:14px;
+}
+.fc{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--t3)}
+.fc-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.fc-sep{width:1px;height:12px;background:var(--b2)}
+
+/* ═══ TICKER ═══ */
+.ticker-wrap{background:var(--s1);border-bottom:1px solid var(--border);overflow:hidden;height:28px;display:flex;align-items:center}
+.ticker-label{padding:0 12px;font-size:9px;font-weight:700;color:var(--blue);background:var(--blue-g);border-right:1px solid var(--b2);height:100%;display:flex;align-items:center;letter-spacing:0.8px;text-transform:uppercase;flex-shrink:0}
+.ticker-track{flex:1;overflow:hidden;position:relative}
+.ticker-inner{display:flex;gap:0;white-space:nowrap;animation:ticker 30s linear infinite}
+.ticker-inner:hover{animation-play-state:paused}
+.ticker-item{display:inline-flex;align-items:center;gap:10px;padding:0 20px;font-size:10px;color:var(--t2);border-right:1px solid var(--b2);height:28px;font-family:var(--mono)}
+.ticker-item span{font-weight:600}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ═══ TOOLTIP ═══ */
+.tt{position:fixed;z-index:999;background:var(--s4);border:1px solid var(--b3);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,0.5);pointer-events:none;opacity:0;transition:opacity 0.1s;max-width:200px}
+.tt.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═════ SIDEBAR ═════ -->
+<nav class="sidebar">
+  <div class="logo-wrap">
+    <div class="logo-mark">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M2 7a5 5 0 1010 0A5 5 0 002 7Z" stroke="white" stroke-width="1.1" fill="white" fill-opacity="0.2"/><path d="M5 7l1.5 1.5L9 5.5" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div><div class="logo-name">Fluid</div><div class="logo-sub">FASTag Intelligence</div></div>
+  </div>
+  <div class="nav">
+    <div class="nav-group">Workspace</div>
+    <button class="nav-item active" id="nav-cx" onclick="setView('cx',this)">
+      <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 12.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      Head of CX
+      <div class="nav-dot" style="background:var(--red)" id="cx-dot"></div>
+    </button>
+    <button class="nav-item" id="nav-biz" onclick="setView('biz',this)">
+      <svg viewBox="0 0 14 14" fill="none"><rect x="1.5" y="7" width="2.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="5.75" y="4" width="2.5" height="8.5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="10" y="1.5" width="2.5" height="11" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+      Head of Business
+      <div class="nav-dot" style="background:var(--amber)" id="biz-dot"></div>
+    </button>
+    <div class="nav-group" style="margin-top:8px">Operations</div>
+    <button class="nav-item">
+      <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M7 4v3.5l2 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      Live Monitor
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 7h5M4.5 5h5M4.5 9h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      Transactions
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M2 10L5 7l2.5 2.5L12 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Revenue
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M7 1.5L8.8 5.2l4.2.6-3 2.9.7 4.1L7 10.8l-3.7 2 .7-4.1-3-2.9 4.2-.6L7 1.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      Reports
+    </button>
+    <div class="nav-group" style="margin-top:8px">Settings</div>
+    <button class="nav-item">
+      <svg viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.6 2.6l1 1M10.4 10.4l1 1M2.6 11.4l1-1M10.4 3.6l1-1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+      Configuration
+    </button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-row">
+      <div class="user-ava" id="user-ava">PS</div>
+      <div><div class="user-name" id="user-name">Priya Sharma</div><div class="user-role" id="user-role">Head of CX</div></div>
+    </div>
+  </div>
+</nav>
+
+<!-- ═════ HEADER ═════ -->
+<header class="header">
+  <div class="header-left">
+    <div class="page-h" id="page-h">Customer Experience</div>
+    <div class="live-badge"><div class="live-pulse"></div>Live</div>
+    <div style="font-size:10px;color:var(--t3);font-family:var(--mono)" id="refresh-ts">Refreshed just now</div>
+  </div>
+  <div class="header-right">
+    <div class="view-toggle">
+      <button class="vt-btn on" id="vt-cx" onclick="setView('cx')">CX View</button>
+      <button class="vt-btn" id="vt-biz" onclick="setView('biz')">Business View</button>
+    </div>
+    <div class="h-clock" id="h-clock">--:--</div>
+    <button class="h-btn">
+      <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 1v5.5L9 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.2"/></svg>
+      History
+    </button>
+    <button class="h-btn">
+      <svg viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Export
+    </button>
+  </div>
+</header>
+
+<!-- ═════ TICKER ═════ -->
+<div class="ticker-wrap" style="grid-column:2">
+  <div class="ticker-label">Live</div>
+  <div class="ticker-track">
+    <div class="ticker-inner" id="ticker-inner">
+      <!-- filled by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ═════ CONTENT ═════ -->
+<main class="content">
+
+<!-- ══ CX PANEL ══ -->
+<div class="panel on" id="panel-cx">
+
+  <!-- KPIs -->
+  <div class="kpi-strip">
+    <div class="kpi r">
+      <div class="kpi-top"><div class="kpi-lbl">CSAT Score</div><div class="kpi-badge kb-r" id="kpi-csat-badge">↓ 4 pts</div></div>
+      <div class="kpi-val" id="kpi-csat">71%</div>
+      <div class="kpi-trend t-dn">Degrading<span class="kpi-sub">· this week</span></div>
+      <div class="kpi-spark"><canvas id="sk-csat"></canvas></div>
+    </div>
+    <div class="kpi a">
+      <div class="kpi-top"><div class="kpi-lbl">Open Complaints</div><div class="kpi-badge kb-a" id="kpi-comp-badge">↑ 340</div></div>
+      <div class="kpi-val" id="kpi-comp">1,842</div>
+      <div class="kpi-trend t-dn">+340 today<span class="kpi-sub">· rising</span></div>
+      <div class="kpi-spark"><canvas id="sk-comp"></canvas></div>
+    </div>
+    <div class="kpi r">
+      <div class="kpi-top"><div class="kpi-lbl">Avg Resolution</div><div class="kpi-badge kb-r">+12m slower</div></div>
+      <div class="kpi-val" id="kpi-res">38m</div>
+      <div class="kpi-trend t-dn">↑ 46% vs baseline<span class="kpi-sub">· 26m</span></div>
+      <div class="kpi-spark"><canvas id="sk-res"></canvas></div>
+    </div>
+    <div class="kpi g">
+      <div class="kpi-top"><div class="kpi-lbl">First-Contact Fix</div><div class="kpi-badge kb-g">↑ 3 pts</div></div>
+      <div class="kpi-val" id="kpi-fcr">58%</div>
+      <div class="kpi-trend t-up">Improving<span class="kpi-sub">· target 65%</span></div>
+      <div class="kpi-spark"><canvas id="sk-fcr"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 1: Complaint surge + CSAT vs Resolution -->
+  <div class="g2">
+
+    <!-- Complaint chart -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ch-left">
+          <div class="ch-icon" style="background:var(--red-g)">
+            <svg viewBox="0 0 15 15" fill="none"><path d="M7.5 3v5M7.5 10v1.5" stroke="var(--red)" stroke-width="1.5" stroke-linecap="round"/><path d="M2 13L7.5 2l5.5 11H2Z" stroke="var(--red)" stroke-width="1.3" stroke-linejoin="round"/></svg>
+          </div>
+          <div><div class="ch-title">Complaint Surge — 7 Day</div><div class="ch-sub">Volume by failure type · Stacked</div></div>
+        </div>
+        <div class="ch-tag kb-r">+127% week-on-week</div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric"><div class="metric-val t-dn" id="m-rf">614</div><div class="metric-lbl">Recharge Fail</div><div class="metric-d t-dn">↑ 62%</div></div>
+        <div class="metric"><div class="metric-val t-warn" id="m-bm">441</div><div class="metric-lbl">Bal. Mismatch</div><div class="metric-d t-dn">↑ 3×</div></div>
+        <div class="metric"><div class="metric-val" id="m-rd">388</div><div class="metric-lbl">Refund Delay</div><div class="metric-d t-warn">↑ 40%</div></div>
+      </div>
+      <div class="chart-area" style="height:160px">
+        <canvas id="c-complaints"></canvas>
+      </div>
+    </div>
+
+    <!-- CSAT + Resolution dual-axis -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ch-left">
+          <div class="ch-icon" style="background:var(--amber-g)">
+            <svg viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="var(--amber)" stroke-width="1.3"/><path d="M7.5 5v3l2 2" stroke="var(--amber)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div><div class="ch-title">CSAT vs Resolution Time</div><div class="ch-sub">Inverse correlation · 7 days</div></div>
+        </div>
+        <div class="ch-tag kb-a">Degrading</div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric"><div class="metric-val t-warn">38m</div><div class="metric-lbl">Today Avg</div><div class="metric-d t-dn">↑ 46%</div></div>
+        <div class="metric"><div class="metric-val" style="color:var(--t2)">26m</div><div class="metric-lbl">Baseline</div><div class="metric-d t-neu">last week</div></div>
+        <div class="metric"><div class="metric-val t-dn">71%</div><div class="metric-lbl">CSAT Now</div><div class="metric-d t-dn">↓ 4 pts</div></div>
+      </div>
+      <div class="chart-area" style="height:160px">
+        <canvas id="c-csat"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Row 2: Heatmap + Plaza table + Actions -->
+  <div class="g2">
+
+    <!-- Heatmap card -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ch-left">
+          <div class="ch-icon" style="background:rgba(6,182,212,0.1)">
+            <svg viewBox="0 0 15 15" fill="none"><rect x="1.5" y="3" width="12" height="9" rx="1.5" stroke="var(--cyan)" stroke-width="1.3"/><path d="M1.5 6h12M5 3v9" stroke="var(--cyan)" stroke-width="1" stroke-dasharray="1.5 1.5"/></svg>
+          </div>
+          <div><div class="ch-title">Complaint Intensity Heatmap</div><div class="ch-sub">Hourly × Day — last 7 days</div></div>
+        </div>
+        <div class="ch-tag kb-b">Peak 8–10am · 6–9pm</div>
+      </div>
+      <div class="heatmap" id="heatmap-root"></div>
+    </div>
+
+    <!-- Plaza table + Actions stacked -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- Plaza table -->
+      <div class="card">
+        <div class="card-head">
+          <div class="ch-left">
+            <div class="ch-icon" style="background:var(--blue-g)">
+              <svg viewBox="0 0 15 15" fill="none"><path d="M7.5 2L1.5 6.5v7h4.5V10h3v3.5H13.5v-7L7.5 2Z" stroke="var(--blue)" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            </div>
+            <div><div class="ch-title">Top Failing Plazas</div><div class="ch-sub">Today · Complaint volume</div></div>
+          </div>
+          <div class="ch-tag kb-r">3 Critical</div>
+        </div>
+        <table class="pt">
+          <thead><tr><th>Plaza</th><th>Vol.</th><th>Cause</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Pune East NH-65</td><td>312<div class="pt-bar"><div class="pt-fill" style="width:82%;background:var(--red)"></div></div></td><td style="color:var(--red);font-size:10px;font-weight:600">Lane Reader</td><td><span class="tag tag-r">Critical</span></td></tr>
+            <tr><td>Delhi NH-8 Toll</td><td>278<div class="pt-bar"><div class="pt-fill" style="width:73%;background:var(--red)"></div></div></td><td style="color:var(--amber);font-size:10px;font-weight:600">Balance Sync</td><td><span class="tag tag-r">Critical</span></td></tr>
+            <tr><td>Hyd ORR Plaza 4</td><td>194<div class="pt-bar"><div class="pt-fill" style="width:51%;background:var(--amber)"></div></div></td><td style="color:var(--amber);font-size:10px;font-weight:600">Recharge</td><td><span class="tag tag-a">Watch</span></td></tr>
+            <tr><td>Mumbai E-way 12</td><td>98<div class="pt-bar"><div class="pt-fill" style="width:26%;background:var(--green)"></div></div></td><td style="color:var(--t3);font-size:10px">UPI Timeout</td><td><span class="tag tag-g">Stable</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Decisions -->
+      <div class="card">
+        <div class="card-head">
+          <div class="ch-left">
+            <div class="ch-icon" style="background:rgba(139,92,246,0.1)">
+              <svg viewBox="0 0 15 15" fill="none"><path d="M7.5 2v5l2.5 2.5" stroke="var(--purple)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="5.5" stroke="var(--purple)" stroke-width="1.3"/></svg>
+            </div>
+            <div><div class="ch-title">Decisions Needed</div><div class="ch-sub">AI-ranked · CSAT impact</div></div>
+          </div>
+          <div class="ch-tag" style="background:rgba(139,92,246,0.1);color:var(--purple);border:1px solid rgba(139,92,246,0.2)">3 Open</div>
+        </div>
+        <div class="alert-list">
+          <div class="a-row">
+            <div class="a-accent" style="background:var(--red)"></div>
+            <div class="a-body">
+              <div class="a-title">Approve UPI fix deploy</div>
+              <div class="a-desc">3s timeout → 34% recharge failures. Eng ready. +8 pts CSAT.</div>
+            </div>
+            <div class="a-right">
+              <div class="a-impact t-up">+8 pts</div>
+              <button class="a-btn primary">Approve</button>
+            </div>
+          </div>
+          <div class="a-row">
+            <div class="a-accent" style="background:var(--amber)"></div>
+            <div class="a-body">
+              <div class="a-title">Clear ₹1.2Cr refund backlog</div>
+              <div class="a-desc">Avg 9-day wait. 400 resolvable today with override. +5 pts.</div>
+            </div>
+            <div class="a-right">
+              <div class="a-impact t-up">+5 pts</div>
+              <button class="a-btn">Assign</button>
+            </div>
+          </div>
+          <div class="a-row">
+            <div class="a-accent" style="background:var(--green)"></div>
+            <div class="a-body">
+              <div class="a-title">Enable low-balance SMS alerts</div>
+              <div class="a-desc">Prevents ~600 surprise-at-toll/day. Toggle ready. +4 pts.</div>
+            </div>
+            <div class="a-right">
+              <div class="a-impact t-up">+4 pts</div>
+              <button class="a-btn">Enable</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+<!-- ══ END CX ══ -->
+
+<!-- ══ BIZ PANEL ══ -->
+<div class="panel" id="panel-biz">
+
+  <!-- KPIs -->
+  <div class="kpi-strip">
+    <div class="kpi g">
+      <div class="kpi-top"><div class="kpi-lbl">Monthly Revenue</div><div class="kpi-badge kb-g">↑ 8%</div></div>
+      <div class="kpi-val" id="kpi-rev">₹4.2Cr</div>
+      <div class="kpi-trend t-up">On track<span class="kpi-sub">· ₹4.4Cr target</span></div>
+      <div class="kpi-spark"><canvas id="sk-rev"></canvas></div>
+    </div>
+    <div class="kpi b">
+      <div class="kpi-top"><div class="kpi-lbl">Active Tags</div><div class="kpi-badge kb-b">↑ 14K</div></div>
+      <div class="kpi-val" id="kpi-tags">2.1M</div>
+      <div class="kpi-trend t-up">+14K this week<span class="kpi-sub">· growing</span></div>
+      <div class="kpi-spark"><canvas id="sk-tags"></canvas></div>
+    </div>
+    <div class="kpi a">
+      <div class="kpi-top"><div class="kpi-lbl">Recharge Conversion</div><div class="kpi-badge kb-a">↓ 5 pts</div></div>
+      <div class="kpi-val" id="kpi-conv">63%</div>
+      <div class="kpi-trend t-dn">Friction detected<span class="kpi-sub">· UPI timeout</span></div>
+      <div class="kpi-spark"><canvas id="sk-conv"></canvas></div>
+    </div>
+    <div class="kpi r">
+      <div class="kpi-top"><div class="kpi-lbl">Transaction Failures</div><div class="kpi-badge kb-r">+1.2 pts</div></div>
+      <div class="kpi-val" id="kpi-fail">4.7%</div>
+      <div class="kpi-trend t-dn">Above NPCI 3% limit<span class="kpi-sub">· escalate</span></div>
+      <div class="kpi-spark"><canvas id="sk-fail"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 1: Revenue chart + Segments -->
+  <div class="g2">
+
+    <!-- Revenue -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ch-left">
+          <div class="ch-icon" style="background:var(--green-g)">
+            <svg viewBox="0 0 15 15" fill="none"><path d="M2 11.5L6 7l3 3 4-6" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div><div class="ch-title">Revenue Trend · 8 Weeks</div><div class="ch-sub">Actual vs Target · ₹ Crore</div></div>
+        </div>
+        <div class="ch-tag kb-g">+8% vs last month</div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric"><div class="metric-val t-up">₹4.2Cr</div><div class="metric-lbl">This Month</div><div class="metric-d t-up">↑ 8%</div></div>
+        <div class="metric"><div class="metric-val" style="color:var(--t2)">₹61L</div><div class="metric-lbl">Dormant Pool</div><div class="metric-d t-warn">Recoverable</div></div>
+        <div class="metric"><div class="metric-val t-up">₹38L</div><div class="metric-lbl">Fleet Growth</div><div class="metric-d t-up">↑ 19%</div></div>
+      </div>
+      <div class="chart-area" style="height:160px">
+        <canvas id="c-revenue"></canvas>
+      </div>
+    </div>
+
+    <!-- Segment breakdown -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ch-left">
+          <div class="ch-icon" style="background:var(--blue-g)">
+            <svg viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="var(--blue)" stroke-width="1.3"/><path d="M7.5 2v5.5l3.5 2" stroke="var(--blue)" stroke-width="1.3" stroke-linecap="round"/></svg>
+          </div>
+          <div><div class="ch-title">Revenue by Segment</div><div class="ch-sub">vs MTD target</div></div>
+        </div>
+        <div class="ch-tag kb-b">4 Segments</div>
+      </div>
+      <div class="chart-area" style="height:120px;padding-bottom:6px">
+        <canvas id="c-donut"></canvas>
+      </div>
+      <div class="seg-list">
+        <div class="seg"><div class="seg-name">Corporate Fleet</div><div class="seg-track"><div class="seg-fill2" style="width:88%;background:var(--green)"></div></div><div class="seg-num">₹1.3Cr</div><div class="seg-d2 t-up">+19%</div></div>
+        <div class="seg"><div class="seg-name">Retail Consumers</div><div class="seg-track"><div class="seg-fill2" style="width:72%;background:var(--amber)"></div></div><div class="seg-num">₹1.8Cr</div><div class="seg-d2 t-dn">−3%</div></div>
+        <div class="seg"><div class="seg-name">Logistics Partners</div><div class="seg-track"><div class="seg-fill2" style="width:93%;background:var(--green)"></div></div><div class="seg-num">₹0.9Cr</div><div class="seg-d2 t-up">+11%</div></div>
+        <div class="seg"><div class="seg-name">Govt / NHAI</div><div class="seg-track"><div class="seg-fill2" style="width:55%;background:var(--t3)"></div></div><div class="seg-num">₹0.2Cr</div><div class="seg-d2 t-neu">Flat</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Funnel + Risks + Failure rate -->
+  <div class="g2">
+
+    <!-- Transaction failure trend -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ch-left">
+          <div class="ch-icon" style="background:var(--red-g)">
+            <svg viewBox="0 0 15 15" fill="none"><path d="M2 9l3.5-4 2.5 3 3-5.5L13 7" stroke="var(--red)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div><div class="ch-title">Transaction Failure Rate</div><div class="ch-sub">24h rolling · NPCI threshold 3%</div></div>
+        </div>
+        <div class="ch-tag kb-r">4.7% — Above Limit</div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric"><div class="metric-val t-dn">4.7%</div><div class="metric-lbl">Current Rate</div><div class="metric-d t-dn">↑ 1.2 pts</div></div>
+        <div class="metric"><div class="metric-val" style="color:var(--green)">3.0%</div><div class="metric-lbl">NPCI Limit</div><div class="metric-d" style="color:var(--t3)">Threshold</div></div>
+        <div class="metric"><div class="metric-val t-warn">48h</div><div class="metric-lbl">Fix ETA</div><div class="metric-d t-warn">CTO flagged</div></div>
+      </div>
+      <div class="chart-area" style="height:150px">
+        <canvas id="c-failrate"></canvas>
+      </div>
+    </div>
+
+    <!-- Activation funnel + Risks stacked -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- Funnel -->
+      <div class="card">
+        <div class="card-head">
+          <div class="ch-left">
+            <div class="ch-icon" style="background:var(--amber-g)">
+              <svg viewBox="0 0 15 15" fill="none"><path d="M2.5 3h10L9 8v4l-3-1.5V8L2.5 3Z" stroke="var(--amber)" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            </div>
+            <div><div class="ch-title">Activation Funnel</div><div class="ch-sub">Drop-off at selfie step</div></div>
+          </div>
+          <div class="ch-tag kb-a">68% drop-off</div>
+        </div>
+        <div class="funnel">
+          <div class="funnel-row"><div class="funnel-lbl">Sign-up</div><div class="funnel-track"><div class="funnel-fill" style="width:100%;background:rgba(59,130,246,0.5);color:var(--text)">10,000</div></div><div class="funnel-pct">100%</div><div class="funnel-drop"></div></div>
+          <div class="funnel-row"><div class="funnel-lbl">KYC Init</div><div class="funnel-track"><div class="funnel-fill" style="width:82%;background:rgba(59,130,246,0.45);color:var(--text)">8,200</div></div><div class="funnel-pct">82%</div><div class="funnel-drop">−18%</div></div>
+          <div class="funnel-row"><div class="funnel-lbl">Doc Upload</div><div class="funnel-track"><div class="funnel-fill" style="width:61%;background:rgba(245,158,11,0.45);color:var(--text)">6,100</div></div><div class="funnel-pct">61%</div><div class="funnel-drop">−21%</div></div>
+          <div class="funnel-row"><div class="funnel-lbl" style="color:var(--red);font-weight:600">▶ Selfie Step</div><div class="funnel-track"><div class="funnel-fill" style="width:38%;background:rgba(244,63,94,0.55);color:var(--text)">3,800</div></div><div class="funnel-pct" style="color:var(--red)">38%</div><div class="funnel-drop">−38%</div></div>
+          <div class="funnel-row"><div class="funnel-lbl">Activated</div><div class="funnel-track"><div class="funnel-fill" style="width:32%;background:rgba(16,217,122,0.45);color:var(--text)">3,200</div></div><div class="funnel-pct" style="color:var(--green)">32%</div><div class="funnel-drop">−16%</div></div>
+        </div>
+      </div>
+
+      <!-- Risks -->
+      <div class="card">
+        <div class="card-head">
+          <div class="ch-left">
+            <div class="ch-icon" style="background:var(--red-g)">
+              <svg viewBox="0 0 15 15" fill="none"><path d="M7.5 2.5v5M7.5 10v1.5" stroke="var(--red)" stroke-width="1.5" stroke-linecap="round"/><path d="M2 13L7.5 2 13 13H2Z" stroke="var(--red)" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            </div>
+            <div><div class="ch-title">Risks — Escalate This Week</div><div class="ch-sub">Material impact if unresolved in 5d</div></div>
+          </div>
+          <div class="ch-tag kb-r">3 Open</div>
+        </div>
+        <div class="risk-list">
+          <div class="risk-row"><div class="risk-num" style="color:var(--red)">01</div><div class="risk-body"><div class="risk-title">Txn failure 4.7% — NPCI limit is 3%</div><div class="risk-desc">Bank gateway latency. Fix ETA 48h. CTO sign-off needed today.</div></div><div class="risk-val t-dn">4.7%</div><button class="risk-btn">Escalate</button></div>
+          <div class="risk-row"><div class="risk-num" style="color:var(--amber)">02</div><div class="risk-body"><div class="risk-title">DHL, Mahindra, BlueDart renewals in 30d</div><div class="risk-desc">₹92L annual. No renewal conversation logged yet.</div></div><div class="risk-val t-warn">₹92L</div><button class="risk-btn">Brief</button></div>
+          <div class="risk-row"><div class="risk-num" style="color:var(--blue)">03</div><div class="risk-body"><div class="risk-title">Competitor 0% MDR offer — Maharashtra</div><div class="risk-desc">3 fleet accounts comparing. Response window closing.</div></div><div class="risk-val" style="color:var(--blue)">3 accts</div><button class="risk-btn">Counter</button></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+<!-- ══ END BIZ ══ -->
+
+</main>
+
+<!-- ═════ FOOTER ═════ -->
+<footer class="footer">
+  <div class="fc"><div class="fc-dot" style="background:var(--green)"></div>All systems operational</div>
+  <div class="fc-sep"></div>
+  <div class="fc"><div class="fc-dot" style="background:var(--blue)"></div>NPCI Gateway: 99.2% uptime</div>
+  <div class="fc-sep"></div>
+  <div class="fc"><div class="fc-dot" style="background:var(--amber)"></div>Txn failure above threshold</div>
+  <div style="margin-left:auto" class="fc">v2.5.0 · <span style="margin-left:4px;font-family:var(--mono)" id="footer-ts">--</span></div>
+</footer>
+
+</div><!-- end .app -->
+
+<div class="tt" id="tt"></div>
+
+<script>
+// ═══ CLOCK ═══
+function tick(){
+  const n=new Date();
+  const t=n.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+' IST';
+  document.getElementById('h-clock').textContent=t;
+  document.getElementById('footer-ts').textContent=n.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+' '+n.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+}
+tick();setInterval(tick,1000);
+
+// ═══ VIEW SWITCH ═══
+function setView(v, el){
+  document.getElementById('panel-cx').classList.toggle('on',v==='cx');
+  document.getElementById('panel-biz').classList.toggle('on',v==='biz');
+  document.getElementById('vt-cx').classList.toggle('on',v==='cx');
+  document.getElementById('vt-biz').classList.toggle('on',v==='biz');
+  document.getElementById('nav-cx').classList.toggle('active',v==='cx');
+  document.getElementById('nav-biz').classList.toggle('active',v==='biz');
+  document.getElementById('page-h').textContent=v==='cx'?'Customer Experience':'Business Intelligence';
+  document.getElementById('user-name').textContent=v==='cx'?'Priya Sharma':'Arjun Kapoor';
+  document.getElementById('user-role').textContent=v==='cx'?'Head of CX':'Head of Business';
+  document.getElementById('user-ava').textContent=v==='cx'?'PS':'AK';
+}
+
+// ═══ CHART DEFAULTS ═══
+Chart.defaults.color='#4a5070';
+Chart.defaults.font.family="'DM Sans',sans-serif";
+Chart.defaults.font.size=10;
+const grid='rgba(255,255,255,0.04)';
+const tOpts={
+  backgroundColor:'#1a1f2e',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,
+  titleColor:'#eef0f8',bodyColor:'#8b93b0',padding:9,cornerRadius:7,
+  titleFont:{family:"'Bricolage Grotesque',sans-serif",weight:'700',size:12},
+  bodyFont:{family:"'DM Mono',monospace",size:10},
+};
+const scaleBase={
+  x:{grid:{color:grid},ticks:{color:'#4a5070',maxRotation:0}},
+  y:{grid:{color:grid,drawBorder:false},ticks:{color:'#4a5070'},border:{dash:[3,3]}}
+};
+
+// ═══ SPARKLINES ═══
+function spark(id, data, color){
+  const ctx=document.getElementById(id);
+  if(!ctx)return;
+  new Chart(ctx,{
+    type:'line',
+    data:{labels:data.map((_,i)=>i),datasets:[{data,borderColor:color,borderWidth:1.5,fill:true,backgroundColor:color+'18',tension:0.4,pointRadius:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}},animation:{duration:800}}
+  });
+}
+spark('sk-csat',[76,75,75,74,73,72,71,71],'var(--red)');
+spark('sk-comp',[900,1100,1300,1420,1580,1700,1842,1842],'var(--amber)');
+spark('sk-res',[26,27,28,30,32,35,37,38],'var(--red)');
+spark('sk-fcr',[52,53,54,54,55,56,57,58],'var(--green)');
+spark('sk-rev',[2.8,3.1,3.0,3.4,3.6,3.8,3.9,4.2],'var(--green)');
+spark('sk-tags',[1.8,1.85,1.88,1.92,1.96,2.0,2.05,2.1],'var(--blue)');
+spark('sk-conv',[68,68,67,66,65,65,64,63],'var(--amber)');
+spark('sk-fail',[2.8,3.1,3.4,3.8,4.0,4.2,4.5,4.7],'var(--red)');
+
+// ═══ COMPLAINT CHART ═══
+new Chart(document.getElementById('c-complaints'),{
+  type:'bar',
+  data:{
+    labels:['Mon','Tue','Wed','Thu','Fri','Sat','Today'],
+    datasets:[
+      {label:'Recharge Fail',data:[210,280,340,410,490,530,614],backgroundColor:'rgba(244,63,94,0.45)',borderColor:'var(--red)',borderWidth:1,borderRadius:3,borderSkipped:false,stack:'s'},
+      {label:'Bal. Mismatch',data:[80,110,160,240,330,380,441],backgroundColor:'rgba(245,158,11,0.35)',borderColor:'var(--amber)',borderWidth:1,borderRadius:3,borderSkipped:false,stack:'s'},
+      {label:'Refund Delay',data:[150,180,200,250,300,340,388],backgroundColor:'rgba(59,130,246,0.25)',borderColor:'var(--blue)',borderWidth:1,borderRadius:3,borderSkipped:false,stack:'s'},
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'top',labels:{color:'#8b93b0',boxWidth:8,boxHeight:8,padding:10,usePointStyle:true,pointStyle:'circle',font:{size:10}}},tooltip:tOpts},
+    scales:scaleBase
+  }
+});
+
+// ═══ CSAT DUAL ═══
+new Chart(document.getElementById('c-csat'),{
+  type:'line',
+  data:{
+    labels:['Mon','Tue','Wed','Thu','Fri','Sat','Today'],
+    datasets:[
+      {label:'Resolution (min)',data:[26,27,28,31,34,36,38],borderColor:'var(--amber)',backgroundColor:'transparent',borderWidth:2,tension:0.4,pointRadius:3,pointBackgroundColor:'var(--amber)',pointBorderColor:'var(--s2)',pointBorderWidth:2,yAxisID:'ya'},
+      {label:'CSAT %',data:[78,77,76,75,74,72,71],borderColor:'var(--red)',backgroundColor:'rgba(244,63,94,0.06)',fill:true,borderWidth:2,tension:0.4,pointRadius:3,pointBackgroundColor:'var(--red)',pointBorderColor:'var(--s2)',pointBorderWidth:2,yAxisID:'yb'},
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'top',labels:{color:'#8b93b0',boxWidth:8,boxHeight:8,padding:10,usePointStyle:true,pointStyle:'circle',font:{size:10}}},tooltip:tOpts},
+    scales:{
+      x:{...scaleBase.x},
+      ya:{type:'linear',position:'left',grid:{color:grid,drawBorder:false},ticks:{color:'#f59e0b',callback:v=>v+'m'},border:{dash:[3,3]}},
+      yb:{type:'linear',position:'right',grid:{drawOnChartArea:false},ticks:{color:'var(--red)',callback:v=>v+'%'}},
+    }
+  }
+});
+
+// ═══ HEATMAP ═══
+(function(){
+  const days=['Mo','Tu','We','Th','Fr','Sa','Su'];
+  const peaks=[8,9,10,18,19,20,21];
+  const hours=['6a','7a','8a','9a','10a','11a','12p','1p','2p','3p','4p','5p','6p','7p','8p','9p'];
+  const hrIdxs=[6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21];
+  const root=document.getElementById('heatmap-root');
+
+  // Times header
+  const hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;gap:3px;padding:0 0 4px 32px';
+  hours.forEach(h=>{const d=document.createElement('div');d.className='hm-time';d.textContent=h;d.style.flex='1';hdr.appendChild(d)});
+  root.appendChild(hdr);
+
+  days.forEach((day,di)=>{
+    const row=document.createElement('div');
+    row.className='hm-row';
+    const lbl=document.createElement('div');
+    lbl.className='hm-day';lbl.textContent=day;row.appendChild(lbl);
+    const cells=document.createElement('div');
+    cells.className='hm-cells';
+    hrIdxs.forEach(h=>{
+      let v=Math.random()*0.15;
+      if(peaks.includes(h))v=0.45+Math.random()*0.55;
+      else if(h>=6&&h<=11)v=0.15+Math.random()*0.25;
+      else if(h>=17&&h<=22)v=0.2+Math.random()*0.3;
+      if(di>=1&&di<=3)v=Math.min(1,v+0.1);
+      v=Math.min(1,v);
+      const cell=document.createElement('div');
+      cell.className='hm-cell';
+      cell.style.background=`rgba(244,63,94,${v.toFixed(2)})`;
+      cell.title=`${day} ${h}:00 — ${Math.round(v*800+50)} complaints`;
+      cells.appendChild(cell);
+    });
+    row.appendChild(cells);
+    root.appendChild(row);
+  });
+
+  // Legend
+  const leg=document.createElement('div');
+  leg.className='hm-legend';
+  leg.innerHTML='<span class="hm-leg-lbl">Low</span><div class="hm-leg-cells">';
+  [0.08,0.2,0.35,0.5,0.7,1].forEach(v=>{leg.innerHTML+=`<div class="hm-leg-cell" style="background:rgba(244,63,94,${v})"></div>`});
+  leg.innerHTML+='</div><span class="hm-leg-lbl">High</span>';
+  root.appendChild(leg);
+})();
+
+// ═══ REVENUE ═══
+new Chart(document.getElementById('c-revenue'),{
+  type:'line',
+  data:{
+    labels:['W1','W2','W3','W4','W5','W6','W7','W8'],
+    datasets:[
+      {label:'Revenue (₹Cr)',data:[2.8,3.1,3.0,3.4,3.6,3.8,3.9,4.2],borderColor:'var(--green)',backgroundColor:'rgba(16,217,122,0.06)',fill:true,borderWidth:2.5,tension:0.4,pointRadius:4,pointBackgroundColor:'var(--green)',pointBorderColor:'var(--s2)',pointBorderWidth:2},
+      {label:'Target',data:[3.0,3.2,3.4,3.6,3.8,4.0,4.2,4.4],borderColor:'rgba(255,255,255,0.12)',borderDash:[4,4],borderWidth:1.5,pointRadius:0,fill:false,tension:0.4},
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'top',labels:{color:'#8b93b0',boxWidth:8,boxHeight:8,padding:10,usePointStyle:true,pointStyle:'circle',font:{size:10}}},tooltip:tOpts},
+    scales:{...scaleBase,y:{...scaleBase.y,ticks:{...scaleBase.y.ticks,callback:v=>'₹'+v}}}
+  }
+});
+
+// ═══ DONUT ═══
+new Chart(document.getElementById('c-donut'),{
+  type:'doughnut',
+  data:{
+    labels:['Corp. Fleet','Retail','Logistics','Govt'],
+    datasets:[{data:[31,43,21,5],backgroundColor:['rgba(16,217,122,0.6)','rgba(245,158,11,0.6)','rgba(59,130,246,0.6)','rgba(74,80,112,0.4)'],borderColor:['var(--green)','var(--amber)','var(--blue)','var(--t3)'],borderWidth:1.5,hoverOffset:5}]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,cutout:'70%',
+    plugins:{legend:{display:true,position:'right',labels:{color:'#8b93b0',boxWidth:8,boxHeight:8,padding:8,usePointStyle:true,pointStyle:'circle',font:{size:10}}},tooltip:{...tOpts,callbacks:{label:c=>` ${c.label}: ${c.parsed}%`}}}
+  }
+});
+
+// ═══ FAILURE RATE ═══
+const failLabels=Array.from({length:24},(_,i)=>i%4===0?(i+'h'):'');
+const failData=Array.from({length:24},(_,i)=>{
+  const base=3.2;
+  const wave=Math.sin(i/3)*0.4;
+  const drift=(i/24)*1.5;
+  return +(base+wave+drift+Math.random()*0.2).toFixed(2);
+});
+new Chart(document.getElementById('c-failrate'),{
+  type:'line',
+  data:{
+    labels:failLabels,
+    datasets:[
+      {label:'Failure Rate %',data:failData,borderColor:'var(--red)',backgroundColor:'rgba(244,63,94,0.08)',fill:true,borderWidth:2,tension:0.3,pointRadius:0},
+      {label:'NPCI Limit (3%)',data:Array(24).fill(3),borderColor:'rgba(16,217,122,0.4)',borderDash:[4,4],borderWidth:1.5,pointRadius:0,fill:false},
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'top',labels:{color:'#8b93b0',boxWidth:8,boxHeight:8,padding:10,usePointStyle:true,pointStyle:'circle',font:{size:10}}},tooltip:tOpts},
+    scales:{...scaleBase,y:{...scaleBase.y,min:2,max:6,ticks:{...scaleBase.y.ticks,callback:v=>v+'%'}}}
+  }
+});
+
+// ═══ TICKER ═══
+const tickerItems=[
+  {label:'Pune East NH-65',val:'312 complaints',color:'var(--red)'},
+  {label:'Txn Failure Rate',val:'4.7% ↑',color:'var(--red)'},
+  {label:'Active Tags',val:'2.1M (+14K)',color:'var(--green)'},
+  {label:'CSAT Score',val:'71% ↓',color:'var(--amber)'},
+  {label:'Delhi NH-8',val:'278 complaints',color:'var(--red)'},
+  {label:'Revenue MTD',val:'₹4.2Cr',color:'var(--green)'},
+  {label:'Open Complaints',val:'1,842',color:'var(--amber)'},
+  {label:'Avg Resolution',val:'38m ↑',color:'var(--red)'},
+  {label:'Recharge Conv.',val:'63% ↓',color:'var(--amber)'},
+  {label:'FCR Rate',val:'58% ↑',color:'var(--green)'},
+];
+const inner=document.getElementById('ticker-inner');
+[...tickerItems,...tickerItems].forEach(item=>{
+  const el=document.createElement('div');
+  el.className='ticker-item';
+  el.innerHTML=`${item.label} <span style="color:${item.color}">${item.val}</span>`;
+  inner.appendChild(el);
+});
+
+// ═══ REAL-TIME SIMULATION ═══
+let csatVal=71,compVal=1842,resVal=38,fcrVal=58;
+let revVal=4.2,tagsVal=2.1,convVal=63,failVal=4.7;
+let refreshCount=0;
+
+function animNum(el,from,to,fmt,dur=600){
+  if(!el)return;
+  const start=performance.now();
+  function step(now){
+    const p=Math.min((now-start)/dur,1);
+    const ease=1-(1-p)*(1-p);
+    const v=from+(to-from)*ease;
+    el.textContent=fmt(v);
+    if(p<1)requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function rtUpdate(){
+  // CX data fluctuation
+  const csatDelta=(Math.random()-0.55)*0.3;
+  const newCsat=Math.max(65,Math.min(80,csatVal+csatDelta));
+  if(Math.abs(newCsat-csatVal)>0.1){
+    const old=csatVal;csatVal=newCsat;
+    animNum(document.getElementById('kpi-csat'),old,csatVal,v=>Math.round(v)+'%');
+  }
+
+  const compDelta=Math.floor((Math.random()-0.3)*15);
+  const newComp=Math.max(1700,Math.min(2100,compVal+compDelta));
+  const oldComp=compVal;compVal=newComp;
+  animNum(document.getElementById('kpi-comp'),oldComp,compVal,v=>Math.round(v).toLocaleString('en-IN'));
+
+  // Fail rate
+  const failDelta=(Math.random()-0.4)*0.08;
+  const newFail=Math.max(3.5,Math.min(5.5,failVal+failDelta));
+  const oldFail=failVal;failVal=newFail;
+  animNum(document.getElementById('kpi-fail'),oldFail,failVal,v=>v.toFixed(1)+'%');
+  const failEl=document.getElementById('kpi-fail');
+  if(failEl){failEl.className='kpi-val '+(failVal>3?'t-dn':'t-up')}
+
+  // Refresh ts
+  refreshCount++;
+  document.getElementById('refresh-ts').textContent=`Refreshed ${refreshCount===1?'just now':refreshCount+'s ago'}`;
+  setTimeout(()=>{document.getElementById('refresh-ts').textContent='Refreshed just now';refreshCount=0},3000);
+}
+setInterval(rtUpdate,4000);
+
+// ═══ TOOLTIP on hm cells ═══
+const tt=document.getElementById('tt');
+document.addEventListener('mouseover',e=>{
+  if(e.target.classList.contains('hm-cell')&&e.target.title){
+    tt.textContent=e.target.title;
+    tt.classList.add('show');
+  }
+});
+document.addEventListener('mousemove',e=>{
+  if(tt.classList.contains('show')){
+    tt.style.left=(e.clientX+12)+'px';
+    tt.style.top=(e.clientY-8)+'px';
+  }
+});
+document.addEventListener('mouseout',e=>{
+  if(e.target.classList.contains('hm-cell'))tt.classList.remove('show');
+});
+</script>
+</body>
+</html>
