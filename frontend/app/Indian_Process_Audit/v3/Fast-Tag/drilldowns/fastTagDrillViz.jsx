@@ -1509,6 +1509,249 @@ export function DrillSentimentTrendPanel({ prefix, points, tag }) {
   );
 }
 
+/** CX happiness index trend */
+export function DrillCxTrendPanel({ prefix, trend, hint }) {
+  const gradUid = useId().replace(/:/g, '');
+  const chartData = useMemo(
+    () => (trend ?? []).map((score, i) => ({ label: `W${i + 1}`, score })),
+    [trend],
+  );
+  const first = chartData[0];
+  const last = chartData[chartData.length - 1];
+  const delta = first && last ? last.score - first.score : 0;
+
+  return (
+    <div className={`${prefix}-viz-cx-trend`}>
+      <div className={`${prefix}-viz-cx-trend-head`}>
+        <span className={`${prefix}-label`}>CX happiness index</span>
+        {first && last ? (
+          <span className={delta >= 0 ? `${prefix}-down` : `${prefix}-up`} style={{ fontSize: 10, fontWeight: 700 }}>
+            {delta >= 0 ? '↑' : '↓'} {Math.abs(delta)} pts · {first.label} {first.score} → {last.label} {last.score}
+          </span>
+        ) : null}
+      </div>
+      <div className={`${prefix}-viz-cx-trend-chart`}>
+        <ResponsiveContainer width="100%" height={88}>
+          <AreaChart data={chartData} margin={{ top: 6, right: 8, left: 2, bottom: 2 }}>
+            <defs>
+              <linearGradient id={`cx-trend-${gradUid}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#dc2626" stopOpacity={0.28} />
+                <stop offset="100%" stopColor="#dc2626" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 9, fill: '#64748b', fontWeight: 600 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis hide domain={['dataMin - 6', 'dataMax + 6']} />
+            <Tooltip {...TIP} formatter={(v) => [`${v} index`, 'CX score']} />
+            <Area
+              type="monotone"
+              dataKey="score"
+              stroke="#dc2626"
+              strokeWidth={2}
+              fill={`url(#cx-trend-${gradUid})`}
+              dot={{ r: 2.5, fill: '#dc2626', stroke: '#fff', strokeWidth: 1 }}
+              activeDot={{ r: 4, strokeWidth: 0 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+      {hint ? <p className={`${prefix}-viz-cx-trend-hint`}>{hint}</p> : null}
+    </div>
+  );
+}
+
+/** Region + channel complaint heat — where volume is rising */
+export function DrillRegionChannelComplaintsPanel({ prefix, regions, channels }) {
+  return (
+    <div className={`${prefix}-viz-region-channel`}>
+      <div className={`${prefix}-viz-region-channel-col`}>
+        <div className={`${prefix}-label ${prefix}-viz-region-channel-label`}>By region</div>
+        <div className={`${prefix}-viz-stage-table-wrap`}>
+          <table className={`${prefix}-viz-stage-table ${prefix}-viz-region-table`}>
+            <thead>
+              <tr>
+                <th className={`${prefix}-th`}>Region</th>
+                <th className={`${prefix}-th ${prefix}-viz-stage-tbl-th-num`}>Complaints</th>
+                <th className={`${prefix}-th`}>Top issue</th>
+                <th className={`${prefix}-th ${prefix}-viz-issues-th-center`}>Severity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {regions.map((r) => {
+                const sevCol = issuesSevColor(r.sev);
+                return (
+                  <tr key={r.region}>
+                    <td className={`${prefix}-td`} style={{ fontWeight: 600 }}>
+                      {r.region}
+                    </td>
+                    <td className={`${prefix}-td ${prefix}-viz-stage-tbl-td-num`}>
+                      {r.volume}{' '}
+                      <span className={`${prefix}-up`} style={{ fontSize: 10 }}>
+                        ↑{r.delta}
+                      </span>
+                    </td>
+                    <td className={`${prefix}-td ${prefix}-viz-stage-tbl-td-detail`}>{r.topIssue}</td>
+                    <td className={`${prefix}-td ${prefix}-viz-issues-td-center`}>
+                      <span
+                        className={`${prefix}-badge`}
+                        style={{ color: sevCol, background: `${sevCol}1a`, border: `1px solid ${sevCol}55` }}
+                      >
+                        {r.sev}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className={`${prefix}-viz-region-channel-col`}>
+        <div className={`${prefix}-label ${prefix}-viz-region-channel-label`}>By channel</div>
+        <div className={`${prefix}-viz-stage-table-wrap`}>
+          <table className={`${prefix}-viz-stage-table ${prefix}-viz-channel-complaint-table`}>
+            <thead>
+              <tr>
+                <th className={`${prefix}-th`}>Channel</th>
+                <th className={`${prefix}-th ${prefix}-viz-stage-tbl-th-num`}>Volume</th>
+                <th className={`${prefix}-th ${prefix}-viz-stage-tbl-th-num`}>Share</th>
+                <th className={`${prefix}-th ${prefix}-viz-stage-tbl-th-num`}>WoW</th>
+              </tr>
+            </thead>
+            <tbody>
+              {channels.map((c) => (
+                <tr key={c.channel} className={c.rising ? `${prefix}-viz-channel-row--rising` : undefined}>
+                  <td className={`${prefix}-td`} style={{ fontWeight: 600 }}>
+                    {c.channel}
+                  </td>
+                  <td className={`${prefix}-td ${prefix}-viz-stage-tbl-td-num`}>{c.volume}</td>
+                  <td className={`${prefix}-td ${prefix}-viz-stage-tbl-td-num`}>{c.share}</td>
+                  <td
+                    className={`${prefix}-td ${prefix}-viz-stage-tbl-td-num ${c.rising ? `${prefix}-up` : `${prefix}-faint`}`}
+                    style={{ fontWeight: 700 }}
+                  >
+                    {c.delta}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Opened vs resolved complaints — are we keeping up? */
+export function DrillResolutionPacePanel({ prefix, series, kpis, rootCauses }) {
+  const gradUid = useId().replace(/:/g, '');
+  const gap = useMemo(() => {
+    if (!series?.length) return 0;
+    const last = series[series.length - 1];
+    return last.opened - last.resolved;
+  }, [series]);
+
+  return (
+    <div className={`${prefix}-viz-resolution`}>
+      <div className={`${prefix}-viz-resolution-kpis`}>
+        {kpis.map((k) => (
+          <div key={k.label} className={`${prefix}-viz-resolution-kpi`}>
+            <span className={`${prefix}-label`}>{k.label}</span>
+            <span className={`${prefix}-viz-resolution-kpi-val`} style={{ color: k.color }}>
+              {k.value}
+            </span>
+            <span className={`${prefix}-faint`}>{k.delta}</span>
+            <span className={`${prefix}-faint`} style={{ fontSize: 9 }}>
+              {k.sub}
+            </span>
+          </div>
+        ))}
+      </div>
+      <DrillVizFrame prefix={prefix} label="Opened vs resolved (weekly)">
+        <div className={`${prefix}-viz-resolution-chart`}>
+          <ResponsiveContainer width="100%" height={120}>
+            <AreaChart data={series} margin={{ top: 8, right: 8, left: 2, bottom: 4 }}>
+              <defs>
+                <linearGradient id={`res-open-${gradUid}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#dc2626" stopOpacity={0.22} />
+                  <stop offset="100%" stopColor="#dc2626" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id={`res-close-${gradUid}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#059669" stopOpacity={0.22} />
+                  <stop offset="100%" stopColor="#059669" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 9, fill: '#64748b', fontWeight: 600 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis hide />
+              <Tooltip
+                {...TIP}
+                formatter={(v, name) => [`${v} cases`, name === 'opened' ? 'Opened' : 'Resolved']}
+              />
+              <Legend
+                verticalAlign="top"
+                align="right"
+                iconType="circle"
+                iconSize={8}
+                wrapperStyle={{ fontSize: 9, paddingBottom: 4 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="opened"
+                name="Opened"
+                stroke="#dc2626"
+                strokeWidth={2}
+                fill={`url(#res-open-${gradUid})`}
+                dot={{ r: 2, fill: '#dc2626', stroke: '#fff', strokeWidth: 1 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="resolved"
+                name="Resolved"
+                stroke="#059669"
+                strokeWidth={2}
+                fill={`url(#res-close-${gradUid})`}
+                dot={{ r: 2, fill: '#059669', stroke: '#fff', strokeWidth: 1 }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        {gap > 0 ? (
+          <p className={`${prefix}-viz-resolution-gap`}>
+            Resolution gap widening — <strong>{gap}</strong> more cases opened than closed in the latest period.
+          </p>
+        ) : null}
+      </DrillVizFrame>
+      {rootCauses?.length ? (
+        <div className={`${prefix}-viz-resolution-causes`}>
+          <div className={`${prefix}-label`}>Top bottlenecks slowing resolution</div>
+          {rootCauses.slice(0, 3).map((r) => (
+            <DrillMetricBar
+              key={r.cause}
+              prefix={prefix}
+              label={r.cause}
+              display={`${r.share}%`}
+              pct={r.share}
+              color={r.color}
+              trackHeight={7}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** §7 — root cause bars + prioritized actions table */
 export function DrillRootCauseActionsPanel({ prefix, rootCauses, actions }) {
   return (

@@ -1,4 +1,5 @@
 import type { DrillPeriodGrain } from './fastTagDrillPeriod';
+import { buildStateComplaintData, type StateComplaintDatum } from './fastTagIssuesStateComplaints';
 
 export type IssuesHeadlineKpi = {
   label: string;
@@ -8,284 +9,467 @@ export type IssuesHeadlineKpi = {
   color: string;
 };
 
-export type IssuesImpactRow = {
-  issue: string;
-  vol: string;
-  volD: string;
-  affected: string;
-  risk: string;
-  churn: 'High' | 'Med' | 'Low';
-  sev: 'Critical' | 'High' | 'Watch';
-};
-
-export type ComplaintSlice = {
-  cat: string;
-  pct: number;
-  d: string;
-  color: string;
-  volume: string;
-};
-
-export type HappinessMetric = {
+/** Q1 — Is customer experience improving or getting worse? */
+export type CxTrendPoint = {
   label: string;
-  barPct: number;
-  display: string;
+  customer: number;
+  partner: number;
+};
+
+export type CxDriver = {
+  metric: string;
+  now: string;
+  prior: string;
+  delta: string;
+  worsening: boolean;
+};
+
+export type CxExperienceData = {
+  verdict: string;
+  direction: 'worse' | 'better' | 'flat';
+  summary: string;
   target: number;
-  sub: string;
-  color: string;
+  trend: CxTrendPoint[];
+  drivers: CxDriver[];
 };
 
-export type PartnerRow = {
-  name: string;
+/** Q2 — Are complaints increasing in any region/channel? */
+export type ComplaintRegionBar = {
+  region: string;
+  current: number;
+  prior: number;
+  deltaPct: number;
+  topIssue: string;
+};
+
+export type ComplaintChannelBar = {
+  channel: string;
+  current: number;
+  prior: number;
+  deltaPct: number;
+  sharePct: number;
+};
+
+export type IndiaOverallSummary = {
+  complaints: number;
+  prior: number;
+  deltaPct: number;
+  risingRegions: number;
+  totalRegions: number;
+  criticalStates: number;
+  topIssue: string;
+  topChannel: string;
+};
+
+export type ComplaintSpikeData = {
+  verdict: string;
+  summary: string;
+  regions: ComplaintRegionBar[];
+  channels: ComplaintChannelBar[];
+  stateComplaints: StateComplaintDatum[];
+  overall: IndiaOverallSummary;
+};
+
+/** Q3 — Where are we losing customers & partners? */
+export type CustomerLossRow = {
+  segment: string;
+  atRisk: number;
+  churned30d: number;
+  spendAtRisk: string;
+  driver: string;
+  severity: 'Critical' | 'High' | 'Watch';
+};
+
+export type PartnerLossRow = {
+  partner: string;
   role: string;
-  sla: number;
-  err: string;
-  cases: string;
-  exp: string;
-  sev: 'Critical' | 'High' | 'Watch';
+  health: number;
+  cases: number;
+  signal: string;
+  severity: 'Critical' | 'High' | 'Watch';
 };
 
-export type ChurnMetric = {
-  label: string;
-  display: string;
-  sub: string;
-  color: string;
+export type AttritionData = {
+  verdict: string;
+  summary: string;
+  customers: CustomerLossRow[];
+  partners: PartnerLossRow[];
+  totals: { atRiskAccounts: number; spendAtRisk: string; strainedPartners: number };
 };
 
-export type RootCauseSlice = {
-  cause: string;
-  share: number;
-  color: string;
-};
+/** Q4 — Complaints vs resolving — case-level backlog */
+export type ComplaintResolutionStatus = 'Open' | 'In progress' | 'Resolved' | 'Escalated';
 
-export type ActionRow = {
-  act: string;
+export type ComplaintSlaStatus = 'Within SLA' | 'At risk' | 'Breached';
+
+export type ComplaintCaseRow = {
+  id: string;
+  issue: string;
+  customer: string;
+  region: string;
+  channel: string;
+  status: ComplaintResolutionStatus;
+  age: string;
+  sla: ComplaintSlaStatus;
   owner: string;
-  impact: string;
-  sev: 'Critical' | 'High' | 'Watch';
+  resolutionTime: string;
+  severity: 'Critical' | 'High' | 'Watch';
 };
 
-export type SentimentPoint = {
-  label: string;
-  mentions: number;
+export type ResolutionSummary = {
+  total: number;
+  open: number;
+  resolved: number;
+  breached: number;
+  clearBacklogDays: number;
+};
+
+export type ResolutionThroughputData = {
+  verdict: string;
+  summary: string;
+  summaryStats: ResolutionSummary;
+  complaints: ComplaintCaseRow[];
+};
+
+/** Q4 — What % of users are giving low ratings (1–2 stars)? */
+export type StarRatingSlice = {
+  stars: 1 | 2 | 3 | 4 | 5;
+  pct: number;
+  color: string;
+};
+
+export type RatingBand = 'low' | 'med' | 'high';
+
+export type LowRatingSegmentRow = {
+  segment: string;
+  lowPct: number;
+  medPct: number;
+  highPct: number;
+  oneStarPct: number;
+  responses: number;
+  drivers: Record<RatingBand, string>;
+};
+
+export type LowRatingData = {
+  verdict: string;
+  summary: string;
+  lowPct: number;
+  oneStarPct: number;
+  twoStarPct: number;
+  priorLowPct: number;
+  deltaPts: number;
+  totalResponses: number;
+  distribution: StarRatingSlice[];
+  segments: LowRatingSegmentRow[];
 };
 
 export type IssuesPeriodSnapshot = {
   grain: DrillPeriodGrain;
   caption: string;
-  trend: number[];
-  trendHint: string;
   headline: IssuesHeadlineKpi[];
-  impact: IssuesImpactRow[];
-  impactInsight: string;
-  complaints: ComplaintSlice[];
-  complaintInsight: string;
-  happiness: HappinessMetric[];
-  happinessInsight: string;
-  partners: PartnerRow[];
-  partnerInsight: string;
-  churn: ChurnMetric[];
-  churnNote: string;
-  churnInsight: string;
-  sentiment: SentimentPoint[];
-  sentimentInsight: string;
-  sentimentTag: string;
-  rootCauses: RootCauseSlice[];
-  actions: ActionRow[];
-  actionsInsight: string;
+  q1: CxExperienceData;
+  q2: ComplaintSpikeData;
+  q3: AttritionData;
+  q4: ResolutionThroughputData;
+  q5: LowRatingData;
 };
 
-const BASE_TREND = [70, 68, 71, 66, 69, 64, 67, 63, 65, 60, 59];
-
-const BASE_IMPACT: IssuesImpactRow[] = [
-  { issue: 'Double deduction', vol: '1,420', volD: '+38%', affected: '8,900 tags', risk: '₹47L', churn: 'High', sev: 'Critical' },
-  { issue: 'Blacklist on low balance', vol: '980', volD: '+62%', affected: '6,200 tags', risk: '₹31L', churn: 'High', sev: 'Critical' },
-  { issue: 'Recharge / wallet failure', vol: '1,180', volD: '+24%', affected: '4,800 wallets', risk: '₹28L', churn: 'Med', sev: 'High' },
-  { issue: 'KYC / activation stall', vol: '760', volD: '+17%', affected: '4,300 tags', risk: '₹18L', churn: 'Med', sev: 'High' },
-  { issue: 'Tag mis-read at plaza', vol: '540', volD: '+9%', affected: '2,100 tags', risk: '₹9L', churn: 'Low', sev: 'Watch' },
+const CX_TREND_11W: CxTrendPoint[] = [
+  { label: 'W1', customer: 70, partner: 68 },
+  { label: 'W2', customer: 68, partner: 67 },
+  { label: 'W3', customer: 71, partner: 69 },
+  { label: 'W4', customer: 66, partner: 65 },
+  { label: 'W5', customer: 69, partner: 64 },
+  { label: 'W6', customer: 64, partner: 63 },
+  { label: 'W7', customer: 67, partner: 62 },
+  { label: 'W8', customer: 63, partner: 58 },
+  { label: 'W9', customer: 65, partner: 56 },
+  { label: 'W10', customer: 62, partner: 55 },
+  { label: 'W11', customer: 59, partner: 54 },
 ];
 
-const BASE_COMPLAINTS: ComplaintSlice[] = [
-  { cat: 'Double deduction', pct: 27, d: '+38%', color: '#dc2626', volume: '1,420' },
-  { cat: 'Recharge failure', pct: 22, d: '+24%', color: '#dc2626', volume: '1,180' },
-  { cat: 'Blacklist / low balance', pct: 19, d: '+62%', color: '#d97706', volume: '980' },
-  { cat: 'KYC / activation', pct: 14, d: '+17%', color: '#d97706', volume: '760' },
-  { cat: 'Plaza mis-read', pct: 10, d: '+9%', color: '#2563eb', volume: '540' },
-  { cat: 'Others', pct: 8, d: '-3%', color: '#64748b', volume: '420' },
+const COMPLAINT_CASES_LAST24: ComplaintCaseRow[] = [
+  { id: 'CMP-28471', issue: 'Double deduction', customer: 'Fleet TSP · 48 tags', region: 'South', channel: 'B2B portal', status: 'Open', age: '6h', sla: 'At risk', owner: 'L2 — Recon', resolutionTime: '—', severity: 'Critical' },
+  { id: 'CMP-28468', issue: 'Recharge failure loop', customer: 'Retail wallet · ₹1.1M GTV', region: 'West', channel: 'B2C app', status: 'In progress', age: '4h', sla: 'Within SLA', owner: 'L1 — Payments', resolutionTime: '—', severity: 'High' },
+  { id: 'CMP-28462', issue: 'Tag not read at toll', customer: 'Annual pass · 2 tags', region: 'North', channel: 'Toll plaza', status: 'Escalated', age: '9h', sla: 'Breached', owner: 'L3 — NPCI', resolutionTime: '—', severity: 'Critical' },
+  { id: 'CMP-28459', issue: 'Wrong class deduction', customer: 'B2B fleet · 12 tags', region: 'East', channel: 'B2B portal', status: 'Open', age: '3h', sla: 'Within SLA', owner: 'L2 — Recon', resolutionTime: '—', severity: 'High' },
+  { id: 'CMP-28455', issue: 'KYC activation stall', customer: 'New user · <90d', region: 'South', channel: 'Dealer app', status: 'In progress', age: '5h', sla: 'Within SLA', owner: 'L1 — KYC', resolutionTime: '—', severity: 'Watch' },
+  { id: 'CMP-28451', issue: 'Wallet refund delay', customer: 'Retail wallet', region: 'West', channel: 'B2C app', status: 'Resolved', age: '11h', sla: 'Within SLA', owner: 'L1 — Payments', resolutionTime: '3.2h', severity: 'Watch' },
+  { id: 'CMP-28448', issue: 'Blacklist appeal', customer: 'Annual pass holder', region: 'Central', channel: 'Call centre', status: 'Open', age: '7h', sla: 'At risk', owner: 'L2 — Compliance', resolutionTime: '—', severity: 'High' },
+  { id: 'CMP-28444', issue: 'Partner recon mismatch', customer: 'Acquirer Bank A', region: 'National', channel: 'Partner API', status: 'Escalated', age: '12h', sla: 'Breached', owner: 'L3 — Banking', resolutionTime: '—', severity: 'Critical' },
+  { id: 'CMP-28440', issue: 'UPI timeout on recharge', customer: 'Retail wallet', region: 'North', channel: 'B2C app', status: 'Resolved', age: '8h', sla: 'Within SLA', owner: 'L1 — Payments', resolutionTime: '2.1h', severity: 'Watch' },
+  { id: 'CMP-28436', issue: 'Low balance false alert', customer: 'B2B fleet · 6 tags', region: 'South', channel: 'SMS alert', status: 'Resolved', age: '6h', sla: 'Within SLA', owner: 'L1 — Ops', resolutionTime: '1.4h', severity: 'Watch' },
+  { id: 'CMP-28432', issue: 'Tag replacement delay', customer: 'Retail · 1 tag', region: 'East', channel: 'Dealer app', status: 'In progress', age: '2h', sla: 'Within SLA', owner: 'L1 — Issuance', resolutionTime: '—', severity: 'Watch' },
+  { id: 'CMP-28428', issue: 'Duplicate toll charge', customer: 'Fleet TSP · 22 tags', region: 'West', channel: 'Toll plaza', status: 'Open', age: '1h', sla: 'Within SLA', owner: 'L2 — Recon', resolutionTime: '—', severity: 'High' },
 ];
 
-const BASE_HAPPINESS: HappinessMetric[] = [
-  { label: 'Customer happy', barPct: 62, display: '62%', target: 75, sub: 'positive experience', color: '#d97706' },
-  { label: 'Partner happy', barPct: 54, display: '54%', target: 70, sub: 'meet joint SLA', color: '#dc2626' },
-  { label: 'Unhappy customers', barPct: 72, display: '4.9K', target: 35, sub: 'open complaints', color: '#dc2626' },
-  { label: 'Partners strained', barPct: 60, display: '18', target: 8, sub: 'below happiness bar', color: '#d97706' },
+const COMPLAINT_CASES_PERIOD: ComplaintCaseRow[] = [
+  ...COMPLAINT_CASES_LAST24,
+  { id: 'CMP-28390', issue: 'Double deduction', customer: 'Fleet TSP · 120 tags', region: 'South', channel: 'B2B portal', status: 'Resolved', age: '2.1d', sla: 'Within SLA', owner: 'L2 — Recon', resolutionTime: '1.8d', severity: 'Critical' },
+  { id: 'CMP-28382', issue: 'Recharge failure loop', customer: 'Retail wallet · ₹0.6M GTV', region: 'North', channel: 'B2C app', status: 'Resolved', age: '3.4d', sla: 'Within SLA', owner: 'L1 — Payments', resolutionTime: '2.2d', severity: 'High' },
+  { id: 'CMP-28374', issue: 'BPO queue overflow', customer: 'Multi-channel', region: 'National', channel: 'Call centre', status: 'Open', age: '4.2d', sla: 'Breached', owner: 'L3 — Vendor Beta', resolutionTime: '—', severity: 'Critical' },
+  { id: 'CMP-28366', issue: 'NPCI settlement lag', customer: 'Issuing Bank B', region: 'National', channel: 'Partner API', status: 'In progress', age: '3.8d', sla: 'At risk', owner: 'L3 — NPCI', resolutionTime: '—', severity: 'High' },
+  { id: 'CMP-28358', issue: 'Tag not read at toll', customer: 'B2B fleet · 34 tags', region: 'East', channel: 'Toll plaza', status: 'Resolved', age: '5.1d', sla: 'Within SLA', owner: 'L2 — Ops', resolutionTime: '2.9d', severity: 'High' },
+  { id: 'CMP-28350', issue: 'Wrong class deduction', customer: 'Annual pass · 4 tags', region: 'Central', channel: 'Toll plaza', status: 'Open', age: '2.6d', sla: 'At risk', owner: 'L2 — Recon', resolutionTime: '—', severity: 'High' },
+  { id: 'CMP-28342', issue: 'KYC document reject', customer: 'New user · <90d', region: 'West', channel: 'Dealer app', status: 'Resolved', age: '6.2d', sla: 'Within SLA', owner: 'L1 — KYC', resolutionTime: '4.1d', severity: 'Watch' },
+  { id: 'CMP-28334', issue: 'Wallet refund delay', customer: 'Retail wallet', region: 'South', channel: 'B2C app', status: 'Escalated', age: '5.8d', sla: 'Breached', owner: 'L2 — Payments', resolutionTime: '—', severity: 'High' },
+  { id: 'CMP-28326', issue: 'Blacklist appeal', customer: 'B2B fleet · 8 tags', region: 'North', channel: 'Call centre', status: 'In progress', age: '1.9d', sla: 'Within SLA', owner: 'L2 — Compliance', resolutionTime: '—', severity: 'Watch' },
+  { id: 'CMP-28318', issue: 'Partner recon mismatch', customer: 'Payment Gateway', region: 'National', channel: 'Partner API', status: 'Open', age: '3.1d', sla: 'At risk', owner: 'L3 — Banking', resolutionTime: '—', severity: 'Critical' },
+  { id: 'CMP-28310', issue: 'UPI timeout on recharge', customer: 'Retail wallet', region: 'East', channel: 'B2C app', status: 'Resolved', age: '4.5d', sla: 'Within SLA', owner: 'L1 — Payments', resolutionTime: '1.6d', severity: 'Watch' },
+  { id: 'CMP-28302', issue: 'Low balance false alert', customer: 'Fleet TSP · 18 tags', region: 'West', channel: 'SMS alert', status: 'Resolved', age: '7.1d', sla: 'Within SLA', owner: 'L1 — Ops', resolutionTime: '3.0d', severity: 'Watch' },
 ];
 
-const BASE_PARTNERS: PartnerRow[] = [
-  { name: 'Acquirer Bank A', role: 'Toll acquirer', sla: 62, err: '4.8%', cases: '640', exp: '₹22L', sev: 'Critical' },
-  { name: 'Payment Gateway', role: 'Recharge / UPI', sla: 71, err: '3.1%', cases: '410', exp: '₹14L', sev: 'High' },
-  { name: 'Issuing Bank B', role: 'Tag issuance', sla: 88, err: '1.2%', cases: '120', exp: '₹4L', sev: 'Watch' },
-  { name: 'BPO Vendor Beta', role: 'KYC / support', sla: 58, err: '6.0%', cases: '310', exp: '₹11L', sev: 'Critical' },
-];
-
-const BASE_SENTIMENT: SentimentPoint[] = [
-  { label: 'W1', mentions: 40 },
-  { label: 'W2', mentions: 44 },
-  { label: 'W3', mentions: 42 },
-  { label: 'W4', mentions: 50 },
-  { label: 'W5', mentions: 48 },
-  { label: 'W6', mentions: 58 },
-  { label: 'W7', mentions: 62 },
-  { label: 'W8', mentions: 70 },
-  { label: 'W9', mentions: 66 },
-  { label: 'W10', mentions: 78 },
-  { label: 'W11', mentions: 84 },
-];
-
-const BASE_ROOT: RootCauseSlice[] = [
-  { cause: 'Plaza reader / acquirer reconciliation', share: 34, color: '#dc2626' },
-  { cause: 'Payment gateway timeouts', share: 26, color: '#d97706' },
-  { cause: 'Vendor KYC backlog', share: 22, color: '#d97706' },
-  { cause: 'Process / first-response gap', share: 18, color: '#2563eb' },
-];
-
-const BASE_ACTIONS: ActionRow[] = [
-  { act: 'Auto-reverse duplicate charges + acquirer reconciliation SLA', owner: 'Ops + Acquirer A', impact: '₹47L recovered, churn -high', sev: 'Critical' },
-  { act: 'Fail-over gateway + proactive recharge-fail notifications', owner: 'Payments', impact: '₹28L protected', sev: 'Critical' },
-  { act: 'KAM retention outreach to 12 at-risk fleet accounts', owner: 'Sales / KAM', impact: '₹4.2M spend retained', sev: 'Critical' },
-  { act: 'Publish auto-recharge FAQ + influencer comms on blacklist', owner: 'Marketing / CX', impact: 'Reputation + new-acq drag', sev: 'High' },
-  { act: 'Reroute high-value KYC off Vendor Beta to in-house pod', owner: 'CX Ops', impact: '₹18L activation unblocked', sev: 'High' },
-];
-
-const GRAIN: Record<
-  DrillPeriodGrain,
-  Pick<IssuesPeriodSnapshot, 'caption' | 'trendHint' | 'impactInsight' | 'complaintInsight' | 'happinessInsight' | 'partnerInsight' | 'churnInsight' | 'sentimentInsight' | 'actionsInsight' | 'churnNote' | 'sentimentTag'>
-> = {
-  year: {
-    caption: 'FY view',
-    trendHint: 'Happiness index down 9 pts YoY — acquirer outage and recharge failures drove the dip.',
-    impactInsight: 'Double deduction and blacklist disputes dominate annual complaint exposure',
-    complaintInsight: 'Wallet and duplicate-charge themes explain over half of complaint volume',
-    happinessInsight: 'Customer and partner happiness sit well below annual targets',
-    partnerInsight: 'Acquirer and BPO partners are the weakest links in ecosystem happiness',
-    churnInsight: '12 fleet accounts signal closure intent after unresolved disputes',
-    churnNote: 'Closure-intent signals rose from 7 → 18 cases YoY, concentrated in double-deduction and recharge-failure tickets.',
-    sentimentInsight: 'Negative social mentions accelerated after week-8 acquirer outage',
-    sentimentTag: '#FASTagFail ↑ 287% (48h)',
-    actionsInsight: 'Prioritized actions to restore customer and partner happiness',
-  },
-  quarter: {
-    caption: 'Q1 view',
-    trendHint: 'Happiness dipped after acquirer outage in week 8 of the quarter.',
-    impactInsight: 'These issues hurt customer and partner happiness the most',
-    complaintInsight: 'Top drivers of unhappy customers — wallet and duplicate-charge themes',
-    happinessInsight: 'Customer and partner happiness sit well below target',
-    partnerInsight: 'Which partners are hurting ecosystem happiness',
-    churnInsight: '12 key customers signal they may leave after poor experience',
-    churnNote: 'Closure-intent signals rose from 7 → 18 cases. Retention window: act within 48h.',
-    sentimentInsight: 'Public sentiment is turning negative — customers are not happy',
-    sentimentTag: '#FASTagFail ↑ 287% (48h)',
-    actionsInsight: 'Actions to restore customer and partner happiness',
-  },
-  month: {
-    caption: 'Month view',
-    trendHint: 'Customer and partner satisfaction dipped after acquirer outage in week 8.',
-    impactInsight: 'These issues hurt customer and partner happiness the most',
-    complaintInsight: 'Top drivers of unhappy customers — wallet and duplicate-charge themes',
-    happinessInsight: 'Customer and partner happiness sit well below target',
-    partnerInsight: 'Which partners are hurting ecosystem happiness',
-    churnInsight: '12 key customers signal they may leave after poor experience',
-    churnNote: 'Closure-intent signals rose from 7 → 18 cases. Retention window: act within 48h.',
-    sentimentInsight: 'Public sentiment is turning negative — customers are not happy',
-    sentimentTag: '#FASTagFail ↑ 287% (48h)',
-    actionsInsight: 'Actions to restore customer and partner happiness',
-  },
-  weeks: {
-    caption: '11-week view',
-    trendHint: 'Customer and partner satisfaction dipped after acquirer outage in week 8.',
-    impactInsight: 'These issues hurt customer and partner happiness the most',
-    complaintInsight: 'Top drivers of unhappy customers — wallet and duplicate-charge themes',
-    happinessInsight: 'Customer and partner happiness sit well below target',
-    partnerInsight: 'Which partners are hurting ecosystem happiness',
-    churnInsight: '12 key customers signal they may leave after poor experience',
-    churnNote: 'Closure-intent signals rose from 7 → 18 cases. Retention window: act within 48h.',
-    sentimentInsight: 'Public sentiment is turning negative — customers are not happy',
-    sentimentTag: '#FASTagFail ↑ 287% (48h)',
-    actionsInsight: 'Actions to restore customer and partner happiness',
-  },
-  last24: {
-    caption: 'Last 24h',
-    trendHint: 'Happiness pressure concentrated in recharge failures and duplicate-charge tickets overnight.',
-    impactInsight: 'Last-24h issues with highest happiness drag',
-    complaintInsight: 'Complaint mix in the last 24 hours',
-    happinessInsight: 'Real-time happiness gauges vs target',
-    partnerInsight: 'Partner strain in the last 24 hours',
-    churnInsight: 'At-risk accounts flagged in the last 24h',
-    churnNote: '3 new closure-intent signals in the last 24h tied to recharge failures.',
-    sentimentInsight: 'Social mentions spiking in the last 48h',
-    sentimentTag: '#FASTagFail ↑ 42% (24h)',
-    actionsInsight: 'Immediate actions for customer and partner happiness',
-  },
-};
-
-function sliceTrend(trend: number[], grain: DrillPeriodGrain): number[] {
-  if (grain === 'last24') return trend.slice(-2);
-  if (grain === 'quarter') return trend.slice(0, 6);
-  if (grain === 'year') return [62, 64, 61, 58, 59];
-  return trend;
+function sliceComplaintCases(grain: DrillPeriodGrain): ComplaintCaseRow[] {
+  if (grain === 'last24') return COMPLAINT_CASES_LAST24;
+  return COMPLAINT_CASES_PERIOD;
 }
 
-function sliceSentiment(points: SentimentPoint[], grain: DrillPeriodGrain): SentimentPoint[] {
-  if (grain === 'last24') return points.slice(-2).map((p, i) => ({ label: i === 0 ? 'Prior' : 'Now', mentions: p.mentions }));
-  if (grain === 'quarter') return points.slice(0, 6);
-  if (grain === 'year') return [
-    { label: 'Q1', mentions: 48 },
-    { label: 'Q2', mentions: 55 },
-    { label: 'Q3', mentions: 62 },
-    { label: 'Q4', mentions: 84 },
+function sliceCxTrend(grain: DrillPeriodGrain): CxTrendPoint[] {
+  if (grain === 'last24') {
+    return [
+      { label: 'Prior 24h', customer: 61, partner: 55 },
+      { label: 'Last 24h', customer: 59, partner: 54 },
+    ];
+  }
+  if (grain === 'quarter') return CX_TREND_11W.slice(0, 6);
+  if (grain === 'year') {
+    return [
+      { label: 'Q1', customer: 66, partner: 64 },
+      { label: 'Q2', customer: 64, partner: 61 },
+      { label: 'Q3', customer: 61, partner: 58 },
+      { label: 'Q4', customer: 59, partner: 54 },
+    ];
+  }
+  return CX_TREND_11W;
+}
+
+function buildQ1(grain: DrillPeriodGrain): CxExperienceData {
+  const trend = sliceCxTrend(grain);
+  const first = trend[0];
+  const last = trend[trend.length - 1];
+  const delta = last.customer - first.customer;
+
+  return {
+    verdict: delta < -3 ? `Getting worse · ${delta} pts` : delta > 3 ? `Improving · +${delta} pts` : `Flat · ${delta >= 0 ? '+' : ''}${delta} pts`,
+    direction: delta < -3 ? 'worse' : delta > 3 ? 'better' : 'flat',
+    summary:
+      grain === 'last24'
+        ? 'Overnight dip driven by recharge failures — customer score slipped 2 pts in 24h.'
+        : 'Customer experience deteriorated after W8 acquirer outage; partner score fell in parallel.',
+    target: 75,
+    trend,
+    drivers: [
+      { metric: 'CSAT (resolved cases)', now: '62%', prior: '71%', delta: '−9 pts', worsening: true },
+      { metric: 'NPS proxy', now: '41%', prior: '48%', delta: '−7 pts', worsening: true },
+      { metric: 'First-contact resolution', now: '54%', prior: '61%', delta: '−7 pts', worsening: true },
+    ],
+  };
+}
+
+function buildQ2(grain: DrillPeriodGrain): ComplaintSpikeData {
+  const scale = grain === 'last24' ? 0.04 : 1;
+  const regions: ComplaintRegionBar[] = [
+    { region: 'West', current: Math.round(1420 * scale), prior: Math.round(1000 * scale), deltaPct: 42, topIssue: 'Double deduction' },
+    { region: 'South', current: Math.round(980 * scale), prior: Math.round(765 * scale), deltaPct: 28, topIssue: 'Recharge failure' },
+    { region: 'North', current: Math.round(760 * scale), prior: Math.round(639 * scale), deltaPct: 19, topIssue: 'KYC stall' },
+    { region: 'East', current: Math.round(540 * scale), prior: Math.round(482 * scale), deltaPct: 12, topIssue: 'Plaza mis-read' },
+    { region: 'Central', current: Math.round(410 * scale), prior: Math.round(380 * scale), deltaPct: 8, topIssue: 'Blacklist dispute' },
   ];
-  return points;
+  const channels: ComplaintChannelBar[] = [
+    { channel: 'B2C app / wallet', current: Math.round(1680 * scale), prior: Math.round(1244 * scale), deltaPct: 35, sharePct: 34 },
+    { channel: 'Call centre / IVR', current: Math.round(1120 * scale), prior: Math.round(918 * scale), deltaPct: 22, sharePct: 23 },
+    { channel: 'Partner / issuer', current: Math.round(890 * scale), prior: Math.round(601 * scale), deltaPct: 48, sharePct: 18 },
+    { channel: 'Social / email', current: Math.round(640 * scale), prior: Math.round(398 * scale), deltaPct: 61, sharePct: 13 },
+    { channel: 'B2B fleet portal', current: Math.round(420 * scale), prior: Math.round(368 * scale), deltaPct: 14, sharePct: 9 },
+  ];
+
+  const stateComplaints = buildStateComplaintData(grain);
+  const complaints = stateComplaints.reduce((sum, s) => sum + s.complaints, 0);
+  const prior = stateComplaints.reduce((sum, s) => sum + s.prior, 0);
+  const deltaPct = prior > 0 ? Math.round(((complaints - prior) / prior) * 100) : 0;
+  const topChannel = [...channels].sort((a, b) => b.deltaPct - a.deltaPct)[0];
+  const topRegion = [...regions].sort((a, b) => b.deltaPct - a.deltaPct)[0];
+
+  return {
+    verdict: 'Rising in 4/5 regions · 4/5 channels',
+    summary: 'West and partner-issuer channels are the fastest accelerators — both crossed +30% threshold.',
+    regions,
+    channels,
+    stateComplaints,
+    overall: {
+      complaints,
+      prior,
+      deltaPct,
+      risingRegions: regions.filter((r) => r.deltaPct > 0).length,
+      totalRegions: regions.length,
+      criticalStates: stateComplaints.filter((s) => s.risk === 'critical' || s.risk === 'high').length,
+      topIssue: topRegion?.topIssue ?? 'Double deduction',
+      topChannel: topChannel?.channel ?? 'B2C app / wallet',
+    },
+  };
+}
+
+function buildQ3(grain: DrillPeriodGrain): AttritionData {
+  const fleetAtRisk = grain === 'last24' ? 3 : 12;
+  const fleetChurned = grain === 'last24' ? 0 : 4;
+
+  return {
+    verdict: `${fleetAtRisk} fleets at risk · 3 partners critical`,
+    summary: 'Loss concentrated in B2B fleets and toll acquirer / BPO partners — dispute backlog is the common thread.',
+    totals: {
+      atRiskAccounts: fleetAtRisk,
+      spendAtRisk: grain === 'last24' ? '₹0.8M' : '₹4.2M',
+      strainedPartners: 3,
+    },
+    customers: [
+      { segment: 'B2B fleet (TSP)', atRisk: fleetAtRisk, churned30d: fleetChurned, spendAtRisk: grain === 'last24' ? '₹0.8M' : '₹4.2M', driver: 'Unresolved double deduction', severity: 'Critical' },
+      { segment: 'Retail wallet (high GTV)', atRisk: grain === 'last24' ? 8 : 34, churned30d: grain === 'last24' ? 1 : 9, spendAtRisk: '₹1.1M', driver: 'Recharge failure loop', severity: 'High' },
+      { segment: 'Annual Pass holders', atRisk: grain === 'last24' ? 4 : 18, churned30d: grain === 'last24' ? 0 : 3, spendAtRisk: '₹0.4M', driver: 'Blacklist / low balance', severity: 'High' },
+      { segment: 'New acquisition (<90d)', atRisk: grain === 'last24' ? 6 : 22, churned30d: grain === 'last24' ? 2 : 7, spendAtRisk: '₹0.2M', driver: 'KYC / activation stall', severity: 'Watch' },
+    ],
+    partners: [
+      { partner: 'Acquirer Bank A', role: 'Toll acquirer', health: 62, cases: grain === 'last24' ? 28 : 640, signal: 'Recon SLA breach · issuer trust eroding', severity: 'Critical' },
+      { partner: 'BPO Vendor Beta', role: 'KYC / support', health: 58, cases: grain === 'last24' ? 14 : 310, signal: 'Queue overflow · 6% error rate', severity: 'Critical' },
+      { partner: 'Payment Gateway', role: 'Recharge / UPI', health: 71, cases: grain === 'last24' ? 18 : 410, signal: 'Timeout spike on peak hours', severity: 'High' },
+      { partner: 'Issuing Bank B', role: 'Tag issuance', health: 88, cases: grain === 'last24' ? 4 : 120, signal: 'Stable — lowest strain', severity: 'Watch' },
+    ],
+  };
+}
+
+function buildQ5(grain: DrillPeriodGrain): LowRatingData {
+  const oneStarPct = grain === 'last24' ? 11 : 14;
+  const twoStarPct = grain === 'last24' ? 7 : 8;
+  const lowPct = oneStarPct + twoStarPct;
+  const priorLowPct = grain === 'last24' ? 15 : 19;
+
+  const deltaPts = lowPct - priorLowPct;
+  const totalResponses = grain === 'last24' ? 300 : 1600;
+
+  return {
+    verdict: `${lowPct}% rated 1–2 stars · ${deltaPts > 0 ? '+' : ''}${deltaPts} pts vs prior`,
+    summary:
+      'Low ratings cluster on B2B fleet and retail wallet journeys — double-deduction and recharge failure drive most 1-star scores.',
+    lowPct,
+    oneStarPct,
+    twoStarPct,
+    priorLowPct,
+    deltaPts,
+    totalResponses,
+    distribution: [
+      { stars: 1, pct: oneStarPct, color: '#dc2626' },
+      { stars: 2, pct: twoStarPct, color: '#f97316' },
+      { stars: 3, pct: grain === 'last24' ? 18 : 20, color: '#fbbf24' },
+      { stars: 4, pct: grain === 'last24' ? 28 : 26, color: '#86efac' },
+      { stars: 5, pct: grain === 'last24' ? 36 : 32, color: '#22c55e' },
+    ],
+    segments: [
+      {
+        segment: 'B2B fleet (TSP)',
+        lowPct: grain === 'last24' ? 24 : 26,
+        medPct: grain === 'last24' ? 20 : 22,
+        highPct: grain === 'last24' ? 56 : 52,
+        oneStarPct: 16,
+        responses: grain === 'last24' ? 86 : 420,
+        drivers: {
+          low: 'Double deduction at toll · recon delay on fleet portal',
+          med: 'Portal UX friction · delayed refund visibility',
+          high: 'Bulk recharge reliability · dedicated fleet support lane',
+        },
+      },
+      {
+        segment: 'Retail wallet (high GTV)',
+        lowPct: grain === 'last24' ? 19 : 21,
+        medPct: grain === 'last24' ? 21 : 23,
+        highPct: grain === 'last24' ? 60 : 56,
+        oneStarPct: 12,
+        responses: grain === 'last24' ? 124 : 680,
+        drivers: {
+          low: 'Recharge failure loop · UPI timeout on peak hours',
+          med: 'Low-balance alerts · wallet sync lag after top-up',
+          high: 'Fast UPI recharge · toll pass-through on first attempt',
+        },
+      },
+      {
+        segment: 'Annual Pass holders',
+        lowPct: grain === 'last24' ? 14 : 16,
+        medPct: grain === 'last24' ? 24 : 26,
+        highPct: grain === 'last24' ? 62 : 58,
+        oneStarPct: 8,
+        responses: grain === 'last24' ? 52 : 290,
+        drivers: {
+          low: 'Blacklist dispute · tag read failures at plaza',
+          med: 'Pass renewal reminders · plaza lane mismatch confusion',
+          high: 'Seamless plaza reads · annual pass savings clarity',
+        },
+      },
+      {
+        segment: 'New acquisition (<90d)',
+        lowPct: grain === 'last24' ? 17 : 18,
+        medPct: grain === 'last24' ? 26 : 28,
+        highPct: grain === 'last24' ? 57 : 54,
+        oneStarPct: 10,
+        responses: grain === 'last24' ? 38 : 210,
+        drivers: {
+          low: 'KYC activation stall · first-recharge friction',
+          med: 'Onboarding steps unclear · dealer handoff gaps',
+          high: 'Quick tag activation · guided first toll experience',
+        },
+      },
+    ],
+  };
+}
+
+function buildQ4(grain: DrillPeriodGrain): ResolutionThroughputData {
+  const complaints = sliceComplaintCases(grain);
+  const open = complaints.filter((row) => row.status !== 'Resolved').length;
+  const resolved = complaints.filter((row) => row.status === 'Resolved').length;
+  const breached = complaints.filter((row) => row.sla === 'Breached').length;
+  const clearBacklogDays = grain === 'last24' ? 5 : 18;
+  const keepingUp = resolved >= open;
+
+  return {
+    verdict: keepingUp ? 'Keeping up on resolutions' : `${open} open · ${breached} SLA breached`,
+    summary: keepingUp
+      ? `${resolved} of ${complaints.length} complaints closed — resolution pace matching intake.`
+      : `${open} complaints still open with ${breached} past SLA — recon and payment queues need surge capacity.`,
+    summaryStats: {
+      total: complaints.length,
+      open,
+      resolved,
+      breached,
+      clearBacklogDays,
+    },
+    complaints,
+  };
 }
 
 export function buildIssuesPeriodSnapshot(grain: DrillPeriodGrain): IssuesPeriodSnapshot {
-  const g = GRAIN[grain];
-  const trend = sliceTrend(BASE_TREND, grain);
+  const q1 = buildQ1(grain);
+  const q4 = buildQ4(grain);
 
   const headline: IssuesHeadlineKpi[] = [
-    { label: 'Customer happy', v: '62%', d: 'vs 75% tgt', tone: 'amber', color: '#d97706' },
-    { label: 'Partner happy', v: '54%', d: 'vs 70% tgt', tone: 'red', color: '#dc2626' },
-    { label: 'Open complaints', v: grain === 'last24' ? '186' : '4.9K', d: '+38%', tone: 'red', color: '#dc2626' },
-    { label: 'Would recommend', v: '41%', d: 'NPS proxy', tone: 'violet', color: '#7c3aed' },
+    { label: 'CX score', v: `${q1.trend[q1.trend.length - 1].customer}%`, d: q1.verdict.split('·')[0].trim(), tone: q1.direction === 'worse' ? 'red' : 'green', color: q1.direction === 'worse' ? '#dc2626' : '#059669' },
+    { label: 'Complaint inflow', v: grain === 'last24' ? '48' : '610/wk', d: '+38% vs prior', tone: 'red', color: '#dc2626' },
+    { label: 'At-risk accounts', v: String(buildQ3(grain).totals.atRiskAccounts), d: buildQ3(grain).totals.spendAtRisk, tone: 'red', color: '#dc2626' },
+    { label: 'Open complaints', v: String(q4.summaryStats.open), d: `${q4.summaryStats.breached} SLA breached`, tone: 'amber', color: '#d97706' },
   ];
 
-  const churn: ChurnMetric[] = [
-    { label: 'At-risk accounts', display: grain === 'last24' ? '3 fleets' : '12 fleets', sub: 'closure intent signals', color: '#dc2626' },
-    { label: 'Spend at risk', display: '₹4.2M', sub: '↑ 56% vs last week', color: '#d97706' },
-    { label: 'Unresolved disputes', display: grain === 'last24' ? '6 cases' : '18 cases', sub: 'closure intent ↑ from 7', color: '#dc2626' },
-  ];
+  const captions: Record<DrillPeriodGrain, string> = {
+    year: 'FY view',
+    quarter: 'Q1 view',
+    month: 'Month view',
+    weeks: '11-week view',
+    last24: 'Last 24h',
+  };
 
   return {
     grain,
-    caption: g.caption,
-    trend,
-    trendHint: g.trendHint,
+    caption: captions[grain],
     headline,
-    impact: BASE_IMPACT,
-    impactInsight: g.impactInsight,
-    complaints: BASE_COMPLAINTS,
-    complaintInsight: g.complaintInsight,
-    happiness: BASE_HAPPINESS,
-    happinessInsight: g.happinessInsight,
-    partners: BASE_PARTNERS,
-    partnerInsight: g.partnerInsight,
-    churn,
-    churnNote: g.churnNote,
-    churnInsight: g.churnInsight,
-    sentiment: sliceSentiment(BASE_SENTIMENT, grain),
-    sentimentInsight: g.sentimentInsight,
-    sentimentTag: g.sentimentTag,
-    rootCauses: BASE_ROOT,
-    actions: BASE_ACTIONS,
-    actionsInsight: g.actionsInsight,
+    q1,
+    q2: buildQ2(grain),
+    q3: buildQ3(grain),
+    q4,
+    q5: buildQ5(grain),
   };
 }

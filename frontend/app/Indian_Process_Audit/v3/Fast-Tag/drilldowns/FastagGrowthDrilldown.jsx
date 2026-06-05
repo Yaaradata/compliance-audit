@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { FastTagAiLogo } from "@/app/Indian_Process_Audit/_shared/FastTagAiLogo";
+import { DrillOpsKpiGrid } from './fastTagDrillOpsKpi';
 import { growthTheme } from './fastTagDrilldownTheme';
 import {
   DrillCrumbBar,
@@ -339,59 +340,6 @@ function shortHeroKpiLabel(label) {
   return label;
 }
 
-function heroKpiDeltaTone(delta) {
-  if (!delta) return "flat";
-  if (/▼|↓|−|-\s*\d|flat|0%/i.test(delta)) return "down";
-  if (/▲|↑|\+/i.test(delta)) return "up";
-  return "flat";
-}
-
-function heroKpiSparkData(label, snap) {
-  if (/toll volume/i.test(label)) return snap.northstar.slice(-6);
-  if (/new tags/i.test(label)) return [1.5, 1.55, 1.6, 1.65, 1.72, 1.84];
-  if (/annual pass/i.test(label)) return [22, 24, 26, 27, 29, 31];
-  if (/digital channel/i.test(label)) return [22, 24, 25, 26, 27, 29];
-  if (/txns \/ active/i.test(label)) {
-    return snap.transactionMonthly.slice(-6).map((m) => m.perUser);
-  }
-  if (/non-toll/i.test(label)) return [2.1, 2.4, 2.7, 2.9, 3.1, 3.4];
-  return [50, 52, 54, 56, 58, 60];
-}
-
-function KpiMicroSpark({ data, color, prefix }) {
-  const w = 120;
-  const h = 14;
-  if (!data?.length) return null;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const span = max - min || 1;
-  const sx = w / Math.max(1, data.length - 1);
-  const y = (v) => h - 1.5 - ((v - min) / span) * (h - 3);
-  const pts = data.map((v, i) => `${(i * sx).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-
-  return (
-    <div className={`${prefix}-kpi-micro-spark-wrap ${prefix}-kpi-micro-spark-wrap--flex`}>
-      <svg
-        className={`${prefix}-kpi-micro-spark`}
-        width="100%"
-        height={h}
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-        aria-hidden
-      >
-        <polyline
-          points={pts}
-          fill="none"
-          stroke={color}
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
-  );
-}
-
 function scaleLifecycleCohort(cohort, scale) {
   const m = cohort.match(/^([\d.]+)(L|K)$/);
   if (!m) return cohort;
@@ -417,39 +365,8 @@ function Header({ snap }) {
     <div className="gd-panel gd-hero-panel">
       <div className="gd-hero-layout">
         <div className="gd-hero-left">
-          <span className="gd-hero-icon" aria-hidden>◷</span>
-          <div className="gd-hero-title-stack">
-            <div className="gd-hero-title-text">What is driving FASTag growth?</div>
-            <div className="gd-label gd-hero-subtitle">
-              Acquisition · annual pass · usage · forward levers · {snap.caption}
-            </div>
-          </div>
           <div className="gd-hero-metrics">
-            <div className="gd-hero-kpis">
-              {snap.headline.map((k) => {
-                const deltaTone = heroKpiDeltaTone(k.d);
-                const sparkData = heroKpiSparkData(k.label, snap);
-                return (
-                  <div className={`gd-kpi gd-kpi-stat gd-kpi--${k.tone}`} key={k.label}>
-                    <span className="gd-kpi-stat-accent" aria-hidden />
-                    <div className="gd-kpi-stat-body">
-                      <div className="gd-kpi-stat-label-row">
-                        <span className="gd-kpi-stat-label" title={k.label}>
-                          {shortHeroKpiLabel(k.label)}
-                        </span>
-                        <span className={`gd-kpi-delta gd-kpi-delta--${deltaTone}`}>{k.d}</span>
-                      </div>
-                      <div className="gd-kpi-stat-value-row">
-                        <span className="gd-kpi-stat-value" style={{ color: k.color }}>
-                          {k.v}
-                        </span>
-                        <KpiMicroSpark data={sparkData} color={k.color} prefix="gd" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <DrillOpsKpiGrid prefix="gd" kpis={snap.headline} shortLabel={shortHeroKpiLabel} />
           </div>
         </div>
 
@@ -578,7 +495,6 @@ export default function FastagGrowthDrilldown({ onBack = () => {} }) {
 
       <DrillCrumbBar
         prefix="gd"
-        color={C.green}
         onBack={onBack}
         periodFilter={
           <DrillPeriodFilter
@@ -589,7 +505,10 @@ export default function FastagGrowthDrilldown({ onBack = () => {} }) {
           />
         }
       >
-        ⚡ FASTag · growth drivers
+        <span className="gd-crumb-icon" aria-hidden>
+          ◷
+        </span>
+        <span className="gd-crumb-text">What is driving FASTag growth?</span>
       </DrillCrumbBar>
 
       <div className="gd-stack">
