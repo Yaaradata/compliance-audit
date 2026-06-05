@@ -79,7 +79,7 @@ export function ChartHint({ prefix, children, className = '' }) {
 }
 
 /** Section title row: short insight line + optional right meta */
-export function InsightSectionHead({ prefix, n, insight, right, accent, className = '', style }) {
+export function InsightSectionHead({ prefix, n, insight, right, accent, className = '', style = undefined }) {
   const color = accent ?? undefined;
   return (
     <div
