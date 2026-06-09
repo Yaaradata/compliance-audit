@@ -22,13 +22,22 @@ export function issuesVizStyles(prefix) {
   .${p}-iq-map-scope-hint{ margin:0 0 4px; font-size:9.5px; line-height:1.35; }
   .${p}-iq-map{ min-width:0; display:flex; flex-direction:column; gap:6px; }
   .${p}-iq-map-split{
-    display:grid; grid-template-columns:1.1fr 0.9fr; gap:10px; align-items:start; min-width:0;
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+    grid-template-rows:auto 1fr;
+    gap:4px 10px;
+    align-items:stretch;
+    min-width:0;
   }
-  .${p}-iq-map-col{ min-width:0; display:flex; flex-direction:column; gap:6px; }
-  .${p}-iq-map-col--detail{ align-self:stretch; }
+  .${p}-iq-map-col{ min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .${p}-iq-map-head{
+    display:flex; align-items:flex-end; justify-content:space-between; gap:8px;
+    min-height:24px; width:100%;
+  }
+  .${p}-iq-map-head--detail{ justify-content:flex-start; }
   .${p}-iq-map-hover-panel{
     padding:8px 10px; border-radius:8px; border:1px solid ${C.borderSoft}; background:${C.bg};
-    min-height:160px;
+    min-height:200px; height:100%; display:flex; flex-direction:column; gap:0;
   }
   .${p}-iq-map-hover-empty{
     padding:12px 10px; border-radius:8px; border:1px dashed ${C.borderSoft}; background:${C.panel};
@@ -36,12 +45,8 @@ export function issuesVizStyles(prefix) {
   }
   .${p}-iq-map-hover-empty p{ margin:0; font-size:9.5px; line-height:1.4; }
   .${p}-iq-map-section-label{
-    font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
-    color:${C.text}; line-height:1.2;
-  }
-  .${p}-iq-map-head{
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
-    margin-bottom:4px; width:100%;
+    font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+    color:${C.textDim}; line-height:1.2;
   }
   .${p}-iq-map-overall{
     appearance:none; border:1px solid rgba(79,70,229,0.35); background:${C.panel};
@@ -80,14 +85,23 @@ export function issuesVizStyles(prefix) {
     padding:8px 10px; border-radius:8px; border:1px solid ${C.borderSoft}; background:${C.bg};
   }
   .${p}-iq-map-detail-head{
-    display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;
-    font-size:12px;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    margin-bottom:4px; font-size:12px; flex-shrink:0;
   }
   .${p}-iq-map-detail-grid{
-    display:grid; grid-template-columns:repeat(2,1fr); gap:6px 10px;
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 10px;
+    flex:1; align-content:start;
   }
+  .${p}-iq-map-detail-cell{
+    display:flex; flex-direction:column; gap:2px; min-width:0; min-height:36px;
+  }
+  .${p}-iq-map-detail-cell .${p}-label{ line-height:1.2; }
+  .${p}-iq-map-detail-cell .${p}-faint{ font-size:8.5px; line-height:1.25; }
   .${p}-iq-map-detail-val{ font-size:15px; font-weight:800; color:${C.text}; line-height:1.1; }
-  .${p}-iq-map-detail-sub{ font-size:10px; font-weight:600; color:${C.text}; line-height:1.25; }
+  .${p}-iq-map-detail-sub{
+    font-size:10px; font-weight:600; color:${C.text}; line-height:1.3;
+    overflow:hidden; text-overflow:ellipsis;
+  }
   .${p}-iq-map-hint{ margin:0; font-size:9.5px; line-height:1.35; }
   .${p}-iq-hotspots{ display:flex; flex-direction:column; gap:4px; }
   .${p}-iq-hotspot{

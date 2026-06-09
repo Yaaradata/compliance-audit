@@ -10,7 +10,7 @@ import {
   COH_PULSE_LINES,
   COH_TILE_COMPACT_META,
   FASTAG_RISK_SPIKES,
-  HOB_GATEWAY_TILES,
+  buildHobGatewayTiles,
   HOB_TILE_COMPACT_META,
   ftRagPct,
   hobPulseLines,
@@ -131,7 +131,6 @@ function GatewayTile({
   onOpen: () => void;
 }) {
   const visualTone = tile.visualTone;
-  const isHappinessTile = tile.id === 'operations_escalations';
   const TileIcon = tile.id === 'sales_issuance' ? Target : tile.id === 'ecosystem_partner' ? Flame : null;
   const m = metaMap[tile.id];
 
@@ -214,10 +213,16 @@ function GatewayTile({
             className="text-[10px] font-bold uppercase tracking-widest"
             style={{ color: visualTone }}
           >
-            {isHappinessTile ? 'Happiness read-out' : 'Conversation AI'}
+            Conversation AI
           </span>
         </div>
-        <p className="m-0 line-clamp-4 text-xs leading-snug text-slate-600">{tile.aiInsight}</p>
+        <div className="grid min-h-[2.5rem] grid-rows-2 gap-0.5">
+          {tile.aiInsight.split('\n').map((line, index) => (
+            <p key={`${tile.id}-insight-${index}`} className="m-0 line-clamp-1 text-xs leading-snug text-slate-600">
+              {line}
+            </p>
+          ))}
+        </div>
       </div>
     </button>
   );
@@ -290,11 +295,10 @@ function RiskSpikeMonitor() {
                   <span className="uppercase tracking-wide">Top Intent</span>
                   <div className="text-right">
                     <div className="text-slate-800">{spike.topIntent}</div>
-                    <div className="text-[10px]">{spike.topIntentSub}</div>
                   </div>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span className="uppercase tracking-wide">Time</span>
+                  <span className="uppercase tracking-wide">Timeframe</span>
                   <span className="text-slate-800">{spike.time}</span>
                 </div>
               </div>
@@ -332,9 +336,9 @@ const COH_TILE_NAV: Record<FastTagGatewayTileId, FastTagWorkspaceNavigate> = {
   operations_escalations: { view: 'cases' },
 };
 
-type FrontProps = {
+type CohFrontProps = {
   onNavigate: (req: FastTagWorkspaceNavigate) => void;
-  timeRange?: string;
+  onTileOpen?: (tileId: FastTagGatewayTileId) => void;
 };
 
 type HoBFrontProps = {
@@ -344,12 +348,13 @@ type HoBFrontProps = {
 
 export function FastTagHoBFrontPage({ onTileOpen, timeRange = 'q1' }: HoBFrontProps) {
   const pulse = useMemo(() => hobPulseLines(timeRange), [timeRange]);
+  const tiles = useMemo(() => buildHobGatewayTiles(timeRange), [timeRange]);
 
   return (
     <div className="flex w-full flex-col gap-4">
       <ExecutivePulseStrip items={pulse} />
       <section className="grid items-stretch gap-3 xl:grid-cols-3">
-        {HOB_GATEWAY_TILES.map((tile) => (
+        {tiles.map((tile) => (
           <GatewayTile
             key={tile.id}
             tile={tile}
@@ -363,7 +368,7 @@ export function FastTagHoBFrontPage({ onTileOpen, timeRange = 'q1' }: HoBFrontPr
   );
 }
 
-export function FastTagCOHFrontPage({ onNavigate }: FrontProps) {
+export function FastTagCOHFrontPage({ onNavigate, onTileOpen }: CohFrontProps) {
   return (
     <div className="flex w-full flex-col gap-4">
       <ExecutivePulseStrip items={COH_PULSE_LINES} />
@@ -373,7 +378,13 @@ export function FastTagCOHFrontPage({ onNavigate }: FrontProps) {
             key={tile.id}
             tile={tile}
             metaMap={COH_TILE_COMPACT_META}
-            onOpen={() => onNavigate(COH_TILE_NAV[tile.id])}
+            onOpen={() => {
+              if (onTileOpen) {
+                onTileOpen(tile.id);
+                return;
+              }
+              onNavigate(COH_TILE_NAV[tile.id]);
+            }}
           />
         ))}
       </section>

@@ -79,7 +79,7 @@ export function ChartHint({ prefix, children, className = '' }) {
 }
 
 /** Section title row: short insight line + optional right meta */
-export function InsightSectionHead({ prefix, n, insight, right, accent, className = '', style }) {
+export function InsightSectionHead({ prefix, n, insight, right, trail, accent, className = '', style }) {
   const color = accent ?? undefined;
   return (
     <div
@@ -97,7 +97,10 @@ export function InsightSectionHead({ prefix, n, insight, right, accent, classNam
         >
           {n}
         </span>
-        {insight ? <h3 className={`${prefix}-insight`}>{insight}</h3> : null}
+        <div className={`${prefix}-sechead-body`}>
+          {insight ? <h3 className={`${prefix}-insight`}>{insight}</h3> : null}
+          {trail}
+        </div>
       </div>
       {right}
     </div>

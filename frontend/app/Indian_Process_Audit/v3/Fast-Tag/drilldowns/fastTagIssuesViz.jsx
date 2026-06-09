@@ -54,7 +54,13 @@ export function IssuesCxDirectionViz({ prefix, data }) {
         <ResponsiveContainer width="100%" height={130}>
           <LineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 8, fill: '#64748b', fontWeight: 600 }}
+              axisLine={false}
+              tickLine={false}
+              interval={0}
+            />
             <YAxis domain={[45, 85]} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={28} />
             <Tooltip {...TIP} formatter={(v, name) => [`${v}%`, name === 'customer' ? 'Customer CX' : 'Partner CX']} />
             <ReferenceLine y={data.target} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: `Target ${data.target}%`, position: 'insideTopRight', fontSize: 8, fill: '#94a3b8' }} />
@@ -259,6 +265,30 @@ function segmentBandPct(row, band) {
   return row.lowPct;
 }
 
+function renderRatingSliceLabel({ cx, cy, midAngle, innerRadius, outerRadius, stars, value }) {
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.52;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  const textFill = stars <= 3 ? '#fff' : '#14532d';
+  const fontSize = value < 10 ? 6.5 : value < 18 ? 7.5 : 8;
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill={textFill}
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={fontSize}
+      fontWeight={700}
+      style={{ pointerEvents: 'none' }}
+    >
+      {stars}★
+    </text>
+  );
+}
+
 /** Q5 — Star-rating donut + segment ratings by band */
 export function IssuesLowRatingViz({ prefix, data, band = 'low' }) {
   const bandMeta = RATING_BAND_META[band] ?? RATING_BAND_META.low;
@@ -305,6 +335,8 @@ export function IssuesLowRatingViz({ prefix, data, band = 'low' }) {
                   paddingAngle={2}
                   stroke="#fff"
                   strokeWidth={2}
+                  label={renderRatingSliceLabel}
+                  labelLine={false}
                 >
                   {pieData.map((slice) => (
                     <Cell key={slice.stars} fill={slice.color} />
@@ -317,7 +349,7 @@ export function IssuesLowRatingViz({ prefix, data, band = 'low' }) {
               </PieChart>
             </ResponsiveContainer>
             <div className={`${prefix}-viz-donut-hole`}>
-              <span className={`${prefix}-iq-rating-donut-label`}>Rating</span>
+              <span className={`${prefix}-iq-rating-donut-label`}>Ratings</span>
             </div>
           </div>
         </div>
@@ -397,7 +429,6 @@ export function IssuesResolutionThroughputViz({ prefix, data, filter = 'all' }) 
             <tr>
               <th className={`${prefix}-th`}>ID</th>
               <th className={`${prefix}-th`}>Issue</th>
-              <th className={`${prefix}-th`}>Customer</th>
               <th className={`${prefix}-th`}>Region</th>
               <th className={`${prefix}-th`}>Channel</th>
               <th className={`${prefix}-th`}>Status</th>
@@ -418,7 +449,6 @@ export function IssuesResolutionThroughputViz({ prefix, data, filter = 'all' }) 
                 <td className={`${prefix}-td`}>
                   <span className={`${prefix}-viz-stage-tbl-stage-name`}>{row.issue}</span>
                 </td>
-                <td className={`${prefix}-td ${prefix}-viz-stage-tbl-td-detail`}>{row.customer}</td>
                 <td className={`${prefix}-td`}>{row.region}</td>
                 <td className={`${prefix}-td`}>{row.channel}</td>
                 <td className={`${prefix}-td`}>

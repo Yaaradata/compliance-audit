@@ -6,6 +6,8 @@ import type { FastTagExecutiveContext } from './fastTagExecutiveTypes';
 import type { FastTagSop } from './fastTagCaseBuilder';
 import FastTagCOHExecutiveLayout from './FastTagCOHExecutiveLayout';
 
+import type { FastTagGatewayTileId } from './fastTagGatewayData';
+
 type Props = {
   ctx: FastTagExecutiveContext;
   cases: FastTagCaseLike[];
@@ -13,6 +15,7 @@ type Props = {
   controls: AuditControl[];
   sop: FastTagSop;
   getStageHeader: (stage: { id: string; name: string }) => string;
+  onGatewayDrill?: (tileId: FastTagGatewayTileId) => void;
 };
 
 export default function FastTagCOHView({
@@ -22,6 +25,7 @@ export default function FastTagCOHView({
   controls,
   sop,
   getStageHeader,
+  onGatewayDrill,
 }: Props) {
   return (
     <FastTagCOHExecutiveLayout
@@ -31,6 +35,7 @@ export default function FastTagCOHView({
       controls={controls}
       sop={sop}
       getStageHeader={getStageHeader}
+      onGatewayDrill={onGatewayDrill}
     />
   );
 }

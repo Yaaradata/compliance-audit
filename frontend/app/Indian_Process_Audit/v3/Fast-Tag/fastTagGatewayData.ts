@@ -40,6 +40,23 @@ export function isFastTagHoBGatewayDrill(
   return drillId != null && FAST_TAG_HOB_GATEWAY_TILE_IDS.includes(drillId);
 }
 
+const COH_GATEWAY_DRILL_TILE_IDS: readonly FastTagGatewayTileId[] = ['sales_issuance'];
+
+/** COH gateway tile with a full-page drill — hides workspace chrome (immersive). */
+export function isFastTagCohGatewayDrill(
+  drillId: FastTagGatewayTileId | null | undefined,
+): boolean {
+  return drillId != null && COH_GATEWAY_DRILL_TILE_IDS.includes(drillId);
+}
+
+/** HoB or COH immersive gateway drill open. */
+export function isFastTagGatewayDrillImmersive(
+  hobDrillId: FastTagGatewayTileId | null | undefined,
+  cohDrillId: FastTagGatewayTileId | null | undefined,
+): boolean {
+  return isFastTagHoBGatewayDrill(hobDrillId) || isFastTagCohGatewayDrill(cohDrillId);
+}
+
 /** @deprecated Use {@link isFastTagHoBGatewayDrill} */
 export function isFastTagPerformanceGatewayDrill(
   drillId: FastTagGatewayTileId | null | undefined,
@@ -93,7 +110,44 @@ export type FastTagGatewayTileMeta = {
   bottomRight: FastTagGatewayTileMetric;
 };
 
-export const HOB_GATEWAY_TILES: FastTagGatewayTile[] = [
+function tollVolumeHighlight(timeRange: string): FastTagGatewayHighlight {
+  switch (timeRange) {
+    case '7d':
+      return { label: 'Toll volume (7d)', value: '78.4M', sub: 'Flat vs prior 7d' };
+    case '30d':
+      return { label: 'Toll volume (30d)', value: '336M', sub: '+2% vs prior 30d' };
+    case '1y':
+      return { label: 'Annual toll volume', value: '4.1B', sub: 'FY to date vs plan' };
+    default:
+      return { label: 'Quarter toll volume', value: '1.01B', sub: 'Flat vs prior quarter' };
+  }
+}
+
+function customerOnboardingHighlight(timeRange: string): FastTagGatewayHighlight {
+  switch (timeRange) {
+    case '7d':
+      return { label: 'Customer onboarding (7d)', value: '3.2K', sub: 'Flat vs prior 7d', tone: 'good' };
+    case '30d':
+      return { label: 'Customer onboarding (30d)', value: '14K', sub: '+8% vs prior 30d', tone: 'good' };
+    case '1y':
+      return { label: 'Annual customer onboarding', value: '482K', sub: 'FY to date vs plan', tone: 'good' };
+    default:
+      return {
+        label: 'Customer onboarding',
+        value: '128K',
+        sub: '+12% vs prior quarter · digital 24%',
+        tone: 'good',
+      };
+  }
+}
+
+function performanceTileAiInsight(timeRange: string): string {
+  const toll = tollVolumeHighlight(timeRange);
+  const onboarding = customerOnboardingHighlight(timeRange);
+  return `${toll.label} at ${toll.value}; ${onboarding.label.toLowerCase()} at ${onboarding.value} with commercial share at 38%.\nWallet-recharge friction flags 12 fleet accounts as the top detractor.`;
+}
+
+const HOB_GATEWAY_TILES_BASE: FastTagGatewayTile[] = [
   {
     id: 'sales_issuance',
     title: 'How is the overall FASTag business performing?',
@@ -104,11 +158,16 @@ export const HOB_GATEWAY_TILES: FastTagGatewayTile[] = [
     visualTone: '#7B2FF0',
     spark: [52, 44, 60, 50, 66, 72],
     aiInsight:
-      'Toll volume held at 11.2M; recharge-to-toll fell to 71% (▼8 pts WoW). Wallet-recharge friction flags 12 fleet accounts as the top detractor.',
+      'Quarter toll volume at 1.01B; customer onboarding at 128K with commercial share at 38%.\nWallet-recharge friction flags 12 fleet accounts as the top detractor.',
     highlights: [
-      { label: 'Daily toll volume', value: '11.2M', sub: 'Flat vs prior week' },
-      { label: 'Recharge success', value: '78%', sub: '↓ 16 pts — UPI handle cluster', pct: 78, tone: 'warn' },
-      { label: 'Recharge-to-toll', value: '71%', sub: '↓ 8 pts WoW', pct: 71, tone: 'warn' },
+      { label: 'Quarter toll volume', value: '1.01B', sub: 'Flat vs prior quarter' },
+      {
+        label: 'Customer onboarding',
+        value: '128K',
+        sub: '+12% vs prior quarter · digital 24%',
+        tone: 'good',
+      },
+      { label: 'Commercial share', value: '38%', sub: 'Of toll volume · B2B fleet', pct: 38, tone: 'good' },
       { label: 'Settlement match', value: '94%', sub: 'Plaza recon · T+1', pct: 94, tone: 'good' },
     ],
   },
@@ -122,7 +181,7 @@ export const HOB_GATEWAY_TILES: FastTagGatewayTile[] = [
     visualTone: '#FF7043',
     spark: [38, 34, 46, 52, 58, 66],
     aiInsight:
-      'Vehicle sales and the ₹3K Annual Pass drive issuance (18% of activations). Auto-recharge is +31% WoW; commercial fleets lead forward volume.',
+      'Vehicle sales and the ₹3K Annual Pass drive issuance (18% of activations).\nAuto-recharge is +31% WoW; commercial fleets lead forward volume.',
     highlights: [
       { label: 'Issuance growth', value: '+18%', sub: 'WoW — vehicle sales led', tone: 'good' },
       { label: 'Auto-recharge uptake', value: '+31%', sub: 'WoW enrolment', tone: 'good' },
@@ -140,7 +199,7 @@ export const HOB_GATEWAY_TILES: FastTagGatewayTile[] = [
     visualTone: '#F59E0B',
     spark: [68, 64, 62, 58, 55, 59],
     aiInsight:
-      'Customer positivity 62% and partner SLA 54% — both under target. Double-deduction and plaza recon strain partners; recharge failures top customer pain.',
+      'Customer positivity 62% and partner SLA 54% — both under target.\nDouble-deduction & plaza recon strain partners; recharge failures dominate.',
     highlights: [
       { label: 'First contact resolve', value: '48%', sub: 'Target 65%', pct: 48, tone: 'warn' },
       { label: 'Avg resolution', value: '78h', sub: 'vs 48h promise', tone: 'bad' },
@@ -149,6 +208,21 @@ export const HOB_GATEWAY_TILES: FastTagGatewayTile[] = [
     ],
   },
 ];
+
+/** HoB gateway tiles with period-aware toll volume on the performance card. */
+export function buildHobGatewayTiles(timeRange = 'q1'): FastTagGatewayTile[] {
+  const toll = tollVolumeHighlight(timeRange);
+  const onboarding = customerOnboardingHighlight(timeRange);
+  return HOB_GATEWAY_TILES_BASE.map((tile) => {
+    if (tile.id !== 'sales_issuance') return tile;
+    const highlights = [...tile.highlights];
+    highlights[0] = toll;
+    highlights[1] = onboarding;
+    return { ...tile, highlights, aiInsight: performanceTileAiInsight(timeRange) };
+  });
+}
+
+export const HOB_GATEWAY_TILES = buildHobGatewayTiles('q1');
 
 export const COH_GATEWAY_TILES: FastTagGatewayTile[] = [
   {
@@ -161,7 +235,7 @@ export const COH_GATEWAY_TILES: FastTagGatewayTile[] = [
     visualTone: '#7B2FF0',
     spark: [64, 68, 58, 52, 44, 46],
     aiInsight:
-      '412 customers stuck at KYC and tag-affixing — the steepest drop-off. Wallet-recharge failure is #2; high-effort contacts rose to 43% from 36% WoW.',
+      '412 customers stuck at KYC and tag-affixing — the steepest drop-off.\nWallet-recharge failure is #2; high-effort contacts rose to 43% from 36% WoW.',
     highlights: [
       { label: 'Stuck in onboarding', value: '412', sub: 'KYC + tag-affixing', tone: 'bad' },
       { label: 'Wallet recharge fails', value: '#2', sub: 'Top friction after onboarding', tone: 'warn' },
@@ -179,7 +253,7 @@ export const COH_GATEWAY_TILES: FastTagGatewayTile[] = [
     visualTone: '#FF7043',
     spark: [66, 70, 60, 54, 46, 48],
     aiInsight:
-      'Within-SLA 61%; first-contact 48%. Refund and double-deduction queues average 78h vs a 48h promise — ageing backlog drives most breaches.',
+      'Within-SLA 61%; first-contact 48%. Refund queues average 78h vs 48h promise.\nAgeing double-deduction backlog drives most SLA breaches this week.',
     highlights: [
       { label: 'Refund exposure', value: '₹47L', sub: 'Open disputes', tone: 'bad' },
       { label: 'Chargeback queue', value: '34', sub: 'Past TAT', tone: 'bad' },
@@ -197,7 +271,7 @@ export const COH_GATEWAY_TILES: FastTagGatewayTile[] = [
     visualTone: '#F59E0B',
     spark: [48, 44, 56, 62, 68, 55],
     aiInsight:
-      'Reopen rate 29%; double-deduction and low-balance blacklist drive repeats. 312 tickets reopened in 7d — root cause not fixed at first response.',
+      'Reopen rate 29%; double-deduction and low-balance blacklist drive repeats.\n312 tickets reopened in 7d — root cause not fixed at first response.',
     highlights: [
       { label: 'KAM outreach', value: '8/12', sub: 'At-risk fleets', tone: 'warn' },
       { label: 'Root-cause fix', value: '71%', sub: 'First-response closure', pct: 71, tone: 'warn' },
@@ -209,9 +283,9 @@ export const COH_GATEWAY_TILES: FastTagGatewayTile[] = [
 
 export const HOB_TILE_COMPACT_META: Record<FastTagGatewayTileId, FastTagGatewayTileMeta> = {
   sales_issuance: {
-    micro: 'Volume · Activation · Collection',
+    micro: 'Volume · Activation · Revenue',
     leftGauge: { label: 'Active tags', value: 84, higherIsBetter: true },
-    rightGauge: { label: 'Cash collected', value: 68, higherIsBetter: true },
+    rightGauge: { label: 'EBITDA margin', value: 91, higherIsBetter: true },
     bottomLeft: { label: 'Top volume driver', value: 'Highway Toll' },
     bottomRight: { label: 'Fleets at-risk', value: '12 accounts', valueColor: FT_RAG.red },
   },
@@ -313,7 +387,6 @@ export type FastTagRiskSpike = {
   title: string;
   channelMix: string[];
   topIntent: string;
-  topIntentSub: string;
   time: string;
   metrics: { label: string; value: string; delta?: string }[];
   aiAction: string;
@@ -326,7 +399,6 @@ export const FASTAG_RISK_SPIKES: FastTagRiskSpike[] = [
     title: 'Wallet Recharge Failure Surge',
     channelMix: ['App', 'UPI'],
     topIntent: 'Recharge Failed',
-    topIntentSub: 'Critical impact · Churn risk',
     time: 'Last 6h',
     metrics: [
       { label: 'Failed recharges', value: '1.2K → 4.8K', delta: '↑ 289%' },
@@ -342,7 +414,6 @@ export const FASTAG_RISK_SPIKES: FastTagRiskSpike[] = [
     title: 'Double-Deduction Cluster — NH-48',
     channelMix: ['Voice', 'Tickets'],
     topIntent: 'Duplicate Toll Charge',
-    topIntentSub: 'Critical impact · Refund escalation',
     time: 'Last 4h',
     metrics: [
       { label: 'Dispute intake', value: '34 → 89', delta: '↑ 162%' },
@@ -358,7 +429,6 @@ export const FASTAG_RISK_SPIKES: FastTagRiskSpike[] = [
     title: 'Blacklist Complaint Trending',
     channelMix: ['Social', 'App'],
     topIntent: 'Tag Blacklisted',
-    topIntentSub: 'High impact · Reputation risk',
     time: 'Last 12h',
     metrics: [
       { label: 'Mentions (48h)', value: '1,240 → 4,820', delta: '↑ 289%' },
@@ -374,7 +444,6 @@ export const FASTAG_RISK_SPIKES: FastTagRiskSpike[] = [
     title: 'Fleet Account Churn Signals',
     channelMix: ['Voice', 'Email'],
     topIntent: 'Account Closure Inquiry',
-    topIntentSub: 'Critical impact · Retention window',
     time: 'Last 72h',
     metrics: [
       { label: 'Retention risk', value: '61% → 86%', delta: '↑ 25 pts' },
@@ -390,7 +459,6 @@ export const FASTAG_RISK_SPIKES: FastTagRiskSpike[] = [
     title: 'KYC / Re-KYC Verification Backlog',
     channelMix: ['App', 'Email'],
     topIntent: 'KYC Verification Stall',
-    topIntentSub: 'Critical impact · Backlog + activation',
     time: 'Next 3 days',
     metrics: [
       { label: 'At-risk tags', value: '2.7K → 4.3K', delta: '↑ 59%' },

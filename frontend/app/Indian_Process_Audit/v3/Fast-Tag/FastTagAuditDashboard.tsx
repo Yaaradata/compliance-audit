@@ -21,9 +21,10 @@ import FastTagCOHView from './FastTagCOHView';
 import FastTagJourneyCasesView from './FastTagJourneyCasesView';
 import FastTagHoBGatewayDrill from './FastTagHoBGatewayDrill';
 import {
-  isFastTagHoBGatewayDrill,
+  isFastTagGatewayDrillImmersive,
   type FastTagGatewayTileId,
 } from './fastTagGatewayData';
+import FastTagCOHGatewayDrill from './FastTagCOHGatewayDrill';
 import type { AuditControl } from '@/lib/Indian_Process_Audit/types';
 
 type Props = {
@@ -120,11 +121,12 @@ export default function FastTagAuditDashboard({ onOpenEvidence, onImmersiveChang
   const [workspaceNav, setWorkspaceNav] = useState<FastTagWorkspaceNavigate | null>(null);
   const [tollPlazaBreakId, setTollPlazaBreakId] = useState<string | null>(null);
   const [gatewayDrill, setGatewayDrill] = useState<FastTagGatewayTileId | null>(null);
+  const [cohGatewayDrill, setCohGatewayDrill] = useState<FastTagGatewayTileId | null>(null);
 
   useEffect(() => {
-    onImmersiveChange?.(isFastTagHoBGatewayDrill(gatewayDrill));
+    onImmersiveChange?.(isFastTagGatewayDrillImmersive(gatewayDrill, cohGatewayDrill));
     return () => onImmersiveChange?.(false);
-  }, [gatewayDrill, onImmersiveChange]);
+  }, [gatewayDrill, cohGatewayDrill, onImmersiveChange]);
 
   const handleExecutiveNav = useCallback((req: FastTagWorkspaceNavigate) => {
     if (req.tollPlazaBreakId) setTollPlazaBreakId(req.tollPlazaBreakId);
@@ -134,6 +136,11 @@ export default function FastTagAuditDashboard({ onOpenEvidence, onImmersiveChang
   const handleGatewayDrill = useCallback((tileId: FastTagGatewayTileId) => {
     setWorkspaceNav({ view: 'hob' });
     setGatewayDrill(tileId);
+  }, []);
+
+  const handleCohGatewayDrill = useCallback((tileId: FastTagGatewayTileId) => {
+    setWorkspaceNav({ view: 'coh' });
+    setCohGatewayDrill(tileId);
   }, []);
 
   const execCtx = useMemo<FastTagExecutiveContext>(
@@ -217,22 +224,31 @@ export default function FastTagAuditDashboard({ onOpenEvidence, onImmersiveChang
             controls={bundle.controls}
             sop={bundle.sop}
             getStageHeader={bundle.getStageHeader}
+            onGatewayDrill={handleCohGatewayDrill}
           />
         ),
       },
     ],
-    [ft11, onOpenEvidence, execCtx, bundle, tollPlazaBreakId, setGatewayDrill],
+    [ft11, onOpenEvidence, execCtx, bundle, tollPlazaBreakId, handleGatewayDrill, handleCohGatewayDrill],
   );
 
-  const gatewayDrillOpen = isFastTagHoBGatewayDrill(gatewayDrill);
+  const gatewayDrillOpen = isFastTagGatewayDrillImmersive(gatewayDrill, cohGatewayDrill);
 
   return (
     <div className="space-y-5">
-      {gatewayDrillOpen ? (
+      {gatewayDrill ? (
         <FastTagHoBGatewayDrill
           drillId={gatewayDrill}
           cases={bundle.cases}
           onBack={() => setGatewayDrill(null)}
+          immersive
+        />
+      ) : null}
+      {cohGatewayDrill ? (
+        <FastTagCOHGatewayDrill
+          drillId={cohGatewayDrill}
+          cases={bundle.cases}
+          onBack={() => setCohGatewayDrill(null)}
           immersive
         />
       ) : null}

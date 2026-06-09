@@ -99,6 +99,34 @@ function buildPaths(
   return paths;
 }
 
+function MapDetailCell({
+  prefix,
+  label,
+  value,
+  sub,
+  variant = 'sub',
+}: {
+  prefix: string;
+  label: string;
+  value: string;
+  sub?: string;
+  variant?: 'hero' | 'sub';
+}) {
+  return (
+    <div className={`${prefix}-iq-map-detail-cell`}>
+      <span className={`${prefix}-label`}>{label}</span>
+      {variant === 'hero' ? (
+        <>
+          <div className={`${prefix}-iq-map-detail-val`}>{value}</div>
+          {sub ? <span className={`${prefix}-faint`}>{sub}</span> : null}
+        </>
+      ) : (
+        <div className={`${prefix}-iq-map-detail-sub`}>{value}</div>
+      )}
+    </div>
+  );
+}
+
 function OverallIndiaDetail({ prefix, overall }: { prefix: string; overall: IndiaOverallSummary }) {
   return (
     <div className={`${prefix}-iq-map-hover-panel`}>
@@ -107,36 +135,67 @@ function OverallIndiaDetail({ prefix, overall }: { prefix: string; overall: Indi
         <span className={`${prefix}-up`}>+{overall.deltaPct}%</span>
       </div>
       <div className={`${prefix}-iq-map-detail-grid`}>
-        <div>
-          <span className={`${prefix}-label`}>Complaints</span>
-          <div className={`${prefix}-iq-map-detail-val`}>{overall.complaints.toLocaleString()}</div>
-          <span className={`${prefix}-faint`}>vs {overall.prior.toLocaleString()} prior</span>
-        </div>
-        <div>
-          <span className={`${prefix}-label`}>Regions rising</span>
-          <div className={`${prefix}-iq-map-detail-sub`}>
-            {overall.risingRegions} / {overall.totalRegions}
-          </div>
-        </div>
-        <div>
-          <span className={`${prefix}-label`}>Top issue</span>
-          <div className={`${prefix}-iq-map-detail-sub`}>{overall.topIssue}</div>
-        </div>
-        <div>
-          <span className={`${prefix}-label`}>Top channel</span>
-          <div className={`${prefix}-iq-map-detail-sub`}>{overall.topChannel}</div>
-        </div>
-        <div>
-          <span className={`${prefix}-label`}>High-risk states</span>
-          <div className={`${prefix}-iq-map-detail-sub`}>{overall.criticalStates}</div>
-        </div>
+        <MapDetailCell
+          prefix={prefix}
+          label="Complaints"
+          value={overall.complaints.toLocaleString()}
+          sub={`vs ${overall.prior.toLocaleString()} prior`}
+          variant="hero"
+        />
+        <MapDetailCell
+          prefix={prefix}
+          label="Regions rising"
+          value={`${overall.risingRegions} / ${overall.totalRegions}`}
+        />
+        <MapDetailCell prefix={prefix} label="Top issue" value={overall.topIssue} />
+        <MapDetailCell prefix={prefix} label="Top channel" value={overall.topChannel} />
+        <MapDetailCell
+          prefix={prefix}
+          label="Hotspot region"
+          value={`${overall.topRegion} (+${overall.topRegionDeltaPct}%)`}
+        />
+        <MapDetailCell
+          prefix={prefix}
+          label="Channel spike"
+          value={`+${overall.channelSpikePct}% WoW`}
+        />
+        <MapDetailCell
+          prefix={prefix}
+          label="High-risk states"
+          value={String(overall.criticalStates)}
+        />
+        <MapDetailCell
+          prefix={prefix}
+          label="States tracked"
+          value={String(overall.statesTracked)}
+        />
+        <MapDetailCell prefix={prefix} label="Heaviest state" value={overall.worstState} />
+        <MapDetailCell
+          prefix={prefix}
+          label="SLA at risk"
+          value={overall.slaAtRisk.toLocaleString()}
+        />
       </div>
     </div>
   );
 }
 
-function StateHoverDetail({ prefix, datum }: { prefix: string; datum: StateComplaintDatum }) {
+function StateHoverDetail({
+  prefix,
+  datum,
+  overall,
+  rank,
+}: {
+  prefix: string;
+  datum: StateComplaintDatum;
+  overall: IndiaOverallSummary;
+  rank: number;
+}) {
   const riskLabel = datum.risk === 'medium' ? 'Med' : datum.risk;
+  const sharePct =
+    overall.complaints > 0 ? Math.round((datum.complaints / overall.complaints) * 1000) / 10 : 0;
+  const vsNational = datum.deltaPct - overall.deltaPct;
+  const vsNationalLabel = vsNational > 0 ? `+${vsNational} pts vs India` : `${vsNational} pts vs India`;
 
   return (
     <div className={`${prefix}-iq-map-hover-panel`}>
@@ -145,25 +204,28 @@ function StateHoverDetail({ prefix, datum }: { prefix: string; datum: StateCompl
         <span className={`${prefix}-up`}>+{datum.deltaPct}%</span>
       </div>
       <div className={`${prefix}-iq-map-detail-grid`}>
-        <div>
-          <span className={`${prefix}-label`}>Complaints</span>
-          <div className={`${prefix}-iq-map-detail-val`}>{datum.complaints.toLocaleString()}</div>
-          <span className={`${prefix}-faint`}>vs {datum.prior.toLocaleString()} prior</span>
-        </div>
-        <div>
-          <span className={`${prefix}-label`}>Top issue</span>
-          <div className={`${prefix}-iq-map-detail-sub`}>{datum.topIssue}</div>
-        </div>
-        <div>
-          <span className={`${prefix}-label`}>Top channel</span>
-          <div className={`${prefix}-iq-map-detail-sub`}>{datum.topChannel}</div>
-        </div>
-        <div>
-          <span className={`${prefix}-label`}>Severity</span>
-          <div className={`${prefix}-iq-map-detail-sub`} style={{ textTransform: 'capitalize' }}>
-            {riskLabel}
-          </div>
-        </div>
+        <MapDetailCell
+          prefix={prefix}
+          label="Complaints"
+          value={datum.complaints.toLocaleString()}
+          sub={`vs ${datum.prior.toLocaleString()} prior`}
+          variant="hero"
+        />
+        <MapDetailCell prefix={prefix} label="Share of India" value={`${sharePct}%`} />
+        <MapDetailCell prefix={prefix} label="Top issue" value={datum.topIssue} />
+        <MapDetailCell prefix={prefix} label="Top channel" value={datum.topChannel} />
+        <MapDetailCell
+          prefix={prefix}
+          label="Severity"
+          value={riskLabel}
+        />
+        <MapDetailCell prefix={prefix} label="Volume rank" value={`#${rank} nationally`} />
+        <MapDetailCell prefix={prefix} label="Vs national" value={vsNationalLabel} />
+        <MapDetailCell
+          prefix={prefix}
+          label="Prior period"
+          value={`${datum.prior.toLocaleString()} complaints`}
+        />
       </div>
     </div>
   );
@@ -197,68 +259,74 @@ export default function IssuesComplaintIndiaMap({ prefix, states, overall }: Pro
   );
 
   const hoverDatum = hover?.datum ?? null;
+  const stateRankByVolume = useMemo(() => {
+    const ranked = [...states].sort((a, b) => b.complaints - a.complaints);
+    return Object.fromEntries(ranked.map((row, index) => [row.rto, index + 1]));
+  }, [states]);
 
   return (
     <div className={`${prefix}-iq-map`}>
       <div className={`${prefix}-iq-map-split`}>
-        <div className={`${prefix}-iq-map-col`}>
-          <div className={`${prefix}-iq-map-head`}>
-            <span className={`${prefix}-iq-map-section-label`}>India</span>
-            <div className={`${prefix}-iq-map-legend`} aria-label="Complaint severity legend">
-              {MAP_LEGEND.map(({ risk, label, swatch }) => (
-                <span key={risk} className={`${prefix}-iq-map-legend-item`}>
-                  <span className={`${prefix}-iq-map-legend-dot`} style={{ background: swatch }} aria-hidden />
-                  {label}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className={`${prefix}-iq-map-frame`}>
-            {loadError ? (
-              <p className={`${prefix}-iq-map-error`}>{loadError}</p>
-            ) : !geo ? (
-              <p className={`${prefix}-iq-map-loading`}>Loading map…</p>
-            ) : (
-              <svg
-                viewBox={`0 0 ${MAP_W} ${MAP_H}`}
-                className={`${prefix}-iq-map-svg`}
-                role="img"
-                aria-label="India map colored by complaint spike severity per state"
-              >
-                {paths.map((p) => (
-                  <path
-                    key={p.key}
-                    d={p.d}
-                    fill={p.fill}
-                    stroke={p.stroke}
-                    strokeWidth={p.rto === hoverRto ? 1.25 : 0.6}
-                    vectorEffect="non-scaling-stroke"
-                    className={p.datum ? `${prefix}-iq-map-path` : `${prefix}-iq-map-path ${prefix}-iq-map-path--dim`}
-                    onMouseEnter={() => p.datum && setHover(p)}
-                    onMouseLeave={() => setHover((h) => (h?.key === p.key ? null : h))}
-                    aria-label={
-                      p.datum
-                        ? `${p.stateName}, ${p.datum.complaints} complaints, +${p.datum.deltaPct}%`
-                        : p.stateName
-                    }
-                  />
-                ))}
-              </svg>
-            )}
+        <div className={`${prefix}-iq-map-head`}>
+          <span className={`${prefix}-iq-map-section-label`}>India</span>
+          <div className={`${prefix}-iq-map-legend`} aria-label="Complaint severity legend">
+            {MAP_LEGEND.map(({ risk, label, swatch }) => (
+              <span key={risk} className={`${prefix}-iq-map-legend-item`}>
+                <span className={`${prefix}-iq-map-legend-dot`} style={{ background: swatch }} aria-hidden />
+                {label}
+              </span>
+            ))}
           </div>
         </div>
 
-        <div className={`${prefix}-iq-map-col ${prefix}-iq-map-col--detail`}>
-          <div className={`${prefix}-iq-map-section-label`} style={{ marginBottom: 4 }}>
-            State details
-          </div>
-          {hoverDatum ? (
-            <StateHoverDetail prefix={prefix} datum={hoverDatum} />
+        <div className={`${prefix}-iq-map-head ${prefix}-iq-map-head--detail`}>
+          <span className={`${prefix}-iq-map-section-label`}>State details</span>
+        </div>
+
+        <div className={`${prefix}-iq-map-frame`}>
+          {loadError ? (
+            <p className={`${prefix}-iq-map-error`}>{loadError}</p>
+          ) : !geo ? (
+            <p className={`${prefix}-iq-map-loading`}>Loading map…</p>
           ) : (
-            <OverallIndiaDetail prefix={prefix} overall={overall} />
+            <svg
+              viewBox={`0 0 ${MAP_W} ${MAP_H}`}
+              className={`${prefix}-iq-map-svg`}
+              role="img"
+              aria-label="India map colored by complaint spike severity per state"
+            >
+              {paths.map((p) => (
+                <path
+                  key={p.key}
+                  d={p.d}
+                  fill={p.fill}
+                  stroke={p.stroke}
+                  strokeWidth={p.rto === hoverRto ? 1.25 : 0.6}
+                  vectorEffect="non-scaling-stroke"
+                  className={p.datum ? `${prefix}-iq-map-path` : `${prefix}-iq-map-path ${prefix}-iq-map-path--dim`}
+                  onMouseEnter={() => p.datum && setHover(p)}
+                  onMouseLeave={() => setHover((h) => (h?.key === p.key ? null : h))}
+                  aria-label={
+                    p.datum
+                      ? `${p.stateName}, ${p.datum.complaints} complaints, +${p.datum.deltaPct}%`
+                      : p.stateName
+                  }
+                />
+              ))}
+            </svg>
           )}
         </div>
+
+        {hoverDatum ? (
+          <StateHoverDetail
+            prefix={prefix}
+            datum={hoverDatum}
+            overall={overall}
+            rank={stateRankByVolume[hoverDatum.rto] ?? 0}
+          />
+        ) : (
+          <OverallIndiaDetail prefix={prefix} overall={overall} />
+        )}
       </div>
     </div>
   );

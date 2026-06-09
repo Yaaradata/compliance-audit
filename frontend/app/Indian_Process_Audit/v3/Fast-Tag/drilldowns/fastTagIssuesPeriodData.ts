@@ -29,6 +29,7 @@ export type CxExperienceData = {
   direction: 'worse' | 'better' | 'flat';
   summary: string;
   target: number;
+  cadence: 'monthly';
   trend: CxTrendPoint[];
   drivers: CxDriver[];
 };
@@ -59,6 +60,12 @@ export type IndiaOverallSummary = {
   criticalStates: number;
   topIssue: string;
   topChannel: string;
+  topRegion: string;
+  topRegionDeltaPct: number;
+  channelSpikePct: number;
+  worstState: string;
+  statesTracked: number;
+  slaAtRisk: number;
 };
 
 export type ComplaintSpikeData = {
@@ -174,18 +181,20 @@ export type IssuesPeriodSnapshot = {
   q5: LowRatingData;
 };
 
-const CX_TREND_11W: CxTrendPoint[] = [
-  { label: 'W1', customer: 70, partner: 68 },
-  { label: 'W2', customer: 68, partner: 67 },
-  { label: 'W3', customer: 71, partner: 69 },
-  { label: 'W4', customer: 66, partner: 65 },
-  { label: 'W5', customer: 69, partner: 64 },
-  { label: 'W6', customer: 64, partner: 63 },
-  { label: 'W7', customer: 67, partner: 62 },
-  { label: 'W8', customer: 63, partner: 58 },
-  { label: 'W9', customer: 65, partner: 56 },
-  { label: 'W10', customer: 62, partner: 55 },
-  { label: 'W11', customer: 59, partner: 54 },
+/** FY monthly CX trend — customer & partner scores tracked month-on-month. */
+const CX_TREND_12M: CxTrendPoint[] = [
+  { label: 'Apr', customer: 72, partner: 70 },
+  { label: 'May', customer: 71, partner: 69 },
+  { label: 'Jun', customer: 69, partner: 67 },
+  { label: 'Jul', customer: 68, partner: 66 },
+  { label: 'Aug', customer: 66, partner: 64 },
+  { label: 'Sep', customer: 65, partner: 62 },
+  { label: 'Oct', customer: 64, partner: 60 },
+  { label: 'Nov', customer: 62, partner: 58 },
+  { label: 'Dec', customer: 61, partner: 56 },
+  { label: 'Jan', customer: 60, partner: 55 },
+  { label: 'Feb', customer: 59, partner: 54 },
+  { label: 'Mar', customer: 59, partner: 54 },
 ];
 
 const COMPLAINT_CASES_LAST24: ComplaintCaseRow[] = [
@@ -225,22 +234,12 @@ function sliceComplaintCases(grain: DrillPeriodGrain): ComplaintCaseRow[] {
 }
 
 function sliceCxTrend(grain: DrillPeriodGrain): CxTrendPoint[] {
-  if (grain === 'last24') {
-    return [
-      { label: 'Prior 24h', customer: 61, partner: 55 },
-      { label: 'Last 24h', customer: 59, partner: 54 },
-    ];
-  }
-  if (grain === 'quarter') return CX_TREND_11W.slice(0, 6);
-  if (grain === 'year') {
-    return [
-      { label: 'Q1', customer: 66, partner: 64 },
-      { label: 'Q2', customer: 64, partner: 61 },
-      { label: 'Q3', customer: 61, partner: 58 },
-      { label: 'Q4', customer: 59, partner: 54 },
-    ];
-  }
-  return CX_TREND_11W;
+  if (grain === 'last24') return CX_TREND_12M.slice(-2);
+  if (grain === 'quarter') return CX_TREND_12M.slice(-3);
+  if (grain === 'month') return CX_TREND_12M.slice(-6);
+  if (grain === 'weeks') return CX_TREND_12M.slice(-4);
+  if (grain === 'year') return CX_TREND_12M;
+  return CX_TREND_12M.slice(-6);
 }
 
 function buildQ1(grain: DrillPeriodGrain): CxExperienceData {
@@ -254,9 +253,10 @@ function buildQ1(grain: DrillPeriodGrain): CxExperienceData {
     direction: delta < -3 ? 'worse' : delta > 3 ? 'better' : 'flat',
     summary:
       grain === 'last24'
-        ? 'Overnight dip driven by recharge failures — customer score slipped 2 pts in 24h.'
-        : 'Customer experience deteriorated after W8 acquirer outage; partner score fell in parallel.',
+        ? 'Feb→Mar monthly read shows recharge failures pulling customer CX down 1 pt.'
+        : 'Customer experience deteriorated month-on-month from Oct — partner score fell in parallel.',
     target: 75,
+    cadence: 'monthly',
     trend,
     drivers: [
       { metric: 'CSAT (resolved cases)', now: '62%', prior: '71%', delta: '−9 pts', worsening: true },
@@ -289,6 +289,7 @@ function buildQ2(grain: DrillPeriodGrain): ComplaintSpikeData {
   const deltaPct = prior > 0 ? Math.round(((complaints - prior) / prior) * 100) : 0;
   const topChannel = [...channels].sort((a, b) => b.deltaPct - a.deltaPct)[0];
   const topRegion = [...regions].sort((a, b) => b.deltaPct - a.deltaPct)[0];
+  const worstState = [...stateComplaints].sort((a, b) => b.complaints - a.complaints)[0];
 
   return {
     verdict: 'Rising in 4/5 regions · 4/5 channels',
@@ -305,6 +306,12 @@ function buildQ2(grain: DrillPeriodGrain): ComplaintSpikeData {
       criticalStates: stateComplaints.filter((s) => s.risk === 'critical' || s.risk === 'high').length,
       topIssue: topRegion?.topIssue ?? 'Double deduction',
       topChannel: topChannel?.channel ?? 'B2C app / wallet',
+      topRegion: topRegion?.region ?? 'West',
+      topRegionDeltaPct: topRegion?.deltaPct ?? 42,
+      channelSpikePct: topChannel?.deltaPct ?? 61,
+      worstState: worstState?.stateName ?? 'Maharashtra',
+      statesTracked: stateComplaints.length,
+      slaAtRisk: grain === 'last24' ? 18 : 142,
     },
   };
 }
