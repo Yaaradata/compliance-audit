@@ -4,6 +4,7 @@
 import React, { useState, useMemo, useCallback, useReducer } from 'react';
 import mockDataV2 from '@/lib/ukbankingaudit/mockDataV2';
 import mockDataV3 from '@/lib/ukbankingaudit/mockDataV3';
+import mockDataV4 from '@/lib/ukbankingaudit/mockDataV4';
 import {
   getUkAuditUi,
   computeRssScore,
@@ -11,6 +12,9 @@ import {
   RssDecomposition,
   GeneratedNarrative,
 } from '@/components/UKBankingAudit/v3';
+import {
+  CROBoardViewV4,
+} from '@/components/UKBankingAudit/v4';
 
 let personas, navigationItems, croCategories, risks, controls, obligations,
   processes, processSteps, smfHolders, actors, kris, riskAppetiteMetrics,
@@ -67,7 +71,7 @@ function bindUkMock(mock, variant = 'v2') {
   eddPipelineItems = mock.eddPipelineItems;
   sanctionsScreeningMetrics = mock.sanctionsScreeningMetrics;
   capacityVsDemandSeries = mock.capacityVsDemandSeries;
-  activeUkUi = getUkAuditUi(variant);
+  activeUkUi = getUkAuditUi(variant === 'v4' ? 'v3' : variant);
 }
 
 bindUkMock(mockDataV2, 'v2');
@@ -675,7 +679,10 @@ const selectSMFTrails           = (s) => s.domain.smfTrails;
 
 // ─── App Component ────────────────────────────────────────────────────────
 export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
-  bindUkMock(variant === 'v3' ? mockDataV3 : mockDataV2, variant);
+  bindUkMock(
+    variant === 'v4' ? mockDataV4 : variant === 'v3' ? mockDataV3 : mockDataV2,
+    variant,
+  );
   // Pass 7.0 — single useReducer replaces 12 fragmented useState calls.
   const [state, dispatch] = useReducer(reducer, undefined, initState);
 
@@ -786,8 +793,13 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
       <main className="px-6 py-6">
         {/* Pass 7.1 — four SMF-aligned persona landings (stubs; Passes 7.2–7.4 fill them in). */}
         {/* Pass 7.2 — CROBoardView is now real (three-zone board view). */}
-        {activeScreen === "croBoardView" && <CROBoardView openDrawer={openDrawer} variant={variant} />}
-        {activeScreen === "headOfERMWorkspace" && variant !== "v3" && <HeadOfERMWorkspace />}
+        {activeScreen === "croBoardView" && variant === "v4" && (
+          <CROBoardViewV4 openDrawer={openDrawer} />
+        )}
+        {activeScreen === "croBoardView" && variant !== "v4" && (
+          <CROBoardView openDrawer={openDrawer} variant={variant} />
+        )}
+        {activeScreen === "headOfERMWorkspace" && variant !== "v3" && variant !== "v4" && <HeadOfERMWorkspace />}
         {/* Pass 7.3 — CRSACycleCockpit is now real (CRSA-anchored SMF16 landing). */}
         {activeScreen === "crsaCycleCockpit" && (
           <CRSACycleCockpit
@@ -1605,11 +1617,14 @@ function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveSc
 
 // CRO (SMF4) board view — replaces the Pass 7.1 stub.
 function CROBoardView({ openDrawer, variant = 'v2' }) {
-  const ui = getUkAuditUi(variant);
+  const ui = getUkAuditUi(variant === 'v4' ? 'v3' : variant);
   const persona = personas.find(p => p.id === "cro");
   const [drilledCategoryId, setDrilledCategoryId] = useState(null);
 
   if (!persona) return <EmptyState message="CRO persona not configured." />;
+
+  const toggleCategory = (id) =>
+    setDrilledCategoryId((prev) => (prev === id ? null : id));
 
   return (
     <div className="space-y-6">
@@ -1643,7 +1658,7 @@ function CROBoardView({ openDrawer, variant = 'v2' }) {
               key={cat.id}
               category={cat}
               isDrilled={drilledCategoryId === cat.id}
-              onClick={() => setDrilledCategoryId(prev => prev === cat.id ? null : cat.id)}
+              onClick={() => toggleCategory(cat.id)}
             />
           ))}
         </div>
@@ -2912,7 +2927,7 @@ function PopulationTestWorkspace({ selectedTestId, openDrawer, setActiveScreen, 
 
 // ─── SCREEN: SMCR Reasonable Steps Workspace ──────────────────────────────
 function SMCRReasonableStepsWorkspace({ variant = 'v2', selectedSMFId, setSelectedSMFId, smfTrails, pendingDecisionId, setPendingDecisionId, decisionRationale, setDecisionRationale, captureSMFDecision, openDrawer, setActiveScreen, setSelectedPackId }) {
-  const ui = getUkAuditUi(variant);
+  const ui = getUkAuditUi(variant === 'v4' ? 'v3' : variant);
   const smf = getSMF(selectedSMFId);
   if (!smf) return <EmptyState message="Select an SMF." />;
   const live = smfTrails[selectedSMFId];
@@ -3103,7 +3118,7 @@ function SMCRReasonableStepsWorkspace({ variant = 'v2', selectedSMFId, setSelect
 
 // ─── SCREEN: Monitoring Report Builder ───────────────────────────────────
 function MonitoringReportBuilder({ variant = 'v2', selectedPackId, setSelectedPackId, openDrawer }) {
-  const ui = getUkAuditUi(variant);
+  const ui = getUkAuditUi(variant === 'v4' ? 'v3' : variant);
   const pack = getAuditPack(selectedPackId);
   if (!pack) return <EmptyState message="Select a monitoring report." />;
 
@@ -3211,7 +3226,7 @@ function MonitoringReportBuilder({ variant = 'v2', selectedPackId, setSelectedPa
 
         {/* Narrative */}
         <div className="col-span-12 lg:col-span-7 space-y-4">
-<GeneratedNarrative pack={pack} subtitle={ui.narrativeSubtitle} singleParagraph={variant === "v3"} />
+<GeneratedNarrative pack={pack} subtitle={ui.narrativeSubtitle} singleParagraph={variant === "v3" || variant === "v4"} />
 
           <div className="flex gap-2">
             <button className="flex-1 py-2.5 text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 rounded-md">Route to Executive Review →</button>

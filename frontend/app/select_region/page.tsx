@@ -17,12 +17,15 @@ import {
   type IndianProcessAuditVersion,
 } from "./indianProcessAuditVersions";
 
-type UkVersion = "v1" | "v2" | "v3";
+type UkVersion = "v1" | "v2" | "v3" | "v4";
+
+const LATEST_UK_BANKING_VERSION: UkVersion = "v4";
 
 const UK_BANKING_PATHS: Record<UkVersion, string> = {
   v1: "/UKBankingAudit/v1",
   v2: "/UKBankingAudit/v2",
   v3: "/UKBankingAudit/v3",
+  v4: "/UKBankingAudit/v4",
 };
 
 type SoftwareAuditVersion = "v1-1" | "v1-2" | "v2";
@@ -68,7 +71,7 @@ const REGION_OPTIONS: RegionOption[] = [
     title: "UK Banking Audit",
     icon: "🛡️",
     accentSoftClass: "bg-emerald-50 ring-emerald-100",
-    href: UK_BANKING_PATHS.v3,
+    href: UK_BANKING_PATHS[LATEST_UK_BANKING_VERSION],
   },
   {
     id: "indian-banking-audit",
@@ -102,7 +105,7 @@ function RegionCardIcon({ option }: { option: RegionOption }) {
 
 function UKBankingAuditCard({ option }: { option: RegionOption }) {
   const router = useRouter();
-  const [version, setVersion] = useState<UkVersion>("v3");
+  const [version, setVersion] = useState<UkVersion>(LATEST_UK_BANKING_VERSION);
 
   const openDashboard = () => {
     router.push(UK_BANKING_PATHS[version]);
@@ -127,7 +130,8 @@ function UKBankingAuditCard({ option }: { option: RegionOption }) {
           className="absolute right-0 top-0 h-7 w-[6.75rem] cursor-pointer rounded-md border border-slate-200 bg-slate-50/90 py-0 pl-2 pr-6 text-xs font-medium text-slate-600 outline-none transition hover:border-slate-300 hover:bg-white focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500/20"
           aria-label="UK Banking Audit version"
         >
-          <option value="v3">v3 — latest</option>
+          <option value="v4">v4 — latest</option>
+          <option value="v3">v3</option>
           <option value="v2">v2</option>
           <option value="v1">v1</option>
         </select>

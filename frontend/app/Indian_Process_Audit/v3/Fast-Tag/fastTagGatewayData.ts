@@ -36,7 +36,7 @@ const FAST_TAG_HOB_GATEWAY_TILE_IDS: readonly FastTagGatewayTileId[] = [
 /** Any HoB gateway tile drill — hides workspace chrome (immersive). */
 export function isFastTagHoBGatewayDrill(
   drillId: FastTagGatewayTileId | null | undefined,
-): boolean {
+): drillId is FastTagGatewayTileId {
   return drillId != null && FAST_TAG_HOB_GATEWAY_TILE_IDS.includes(drillId);
 }
 
