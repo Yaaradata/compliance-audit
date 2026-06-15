@@ -1,0 +1,659 @@
+PROMPT 0 - Research
+
+ROLE
+You are a senior domain researcher and SME in brewery operations, F&B manufacturing 
+compliance, and AI-powered audit systems, with hands-on experience inside Sri Lankan 
+FMCG regulatory environments (SLSI, Excise Department, Food Act, EDB, Customs). You 
+research and GROUND claims — you do not roleplay knowledge. Where you have live web 
+access, search and cite. Where you don't, reason from training data but mark it as such.
+ENTITY — PIN THIS EXACTLY (do not confuse with other "Lion" breweries)
+Target: Lion Brewery (Ceylon) PLC — Sri Lanka. CSE ticker LION.N0000. 
+Main plant: Biyagama, No. 254 Colombo Road, near Colombo. Ultimate group: Carson 
+Cumberbatch; major shareholders Ceylon Beverage Holdings (~52%) and Carlsberg (~25%). 
+Subsidiaries include Millers Brewery and Pearl Springs.
+NOT: Lion Co (Australia/NZ), Indian "Lion" brands, or any US Lion Brewery.
+VERIFIED ANCHORS vs. CONTESTED FIGURES (treat embedded numbers as hypotheses to verify)
+The brief I was handed states ~90% market share, ~$500M revenue, and multiple plants. 
+Public sources DISAGREE with these. Do NOT propagate them as fact. Instead, verify and 
+report a range with sources:
+- Market share: sources range ~82–86%, not 90%. Confirm latest.
+- Revenue: sources suggest ~$370–410M / ~€350M, not $500M. Confirm latest FY.
+- Manufacturing footprint: appears to be ONE primary brewery at Biyagama (+ Millers 
+  subsidiary), not several. Confirm plant count and capacity (sources split between 
+  ~750,000 hL/yr and 2 million hl — resolve this).
+If you cannot confirm a figure, label it a GAP. Never invent a specific number as fact.
+OBJECTIVE
+Produce ONLY Section 1 (Domain Ontology) of a Foundational Understanding Document for an 
+AI-powered Audit & Compliance product for Lion Brewery. The product goal: map their 
+operational processes, automate audit/compliance evidence, and lower their overall risk 
+profile. The CTO's brief: "Audit and compliance eats too much of my team's time and 
+mine — I want to run this with AI: faster, smoother, cheaper."
+Do not generate any other section. This is one of three independent research passes 
+(Claude / Perplexity / Gemini) that will be MERGED later — so consistency of structure 
+and sourcing matters as much as content.
+SOURCING & CONFIDENCE RULES (mandatory — this is what makes the merge possible)
+Tag EVERY non-trivial factual claim with one of:
+  [CONFIRMED] — backed by a source; include the URL (or "training-data, not web-verified")
+  [INFERRED]  — not Lion-specific; reasoned from typical Sri Lankan brewery operations 
+                at this scale. Prefix the sentence with "Based on typical operations..."
+  [GAP]       — unknown / unverifiable; flag explicitly as needing primary research 
+                (e.g. a call with Lion's QA or Excise team)
+Where sources conflict, do NOT pick one silently — record both with a short 
+[DISCREPANCY] note so the merge step can reconcile.
+OUTPUT SCHEMA — apply this SAME micro-structure under every sub-section (1.1–1.9)
+so the three passes line up for mechanical merge:
+  • Findings — the substantive answer, each claim tagged per the rules above
+  • Compliance/Audit hook — "So what for an AI audit product": which entities, records, 
+    handoffs, or controls here become auditable objects, data sources, or risk points
+  • Open questions / GAPS — what we still need from Lion directly
+  • Sources — list of URLs used for this sub-section
+DOMAIN ONTOLOGY — research each sub-section, applying the schema above:
+1.1 Manufacturing Footprint — plant count, locations, per-plant specialization 
+    (brew/bottle/can), capacity, and how footprint scales the compliance surface area. 
+    Include contract/co-packing arrangements (e.g. Millers) that extend the perimeter.
+1.2 Core Manufacturing Processes — map each stage in sequence WITH its compliance 
+    relevance: raw-material intake (malt, hops, water, adjuncts, packaging; COAs, 
+    food-grade certs) → brewing/fermentation (process params, batch records, deviation 
+    logs) → filtration/stabilization → carbonation/conditioning → filling/packaging 
+    (fill accuracy, seal integrity, line sanitation) → labeling (SLSI, excise stamps, 
+    ABV declarations, health warnings) → finished-goods inspection & release (CoC, 
+    hold/release workflow).
+1.3 QC & Lab Testing Checkpoints — mandatory checkpoints under Sri Lankan food-safety 
+    law; tests per checkpoint (micro, chemistry, sensory); in-house vs SLSI-accredited 
+    third-party; how results are recorded today (LIMS / spreadsheet / paper); what 
+    triggers batch hold/rework/rejection and who has authority.
+1.4 Labeling & Regulatory Marking — mandatory label content under SLSI / Excise 
+    Ordinance / Food Act; differences across domestic retail vs hospitality vs export; 
+    how excise duty stamps are applied/tracked (physical/digital/hybrid); what a 
+    labeling non-compliance incident and its penalty exposure look like.
+1.5 Distribution Channels & POS — all channels (licensed liquor shops, supermarkets, 
+    hotels/restaurants, duty-free, export distributors); approx active POS count and 
+    license-type categorization; per-channel compliance obligations (licensed-premises 
+    verification, volume caps, restricted hours); network structure (direct / 3P 
+    distributor / regional depot).
+1.6 Settlement & Financial Flows — settlement mechanics per channel (cash / bank 
+    transfer / mobile / credit terms); which channels are cash-heavy and the audit risk 
+    that introduces (reconciliation gaps, excise under-reporting); digital rails in use 
+    (LankaPay, portals) that create audit trails; how settlement reconciles against 
+    dispatch and excise declarations today (manual vs ERP).
+1.7 Cold Chain & Logistics — temperature/storage requirements; which legs are 
+    cold-chain vs ambient; how it's monitored today (IoT / manual logs / 3P cold-store 
+    certs); compliance implications of a cold-chain break (recall, regulatory 
+    notification, liability).
+1.8 Export Operations — destination markets (the ~10% export volume); required docs 
+    (Certificate of Origin, health certs, export permits, destination import approvals); 
+    Sri Lankan bodies involved (EDB, Customs, SLSI export cert); export-specific 
+    labeling/spec requirements vs domestic.
+1.9 People, Roles & Accountability — internal roles owning compliance per stage (QA 
+    Manager, Regulatory Affairs, Plant Manager, Excise Compliance Officer, Distribution 
+    Manager, Finance/Excise); how many people touch one end-to-end cycle (batch → excise 
+    filing); where handoffs happen and where they break; external parties (SLSI 
+    inspectors, Excise officers, third-party auditors, customs agents).
+QUALITY BAR
+Specific enough that a product designer could wireframe workflows from it. Sri 
+Lanka-specific and operationally grounded at every point — generic brewery descriptions 
+fail the bar. The "Compliance/Audit hook" under each sub-section is the most important 
+field for the product team; never skip it.
+
+PROMPT 1- RECONCILE Research 
+
+ROLE
+You are the reconciliation editor and research synthesis lead. You are merging THREE 
+independent research passes (Claude / Perplexity / Gemini) of Section 1 (Domain Ontology) 
+for an AI audit-and-compliance product targeting Lion Brewery (Ceylon) PLC, Sri Lanka 
+(CSE: LION.N0000; Biyagama plant; Carson Cumberbatch group). Your job is not to find 
+consensus — it is to adjudicate sources and produce ONE defensible canonical document 
+plus a full reconciliation ledger.
+INPUTS
+Three passes, each following the same schema (Findings / Compliance hook / GAPs / Sources) 
+with claims tagged [CONFIRMED] [INFERRED] [GAP] [DISCREPANCY]:
+  <<< PASS A — Claude >>> In above chat and added to Project file 
+  <<< PASS B — Perplexity >>>  attached
+  <<< PASS C — Gemini >>>      attached 
+If a pass is missing or doesn't follow the schema, note it and proceed with what's present.
+RECONCILIATION RULES (apply per claim, per sub-section)
+1. Source hierarchy — when adjudicating, rank evidence:
+   (a) Lion primary/official — annual report, CSE filings, company site, SLSI/Excise/EDB
+   (b) Reputable secondary — trade bodies (VLB), regulators, established news
+   (c) Aggregators — PitchBook, investing.com, MarketScreener, stockanalysis
+   (d) Tertiary — Wikipedia, SlideShare, blogs
+   Prefer higher tiers and MORE RECENT data. Never let tier (c)/(d) override (a)/(b).
+2. Agreement ≠ truth. Before calling something high-confidence, check SOURCE DIVERSITY: 
+   if all three passes trace to the SAME single source, treat it as one source, not three. 
+   Independent corroboration from different credible sources is what raises confidence.
+3. No inference laundering. If one pass marks a claim [CONFIRMED] but cites no real source 
+   (or only training data) while another marks it [INFERRED], the merged claim takes the 
+   WEAKER tier unless a genuine source exists. Do not upgrade a guess because it was 
+   repeated.
+4. No averaging of conflicting figures. For numeric conflicts (e.g. market share, revenue, 
+   plant capacity), do NOT split the difference. Report the best-sourced value with its 
+   source, list the competing values, and if unresolved mark [DISCREPANCY — UNRESOLVED].
+5. GAP consolidation. A GAP in one pass that another pass CONFIRMED with a credible source 
+   is now resolved — move it into Findings. GAPs no pass could close become the 
+   primary-research list (questions to put to Lion directly).
+ASSIGN A MERGED CONFIDENCE to every canonical claim:
+  HIGH   — corroborated by ≥2 independent credible sources, or one tier-(a) source
+  MEDIUM — one good source, or multiple passes citing the same single source
+  LOW    — inference only / weak or tertiary source
+  OPEN   — unresolved discrepancy or genuine gap
+OUTPUT 1 — CANONICAL SECTION 1 (the merged document)
+Reproduce the 1.1–1.9 structure. Under each sub-section keep the schema:
+  • Findings — the reconciled answer; every claim carries its merged confidence 
+    (HIGH/MEDIUM/LOW/OPEN) and a provenance tag (which pass(es) + which source)
+  • Compliance/Audit hook — merge the strongest hooks from all three passes; this field 
+    is the priority for the downstream product team
+  • Open items — residual GAPs and OPEN discrepancies for this sub-section
+  • Sources — deduplicated, tiered
+OUTPUT 2 — RECONCILIATION LEDGER (the audit trail)
+A. Conflict table: each material disagreement → the competing values, which passes held 
+   them, the source tier of each, the decision made, and why. Mark unresolved ones.
+B. Confidence rollup: count of HIGH/MEDIUM/LOW/OPEN claims per sub-section, so we can see 
+   where the document is solid vs thin.
+C. Primary-research list: the consolidated GAP/OPEN items, phrased as specific questions 
+   to ask Lion's QA, Excise, Distribution, and Finance teams.
+D. Source-diversity flags: any "high-looking" claim that actually rests on a single shared 
+   source — call these out as fragile.
+CARRY-FORWARD (for the next synthesis step — building blocks, pain areas, problem statements)
+Tag, but do not yet develop: the 5–10 compliance hooks that look like the sharpest pain 
+points or highest risk-reduction opportunities. Just flag them [CARRY-FORWARD]; the next 
+prompt will work them up.
+QUALITY BAR
+The canonical doc must be something a product designer can wireframe from AND a skeptic can 
+audit back to source. If you cannot resolve a conflict honestly, leave it OPEN — a flagged 
+unknown is worth more than a confident guess.
+
+Prompt 2 - Stage 1 = domain register 
+
+ROLE
+You are the compliance-domain architect for the Foundational Understanding Document on 
+Lion Brewery (Ceylon) PLC. Section 1 (Domain Ontology) is already complete and lives in 
+the project files — build directly on it. This is Stage 2 of the document: the Compliance 
+Domain Register. Produce ONLY the register, then STOP for review. Do not proceed to data 
+landscape.
+
+INHERIT THE CONFIDENCE DISCIPLINE FROM SECTION 1 (non-negotiable)
+Section 1's claims are graded HIGH / MEDIUM / LOW / OPEN with provenance. Carry that 
+forward. Every domain claim here must:
+  • cite what it rests on — "per Section 1 [ref]" or a source, OR be marked [NEW INFERENCE]
+  • inherit OPEN items as OPEN — do NOT harden them. e.g. Section 1 left active POS as a 
+    ~1,130–3,000 range (a 3x spread = unresolved); treat it as OPEN, never as a settled 
+    number. Same for any contested figure (excise liability, capacity).
+  • never invent a specific system, register, or figure to fill a gap — mark it [GAP].
+
+DOMAIN TAXONOMY RULES
+- Organize as MAJOR domains, each with named sub-processes — not a flat sprawl of 30 
+  micro-domains. Aim for completeness via sub-processes, not domain inflation.
+- Cover everything a brewery at Lion's scale faces, including the easy-to-skip ones: 
+  excise & duty, production/food safety, labeling & marking, licensing, distribution/POS, 
+  export, EHS, environmental, supplier/inbound, lab accreditation, internal SOP/audit, 
+  data/financial reconciliation.
+- Use Section 1's regulatory spine to name the governing body PRECISELY, not generically: 
+  Excise Ordinance, FL licence taxonomy, Food Act, SLSI, SLAB (lab accreditation — verify; 
+  see note), SLTDA, FCAU, ASYCUDA World, Fool Proof Sticker (excise duty sticker) system.
+
+OUTPUT — COMPLIANCE DOMAIN REGISTER
+One row (or block) per domain, with these fields:
+| Field | Fill |
+|---|---|
+| Domain | Short clear name |
+| Sub-processes | The specific Lion processes under it (brewing, dispatch, label apply, FL renewal…) |
+| Description | One sentence, Lion-specific |
+| Where audit happens | Physical/system/process locus — floor, dispatch gate, warehouse, POS, lab, portal |
+| Trigger | Routine / per-batch / regulatory visit / incident / renewal / shipment clearance |
+| Audit source | Internal QA / resident Excise Unit / SLSI inspector / FCAU / Customs / external auditor |
+| Internal owner | Role that owns it day-to-day |
+| Frequency | Daily / per-batch / monthly / annual / event — all that apply |
+| Key pain point | What specifically breaks at Lion's scale without AI (this seeds the product case) |
+| Candidate AI lever | The intervention: flag / reconcile / block / generate evidence / alert — tied to the CTO's "faster, smoother, cheaper" |
+| Governing body / standard | Sri Lankan law/body + any international standard |
+| Confidence + provenance | HIGH/MEDIUM/LOW/OPEN, and "per Section 1 [ref]" / source / [NEW INFERENCE] / [GAP] |
+
+CHECKPOINT — after the register, STOP. Do not produce data landscape.
+End with: (a) a count of domains by confidence, (b) any domain you're unsure belongs / 
+overlaps another, flagged for my decision, (c) the 5–8 domains whose Key pain point looks 
+like the sharpest risk-reduction or time-saving opportunity, tagged [CARRY-FORWARD].
+
+QUALITY BAR
+Specific enough that I can validate the taxonomy in one read and a product designer can 
+later see which process step to automate per domain. Generic compliance theory fails.
+
+Prompt 3 - Stage 2 -Problem Statements + Prioritization · run on Opus
+
+ROLE
+You are the product-strategy lead converting the Compliance Domain Register (Section 2, 
+project files) into sharp, prioritized problem statements for Lion Brewery (Ceylon) PLC. 
+This feeds a CFO/CTO-facing prototype, so problems must be decision-grade, not technical.
+
+INHERIT confidence discipline: tag HIGH/MEDIUM/LOW/OPEN + provenance. NEVER harden OPEN 
+items (capacity ~2.0–2.4M hL, POS ~1,130–3,000, revenue basis, SLS number, ISO 22000 cert, 
+EPL/BOI status, lab system-of-record) — quantify with RANGES + labeled assumptions, never 
+invented precision.
+
+INPUT: the 8 [CARRY-FORWARD] items in the register checkpoint (D1 excise four-way recon; 
+D5/D6 dispatch FL-licence validation; D2/D3 QC hold + ABV triple-check; D8 export bundle 
+gate; D12 always-ready evidence packs; D7 cash-route recon; D4 label-version control; 
+D2/D6 batch genealogy recall).
+
+TASK
+For EACH carry-forward, write a problem statement with:
+  • The problem in one CFO-legible sentence (not "no system-enforced hold" — rather 
+    "a batch can ship on an overridden quality hold, creating recall + excise exposure")
+  • Current state — what happens today, manually, and where it breaks
+  • Who feels it (the role) and who up the chain feels the CONSEQUENCE
+  • Cost / risk of inaction — Rs exposure, penalty precedent, time, audit drag (ranges)
+  • Candidate AI intervention (flag/reconcile/block/generate/alert) + feasibility (how 
+    hard to build/integrate, HIGH/MED/LOW)
+  • Demo-ability — how visually compelling this is in a 5-min prototype (HIGH/MED/LOW)
+
+THEN PRIORITIZE on: risk-reduction × time-cost-saved × demo-ability × feasibility. 
+Produce a ranked table, and NARROW to the 3–4 that should be the prototype's spine. 
+Justify the cut. Bias the spine toward D1 (largest Rs, penalty-backed) and D12 (cleanest 
+"faster/smoother/cheaper" expression of the CTO mandate) unless the ranking argues otherwise.
+
+OUTPUT: problem statements → ranked table → chosen 3–4 spine + rationale.
+
+Prompt 4 - Stage 3 -  Persona → Pain → Value Mapping · run on Opus
+
+ROLE
+You are the demo-narrative architect. Using the Register (§2) and the chosen 3–4 problem 
+statements (prior step), build the persona layer that links floor-level pain to the CFO's 
+decision. This is the spine of the prototype's story.
+
+INHERIT confidence discipline; keep OPEN items OPEN; ground roles in §1.9.
+
+TASK
+1. Name 3–4 personas in Lion's compliance chain — pulled from real roles, e.g. QA/Lab 
+   Manager, Excise Compliance Officer, Distribution Manager, and the CTO/CFO sponsor. 
+   (Flag where a role's existence is OPEN per §1.9 — don't invent an org chart.)
+2. For each persona:
+   • A day-in-the-life of the pain, tied to a specific chosen problem
+   • Today (manual) vs. With-AI (the intervention) — concrete, not abstract
+   • Who UP THE CHAIN feels the consequence (this is the link to the CFO)
+   • The one line they'd say in the room ("I spend three days a month reconciling 
+     stickers to duty by hand")
+3. Map each chosen problem → its primary persona → the executive consequence. Show the 
+   chain explicitly: floor pain → operational risk → CFO money/audit exposure.
+
+OUTPUT: persona cards + a problem→persona→executive-consequence map. This map IS the 
+storyboard the prototype screens will follow.
+
+Prompt 5 - Stage 4 - CFO Value Framing (quantified before/after) · run on Opus
+ROLE
+You are the value-engineering lead producing the CFO business case behind the prototype. 
+The CFO decides on four levers: TIME, COST, RISK, AUDIT-READINESS. Translate the chosen 
+3–4 problems into defensible before/after economics in that language.
+
+CRITICAL — defensibility over precision: Lion-specific numbers are OPEN. Build a model 
+with RANGES + explicitly labeled assumptions (e.g. "assume 1 FTE × 3 days/month on excise 
+recon — VALIDATE with Lion"). A CFO/CTO will probe; a fake-precise number kills credibility, 
+a clearly-assumed range earns it. Mark every figure [ASSUMPTION], [SOURCED], or [LION-VALIDATE].
+
+TASK
+For each chosen problem:
+  • Before — hours/headcount consumed, error/penalty exposure (cite D1's ~100% duty 
+    penalty precedent where relevant), reconciliation leakage, audit-prep time
+  • With AI — realistic reduction (range), and the residual that still needs humans
+  • Net story per lever: time saved, cost saved, risk reduced, audit-readiness gained
+THEN: extract the 4–6 HEADLINE METRICS the prototype's hero screen must display to make 
+a CFO lean in (e.g. "Rs X–Y duty leakage closed", "audit pack: 3 weeks → on-demand").
+List which metrics require Lion validation before the meeting.
+
+OUTPUT: per-problem value table → headline-metrics set for the hero screen → validation list.
+
+Prompt 6 - Stage 6 — Product Definition & Positioning · Opus
+ROLE
+You are the product lead defining what we're actually putting in front of Lion Brewery's 
+CFO/CTO. Inputs: the chosen 3–4 problem spine, persona map, and headline metrics from 
+prior stages. Output the product concept that the screens will render — concept before pixels.
+INPUTS : 
+Product Spine from Project files/chat above
+ persona→consequence map from Project Files /chat above
+headline metrics set - from above / project files 
+INHERIT discipline: OPEN items stay ranges/assumptions; no invented precision.
+TASK
+1. Product identity: a name (offer 3 options), a one-line category definition, and a 
+   one-paragraph "what it is" — in the "not a dashboard, the qualified signal" spirit, 
+   but for compliance: continuous, evidence-generating, risk-reducing. NOT "a compliance 
+   tool" — a posture.
+2. Capability set: 4–5 capabilities, each tied to a problem in the spine and phrased as 
+   an executive outcome (e.g. "Excise four-way auto-reconciliation" → "never lose duty to 
+   a sticker mismatch again").
+3. Positioning: one crisp line each for the CFO (cost/risk/audit-readiness) and the CTO 
+   (coverage, integration depth, what runs continuously vs on-demand).
+4. The "hero moment": name the single capability that, if shown well, makes the CFO lean 
+   in. Justify the pick. This becomes the prototype's lead screen.
+OUTPUT: identity → capabilities → dual positioning → nominated hero moment + rationale.
+
+
+Prompt/Stage 7 — UX Blueprint · Opus (Fable if you want the pitch-defining edge — this is where the demo's narrative judgment lives)
+ROLE
+You are the UX architect translating the locked Product Concept (Stage 6, attached/project 
+files) into a wireframe-grade screen blueprint for a 5-minute CFO/CTO walkthrough of 
+"Keystone" (working name — swappable). No code, no component/state inventory yet (that's 
+the next stage). A storyboard a developer and a CFO can both read.
+
+INPUTS (use as-is; do not re-derive)
+- Spine: P1 excise recon · P3 QC hold+ABV · P2 dispatch licence · P5 evidence packs
+- Capabilities: C1 four-way reconciliation (HERO) · C2 quality gate+ABV triple-check · 
+  C3 dispatch licence validation · C4 evidence packs · C5 live posture view (unifier)
+- Locked sequencing: C1 hero → C2/C3 feeding controls → C4/C5 "here's your posture" finale
+- Dual positioning + the hero rationale (rupee variance, penalty-backed asymmetry)
+
+DISCIPLINE (carry forward, non-negotiable)
+- Every on-screen figure tagged [SOURCED] / [ILLUSTRATIVE] / [ASSUMPTION] / [LION-VALIDATE].
+- OPEN items shown as RANGES (POS ~1,130–3,000; capacity ~2.0–2.4M hL); Rs figures on the 
+  ~Rs 64.8bn base + ~100% penalty, exposure ~Rs 160M–650M [ILLUSTRATIVE].
+- Visually DISTINGUISH "live now" from "pilot-dependent" capability — C3 live-block is 
+  [GAP A9] subject to licence-register access; show validation/alert as live, block as 
+  pilot-gated. Never let the prototype overclaim to a CTO who will probe integration.
+
+TASK
+1. DEMO STORYBOARD — the exact click-path (4–5 screens) enacting the locked sequence: 
+   open on the money (C1 hero), pass through the feeding controls (C2/C3), close on the 
+   relief (C4/C5). For each screen state: the 10-second narration the founder would say, 
+   and the single "aha" it must land.
+
+2. HERO SCREEN — "Excise Four-Way Reconciliation" (the CFO money-shot). Specify:
+   - The four tied-out streams (packaged volume · stickers consumed · permits issued · 
+     duty declared) and how they're laid out so the eye sees them reconcile.
+   - THE moment: the red rupee-denominated variance flag firing when the four disagree — 
+     where it sits, how it reads, the at-risk → controlled transition.
+   - The ONE live interaction that proves this isn't a slide (a reconcile/resolve action 
+     that moves the rupee number in front of the CFO). Describe its before/after.
+   - Visual hierarchy: the single most important number, what's green vs at-risk.
+
+3. SUPPORTING SCREENS — one per remaining spine control (C2, C3, and a combined C4/C5 
+   finale, or split if the storyboard needs it). For EACH:
+   - Persona served (Excise Officer / QA-Lab Manager / Distribution Manager / Audit 
+     Committee sponsor)
+   - Data shown + the AI action made visible (gate / block / validate / assemble)
+   - The "aha", and how it hands off to the next screen in the sequence
+   - "Live now" vs "pilot-dependent" labelling where relevant (esp. C3)
+
+4. PER-SCREEN DATA + SOURCE MAP — every data element on each screen with its tag 
+   (real / illustrative / LION-VALIDATE), so the build knows what's defensible vs framed 
+   illustrative. This is the bridge to the data-architecture stage.
+
+5. VISUAL DIRECTION — enterprise-credible, audit-native, calm and data-dense-but-legible; 
+   trustworthy-for-a-regulated-manufacturer, NOT startup-flashy. Match Stage 6's 
+   "infrastructural / posture" tone. Name a palette intent, density level, and the feeling 
+   a CFO should have looking at it (control, not dazzle).
+
+OUTPUT
+Storyboard → hero spec → supporting-screen specs → per-screen data+source map → visual 
+direction. Skimmable; a developer should be able to start the UI spec without asking a 
+single clarifying question.
+
+Prompt/Stage 7.5 -  UI Spec + Front-End Data Architecture · Opus
+ROLE
+You are the front-end architect converting the locked Screen Blueprint (Stage 7, 
+attached/project files) into two artifacts a developer builds directly from: a COMPONENT 
++ STATE inventory, and a single canonical FRONT-END DATA MODEL that all five screens 
+(C1–C5) read from. No mock VALUES yet (that's the next stage) and no JSX — the contract, 
+not the content.
+
+NON-NEGOTIABLE: ONE SOURCE OF TRUTH
+The CFO will see the same risk number on the hero (C1) and the posture finale (C5). They 
+must be the SAME field, computed once — never authored twice. Every cross-screen value 
+(excise base, exposure band, ABV, variance, regulator×control grid, evidence-pack items) 
+lives in the shared model and is DERIVED into each screen, never re-stated. If two screens 
+show a value, it has one home in the model.
+
+CARRY THE DISCIPLINE INTO THE DATA LAYER
+- Source tag is a PROPERTY OF THE DATA, not a UI afterthought. Every field carries 
+  `sourceTag: SOURCED | ILLUSTRATIVE | ASSUMPTION | LION_VALIDATE | OPEN`. The chip the 
+  CFO sees is rendered FROM this field — so the model can't show a number without 
+  declaring its provenance.
+- OPEN values are typed as RANGES (`{low, high}`), never scalars (POS ~1,130–3,000; 
+  capacity ~2.0–2.4M hL). The type system itself should forbid collapsing an OPEN to a 
+  single number.
+- Live-vs-pilot is a DATA STATE: every capability/action carries `liveState: LIVE | 
+  PILOT_GATED` + optional `gapRef` (e.g. A9). C3 auto-block = PILOT_GATED. The UI motif 
+  (solid vs dashed/PILOT badge) renders from this, not from hardcoding.
+
+PART A — COMPONENT INVENTORY (deduplicated across all 5 screens)
+1. Identify the SHARED primitives first (these recur — define once, reuse): SourceChip, 
+   LivePilotBadge, MetricStat, RangeValue, StatusCell (green/amber/red), StreamNode, 
+   TieOutNode, RegulatorTile, GateRow, ProvenanceFootnote — adjust to what the screens 
+   actually need. For each: purpose, the props it takes (typed, pulling from the data 
+   model), and which screens use it.
+2. Then SCREEN-SPECIFIC components (e.g. FourWayReconciliation, ABVTripleCheck, 
+   DispatchQueueRow, EvidencePackAssembler, PostureGrid). Each: composition (which 
+   primitives it nests), props, and the screen it belongs to.
+3. Flag any component appearing on ≥2 screens as SHARED so it isn't rebuilt.
+
+PART B — STATE INVENTORY (every stateful component as an explicit state set)
+- Universal states where they apply: loading / empty / populated / error.
+- Domain states, specified per component:
+  • Hero tie-out: RECONCILED(green) ↔ AT_RISK(amber stream + red variance) — and the 
+    TRANSITION (the Rs 3.2M → Rs 0 resolve). Spec it as a small state machine: trigger 
+    (Investigate→Reconcile), what data mutates, resulting UI state, side-effect (evidence 
+    item appends — foreshadows C4).
+  • C2 gate: HELD / CLEARED, and the ABV-mismatch sub-state.
+  • C3 licence: VALID / EXPIRING / LAPSED / WRONG_CATEGORY, ×  LIVE(validate+alert) vs 
+    PILOT_GATED(auto-block).
+  • C5 cells: ok / attention / breach, plus the committee-rollup state.
+- For the ONE live interaction, define the full before→action→after state path and every 
+  field it touches.
+
+PART C — FRONT-END DATA MODEL (the canonical schema — the heart of this stage)
+1. Express as TS-style interfaces (the build contract) PLUS an empty JSON skeleton (keys 
+   only, no values — 7.75 fills it). 
+2. Model as NORMALIZED ENTITIES with a canonical naming registry, e.g.:
+   `company` (excise.base, capacity{low,high}, posCount{low,high} …each with sourceTag)
+   `period`, `reconciliation` (volume, stickers, permits, dutyDeclared, variance, node 
+   state), `batch` (qcPanel, abv{lab,label,excise}, gateState), `dispatchLoad` (pos, 
+   licenceStatus, liveState), `regulator` (6), `control` (4), `postureCell` 
+   (regulator×control), `evidencePackItem` (with `derivedFrom: C1|C2|C3`), `headlineMetric`.
+3. Make DERIVATIONS explicit: list every screen value that is COMPUTED from base entities 
+   (variance = f(volume,stickers,permits,duty); posture cell = f(control status per 
+   regulator); evidence items = pulled from C1/C2/C3 outputs; C1 duty basis consumes 
+   C2's ABV). State the formula/source field so nothing is independently invented.
+4. Naming registry table: canonical key → meaning → type → sourceTag → screens that read 
+   it. This is what 7.75 and Stage 8 reference verbatim so keys never drift.
+5. Integration touchpoints as ANNOTATIONS only (where the live source WOULD wire in — 
+   ERP/SAP, Fool-Proof-Sticker portal, permit system, LIMS, customer master, Excise 
+   licence register) — documented in the schema as comments, NOT built. Note which are 
+   PILOT_GATED.
+
+OUTPUT
+Part A component inventory → Part B state inventory → Part C data model (interfaces + JSON 
+skeleton + derivations + naming registry + integration annotations). A developer should be 
+able to scaffold the component tree and the empty data store from this with zero questions; 
+7.75 should be able to fill the skeleton without inventing a single key.
+
+STOP before generating mock values.
+
+PROMPT/Stage 7.75 — Mock Data Generation · Sonnet
+ROLE
+You are generating the single canonical mock dataset that fills the EMPTY JSON SKELETON 
+from Stage 7.5 (§7.5 C.6, attached/project files) for the "Keystone" prototype. You are 
+NOT designing — the schema, types, derivations (D1–D10), naming registry (C.4), and source 
+tags are LOCKED. Your job is to populate values that are internally consistent and 
+demo-ready. Output valid JSON matching the skeleton exactly.
+
+HARD RULES (violating any one breaks the build)
+1. Fill ONLY the keys in the C.6 skeleton. Invent NO new keys. Drop NO keys.
+2. Every value's shape matches C.1 types: scalars as `Tagged<T>` ({value, sourceTag}), 
+   bands as `TaggedRange` ({range:{low,high}, sourceTag}), Money as {amount, currency:'LKR'}.
+3. sourceTag on every field = EXACTLY what the naming registry (C.4) specifies. Do not 
+   upgrade an ILLUSTRATIVE/ASSUMPTION field to SOURCED.
+4. OPEN values stay RANGES, never scalars (capacityHL, posCount).
+5. Derived fields must ACTUALLY compute from their base fields per C.3 — do not author a 
+   derived number that contradicts its formula (see "TIES" below).
+
+BOOT STATE = BEFORE THE RECONCILE (critical — the demo resolves this live)
+The store must boot in the AT_RISK / pre-reconcile snapshot, because the hero interaction's 
+whole value is the CFO watching it resolve. Set the fields that the B.4 action will later 
+mutate to their BEFORE values:
+- reconciliation.nodeState = "AT_RISK"
+- reconciliation.streams[stickersConsumed].status = "MISMATCH"; its value = the SHORT count
+- the other 3 streams.status = "AGREE"
+- reconciliation.variance.status = "AT_RISK", amount = the demo variance
+- postureGrid[EXCISE×DUTY].status = "ATTENTION"  (it flips to OK only at runtime)
+- evidencePacks[EXCISE].items = include the C2 + C3 + permit-tie-out items, but DO NOT 
+  include the "Four-way reconciliation — May (from C1)" item — that one appends on reconcile.
+Everything else reflects the standing state (e.g. Customs×Dispatch ATTENTION is independent 
+of the hero and stays).
+
+LOCKED DEMO NUMBERS (use these exact anchors so data matches the Stage 7 screens)
+| Field | Value | Note |
+|---|---|---|
+| company.exciseBase | Rs 64.8bn | SOURCED |
+| company.dutyPenaltyPct | 100 | SOURCED |
+| company.capacityHL | {2.0M, 2.4M} hL | OPEN range |
+| company.posCount | {1130, 3000} | OPEN range |
+| company.exposureBand | {160M, 650M} | ILLUSTRATIVE — must = exciseBase × discrepancyRate |
+| assumptions.discrepancyRate | {0.0025, 0.01} | so 64.8bn × {..} ≈ {162M, 648M} ≈ band |
+| assumptions.dutyRatePerUnit | Rs 6,400/unit | so 500 units × rate = 3.2M variance |
+| assumptions.abvTolerancePct | 0.1 | so 0.2 ABV delta = MISMATCH |
+| assumptions.fteLoadedCost | {3M, 6M}/yr | ASSUMPTION A1 |
+| C1 streams | packagedVolume 12,400 ✓ · stickersConsumed 11,900 ⚠(MISMATCH) · permitsIssued 12,400 ✓ · dutyDeclared pending | units |
+| variance.unaccountedUnits | 500 | = 12,400 − 11,900 |
+| variance.amount | Rs 3.2M | = 500 × 6,400 |
+| variance.rootCause | plain-language string re: 500 units short on dispatch window D-1184 | |
+| detectionLatency | "2 min vs ~weeks manual" | ASSUMPTION |
+| C2 batch ABV | lab 4.8 · label 4.6 · excise 4.6 | → mismatchDelta 0.2, reconciled false |
+| C2 batch | id B-2271, qcPanel micro PASS / sensory PASS / abv INCOMPLETE-or-FAIL, gateState HELD, heldReason ABV_MISMATCH | |
+| C3 loads | L-440→Outlet#218 FL-4 VALID · L-441→Hotel#57 SLTDA LAPSED(EXPIRING/alert) · L-442→Outlet#903 FL-4 LAPSED(expired) | autoBlock PILOT_GATED gapRef A9 on all |
+| regulators (6) | EXCISE, SLSI, FCAU, CUSTOMS, CEA, LABOUR | SOURCED §2 |
+| controls (4) | DUTY, QUALITY, DISPATCH, EVIDENCE | |
+| postureGrid (24) | match Stage 7 C5 grid EXCEPT EXCISE×DUTY = ATTENTION (before-state); CUSTOMS×DISPATCH = ATTENTION (standing) | the rest OK/blank per wireframe |
+| committeeRollup | 1 item: CUSTOMS×DISPATCH, severity HIGH | independent of hero |
+| evidencePacks | one per regulator; EXCISE shows C2/C3/permit items CHECKED, C1 four-way item omitted (appends on reconcile); prepBaseline "weeks → on-demand" ASSUMPTION A6 | |
+| headlineMetrics | exposure → REFERENCE company.exposureBand (same field, D10) · auditReady 6/6 · teamDaysReturned {150,300} ASSUMPTION · detectionLatency "months → days" ASSUMPTION | mixed tags |
+
+TIES TO VERIFY (these must hold in your output — they are the consistency contract)
+T1  exposureBand.range = exciseBase × discrepancyRate.{low,high}  (≈162M / 648M → present as 160M–650M band)
+T2  variance.amount = variance.unaccountedUnits × dutyRatePerUnit  (500 × 6,400 = 3,200,000)
+T3  variance.unaccountedUnits = packagedVolume − stickersConsumed  (12,400 − 11,900 = 500)
+T4  abv.reconciled = (|lab−label| ≤ tol AND |lab−excise| ≤ tol) → false; mismatchDelta = 0.2
+T5  batch.gateState = HELD  (because abv.reconciled is false)  with heldReason ABV_MISMATCH
+T6  postureCell[EXCISE×DUTY] = ATTENTION  ⟺ reconciliation.nodeState = AT_RISK  (before-state)
+T7  committeeRollup.items = posture cells at HIGH-severity ATTENTION/BREACH → the Customs×Dispatch item
+T8  headlineMetrics[exposure].value references company.exposureBand — identical numbers, not a re-typed copy
+T9  evidencePacks[EXCISE] does NOT contain the C1 four-way item in boot state
+
+FLAVOR (Sri-Lanka-plausible, lightweight)
+Period label "May 2026". Realistic outlet/hotel refs, batch IDs, permit/dispatch-window 
+IDs. Keep it sober and enterprise — no jokes in the data.
+
+OUTPUT (two parts)
+1. The complete filled JSON (valid, parseable, matches the C.6 skeleton key-for-key).
+2. A short CONSISTENCY-CHECK REPORT: tick T1–T9 with the actual numbers you used, and 
+   confirm "no new keys added, all sourceTags per registry, boot state = pre-reconcile." 
+   If any tie cannot hold, STOP and flag it rather than fudging a number.
+
+
+Stage 8 - Cursor Prompt to Build 
+You are building the "Keystone" prototype: a 5-minute CFO/CTO demo for Lion Brewery 
+(Ceylon) PLC. The spec is LOCKED across three files in context — Section 7.5 (the data + 
+component contract), data/keystone.seed.json (the canonical dataset), and Section 7 (screen 
+blueprint + visual direction). Do NOT redesign, rename, or re-derive anything in them. Your 
+job is faithful implementation, not invention.
+
+STACK
+- Next.js (App Router, latest) + TypeScript (strict) + Tailwind CSS
+- Zustand for the single global store
+- framer-motion for the ONE hero animation only
+- lucide-react for icons
+- next/font: IBM Plex Sans (or Inter) with tabular numerals enabled
+Scaffold the project if not present. Client-side only — no backend, no API routes, no DB.
+
+NON-NEGOTIABLE CONTRACT (this is why the prior stages existed — do not break it)
+1. ONE SOURCE OF TRUTH. Every value comes from the Zustand store, seeded from 
+   data/keystone.seed.json. NO inline numeric/string literals for any domain value in any 
+   component. If a component shows Rs 64.8bn or "11,900 units", it reads it from the store. 
+   The exposure band on C1 and C5 must be the SAME store field (company.exposureBand), 
+   referenced twice, never two literals.
+2. sourceTag DRIVES the chip. The <SourceChip> renders from the field's sourceTag — a 
+   value can never appear on screen without its provenance dot. Never hardcode a chip color.
+3. OPEN values render as RANGES via <RangeValue> ({low,high}) — never collapsed to a scalar 
+   (capacityHL, posCount, exposureBand, teamDaysReturned).
+4. LIVE vs PILOT is a data state. <LivePilotBadge> and the solid-vs-dashed border render 
+   from liveState/gapRef on the data (e.g. dispatchLoads[].autoBlock = PILOT_GATED, A9). 
+   Never style a pilot action as live, never hardcode the badge per row.
+
+TYPES & STORE (build these FIRST, before any UI)
+- lib/types.ts — port Section 7.5 §C.1–C.2 interfaces VERBATIM (SourceTag, Tagged<T>, 
+  TaggedRange, Money, KeystoneStore, all entities). Strict types; no `any`.
+- lib/store.ts — Zustand store typed as KeystoneStore, initialized from the seed JSON. 
+  Boot state = the pre-reconcile snapshot already in the seed (nodeState AT_RISK, sticker 
+  stream MISMATCH, EXCISE×DUTY ATTENTION, C1 four-way evidence item absent).
+- lib/derivations.ts — implement D1–D10 from §C.3 as pure selectors/functions in ONE place. 
+  Components consume derivations; they never recompute a derived value inline.
+
+THE ONE LIVE INTERACTION (the demo's heart — get this exact, per §7.5 B.1 + B.4)
+A store action `reconcileVariance()` that performs EXACTLY the B.4 field mutations and 
+NOTHING else:
+- stickersConsumed stream → AGREE, value → matched count
+- variance → CLEARED, amount → Rs 0
+- nodeState → RECONCILED
+- detectionLatency becomes visible
+- append ONE EvidencePackItem {derivedFrom:'C1', status:'CHECKED'} to the EXCISE pack
+- flip postureGrid[EXCISE×DUTY] → OK
+company.exposureBand and headlineMetrics must NOT mutate (the band is standing context, not 
+a live measurement). The Rs 3.2M → Rs 0 transition is the ONLY framer-motion animation in 
+the app — a count-down on the variance number. Because C4 and C5 read the same store, the 
+appended evidence item and the flipped posture cell must visibly update on those screens 
+after the reconcile — verify this ripple works.
+
+COMPONENT TREE (match Section 7.5 Part A — shared primitives built once, reused)
+  components/primitives/  → SourceChip, LivePilotBadge, RangeValue, MetricStat, StatusCell, 
+                            RegulatorTile, GateRow, PeriodSelector, ProvenanceFootnote, ScreenChrome
+  components/c1/  → FourWayReconciliation, StreamNode, TieOutNode, VarianceFlag, VarianceInvestigationDrawer
+  components/c2/  → ReleaseGate, ABVTripleCheck
+  components/c3/  → DispatchQueue, DispatchQueueRow, LicenceStatusBadge
+  components/c4/  → EvidencePackSelector, EvidencePackAssembler, EvidencePackItemRow
+  components/c5/  → PostureGrid, HeadlineMetricsBand (SHARED with C1), CommitteeRollup
+Do not rebuild a shared primitive inside a screen. HeadlineMetricsBand, RegulatorTile, 
+StatusCell, GateRow are explicitly cross-screen — import, don't duplicate.
+
+DEMO SHELL (the click-path)
+A single guided flow with a stepper advancing C1 → C2 → C3 → C4 → C5 (the locked sequence). 
+Each screen is a route or a step view; the store persists across steps so the C1 reconcile 
+is reflected when the user reaches C4/C5. Keep navigation obvious (Next/Back + step labels) 
+— this is driven live in front of a CFO, not self-served.
+
+VISUAL DIRECTION (Section 7 Part 5 — implement precisely)
+- Deep slate/navy base, near-black panels. Green = reconciled/valid (recessive, resting). 
+  Amber = attention/expiring. RED RESERVED STRICTLY FOR RUPEES-AT-RISK — red appears 
+  nowhere else, so the hero variance hits. One steel-blue accent for interactive affordances.
+- Tabular/monospaced numerals so rupee columns align vertically (non-negotiable for a 
+  reconciliation product). Generous number sizes, quiet labels.
+- Live = solid border + filled badge; Pilot = dashed border + ◌ PILOT badge. One consistent 
+  motif everywhere.
+- Motion is minimal and meaningful: ONLY the variance Rs 3.2M → Rs 0 animates. Everything 
+  else is still. No gradients, no neon, no startup glow. The CFO should feel control, not dazzle.
+
+BUILD ORDER (do this sequentially; verify each before the next)
+1. Scaffold + fonts + Tailwind theme tokens (slate/navy, the reserved-red, tabular nums).
+2. types.ts → store.ts (seeded) → derivations.ts. Verify the store boots in AT_RISK state.
+3. Shared primitives.
+4. C1 hero INCLUDING the reconcile interaction + ripple. STOP and verify the Rs 3.2M → Rs 0 
+   animation and that C4/C5 reflect the change.
+5. C2, C3, C4, C5.
+6. Demo shell + stepper.
+
+DO NOT (Cursor anti-patterns that will break the contract)
+- Do not hardcode any domain number — read from store.
+- Do not collapse an OPEN range to a single number to "clean up" a layout.
+- Do not render the C3 auto-block as live, or drop the PILOT badge.
+- Do not add localStorage, API routes, or extra animations.
+- Do not invent data keys not in the seed/types.
+
+FINISH WITH a SELF-REVIEW REPORT (I can't see the running app — you must self-audit):
+☐ Every on-screen value traces to a store field (grep your components for hardcoded numbers — 
+  list any found and justify or remove)
+☐ company.exposureBand is the SAME field on C1 and C5 (not two literals)
+☐ All OPEN values render as ranges
+☐ C3 auto-block renders dashed + PILOT; validate/alert render live
+☐ reconcileVariance() mutates only the B.4 fields; exposureBand/headlineMetrics unchanged
+☐ The C1 reconcile visibly updates the EXCISE evidence pack (C4) and EXCISE×DUTY cell (C5)
+☐ Red is used ONLY for rupees-at-risk
+☐ Numerals are tabular and rupee columns align
+List anything you couldn't satisfy.
+
+Notes : 
+Use Cursor's strongest model for build steps 1–4 (types, store, derivations, hero + interaction) — that's the judgment-heavy foundation where a wrong store shape or a broken ripple poisons everything downstream. 
+Steps 5–6 (the remaining screens against locked primitives) are faithful execution and a faster model is fine, mirroring the Opus→Sonnet split we've used.

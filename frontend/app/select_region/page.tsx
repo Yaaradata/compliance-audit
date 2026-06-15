@@ -36,6 +36,14 @@ const SOFTWARE_AUDIT_PATHS: Record<SoftwareAuditVersion, string> = {
   v2: "/software_audit/v2",
 };
 
+type SrilankaRetailVersion = "v1";
+
+const LATEST_SRILANKA_RETAIL_VERSION: SrilankaRetailVersion = "v1";
+
+const SRILANKA_RETAIL_PATHS: Record<SrilankaRetailVersion, string> = {
+  v1: "/Srilanka_Retail/v1",
+};
+
 type RegionOption = {
   id: string;
   title: string;
@@ -86,6 +94,13 @@ const REGION_OPTIONS: RegionOption[] = [
     icon: "💻",
     accentSoftClass: "bg-violet-50 ring-violet-100",
     href: SOFTWARE_AUDIT_PATHS.v2,
+  },
+  {
+    id: "srilanka-retail",
+    title: "Srilanka Retail",
+    icon: "🍺",
+    accentSoftClass: "bg-amber-50 ring-amber-100",
+    href: SRILANKA_RETAIL_PATHS[LATEST_SRILANKA_RETAIL_VERSION],
   },
 ];
 
@@ -293,9 +308,57 @@ function SoftwareAuditCard({ option }: { option: RegionOption }) {
   );
 }
 
+function SrilankaRetailCard({ option }: { option: RegionOption }) {
+  const router = useRouter();
+  const [version, setVersion] = useState<SrilankaRetailVersion>(LATEST_SRILANKA_RETAIL_VERSION);
+
+  const openDashboard = () => {
+    router.push(SRILANKA_RETAIL_PATHS[version]);
+  };
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="relative mb-3">
+        <div className="flex justify-center">
+          <div
+            className={`flex h-14 w-14 items-center justify-center rounded-2xl ring-1 ${option.accentSoftClass}`}
+          >
+            <span className="text-2xl" aria-hidden>
+              {option.icon}
+            </span>
+          </div>
+        </div>
+        <select
+          id="srilanka-retail-version"
+          value={version}
+          onChange={(e) => setVersion(e.target.value as SrilankaRetailVersion)}
+          className="absolute right-0 top-0 h-7 w-[6.75rem] cursor-pointer rounded-md border border-slate-200 bg-slate-50/90 py-0 pl-2 pr-6 text-xs font-medium text-slate-600 outline-none transition hover:border-slate-300 hover:bg-white focus:border-amber-400 focus:ring-1 focus:ring-amber-500/20"
+          aria-label="Srilanka Retail version"
+        >
+          <option value="v1">v1 — latest</option>
+        </select>
+      </div>
+
+      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">{option.title}</h2>
+      <p className="mt-1 text-center text-sm text-slate-500">Choose dashboard to continue</p>
+
+      <button
+        type="button"
+        onClick={openDashboard}
+        className="mt-4 min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      >
+        Open dashboard
+      </button>
+    </div>
+  );
+}
+
 function RegionCard({ option }: { option: RegionOption }) {
   if (option.id === "uk-banking-audit") {
     return <UKBankingAuditCard option={option} />;
+  }
+  if (option.id === "srilanka-retail") {
+    return <SrilankaRetailCard option={option} />;
   }
   if (option.id === "indian-process") {
     return <IndianProcessAuditCard option={option} />;

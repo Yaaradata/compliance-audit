@@ -1,0 +1,62 @@
+/* Keystone — dark (default) + light theme tokens (reference palette) */
+
+[data-keystone-theme="dark"] {
+  --ks-bg: #0a0e1a;
+  --ks-bg-grad: #0c1120;
+  --ks-panel: #111726;
+  --ks-panel-alt: #0e1422;
+  --ks-raise: #161e30;
+  --ks-border: #1e2740;
+  --ks-border-soft: #19223a;
+  --ks-text: #e7ebf3;
+  --ks-dim: #8d99b0;
+  --ks-faint: #5c6885;
+  --ks-green: #34d399;
+  --ks-green-dim: #16352c;
+  --ks-green-edge: #1f5d49;
+  --ks-amber: #f5b945;
+  --ks-amber-dim: #3a2f12;
+  --ks-amber-edge: #6b521d;
+  --ks-red: #f87171;
+  --ks-red-dim: #3a1d20;
+  --ks-red-edge: #7a3236;
+  --ks-accent: #5cc2f0;
+  --ks-accent-dim: #14334a;
+  --ks-accent-edge: #2d6b91;
+  --ks-chip-bg: #0c1322;
+  --ks-btn-primary-fg: #04121d;
+}
+
+[data-keystone-theme="light"] {
+  --ks-bg: #eef1f8;
+  --ks-bg-grad: #e4e9f4;
+  --ks-panel: #ffffff;
+  --ks-panel-alt: #f6f8fc;
+  --ks-raise: #eef2f9;
+  --ks-border: #d4dbe8;
+  --ks-border-soft: #e2e8f0;
+  --ks-text: #0f172a;
+  --ks-dim: #475569;
+  --ks-faint: #64748b;
+  --ks-green: #059669;
+  --ks-green-dim: #ecfdf5;
+  --ks-green-edge: #a7f3d0;
+  --ks-amber: #d97706;
+  --ks-amber-dim: #fffbeb;
+  --ks-amber-edge: #fcd34d;
+  --ks-red: #dc2626;
+  --ks-red-dim: #fef2f2;
+  --ks-red-edge: #fca5a5;
+  --ks-accent: #0284c7;
+  --ks-accent-dim: #e0f2fe;
+  --ks-accent-edge: #7dd3fc;
+  --ks-chip-bg: #f1f5f9;
+  --ks-btn-primary-fg: #ffffff;
+}
+
+.keystone-root {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--ks-bg);
+  color: var(--ks-text);
+}

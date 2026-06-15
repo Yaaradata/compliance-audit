@@ -43,6 +43,7 @@ export default function FastTagPerformanceRegionSection({
         n="3"
         accent={C.teal}
         insight="Region-wise Performance"
+        trail={null}
         className="pf-region-head"
         right={
           <StateClusterFilterBar

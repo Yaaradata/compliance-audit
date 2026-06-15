@@ -1,0 +1,57 @@
+/**
+ * Exact colour palette from the reference JSX `C` object.
+ * All Keystone screens should map semantic states through these tokens.
+ */
+export const KEYSTONE_PALETTE = {
+  bg: "#0a0e1a",
+  bgGrad: "#0c1120",
+  panel: "#111726",
+  panelAlt: "#0e1422",
+  raise: "#161e30",
+  border: "#1e2740",
+  borderSoft: "#19223a",
+  text: "#e7ebf3",
+  dim: "#8d99b0",
+  faint: "#5c6885",
+  green: "#34d399",
+  greenDim: "#16352c",
+  greenEdge: "#1f5d49",
+  amber: "#f5b945",
+  amberDim: "#3a2f12",
+  amberEdge: "#6b521d",
+  red: "#f87171",
+  redDim: "#3a1d20",
+  redEdge: "#7a3236",
+  accent: "#5cc2f0",
+  accentDim: "#14334a",
+  accentEdge: "#2d6b91",
+  chipBg: "#0c1322",
+  openDot: "#6b7280",
+} as const;
+
+/** CSS variable names — values in keystone-theme.css mirror KEYSTONE_PALETTE (dark). */
+export const KS = {
+  bg: "var(--ks-bg)",
+  bgGrad: "var(--ks-bg-grad)",
+  panel: "var(--ks-panel)",
+  panelAlt: "var(--ks-panel-alt)",
+  raise: "var(--ks-raise)",
+  border: "var(--ks-border)",
+  borderSoft: "var(--ks-border-soft)",
+  text: "var(--ks-text)",
+  dim: "var(--ks-dim)",
+  faint: "var(--ks-faint)",
+  green: "var(--ks-green)",
+  greenDim: "var(--ks-green-dim)",
+  greenEdge: "var(--ks-green-edge)",
+  amber: "var(--ks-amber)",
+  amberDim: "var(--ks-amber-dim)",
+  amberEdge: "var(--ks-amber-edge)",
+  red: "var(--ks-red)",
+  redDim: "var(--ks-red-dim)",
+  redEdge: "var(--ks-red-edge)",
+  accent: "var(--ks-accent)",
+  accentDim: "var(--ks-accent-dim)",
+  accentEdge: "var(--ks-accent-edge)",
+  chipBg: "var(--ks-chip-bg)",
+} as const;
