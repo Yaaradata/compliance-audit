@@ -1,8 +1,15 @@
 /* Lion Brewery Ceylon PLC — AI Compliance Platform V2 design system.
- * Dark-mode only per prototype spec. All tokens scoped under .lion-v2 so the
- * V2 route never leaks styles into the rest of the app. */
+ * Dark + light themes via data-lion-theme on .lion-v2-root. Scoped so V2
+ * never leaks styles into the rest of the app. */
 
-.lion-v2 {
+.lion-v2,
+.lion-v2-root {
+  font-family: var(--font-lion-sans), Inter, system-ui, sans-serif;
+  font-feature-settings: "tnum" 1;
+}
+
+.lion-v2-root[data-lion-theme="dark"],
+.lion-v2[data-lion-theme="dark"] {
   /* Surfaces */
   --bg-app: #0d1117;
   --surface-card: #161b22;
@@ -30,11 +37,45 @@
 
   /* Lines */
   --border-subtle: #30363d;
+  --scrollbar-thumb: #30363d;
 
   background-color: var(--bg-app);
   color: var(--text-primary);
-  font-family: var(--font-lion-sans), Inter, system-ui, sans-serif;
-  font-feature-settings: "tnum" 1;
+}
+
+.lion-v2-root[data-lion-theme="light"],
+.lion-v2[data-lion-theme="light"] {
+  /* Surfaces */
+  --bg-app: #f6f8fa;
+  --surface-card: #ffffff;
+  --surface-raised: #f0f3f6;
+  --surface-overlay: #ffffff;
+
+  /* Status — same semantic hues */
+  --status-healthy: #1a7f37;
+  --status-watch: #9a6700;
+  --status-risk: #bc4c00;
+  --status-critical: #cf222e;
+  --status-neutral: #656d76;
+
+  /* Text */
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-inverse: #ffffff;
+
+  /* AI */
+  --ai-accent: #6d28d9;
+  --ai-surface: #f5f3ff;
+
+  /* Brand */
+  --lion-gold: #9a7b2e;
+
+  /* Lines */
+  --border-subtle: #d0d7de;
+  --scrollbar-thumb: #c4cdd5;
+
+  background-color: var(--bg-app);
+  color: var(--text-primary);
 }
 
 .lion-v2 * {
@@ -65,7 +106,7 @@
 
 /* Scrollbars within overlays */
 .lion-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-.lion-scroll::-webkit-scrollbar-thumb { background: #30363d; border-radius: 8px; }
+.lion-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 8px; }
 .lion-scroll::-webkit-scrollbar-track { background: transparent; }
 
 /* Animations */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BookOpen,
   Check,
@@ -8,6 +8,7 @@ import {
   FolderCheck,
   LayoutDashboard,
   Scale,
+  Shield,
   Store,
   ChevronUp,
 } from "lucide-react";
@@ -25,60 +26,77 @@ const NAV: { id: ScreenId; label: string; icon: typeof LayoutDashboard }[] = [
 ];
 
 export function SideNav() {
-  const { activeScreen, navigate, persona } = useApp();
+  const { activeScreen, navigate } = useApp();
+  const [open, setOpen] = useState(false);
 
   return (
     <nav
-      className="flex h-full w-[240px] shrink-0 flex-col"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      aria-label="Main navigation"
+      className={`flex h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 ease-out ${
+        open ? "w-[240px]" : "w-14"
+      }`}
       style={{ backgroundColor: "var(--surface-raised)", borderRight: "1px solid var(--border-subtle)" }}
     >
-      <div className="px-5 py-5">
-        <div className="text-[18px] font-bold tracking-tight" style={{ color: "var(--lion-gold)" }}>
-          Lion Brewery
-        </div>
-        <div className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
-          Ceylon PLC · Biyagama
-        </div>
+      <div className={`shrink-0 border-b py-4 ${open ? "px-5" : "px-2"}`} style={{ borderColor: "var(--border-subtle)" }}>
+        {open ? (
+          <>
+            <div className="text-[18px] font-bold tracking-tight" style={{ color: "var(--lion-gold)" }}>
+              Lion Brewery
+            </div>
+            <div className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
+              Ceylon PLC · Biyagama
+            </div>
+          </>
+        ) : (
+          <div className="flex justify-center">
+            <Shield size={20} style={{ color: "var(--lion-gold)" }} aria-hidden />
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 px-3">
+      <div className={`lion-scroll flex-1 overflow-y-auto overflow-x-hidden ${open ? "px-3" : "px-1.5"}`}>
         {NAV.map(({ id, label, icon: Icon }) => {
           const active = activeScreen === id;
           return (
             <button
               key={id}
               type="button"
+              title={!open ? label : undefined}
               onClick={() => navigate(id)}
-              className="mb-0.5 flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-[13px] font-medium transition-colors"
+              className={`mb-0.5 flex w-full items-center rounded-md py-2.5 text-[13px] font-medium transition-colors ${
+                open ? "gap-3 px-3 text-left" : "justify-center px-0"
+              }`}
               style={{
                 color: active ? "var(--text-primary)" : "var(--text-secondary)",
                 backgroundColor: active ? "var(--surface-card)" : "transparent",
-                borderLeft: active ? "2px solid var(--ai-accent)" : "2px solid transparent",
+                borderLeft: open ? (active ? "2px solid var(--ai-accent)" : "2px solid transparent") : "none",
               }}
             >
-              <Icon size={17} style={{ color: active ? "var(--ai-accent)" : "var(--text-secondary)" }} />
-              {label}
+              <Icon size={17} className="shrink-0" style={{ color: active ? "var(--ai-accent)" : "var(--text-secondary)" }} />
+              {open ? <span className="truncate">{label}</span> : null}
             </button>
           );
         })}
       </div>
 
-      <PersonaSwitcher />
-
-      <div className="px-5 py-3 text-[11px]" style={{ color: "var(--text-secondary)", borderTop: "1px solid var(--border-subtle)" }}>
-        Theme · <span style={{ color: "var(--text-primary)" }}>Dark</span> · {persona.role}
-      </div>
+      <PersonaSwitcher open={open} />
     </nav>
   );
 }
 
-function PersonaSwitcher() {
+function PersonaSwitcher({ open }: { open: boolean }) {
   const { persona, setPersona } = useApp();
-  const [open, setOpen] = useState(false);
+  const [popover, setPopover] = useState(false);
+
+  useEffect(() => {
+    if (!open) setPopover(false);
+  }, [open]);
 
   return (
-    <div className="relative px-3 pb-2">
-      {open ? (
+    <div className={`relative shrink-0 border-t ${open ? "px-3 pb-2 pt-2" : "px-1.5 py-2"}`} style={{ borderColor: "var(--border-subtle)" }}>
+      {popover && open ? (
         <div
           className="absolute bottom-full left-3 right-3 mb-2 overflow-hidden rounded-lg lion-fade-in"
           style={{ backgroundColor: "var(--surface-overlay)", border: "1px solid var(--border-subtle)" }}
@@ -89,16 +107,16 @@ function PersonaSwitcher() {
               type="button"
               onClick={() => {
                 setPersona(p.id);
-                setOpen(false);
+                setPopover(false);
               }}
-              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:brightness-125"
+              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:brightness-110"
             >
               <Avatar color={p.color} initials={p.avatarInitials} />
-              <div className="flex-1">
-                <div className="text-[12px] font-medium" style={{ color: "var(--text-primary)" }}>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12px] font-medium" style={{ color: "var(--text-primary)" }}>
                   {p.name}
                 </div>
-                <div className="text-[10px]" style={{ color: "var(--text-secondary)" }}>
+                <div className="truncate text-[10px]" style={{ color: "var(--text-secondary)" }}>
                   {p.role}
                 </div>
               </div>
@@ -110,20 +128,27 @@ function PersonaSwitcher() {
 
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 transition-colors hover:brightness-125"
+        title={!open ? persona.name : undefined}
+        onClick={() => setPopover((o) => !o)}
+        className={`flex w-full items-center rounded-md transition-colors hover:brightness-110 ${
+          open ? "gap-2.5 px-3 py-2.5" : "justify-center py-2"
+        }`}
         style={{ backgroundColor: "var(--surface-card)" }}
       >
         <Avatar color={persona.color} initials={persona.avatarInitials} />
-        <div className="flex-1 text-left">
-          <div className="text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>
-            {persona.name}
-          </div>
-          <div className="text-[10px]" style={{ color: "var(--text-secondary)" }}>
-            {persona.role}
-          </div>
-        </div>
-        <ChevronUp size={14} style={{ color: "var(--text-secondary)", transform: open ? "rotate(180deg)" : "none" }} />
+        {open ? (
+          <>
+            <div className="min-w-0 flex-1 text-left">
+              <div className="truncate text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>
+                {persona.name}
+              </div>
+              <div className="truncate text-[10px]" style={{ color: "var(--text-secondary)" }}>
+                {persona.role}
+              </div>
+            </div>
+            <ChevronUp size={14} style={{ color: "var(--text-secondary)", transform: popover ? "rotate(180deg)" : "none" }} />
+          </>
+        ) : null}
       </button>
     </div>
   );
@@ -133,7 +158,7 @@ function Avatar({ color, initials }: { color: string; initials: string }) {
   return (
     <span
       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-      style={{ backgroundColor: color, color: "#0d1117" }}
+      style={{ backgroundColor: color, color: "var(--text-inverse)" }}
     >
       {initials}
     </span>

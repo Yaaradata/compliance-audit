@@ -1,7 +1,7 @@
 "use client";
 
-import { Radio } from "lucide-react";
 import { AppProvider, useApp } from "./context/AppContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { SideNav } from "./layout/SideNav";
 import { TopBar } from "./layout/TopBar";
 import { ToastHost } from "./layout/ToastHost";
@@ -62,38 +62,12 @@ function OverlayHost() {
   );
 }
 
-function InspectionBanner() {
-  const { inspectionMode } = useApp();
-  if (!inspectionMode) return null;
-  return (
-    <div
-      className="flex items-center gap-2 px-4 py-2 text-[12px] font-medium"
-      style={{ backgroundColor: "color-mix(in srgb, var(--status-risk) 22%, var(--bg-app))", color: "var(--text-primary)", borderBottom: "1px solid var(--status-risk)" }}
-    >
-      <Radio size={14} style={{ color: "var(--status-risk)" }} />
-      Inspection mode — SLSI · Evidence packs available on every screen
-    </div>
-  );
-}
-
 function Layout() {
-  const { inspectionMode, toggleInspectionMode } = useApp();
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-full w-full overflow-hidden">
       <SideNav />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar />
-        <InspectionBanner />
-        <div className="flex items-center justify-end px-4 py-1.5" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-          <button
-            type="button"
-            onClick={toggleInspectionMode}
-            className="rounded px-2.5 py-1 text-[11px] transition-colors"
-            style={{ backgroundColor: inspectionMode ? "var(--status-risk)" : "var(--surface-raised)", color: inspectionMode ? "#fff" : "var(--text-secondary)" }}
-          >
-            Inspection mode {inspectionMode ? "ON" : "OFF"}
-          </button>
-        </div>
         <main className="lion-scroll flex-1 overflow-y-auto">
           <ScreenRouter />
         </main>
@@ -106,8 +80,10 @@ function Layout() {
 
 export function LionComplianceApp() {
   return (
-    <AppProvider>
-      <Layout />
-    </AppProvider>
+    <ThemeProvider>
+      <AppProvider>
+        <Layout />
+      </AppProvider>
+    </ThemeProvider>
   );
 }

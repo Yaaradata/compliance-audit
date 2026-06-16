@@ -23,7 +23,7 @@ const jetbrains = JetBrains_Mono({
 
 export default function SrilankaRetailV2Page() {
   return (
-    <div className={`lion-v2 ${inter.variable} ${jetbrains.variable}`}>
+    <div className={`lion-v2 h-screen w-full overflow-hidden ${inter.variable} ${jetbrains.variable}`}>
       <LionComplianceApp />
     </div>
   );

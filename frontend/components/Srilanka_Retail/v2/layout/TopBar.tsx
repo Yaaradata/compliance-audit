@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, Search, Sparkles } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import { ThemeToggle } from "../context/ThemeContext";
 import { Btn } from "../primitives";
 
 const TIME_OPTIONS = [
@@ -71,6 +72,7 @@ export function TopBar() {
       </div>
 
       {/* Generate evidence pack */}
+      <ThemeToggle />
       <Btn variant="primary" onClick={() => openEvidencePack(packScope, inspectionMode ? "SLSI" : "EXCISE")}>
         <span className="flex items-center gap-1.5">
           <Sparkles size={14} />
