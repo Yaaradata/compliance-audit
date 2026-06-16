@@ -1,0 +1,540 @@
+{
+  "company": {
+    "id": "LION_CEYLON_PLC",
+    "name": "Lion Brewery (Ceylon) PLC",
+    "exciseBase": {
+      "value": { "amount": 64800000000, "currency": "LKR" },
+      "sourceTag": "SOURCED"
+    },
+    "dutyPenaltyPct": {
+      "value": 100,
+      "sourceTag": "SOURCED"
+    },
+    "totalTaxes": {
+      "value": { "amount": 97000000000, "currency": "LKR" },
+      "sourceTag": "SOURCED"
+    },
+    "fy2026Revenue": {
+      "value": { "amount": 132400000000, "currency": "LKR" },
+      "sourceTag": "SOURCED"
+    },
+    "capacityHL": {
+      "range": { "low": 2000000, "high": 2400000 },
+      "sourceTag": "OPEN"
+    },
+    "posCount": {
+      "range": { "low": 1130, "high": 3000 },
+      "sourceTag": "OPEN"
+    },
+    "exposureBand": {
+      "range": { "low": 160000000, "high": 650000000 },
+      "sourceTag": "ILLUSTRATIVE"
+    }
+  },
+
+  "periods": [
+    {
+      "id": "2026-05",
+      "label": "May 2026",
+      "current": true
+    }
+  ],
+
+  "reconciliation": {
+    "periodId": "2026-05",
+    "streams": [
+      {
+        "key": "packagedVolume",
+        "label": "Packaged Volume",
+        "value": { "value": 12400, "sourceTag": "ILLUSTRATIVE" },
+        "unit": "units",
+        "status": "AGREE",
+        "liveSource": "ERP_SAP"
+      },
+      {
+        "key": "stickersConsumed",
+        "label": "Stickers Consumed",
+        "value": { "value": 11900, "sourceTag": "ILLUSTRATIVE" },
+        "unit": "units",
+        "status": "MISMATCH",
+        "liveSource": "FOOLPROOF_PORTAL"
+      },
+      {
+        "key": "permitsIssued",
+        "label": "Permits Issued",
+        "value": { "value": 12400, "sourceTag": "ILLUSTRATIVE" },
+        "unit": "units",
+        "status": "AGREE",
+        "liveSource": "PERMIT_SYSTEM"
+      },
+      {
+        "key": "dutyDeclared",
+        "label": "Duty Declared",
+        "value": { "value": null, "sourceTag": "ILLUSTRATIVE" },
+        "unit": "LKR",
+        "status": "AGREE",
+        "liveSource": "EXCISE_RETURN"
+      }
+    ],
+    "expectedDuty": {
+      "value": { "amount": 79360000, "currency": "LKR" },
+      "sourceTag": "ILLUSTRATIVE"
+    },
+    "nodeState": "AT_RISK",
+    "variance": {
+      "amount": { "amount": 3200000, "currency": "LKR" },
+      "sourceTag": "ILLUSTRATIVE",
+      "status": "AT_RISK",
+      "rootCause": "12,400 units packaged on dispatch window D-1184, but only 11,900 Fool Proof Stickers logged against issued permits — 500 units unaccounted, representing approximately Rs 3.2M in duty at risk.",
+      "unaccountedUnits": 500
+    },
+    "detectionLatency": {
+      "value": "2 min vs ~weeks manual",
+      "sourceTag": "ASSUMPTION"
+    }
+  },
+
+  "batch": {
+    "id": "B-2271",
+    "qcPanel": [
+      { "key": "micro",   "label": "Microbiological", "status": "PASS" },
+      { "key": "sensory", "label": "Sensory Panel",    "status": "PASS" },
+      { "key": "abv",     "label": "ABV Verification", "status": "FAIL" }
+    ],
+    "abv": {
+      "lab":    { "value": 4.8, "sourceTag": "ILLUSTRATIVE" },
+      "label":  { "value": 4.6, "sourceTag": "ILLUSTRATIVE" },
+      "excise": { "value": 4.6, "sourceTag": "ILLUSTRATIVE" },
+      "reconciled": false,
+      "mismatchDelta": 0.2
+    },
+    "gateState": "HELD",
+    "heldReason": "ABV_MISMATCH",
+    "liveState": "LIVE",
+    "releaseEvidenceId": "",
+    "dataSource": "Brewery Mgmt — Krones API"
+  },
+
+  "dispatchLoads": [
+    {
+      "id": "L-440",
+      "posRef": "Distributor #218 — Borella depot (Western)",
+      "flCategory": "FL-3",
+      "licenceStatus": "VALID",
+      "sltdaChainStatus": "NA",
+      "validateAlert": { "liveState": "LIVE" },
+      "autoBlock":     { "liveState": "PILOT_GATED", "gapRef": "A9" }
+    },
+    {
+      "id": "L-441",
+      "posRef": "Distributor #57 — Kandy depot (Central) · on-trade chain",
+      "flCategory": "FL-3",
+      "licenceStatus": "EXPIRING",
+      "sltdaChainStatus": "LAPSED",
+      "validateAlert": { "liveState": "LIVE" },
+      "autoBlock":     { "liveState": "PILOT_GATED", "gapRef": "A9" }
+    },
+    {
+      "id": "L-442",
+      "posRef": "Distributor #903 — Nugegoda depot (Western)",
+      "flCategory": "FL-3",
+      "licenceStatus": "LAPSED",
+      "sltdaChainStatus": "NA",
+      "validateAlert": { "liveState": "LIVE" },
+      "autoBlock":     { "liveState": "PILOT_GATED", "gapRef": "A9" }
+    }
+  ],
+
+  "regulators": [
+    { "id": "reg-excise",  "key": "EXCISE",  "label": "Excise Department" },
+    { "id": "reg-slsi",    "key": "SLSI",    "label": "SLSI" },
+    { "id": "reg-fcau",    "key": "FCAU",    "label": "FCAU" },
+    { "id": "reg-customs", "key": "CUSTOMS", "label": "Customs" },
+    { "id": "reg-cea",     "key": "CEA",     "label": "CEA" },
+    { "id": "reg-labour",  "key": "LABOUR",  "label": "Dept of Labour" }
+  ],
+
+  "controls": [
+    { "id": "ctrl-duty",     "key": "DUTY",     "label": "Duty" },
+    { "id": "ctrl-quality",  "key": "QUALITY",  "label": "Quality" },
+    { "id": "ctrl-dispatch", "key": "DISPATCH", "label": "Dispatch" },
+    { "id": "ctrl-evidence", "key": "EVIDENCE", "label": "Evidence" }
+  ],
+
+  "postureGrid": [
+    { "id": "pg-excise-duty",      "regulatorId": "reg-excise",  "controlId": "ctrl-duty",     "status": "ATTENTION" },
+    { "id": "pg-excise-quality",   "regulatorId": "reg-excise",  "controlId": "ctrl-quality",  "status": "OK" },
+    { "id": "pg-excise-dispatch",  "regulatorId": "reg-excise",  "controlId": "ctrl-dispatch", "status": "OK" },
+    { "id": "pg-excise-evidence",  "regulatorId": "reg-excise",  "controlId": "ctrl-evidence", "status": "OK" },
+
+    { "id": "pg-slsi-duty",        "regulatorId": "reg-slsi",    "controlId": "ctrl-duty",     "status": "OK" },
+    { "id": "pg-slsi-quality",     "regulatorId": "reg-slsi",    "controlId": "ctrl-quality",  "status": "OK" },
+    { "id": "pg-slsi-dispatch",    "regulatorId": "reg-slsi",    "controlId": "ctrl-dispatch", "status": "OK" },
+    { "id": "pg-slsi-evidence",    "regulatorId": "reg-slsi",    "controlId": "ctrl-evidence", "status": "OK" },
+
+    { "id": "pg-fcau-duty",        "regulatorId": "reg-fcau",    "controlId": "ctrl-duty",     "status": "OK" },
+    { "id": "pg-fcau-quality",     "regulatorId": "reg-fcau",    "controlId": "ctrl-quality",  "status": "OK" },
+    { "id": "pg-fcau-dispatch",    "regulatorId": "reg-fcau",    "controlId": "ctrl-dispatch", "status": "OK" },
+    { "id": "pg-fcau-evidence",    "regulatorId": "reg-fcau",    "controlId": "ctrl-evidence", "status": "OK" },
+
+    { "id": "pg-customs-duty",     "regulatorId": "reg-customs", "controlId": "ctrl-duty",     "status": "OK" },
+    { "id": "pg-customs-quality",  "regulatorId": "reg-customs", "controlId": "ctrl-quality",  "status": "OK" },
+    { "id": "pg-customs-dispatch", "regulatorId": "reg-customs", "controlId": "ctrl-dispatch", "status": "ATTENTION" },
+    { "id": "pg-customs-evidence", "regulatorId": "reg-customs", "controlId": "ctrl-evidence", "status": "OK" },
+
+    { "id": "pg-cea-duty",         "regulatorId": "reg-cea",     "controlId": "ctrl-duty",     "status": "OK" },
+    { "id": "pg-cea-quality",      "regulatorId": "reg-cea",     "controlId": "ctrl-quality",  "status": "OK" },
+    { "id": "pg-cea-dispatch",     "regulatorId": "reg-cea",     "controlId": "ctrl-dispatch", "status": "OK" },
+    { "id": "pg-cea-evidence",     "regulatorId": "reg-cea",     "controlId": "ctrl-evidence", "status": "OK" },
+
+    { "id": "pg-labour-duty",      "regulatorId": "reg-labour",  "controlId": "ctrl-duty",     "status": "OK" },
+    { "id": "pg-labour-quality",   "regulatorId": "reg-labour",  "controlId": "ctrl-quality",  "status": "OK" },
+    { "id": "pg-labour-dispatch",  "regulatorId": "reg-labour",  "controlId": "ctrl-dispatch", "status": "OK" },
+    { "id": "pg-labour-evidence",  "regulatorId": "reg-labour",  "controlId": "ctrl-evidence", "status": "OK" }
+  ],
+
+  "evidencePacks": [
+    {
+      "regulatorId": "reg-excise",
+      "items": [
+        {
+          "id": "ep-excise-001",
+          "regulatorId": "reg-excise",
+          "label": "Batch release + ABV trail — Batch B-2271",
+          "derivedFrom": "C2",
+          "status": "CHECKED"
+        },
+        {
+          "id": "ep-excise-002",
+          "regulatorId": "reg-excise",
+          "label": "Dispatch licence stamps — L-440, L-441, L-442",
+          "derivedFrom": "C3",
+          "status": "CHECKED"
+        },
+        {
+          "id": "ep-excise-003",
+          "regulatorId": "reg-excise",
+          "label": "Transport-permit ↔ sticker tie-out — May 2026",
+          "derivedFrom": "C1",
+          "status": "CHECKED"
+        }
+      ],
+      "readyState": "READY",
+      "prepBaseline": { "value": "weeks → on-demand", "sourceTag": "ASSUMPTION" }
+    },
+    {
+      "regulatorId": "reg-slsi",
+      "items": [
+        {
+          "id": "ep-slsi-001",
+          "regulatorId": "reg-slsi",
+          "label": "Batch release records — May 2026",
+          "derivedFrom": "C2",
+          "status": "CHECKED"
+        },
+        {
+          "id": "ep-slsi-002",
+          "regulatorId": "reg-slsi",
+          "label": "ABV verification trail — Batch B-2271",
+          "derivedFrom": "C2",
+          "status": "CHECKED"
+        }
+      ],
+      "readyState": "READY",
+      "prepBaseline": { "value": "weeks → on-demand", "sourceTag": "ASSUMPTION" }
+    },
+    {
+      "regulatorId": "reg-fcau",
+      "items": [
+        {
+          "id": "ep-fcau-001",
+          "regulatorId": "reg-fcau",
+          "label": "Batch release + QC panel — May 2026",
+          "derivedFrom": "C2",
+          "status": "CHECKED"
+        }
+      ],
+      "readyState": "READY",
+      "prepBaseline": { "value": "weeks → on-demand", "sourceTag": "ASSUMPTION" }
+    },
+    {
+      "regulatorId": "reg-customs",
+      "items": [
+        {
+          "id": "ep-customs-001",
+          "regulatorId": "reg-customs",
+          "label": "Duty declaration — May 2026",
+          "derivedFrom": "C1",
+          "status": "CHECKED"
+        },
+        {
+          "id": "ep-customs-002",
+          "regulatorId": "reg-customs",
+          "label": "Dispatch licence stamps — export loads",
+          "derivedFrom": "C3",
+          "status": "CHECKED"
+        }
+      ],
+      "readyState": "READY",
+      "prepBaseline": { "value": "weeks → on-demand", "sourceTag": "ASSUMPTION" }
+    },
+    {
+      "regulatorId": "reg-cea",
+      "items": [
+        {
+          "id": "ep-cea-001",
+          "regulatorId": "reg-cea",
+          "label": "Environmental monitoring records — May 2026",
+          "derivedFrom": "C2",
+          "status": "CHECKED"
+        }
+      ],
+      "readyState": "READY",
+      "prepBaseline": { "value": "weeks → on-demand", "sourceTag": "ASSUMPTION" }
+    },
+    {
+      "regulatorId": "reg-labour",
+      "items": [
+        {
+          "id": "ep-labour-001",
+          "regulatorId": "reg-labour",
+          "label": "Safety training records + incident log — May 2026",
+          "derivedFrom": "C2",
+          "status": "CHECKED"
+        }
+      ],
+      "readyState": "READY",
+      "prepBaseline": { "value": "weeks → on-demand", "sourceTag": "ASSUMPTION" }
+    }
+  ],
+
+  "headlineMetrics": [
+    {
+      "key": "boardReportPrepTime",
+      "label": "Monthly board pack",
+      "value": { "value": "multi-day → one-click", "sourceTag": "ASSUMPTION" },
+      "emphasis": "PRIMARY"
+    },
+    {
+      "key": "exposure",
+      "label": "Excise exposure under live reconciliation",
+      "value": {
+        "range": { "low": 160000000, "high": 650000000 },
+        "sourceTag": "ILLUSTRATIVE"
+      },
+      "emphasis": "PRIMARY"
+    },
+    {
+      "key": "receivablesExposure",
+      "label": "Receivables under live credit watch",
+      "value": { "value": 4070000000, "sourceTag": "SOURCED" },
+      "emphasis": "PRIMARY"
+    },
+    {
+      "key": "auditReady",
+      "label": "Regulators audit-ready",
+      "value": { "value": "6 / 6", "sourceTag": "SOURCED" },
+      "emphasis": "SUPPORTING"
+    },
+    {
+      "key": "teamDaysReturned",
+      "label": "Senior team-days returned / yr",
+      "value": {
+        "range": { "low": 150, "high": 300 },
+        "sourceTag": "ASSUMPTION"
+      },
+      "emphasis": "SUPPORTING"
+    },
+    {
+      "key": "detectionLatency",
+      "label": "Gap-to-flag latency",
+      "value": { "value": "months → days", "sourceTag": "ASSUMPTION" },
+      "emphasis": "SUPPORTING"
+    }
+  ],
+
+  "committeeRollup": {
+    "items": [
+      {
+        "postureCellId": "pg-customs-dispatch",
+        "severity": "HIGH",
+        "label": "Customs · Dispatch — lapsed-licence load L-442 flagged; manual resolution pending"
+      }
+    ],
+    "routedTo": "AUDIT_COMMITTEE"
+  },
+
+  "dataSources": {
+    "SAP_ECC": { "label": "SAP ECC (legacy, non-HANA)", "state": "INTEGRATED", "managed": true },
+    "SFA": { "label": "SFA (~4,000 dist. pts)", "state": "ONBOARDING", "managed": true },
+    "BREWERY_MGMT_KRONES_API": { "label": "Brewery Mgmt — Krones API", "state": "API_AVAILABLE", "managed": true }
+  },
+
+  "receivables": {
+    "fy2025": 5410000000,
+    "fy2026": 4070000000,
+    "trend": "IMPROVING",
+    "badDebt": 23000000,
+    "creditDays": null,
+    "eclAgeing": "OPEN",
+    "distributorPoints": {
+      "range": { "low": 1130, "high": 4000 },
+      "sourceTag": "OPEN"
+    },
+    "src": "SFA + SAP ECC"
+  },
+
+  "riskMatrix": {
+    "rows": [
+      {
+        "id": "rm-supply",
+        "category": "Global events and supply chain disruptions",
+        "catTag": "SOURCED",
+        "domain": "D9",
+        "inherent": { "i": "HIGH", "l": "MED" },
+        "control": null,
+        "residual": "MED",
+        "mitigation": "Diversified multi-region sourcing; strategic inventory reserves; local-supplier development.",
+        "kri": null,
+        "trend": "STABLE"
+      },
+      {
+        "id": "rm-local",
+        "category": "Local market and economic risks",
+        "catTag": "SOURCED",
+        "domain": "D7",
+        "inherent": { "i": "HIGH", "l": "MED" },
+        "control": null,
+        "residual": "MED",
+        "mitigation": "Macroeconomic monitoring; pricing strategy; operational-efficiency / cost management.",
+        "kri": {
+          "label": "Contingent liabilities (bank guarantees, FY2026, from Rs 4,070M)",
+          "value": "Rs 3.51bn",
+          "tag": "SOURCED",
+          "status": "WATCH"
+        },
+        "trend": "STABLE"
+      },
+      {
+        "id": "rm-tax",
+        "category": "Taxation and tariffs",
+        "catTag": "SOURCED",
+        "domain": "D1",
+        "inherent": { "i": "HIGH", "l": "HIGH" },
+        "control": "Duty",
+        "residual": "MED",
+        "mitigation": "Corporate tax 40%→45% from 1 Apr 2025 (income tax +39% YoY); live four-way excise tie-out catches duty variance pre-emptively.",
+        "kri": {
+          "label": "Total taxes to Government (FY2025)",
+          "value": "Rs 97bn",
+          "tag": "SOURCED",
+          "status": "WATCH"
+        },
+        "trend": "STABLE"
+      },
+      {
+        "id": "rm-recv",
+        "category": "Receivables / distributor-credit exposure",
+        "catTag": "ILLUSTRATIVE",
+        "domain": "D7",
+        "inherent": { "i": "MED", "l": "MED" },
+        "control": "Dispatch",
+        "residual": "LOW",
+        "mitigation": "Tight credit control (small bad-debt book); early-warning on credit-days; receivables falling Rs 5.41bn → 4.07bn.",
+        "kri": {
+          "label": "Group trade receivables (FY2026)",
+          "value": "Rs 4.07bn",
+          "tag": "SOURCED",
+          "status": "OK"
+        },
+        "trend": "IMPROVING"
+      },
+      {
+        "id": "rm-bcp",
+        "category": "Business continuity / flood risk",
+        "catTag": "ILLUSTRATIVE",
+        "domain": "D10",
+        "inherent": { "i": "HIGH", "l": "LOW" },
+        "control": null,
+        "residual": "MED",
+        "mitigation": "Riverbank-plant flood history; Swift Water Rescue training; business-interruption insurance; Site B / DR under consideration.",
+        "kri": null,
+        "trend": "STABLE"
+      }
+    ],
+    "escalation": {
+      "steps": ["Risk register", "Board", "Quarterly ESG Committee"],
+      "tag": "SOURCED"
+    }
+  },
+
+  "complianceExceptions": [
+    {
+      "id": "ce-independence",
+      "ruleRef": "7.10.2(a)",
+      "title": "Minimum independent directors",
+      "gap": "2 of 3 required",
+      "disclosureRef": "LION/CSE/ANN/2024/NS/04 (1 Feb 2024)",
+      "cure": "Ajay Baliga, Independent NED, appointed 2 Feb 2024",
+      "status": "CURED",
+      "raisedOn": "Nov 2023",
+      "curedOn": "2 Feb 2024",
+      "tag": "VERIFIED"
+    }
+  ],
+
+  "boardReport": {
+    "sectionOrder": [
+      "Board-affairs compliance statement",
+      "Audit Committee",
+      "RPT Review Committee",
+      "Auditor sign-off"
+    ],
+    "committees": [
+      {
+        "id": "cm-audit",
+        "name": "Audit Committee",
+        "remit": "Oversee the financial-reporting process, internal control, the audit process and compliance with laws — the Companies Act No. 07 of 2007 and the SEC Act No. 19 of 2021 — and review internal controls and risk against Sri Lanka Accounting Standards.",
+        "remitTag": "VERIFIED",
+        "composition": ["A.S. Amaratunga (Chair, NE/Ind)", "A.J. Alles (NE/Ind)", "D.R.P. Goonetilleke (NE)"],
+        "meetingCount": null
+      },
+      {
+        "id": "cm-rem",
+        "name": "Remuneration Committee",
+        "remit": "Maintain formal, transparent policies for Director and CEO compensation to attract, retain and develop talent.",
+        "remitTag": "VERIFIED",
+        "composition": ["A.B. Baliga (Chair, NE/Ind)"],
+        "meetingCount": null
+      },
+      {
+        "id": "cm-rpt",
+        "name": "Related Party Transactions Review Committee",
+        "remit": "Maintain policy and process per the CSE RPT rules for identification, classification and end-to-end reporting of related party transactions.",
+        "remitTag": "VERIFIED",
+        "composition": ["A.S. Amaratunga (Chair)", "A.B. Baliga", "D.R.P. Goonetilleke"],
+        "meetingCount": null
+      },
+      {
+        "id": "cm-nom",
+        "name": "Nominations & Governance Committee",
+        "remit": "Formal procedure to appoint / re-elect directors; succession planning; Board composition; recommend the corporate-governance framework.",
+        "remitTag": "VERIFIED",
+        "composition": ["Functions via Carson Cumberbatch PLC"],
+        "meetingCount": null
+      }
+    ],
+    "complianceTable": [
+      {
+        "ruleRef": "7.10.2(a)",
+        "requirement": "Minimum number of independent directors",
+        "exceptionRef": "ce-independence"
+      }
+    ],
+    "assurance": {
+      "companiesAct": "These financial statements are in compliance with the requirements of the Companies Act No. 07 of 2007.",
+      "thanks": "Grateful thanks for the counsel and oversight of the Audit, Remuneration, Related Party Transactions Review, and Nominations & Governance Committees, and fellow Board members.",
+      "tag": "VERIFIED"
+    }
+  }
+}
