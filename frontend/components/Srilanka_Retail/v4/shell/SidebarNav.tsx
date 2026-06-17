@@ -28,11 +28,11 @@ export function SidebarNav({
 
   return (
     <aside
-      className="shrink-0 border-b lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:flex-col lg:border-b-0 lg:border-r"
+      className="z-30 flex w-full shrink-0 flex-col border-b max-lg:relative lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:border-b-0 lg:border-r"
       style={{ borderColor: C.border, background: C.bgGrad }}
     >
       <BrandMark />
-      <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-4">
+      <nav className="flex gap-1 overflow-x-auto px-3 pb-3 max-lg:flex-row lg:flex-1 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:pb-4">
         {NAV.map(([k, label, Icon]) => {
           const isActive = screen === k;
           const badge = (k === "C4" || k === "C5" || k === "C6") && rippled;

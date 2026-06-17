@@ -124,17 +124,16 @@ function KeystoneV4DemoInner({
 
   return (
     <div
-      className="min-h-screen w-full"
+      className="flex h-screen w-full flex-col overflow-hidden lg:block"
       style={{
         background: C.bg,
         color: C.text,
         fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif",
       }}
     >
-      <div className="flex min-h-screen w-full flex-col lg:flex-row">
-        <SidebarNav screen={screen} onScreenChange={setScreen} rippled={rippled} />
+      <SidebarNav screen={screen} onScreenChange={setScreen} rippled={rippled} />
 
-        <main className="flex min-h-screen min-w-0 flex-1 flex-col px-5 py-6 sm:px-8 lg:px-10 xl:px-12">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 py-6 sm:px-8 lg:ml-64 lg:h-screen lg:flex-none lg:px-10 xl:px-12">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
               <Eyebrow>{`Keystone · ${active[1]}`}</Eyebrow>
@@ -183,7 +182,7 @@ function KeystoneV4DemoInner({
               />
             )}
 
-            <p className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-6 text-[10.5px] leading-relaxed" style={{ color: C.faint }}>
+            <p className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] leading-relaxed" style={{ color: C.faint }}>
             Figures carry their provenance; most are now sourced.
             <span className="inline-flex items-center gap-1">
               <span style={{ color: C.green }}>●</span> Sourced / verified
@@ -198,9 +197,8 @@ function KeystoneV4DemoInner({
               <span style={{ color: C.open }}>●</span> Open range
             </span>
           </p>
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
 
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2" role="status">

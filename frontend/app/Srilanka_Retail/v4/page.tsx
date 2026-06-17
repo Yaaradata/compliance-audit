@@ -19,7 +19,7 @@ const plexMono = IBM_Plex_Mono({
 
 export default function SrilankaRetailV4Page() {
   return (
-    <div className={`${plexSans.variable} ${plexMono.variable} min-h-screen w-full overflow-x-hidden`}>
+    <div className={`${plexSans.variable} ${plexMono.variable} h-screen w-full overflow-hidden`}>
       <KeystoneV4Demo />
     </div>
   );
