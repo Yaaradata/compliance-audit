@@ -32,6 +32,7 @@ import {
   Minus,
   ShieldAlert,
 } from "lucide-react";
+import { KeystoneThemeProvider, ThemeToggle } from "@/components/Srilanka_Retail/primitives/theme";
 
 /* ──────────────────────────────────────────────────────────────────────────
    KEYSTONE v2 — Lion Brewery (Ceylon) PLC
@@ -45,28 +46,30 @@ import {
    ────────────────────────────────────────────────────────────────────────── */
 
 const C = {
-  bg: "#0a0e1a",
-  bgGrad: "#0c1120",
-  panel: "#111726",
-  panelAlt: "#0e1422",
-  raise: "#161e30",
-  border: "#1e2740",
-  borderSoft: "#19223a",
-  text: "#e7ebf3",
-  dim: "#8d99b0",
-  faint: "#5c6885",
-  green: "#34d399",
-  greenDim: "#16352c",
-  greenEdge: "#1f5d49",
-  amber: "#f5b945",
-  amberDim: "#3a2f12",
-  amberEdge: "#6b521d",
-  red: "#f87171",
-  redDim: "#3a1d20",
-  redEdge: "#7a3236",
-  accent: "#5cc2f0",
-  accentDim: "#14334a",
-  accentEdge: "#2d6b91",
+  bg: "var(--ks-bg)",
+  bgGrad: "var(--ks-bg-grad)",
+  panel: "var(--ks-panel)",
+  panelAlt: "var(--ks-panel-alt)",
+  raise: "var(--ks-raise)",
+  border: "var(--ks-border)",
+  borderSoft: "var(--ks-border-soft)",
+  text: "var(--ks-text)",
+  dim: "var(--ks-dim)",
+  faint: "var(--ks-faint)",
+  green: "var(--ks-green)",
+  greenDim: "var(--ks-green-dim)",
+  greenEdge: "var(--ks-green-edge)",
+  amber: "var(--ks-amber)",
+  amberDim: "var(--ks-amber-dim)",
+  amberEdge: "var(--ks-amber-edge)",
+  red: "var(--ks-red)",
+  redDim: "var(--ks-red-dim)",
+  redEdge: "var(--ks-red-edge)",
+  accent: "var(--ks-accent)",
+  accentDim: "var(--ks-accent-dim)",
+  accentEdge: "var(--ks-accent-edge)",
+  chipBg: "var(--ks-chip-bg)",
+  btnPrimaryFg: "var(--ks-btn-primary-fg)",
 } as const;
 
 type SourceTag =
@@ -89,7 +92,7 @@ const TAG: Record<
   ILLUSTRATIVE: { dot: C.amber, label: "ILLUSTRATIVE", check: false },
   ASSUMPTION: { dot: C.faint, label: "ASSUMPTION", check: false },
   LION_VALIDATE: { dot: C.faint, label: "LION-VALIDATE", check: false },
-  OPEN: { dot: "#64748b", label: "OPEN", check: false },
+  OPEN: { dot: C.faint, label: "OPEN", check: false },
   PXTY: { dot: "transparent", ring: C.amber, label: "PXTY", check: false },
 };
 
@@ -346,7 +349,7 @@ function Chip({ tag }: { tag: SourceTag }) {
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide"
-      style={{ background: "#0c1322", border: `1px solid ${C.borderSoft}`, color: C.dim }}
+      style={{ background: C.chipBg, border: `1px solid ${C.borderSoft}`, color: C.dim }}
     >
       <span
         className="inline-flex h-1.5 w-1.5 items-center justify-center rounded-full"
@@ -371,7 +374,7 @@ function ValidateField({ note = "validate on call" }: { note?: string }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px]"
-      style={{ background: "#0c1322", border: `1px dashed ${C.faint}`, color: C.faint }}
+      style={{ background: C.chipBg, border: `1px dashed ${C.faint}`, color: C.faint }}
     >
       <span className="tabular-nums">—</span>
       <span className="italic">{note}</span>
@@ -394,7 +397,7 @@ function Btn({
 }) {
   const styles =
     kind === "primary"
-      ? { background: C.accent, color: "#04121d", border: `1px solid ${C.accent}` }
+      ? { background: C.accent, color: C.btnPrimaryFg, border: `1px solid ${C.accent}` }
       : kind === "ghost"
         ? { background: "transparent", color: C.dim, border: `1px solid ${C.border}` }
         : { background: C.raise, color: C.text, border: `1px solid ${C.border}` };
@@ -447,7 +450,7 @@ function SevPill({ level }: { level: string }) {
   return (
     <span
       className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
-      style={{ background: "#0c1322", color, border: `1px solid ${color}55` }}
+      style={{ background: C.chipBg, color, border: `1px solid ${color}55` }}
     >
       {level}
     </span>
@@ -799,7 +802,7 @@ function ScreenC4({ store, justAppended }: { store: Store; justAppended: boolean
                   <CheckCircle2 size={15} color={C.green} />
                   <span className="text-[13px]" style={{ color: C.text }}>{it.label}</span>
                 </div>
-                <span className="rounded px-2 py-0.5 text-[10px]" style={{ background: "#0c1322", color: C.faint, border: `1px solid ${C.borderSoft}` }}>from {it.from}</span>
+                <span className="rounded px-2 py-0.5 text-[10px]" style={{ background: C.chipBg, color: C.faint, border: `1px solid ${C.borderSoft}` }}>from {it.from}</span>
               </div>
             );
           })}
@@ -1048,7 +1051,7 @@ function ScreenC6({
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {br.sectionOrder.map((s, i) => (
-            <span key={s} className="rounded px-2 py-0.5 text-[10px]" style={{ background: "#0c1322", color: C.faint, border: `1px solid ${C.borderSoft}` }}>
+            <span key={s} className="rounded px-2 py-0.5 text-[10px]" style={{ background: C.chipBg, color: C.faint, border: `1px solid ${C.borderSoft}` }}>
               {i + 1}. {s}
             </span>
           ))}
@@ -1186,6 +1189,14 @@ const NAV: [ScreenId, string, LucideIcon][] = [
 ];
 
 export default function KeystonePrototype() {
+  return (
+    <KeystoneThemeProvider>
+      <KeystonePrototypeInner />
+    </KeystoneThemeProvider>
+  );
+}
+
+function KeystonePrototypeInner() {
   const [store, setStore] = useState(initialStore);
   const [screen, setScreen] = useState<ScreenId>("C1");
   const [investigating, setInvestigating] = useState(false);
@@ -1268,10 +1279,7 @@ export default function KeystonePrototype() {
   const active = NAV.find((n) => n[0] === screen)!;
 
   return (
-    <div
-      className="flex min-h-screen w-full flex-col"
-      style={{ background: C.bg, color: C.text, fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif" }}
-    >
+    <div className="flex min-h-screen w-full flex-col">
       <header
         className="sticky top-0 z-20 border-b"
         style={{ borderColor: C.border, background: C.bgGrad }}
@@ -1309,6 +1317,7 @@ export default function KeystonePrototype() {
             >
               Period: May 2026 <ChevronDown size={13} />
             </span>
+            <ThemeToggle />
             <Btn kind="ghost" icon={RotateCcw} onClick={reset}>Reset demo</Btn>
           </div>
         </div>
@@ -1343,7 +1352,7 @@ export default function KeystonePrototype() {
           <span className="inline-flex items-center gap-1"><span style={{ color: C.green }}>●</span> Sourced / verified</span>
           <span className="inline-flex items-center gap-1"><span style={{ color: C.amber }}>●</span> Illustrative</span>
           <span className="inline-flex items-center gap-1"><span style={{ color: C.faint }}>●</span> Assumption / validate</span>
-          <span className="inline-flex items-center gap-1"><span style={{ color: "#64748b" }}>●</span> Open range</span>
+          <span className="inline-flex items-center gap-1"><span style={{ color: C.faint }}>●</span> Open range</span>
         </p>
       </main>
 
