@@ -3,12 +3,14 @@
 import Image from "next/image";
 import { useKeystoneV4Colors } from "../theme/KeystoneV4ThemeProvider";
 
+const LION_LOGO_SRC = "/Lion_Brewery_logo.svg.png";
+
 export function BrandMark() {
   const C = useKeystoneV4Colors();
   return (
-    <div className="flex flex-col items-start gap-2 px-5 py-5">
+    <div className="flex shrink-0 flex-col items-start gap-1">
       <Image
-        src="/Lion_Brewery_logo.svg.png"
+        src={LION_LOGO_SRC}
         alt="Lion Brewery (Ceylon) PLC"
         width={148}
         height={40}

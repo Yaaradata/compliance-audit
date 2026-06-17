@@ -72,7 +72,7 @@ export function ScreenC3({ store }: { store: KeystoneDataV4 }) {
   const blocked = store.loads.find((l) => l.state === "BLOCKED");
 
   return (
-    <div className="space-y-5 w-full">
+    <div className="space-y-5">
       <Card className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">

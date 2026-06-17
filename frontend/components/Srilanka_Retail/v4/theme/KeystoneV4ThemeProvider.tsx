@@ -2,7 +2,9 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Moon, Sun } from "lucide-react";
-import { PALETTES, type KeystoneV4ThemeMode } from "./palette";
+import { PALETTES } from "./palette";
+import type { KeystoneV4ThemeMode } from "./palette";
+export type { KeystoneV4ThemeMode } from "./palette";
 import type { KeystonePalette } from "@/lib/Srilanka_Retail/v4/types";
 
 const ThemeCtx = createContext<KeystonePalette>(PALETTES.light);

@@ -1,23 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, ChevronDown, RotateCcw } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { createInitialStore } from "@/lib/Srilanka_Retail/v4/seed";
 import type { KeystoneDataV4, V4ScreenId } from "@/lib/Srilanka_Retail/v4/types";
 import {
   KeystoneV4ThemeProvider,
-  KeystoneV4ThemeToggle,
   useKeystoneV4Colors,
   useKeystoneV4ThemeMode,
 } from "./theme/KeystoneV4ThemeProvider";
-import { Eyebrow } from "./primitives/ui";
 import { HeroC1 } from "./screens/HeroC1";
 import { ScreenC2 } from "./screens/ScreenC2";
 import { ScreenC3 } from "./screens/ScreenC3";
 import { ScreenC4 } from "./screens/ScreenC4";
 import { ScreenC5 } from "./screens/ScreenC5";
 import { ScreenC6 } from "./screens/ScreenC6";
-import { SidebarNav, V4_SIDEBAR_NAV } from "./shell/SidebarNav";
+import { AppHeader } from "./shell/AppHeader";
+import { ProvenanceLegend } from "./shell/ProvenanceLegend";
+import { V4_NAV } from "./shell/TopNav";
 
 function KeystoneV4DemoInner({
   mode,
@@ -120,84 +120,52 @@ function KeystoneV4DemoInner({
     setScreen("C1");
   }
 
-  const active = V4_SIDEBAR_NAV.find((n) => n[0] === screen)!;
+  const active = V4_NAV.find((n) => n[0] === screen)!;
 
   return (
     <div
-      className="flex h-screen w-full flex-col overflow-hidden lg:block"
+      className="flex min-h-screen w-full flex-col"
       style={{
         background: C.bg,
         color: C.text,
         fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif",
       }}
     >
-      <SidebarNav screen={screen} onScreenChange={setScreen} rippled={rippled} />
+      <AppHeader
+        screen={screen}
+        screenTitle={active[1]}
+        rippled={rippled}
+        mode={mode}
+        onScreenChange={setScreen}
+        onToggleTheme={onToggleTheme}
+        onReset={reset}
+      />
 
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 py-6 sm:px-8 lg:ml-64 lg:h-screen lg:flex-none lg:px-10 xl:px-12">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <Eyebrow>{`Keystone · ${active[1]}`}</Eyebrow>
-              <h1 className="mt-1 text-lg font-semibold tracking-tight">{active[1]}</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <span
-                className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px]"
-                style={{ background: C.panel, border: `1px solid ${C.border}`, color: C.dim }}
-              >
-                Period: May 2026 <ChevronDown size={13} />
-              </span>
-              <KeystoneV4ThemeToggle mode={mode} onToggle={onToggleTheme} />
-              <button
-                type="button"
-                onClick={reset}
-                className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium focus:outline-none focus-visible:ring-2"
-                style={{ background: C.panel, border: `1px solid ${C.border}`, color: C.dim }}
-              >
-                <RotateCcw size={13} /> Reset demo
-              </button>
-            </div>
-          </div>
+      <main className="mx-auto w-full max-w-[1400px] flex-1 px-5 py-6 sm:px-8">
+        {screen === "C1" && (
+          <HeroC1
+            store={store}
+            varianceDisp={varianceDisp}
+            investigating={investigating}
+            setInvestigating={setInvestigating}
+            onReconcile={reconcile}
+          />
+        )}
+        {screen === "C2" && <ScreenC2 store={store} />}
+        {screen === "C3" && <ScreenC3 store={store} />}
+        {screen === "C4" && <ScreenC4 store={store} justAppended={rippled} onToast={setToast} />}
+        {screen === "C5" && <ScreenC5 store={store} />}
+        {screen === "C6" && (
+          <ScreenC6
+            store={store}
+            generated={reportGenerated}
+            generating={generating}
+            onGenerate={generateReport}
+            onToast={setToast}
+          />
+        )}
 
-          <div className="flex flex-1 flex-col">
-            {screen === "C1" && (
-              <HeroC1
-                store={store}
-                varianceDisp={varianceDisp}
-                investigating={investigating}
-                setInvestigating={setInvestigating}
-                onReconcile={reconcile}
-              />
-            )}
-            {screen === "C2" && <ScreenC2 store={store} />}
-            {screen === "C3" && <ScreenC3 store={store} />}
-            {screen === "C4" && <ScreenC4 store={store} justAppended={rippled} onToast={setToast} />}
-            {screen === "C5" && <ScreenC5 store={store} />}
-            {screen === "C6" && (
-              <ScreenC6
-                store={store}
-                generated={reportGenerated}
-                generating={generating}
-                onGenerate={generateReport}
-                onToast={setToast}
-              />
-            )}
-
-            <p className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] leading-relaxed" style={{ color: C.faint }}>
-            Figures carry their provenance; most are now sourced.
-            <span className="inline-flex items-center gap-1">
-              <span style={{ color: C.green }}>●</span> Sourced / verified
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span style={{ color: C.amber }}>●</span> Illustrative
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span style={{ color: C.faint }}>●</span> Assumption / validate
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span style={{ color: C.open }}>●</span> Open range
-            </span>
-          </p>
-        </div>
+        <ProvenanceLegend />
       </main>
 
       {toast && (
