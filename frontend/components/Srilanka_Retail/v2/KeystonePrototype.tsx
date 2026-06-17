@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import type { LucideIcon } from "lucide-react";
 import {
   ShieldCheck,
@@ -1131,6 +1132,26 @@ function ScreenC6({
 
 /* ── shell · full-width top nav (no sidebar) ─────────────────────────────── */
 
+const LION_LOGO_SRC = "/Lion_Brewery_logo.svg.png";
+
+function BrandMark() {
+  return (
+    <div className="flex shrink-0 flex-col items-start gap-1">
+      <Image
+        src={LION_LOGO_SRC}
+        alt="Lion Brewery (Ceylon) PLC"
+        width={148}
+        height={40}
+        priority
+        className="h-9 w-auto max-w-[148px] object-contain object-left"
+      />
+      <div className="text-[10px] font-medium leading-tight" style={{ color: C.faint }}>
+        Lion Brewery (Ceylon) PLC
+      </div>
+    </div>
+  );
+}
+
 function TopNav({
   screen,
   rippled,
@@ -1289,25 +1310,14 @@ function KeystonePrototypeInner() {
           className="flex flex-wrap items-center gap-4 border-b px-5 py-4 sm:px-8"
           style={{ borderColor: C.border }}
         >
-          <div className="flex shrink-0 items-center gap-2.5">
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-md"
-              style={{ background: C.accentDim, border: `1px solid ${C.accentEdge}` }}
-            >
-              <ShieldCheck size={17} color={C.accent} />
-            </div>
-            <div>
-              <div className="text-[15px] font-semibold tracking-tight">Keystone</div>
-              <div className="text-[10px]" style={{ color: C.faint }}>Lion Brewery (Ceylon) PLC</div>
-            </div>
-          </div>
+          <BrandMark />
           <TopNav screen={screen} rippled={rippled} onSelect={setScreen} />
         </div>
 
         {/* page title row */}
         <div className="flex flex-wrap items-end justify-between gap-3 px-5 pb-5 pt-4 sm:px-8">
           <div>
-            <Eyebrow>{`Keystone · ${active[1]}`}</Eyebrow>
+            <Eyebrow>{`Lion Brewery · ${active[1]}`}</Eyebrow>
             <h1 className="mt-1 text-lg font-semibold tracking-tight sm:text-xl">{active[1]}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
