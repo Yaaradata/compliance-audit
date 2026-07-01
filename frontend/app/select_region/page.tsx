@@ -23,6 +23,13 @@ import {
   SRILANKA_RETAIL_VERSION_SELECT_LABELS,
   type SrilankaRetailVersion,
 } from "./srilankaRetailVersions";
+import {
+  LATEST_UK_PROCESS_AUDIT_VERSION,
+  UK_PROCESS_AUDIT_PATHS,
+  UK_PROCESS_AUDIT_VERSION_ORDER,
+  UK_PROCESS_AUDIT_VERSION_SELECT_LABELS,
+  type UkProcessAuditVersion,
+} from "./ukProcessAuditVersions";
 
 type UkVersion = "v1" | "v2" | "v3" | "v4";
 
@@ -79,6 +86,13 @@ const REGION_OPTIONS: RegionOption[] = [
     icon: "🛡️",
     accentSoftClass: "bg-emerald-50 ring-emerald-100",
     href: UK_BANKING_PATHS[LATEST_UK_BANKING_VERSION],
+  },
+  {
+    id: "uk-process-audit",
+    title: "UK Process Audit",
+    icon: "📊",
+    accentSoftClass: "bg-sky-50 ring-sky-100",
+    href: UK_PROCESS_AUDIT_PATHS[LATEST_UK_PROCESS_AUDIT_VERSION],
   },
   {
     id: "indian-banking-audit",
@@ -195,6 +209,55 @@ function IndianProcessAuditCard({ option }: { option: RegionOption }) {
           {INDIAN_PROCESS_AUDIT_VERSION_ORDER.map((v) => (
             <option key={v} value={v}>
               {INDIAN_PROCESS_AUDIT_VERSION_SELECT_LABELS[v]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">{option.title}</h2>
+      <p className="mt-1 text-center text-sm text-slate-500">Choose dashboard to continue</p>
+
+      <button
+        type="button"
+        onClick={openDashboard}
+        className="mt-4 min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      >
+        Open dashboard
+      </button>
+    </div>
+  );
+}
+
+function UKProcessAuditCard({ option }: { option: RegionOption }) {
+  const router = useRouter();
+  const [version, setVersion] = useState<UkProcessAuditVersion>(LATEST_UK_PROCESS_AUDIT_VERSION);
+
+  const openDashboard = () => {
+    router.push(UK_PROCESS_AUDIT_PATHS[version]);
+  };
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="relative mb-3">
+        <div className="flex justify-center">
+          <div
+            className={`flex h-14 w-14 items-center justify-center rounded-2xl ring-1 ${option.accentSoftClass}`}
+          >
+            <span className="text-2xl" aria-hidden>
+              {option.icon}
+            </span>
+          </div>
+        </div>
+        <select
+          id="uk-process-audit-version"
+          value={version}
+          onChange={(e) => setVersion(e.target.value as UkProcessAuditVersion)}
+          className="absolute right-0 top-0 h-7 w-[6.75rem] cursor-pointer rounded-md border border-slate-200 bg-slate-50/90 py-0 pl-2 pr-6 text-xs font-medium text-slate-600 outline-none transition hover:border-slate-300 hover:bg-white focus:border-sky-400 focus:ring-1 focus:ring-sky-500/20"
+          aria-label="UK Process Audit version"
+        >
+          {UK_PROCESS_AUDIT_VERSION_ORDER.map((v) => (
+            <option key={v} value={v}>
+              {UK_PROCESS_AUDIT_VERSION_SELECT_LABELS[v]}
             </option>
           ))}
         </select>
@@ -357,6 +420,9 @@ function SrilankaRetailCard({ option }: { option: RegionOption }) {
 }
 
 function RegionCard({ option }: { option: RegionOption }) {
+  if (option.id === "uk-process-audit") {
+    return <UKProcessAuditCard option={option} />;
+  }
   if (option.id === "uk-banking-audit") {
     return <UKBankingAuditCard option={option} />;
   }
