@@ -19,15 +19,19 @@ import {
   XCircle,
 } from "lucide-react";
 import type { UkControlResult, UkEvidencePack } from "@/lib/UK_Process_Audit/types";
+import type { MissingEvidenceSection } from "@/lib/UK_Process_Audit/v3/liveIntel";
 import { Avatar, ComplianceCell, StatusBadge } from "../shared/journeyUi";
 import { ResidualPill } from "../shared/pills";
 
 export function EvidenceDrawer({
   evidence,
   onClose,
+  missingEvidence,
 }: {
   evidence: UkEvidencePack | null;
   onClose: () => void;
+  /** When set (v3), render Missing evidence above the exception log — never greyed. */
+  missingEvidence?: MissingEvidenceSection | null;
 }) {
   if (!evidence) return null;
   const {
@@ -191,6 +195,14 @@ export function EvidenceDrawer({
               ))}
             </ol>
           </Section>
+
+          {missingEvidence ? (
+            <Section title="Missing evidence" icon={<FolderSearch className="h-3.5 w-3.5" />}>
+              <div className="rounded-md bg-white px-3 py-2.5 text-xs leading-relaxed text-slate-800 ring-1 ring-slate-300 whitespace-pre-line">
+                {missingEvidence.body}
+              </div>
+            </Section>
+          ) : null}
 
           <Section title={`Exception log (${c.exceptions})`} icon={<AlertTriangle className="h-3.5 w-3.5" />}>
             {exceptionLog.length === 0 ? (

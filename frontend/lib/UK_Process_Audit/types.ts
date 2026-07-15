@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { FailureMechanism } from "./signals/types";
 
 /** Domain codes as they appear in the source CSV (Domain_Code column). */
 export type UkProcessAuditDomainId =
@@ -38,6 +39,7 @@ export interface UkRawControlRow {
   evidenceSourceSystem: string;
   testingFrequency: string;
   controlOwnerRole: string;
+  failureMechanismTags: FailureMechanism[];
 }
 
 /** CSV row enriched with the derived audit-test metrics used by the dashboard. */

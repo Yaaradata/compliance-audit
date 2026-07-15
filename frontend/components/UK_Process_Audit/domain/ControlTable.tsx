@@ -1,16 +1,22 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Circle } from "lucide-react";
 import type { UkAuditControl } from "@/lib/UK_Process_Audit/types";
+import type { EvidenceAgeCell } from "@/lib/UK_Process_Audit/v3/liveIntel";
 import { AutomationPill, NaturePill, ResidualPill, StatusPill } from "../shared/pills";
 
 export function ControlTable({
   controls,
   onOpenEvidence,
+  evidenceAgeByControlId,
 }: {
   controls: UkAuditControl[];
   onOpenEvidence: (control: UkAuditControl) => void;
+  /** When set (v3), show Evidence age column from artefacts — never lastTested labels. */
+  evidenceAgeByControlId?: Record<string, EvidenceAgeCell>;
 }) {
+  const showAge = Boolean(evidenceAgeByControlId);
+
   return (
     <section className="overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
       <div className="border-b border-slate-200 px-5 py-3">
@@ -20,7 +26,7 @@ export function ControlTable({
         </p>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-collapse text-sm">
+        <table className={`w-full border-collapse text-sm ${showAge ? "min-w-[980px]" : "min-w-[900px]"}`}>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               <th className="px-4 py-2.5">Control</th>
@@ -30,6 +36,7 @@ export function ControlTable({
               <th className="px-4 py-2.5 text-right">Sample</th>
               <th className="px-4 py-2.5 text-right">Exc.</th>
               <th className="px-4 py-2.5 text-right">Pass</th>
+              {showAge ? <th className="px-4 py-2.5">Evidence age</th> : null}
               <th className="px-4 py-2.5">Residual</th>
               <th className="px-4 py-2.5">Status</th>
               <th className="px-4 py-2.5" />
@@ -71,6 +78,11 @@ export function ControlTable({
                 <td className="px-4 py-3 text-right align-top tabular-nums font-semibold text-slate-900">
                   {c.compliance.toFixed(1)}%
                 </td>
+                {showAge ? (
+                  <td className="px-4 py-3 align-top">
+                    <EvidenceAgeCellView cell={evidenceAgeByControlId?.[c.controlId]} />
+                  </td>
+                ) : null}
                 <td className="px-4 py-3 align-top">
                   <ResidualPill risk={c.residualRisk} />
                 </td>
@@ -86,5 +98,32 @@ export function ControlTable({
         </table>
       </div>
     </section>
+  );
+}
+
+function EvidenceAgeCellView({ cell }: { cell: EvidenceAgeCell | undefined }) {
+  if (!cell || cell.kind === "unarmed") {
+    return (
+      <span className="text-slate-400" title={cell?.tooltip ?? "Cadence unconfirmed"}>
+        —
+      </span>
+    );
+  }
+  if (cell.kind === "armed-silent") {
+    return (
+      <span title="Armed · no evidence in window" className="inline-flex text-slate-500">
+        <Circle className="h-4 w-4" strokeWidth={1.75} />
+      </span>
+    );
+  }
+  if (cell.daysSince == null) {
+    return <span className="text-slate-400">—</span>;
+  }
+  return (
+    <span
+      className={`tabular-nums ${cell.overdueCadence ? "font-semibold text-amber-600" : "text-slate-600"}`}
+    >
+      {cell.daysSince}d
+    </span>
   );
 }

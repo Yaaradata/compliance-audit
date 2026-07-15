@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import type { UkAuditControl, UkControlStatus } from "@/lib/UK_Process_Audit/types";
+import type { EvidenceAgeCell } from "@/lib/UK_Process_Audit/v3/liveIntel";
 import { ControlTable } from "./ControlTable";
 
 type Filter = "all" | UkControlStatus;
@@ -21,9 +22,11 @@ type Filter = "all" | UkControlStatus;
 export function ControlRegister({
   controls,
   onOpenEvidence,
+  evidenceAgeByControlId,
 }: {
   controls: UkAuditControl[];
   onOpenEvidence: (control: UkAuditControl) => void;
+  evidenceAgeByControlId?: Record<string, EvidenceAgeCell>;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -134,7 +137,11 @@ export function ControlRegister({
         </div>
       </div>
 
-      <ControlTable controls={filtered} onOpenEvidence={onOpenEvidence} />
+      <ControlTable
+        controls={filtered}
+        onOpenEvidence={onOpenEvidence}
+        evidenceAgeByControlId={evidenceAgeByControlId}
+      />
     </div>
   );
 }

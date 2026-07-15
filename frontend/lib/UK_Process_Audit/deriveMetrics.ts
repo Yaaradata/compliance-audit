@@ -5,35 +5,13 @@ import type {
   UkRawControlRow,
   UkResidualRisk,
 } from "./types";
+import { hashString, makeRng, randInt } from "./signals/rng";
 
 /**
  * Audit-test metrics (population, sample, exceptions, compliance, residual risk) are NOT
  * in the source CSV. They are synthesised here deterministically from the control id so the
  * demo dashboard is stable across renders/builds while looking like a real testing cycle.
  */
-
-function hashString(input: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/** Mulberry32 seeded PRNG — pure, deterministic. */
-function makeRng(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) | 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-const randInt = (rng: () => number, min: number, max: number) =>
-  Math.floor(rng() * (max - min + 1)) + min;
 
 /** Domains with inherently higher inherent risk see more exceptions. */
 const DOMAIN_RISK_WEIGHT: Record<UkProcessAuditDomainId, number> = {

@@ -8,6 +8,7 @@ import type {
   UkDomainSop,
   UkJourneyCase,
 } from "@/lib/UK_Process_Audit/types";
+import type { EvidenceAgeCell } from "@/lib/UK_Process_Audit/v3/liveIntel";
 import { ControlRegister } from "./ControlRegister";
 import { JourneyMatrix } from "./JourneyMatrix";
 import { ProcessFlowView } from "./ProcessFlowView";
@@ -22,6 +23,7 @@ export function DomainWorkspace({
   journeyTitle,
   controlExceptionLabelById,
   onOpenEvidence,
+  evidenceAgeByControlId,
 }: {
   controls: UkAuditControl[];
   sop: UkDomainSop;
@@ -30,6 +32,7 @@ export function DomainWorkspace({
   journeyTitle: string;
   controlExceptionLabelById: Record<string, string>;
   onOpenEvidence: (control: UkAuditControl) => void;
+  evidenceAgeByControlId?: Record<string, EvidenceAgeCell>;
 }) {
   const [view, setView] = useState<WorkspaceView>("sop");
 
@@ -76,7 +79,11 @@ export function DomainWorkspace({
       )}
 
       {view === "register" && (
-        <ControlRegister controls={controls} onOpenEvidence={onOpenEvidence} />
+        <ControlRegister
+          controls={controls}
+          onOpenEvidence={onOpenEvidence}
+          evidenceAgeByControlId={evidenceAgeByControlId}
+        />
       )}
     </div>
   );

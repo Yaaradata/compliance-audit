@@ -1,5 +1,5 @@
 /**
- * Route: `/UK_Process_Audit/v2` (latest)
+ * Route: `/UK_Process_Audit/v2`
  *
  * UI: `@/components/UK_Process_Audit/v2/UkProcessAuditDashboardV2`
  *     — the exact Indian Process Audit (v3) component system, driven by UK data.

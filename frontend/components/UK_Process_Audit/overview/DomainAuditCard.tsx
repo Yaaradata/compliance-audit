@@ -8,9 +8,12 @@ import { residualHex } from "../shared/pills";
 export function DomainAuditCard({
   card,
   onOpen,
+  focusLabel = "AI focus",
 }: {
   card: UkDomainAuditCard;
   onOpen: () => void;
+  /** v3 passes "Top exception". Default preserves v1 "AI focus". */
+  focusLabel?: string;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -79,7 +82,7 @@ export function DomainAuditCard({
       </div>
 
       <div className="flex flex-1 flex-col px-4 py-3">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">AI focus</div>
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{focusLabel}</div>
         <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-slate-600">{card.topIssue}</p>
         <p className="mt-1.5 text-[12px] font-medium leading-snug text-slate-900">{card.action}</p>
       </div>

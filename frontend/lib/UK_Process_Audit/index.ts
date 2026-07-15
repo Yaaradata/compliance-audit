@@ -13,6 +13,21 @@ export function getUkProcessAuditData(): UkProcessAuditSnapshot {
 
 export { buildUkEvidence } from "./buildEvidence";
 
+/** v3 entry — cadence, precedents, evidence-bound claims. Does not alter v1/v2. */
+export { getUkProcessAuditDataV3 } from "./v3";
+export type {
+  AdmissionPosture,
+  CadenceStatus,
+  ClaimOrigin,
+  SignalPredicate,
+  UkAuditClaim,
+  UkCadenceEvaluation,
+  UkEnforcementPrecedent,
+  UkEvidenceRef,
+  UkPopulationCoverageCheck,
+  UkProcessAuditV3Snapshot,
+} from "./v3";
+
 export type {
   UkAuditControl,
   UkAutomationLevel,

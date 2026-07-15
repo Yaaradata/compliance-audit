@@ -1,4 +1,5 @@
 import { UK_CONTROLS_CSV } from "./rawData";
+import { tagsForControl } from "./signals/mechanismTags";
 import type {
   UkAutomationLevel,
   UkControlNature,
@@ -84,6 +85,7 @@ export function parseUkControlRows(): UkRawControlRow[] {
       evidenceSourceSystem: c[14],
       testingFrequency: c[15],
       controlOwnerRole: c[16],
+      failureMechanismTags: tagsForControl(c[6]),
     };
   });
 }
