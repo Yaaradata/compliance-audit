@@ -13,6 +13,7 @@ backend/**/*.pyc
 frontend/.next/
 frontend/node_modules/
 frontend/.env*
+!frontend/.env.example
 node_modules/
 
 # CodeGraph index (local only)

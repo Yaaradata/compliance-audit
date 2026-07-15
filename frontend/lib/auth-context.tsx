@@ -16,6 +16,17 @@ interface ActiveCycleMeta {
   display_id: string;
 }
 
+type AuthSession = {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: UserRole | null;
+    tenant_id: string | null;
+  };
+};
+
 interface AuthState {
   user: User | null;
   tenant: Tenant | null;
@@ -56,6 +67,7 @@ export function getStoredTenants(): Tenant[] {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string, role: UserRole | null, name?: string) => Promise<boolean>;
+  demoLogin: (role: UserRole) => Promise<boolean>;
   signup: (email: string, password: string, role: UserRole | null, name: string, tenantId?: string) => Promise<boolean>;
   logout: () => void;
   setArchitecture: (architectureId: string) => void;
@@ -160,31 +172,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const applySession = useCallback((session: AuthSession, preserveCycle: boolean) => {
+    api.setToken(session.token);
+    const user: User = {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      role: session.user.role,
+      tenantId: session.user.tenant_id,
+    };
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    setState({
+      user,
+      tenant: null,
+      selectedArchitectureId: null,
+      activeCycleId: preserveCycle ? loadActiveCycleId() : null,
+      activeCycleMeta: preserveCycle ? loadActiveCycleMeta() : null,
+    });
+  }, []);
+
   const login = useCallback(async (email: string, password: string, role: UserRole | null, _name?: string): Promise<boolean> => {
     try {
-      const res = await api.post<{ token: string; user: { id: string; email: string; name: string; role: UserRole | null; tenant_id: string | null } }>("/auth/login", { email, password });
-      api.setToken(res.token);
-      const user: User = { id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role, tenantId: res.user.tenant_id };
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
-      setState({ user, tenant: null, selectedArchitectureId: null, activeCycleId: loadActiveCycleId(), activeCycleMeta: loadActiveCycleMeta() });
+      const session = await api.post<AuthSession>("/auth/login", { email, password });
+      applySession(session, true);
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [applySession]);
+
+  const demoLogin = useCallback(async (role: UserRole): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/demo-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
+      if (!response.ok) return false;
+      const session = (await response.json()) as AuthSession;
+      applySession(session, true);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [applySession]);
 
   const signup = useCallback(async (email: string, password: string, role: UserRole | null, name: string, tenantId?: string): Promise<boolean> => {
     try {
-      const res = await api.post<{ token: string; user: { id: string; email: string; name: string; role: UserRole | null; tenant_id: string | null } }>("/auth/signup", { email, password, name, role, tenant_id: tenantId });
-      api.setToken(res.token);
-      const user: User = { id: res.user.id, email: res.user.email, name: res.user.name, role: res.user.role, tenantId: res.user.tenant_id };
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
-      setState({ user, tenant: null, selectedArchitectureId: null, activeCycleId: null, activeCycleMeta: null });
+      const session = await api.post<AuthSession>("/auth/signup", { email, password, name, role, tenant_id: tenantId });
+      applySession(session, false);
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [applySession]);
 
   const logout = useCallback(() => {
     api.clearToken();
@@ -301,6 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ...state,
       login,
+      demoLogin,
       signup,
       logout,
       setArchitecture,
@@ -314,7 +356,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       effectiveCycleRole,
     }),
-    [state, login, signup, logout, setArchitecture, setActiveCycleId, tenants, addTenant, updateTenantAdmins, addTenantUser, loading, effectiveCycleRole]
+    [state, login, demoLogin, signup, logout, setArchitecture, setActiveCycleId, tenants, addTenant, updateTenantAdmins, addTenantUser, loading, effectiveCycleRole]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

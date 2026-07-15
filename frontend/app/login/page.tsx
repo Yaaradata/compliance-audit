@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -8,8 +8,6 @@ import { ROLE_LABELS, ROLE_DESCRIPTIONS } from "@/lib/data/roles";
 import { PasswordInput } from "@/components/ui/password-input";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import type { UserRole } from "@/lib/types";
-
-const DEMO_STORAGE_KEY = "demo_login_credentials";
 
 function LoginForm() {
   const router = useRouter();
@@ -24,26 +22,6 @@ function LoginForm() {
   const [name, setName] = useState("");
   const [role, setRole] = useState<UserRole>("compliance_officer");
   const [error, setError] = useState("");
-
-  // Pre-fill from demo page when ?demo=1 (demo opens login in new tab; credentials stored in localStorage)
-  useEffect(() => {
-    if (!isDemo || typeof window === "undefined") return;
-    try {
-      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
-      if (raw) {
-        const { email: e, password: p, role: r } = JSON.parse(raw) as { email: string; password: string; role: UserRole };
-        localStorage.removeItem(DEMO_STORAGE_KEY);
-        queueMicrotask(() => {
-          setEmail(e ?? "");
-          setPassword(p ?? "");
-          setRole(r ?? "compliance_officer");
-          setMode("login");
-        });
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [isDemo]);
 
   const [submitting, setSubmitting] = useState(false);
 
