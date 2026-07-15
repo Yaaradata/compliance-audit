@@ -69,13 +69,25 @@ export async function POST(request: Request) {
     }
 
     const session = (await response.json()) as BackendLoginResponse;
-    if (!session.token || session.user.role !== role) {
-      return errorResponse(409, "Demo account role does not match its configuration.");
+    if (!session.token || !session.user) {
+      return errorResponse(401, "Demo login failed.");
     }
 
-    return NextResponse.json(session, {
-      headers: { "Cache-Control": "no-store" },
-    });
+    // Production users often keep cycle-scoped roles with User.role = null.
+    // Demo buttons are role-keyed via env credentials, so stamp the selected
+    // demo role onto the session the browser receives.
+    return NextResponse.json(
+      {
+        token: session.token,
+        user: {
+          ...session.user,
+          role,
+        },
+      },
+      {
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
   } catch {
     return errorResponse(502, "Demo authentication service is unavailable.");
   }

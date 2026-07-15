@@ -9,8 +9,16 @@ type DemoCredential = {
 
 function credential(email: string | undefined, password: string | undefined): DemoCredential | null {
   const normalisedEmail = email?.trim();
-  if (!normalisedEmail || !password) return null;
-  return { email: normalisedEmail, password };
+  let normalisedPassword = password?.trim();
+  if (
+    normalisedPassword &&
+    ((normalisedPassword.startsWith("'") && normalisedPassword.endsWith("'")) ||
+      (normalisedPassword.startsWith('"') && normalisedPassword.endsWith('"')))
+  ) {
+    normalisedPassword = normalisedPassword.slice(1, -1);
+  }
+  if (!normalisedEmail || !normalisedPassword) return null;
+  return { email: normalisedEmail, password: normalisedPassword };
 }
 
 /** Read demo credentials only inside the server runtime. */

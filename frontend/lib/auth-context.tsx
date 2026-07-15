@@ -9,6 +9,7 @@ const USER_KEY = "swift_compliance_user";
 const CYCLE_KEY = "active_cycle_id";
 const CYCLE_META_KEY = "active_cycle_meta";
 const ARCHITECTURE_KEY = "active_architecture_id";
+const DEMO_ROLE_OVERRIDE_KEY = "demo_role_override";
 
 interface ActiveCycleMeta {
   label: string;
@@ -61,6 +62,16 @@ function loadActiveCycleMeta(): ActiveCycleMeta | null {
   } catch { return null; }
 }
 
+function loadDemoRoleOverride(): UserRole | null {
+  if (typeof window === "undefined") return null;
+  return (sessionStorage.getItem(DEMO_ROLE_OVERRIDE_KEY) as UserRole | null) ?? null;
+}
+
+function withDemoRoleOverride(user: User): User {
+  const override = loadDemoRoleOverride();
+  return override ? { ...user, role: override } : user;
+}
+
 export function getStoredTenants(): Tenant[] {
   return [];
 }
@@ -111,7 +122,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setState({ user: cachedUser, tenant: null, selectedArchitectureId: archId, activeCycleId: cycleId, activeCycleMeta: loadActiveCycleMeta() });
       api.get<{ id: string; email: string; name: string; role: UserRole | null; tenant_id: string | null }>("/auth/me")
         .then(async (u) => {
-          const user: User = { id: u.id, email: u.email, name: u.name, role: u.role, tenantId: u.tenant_id };
+          const user: User = withDemoRoleOverride({
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            role: u.role,
+            tenantId: u.tenant_id,
+          });
           localStorage.setItem(USER_KEY, JSON.stringify(user));
 
           let nextCycleId: string | null = cycleId;
@@ -172,15 +189,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const applySession = useCallback((session: AuthSession, preserveCycle: boolean) => {
+  const applySession = useCallback((session: AuthSession, preserveCycle: boolean, demoRole?: UserRole) => {
+    if (typeof window !== "undefined") {
+      if (demoRole) sessionStorage.setItem(DEMO_ROLE_OVERRIDE_KEY, demoRole);
+      else sessionStorage.removeItem(DEMO_ROLE_OVERRIDE_KEY);
+    }
     api.setToken(session.token);
-    const user: User = {
+    const user: User = withDemoRoleOverride({
       id: session.user.id,
       email: session.user.email,
       name: session.user.name,
-      role: session.user.role,
+      role: demoRole ?? session.user.role,
       tenantId: session.user.tenant_id,
-    };
+    });
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     setState({
       user,
@@ -208,9 +229,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role }),
       });
-      if (!response.ok) return false;
+      if (!response.ok) {
+        const detail = await response.json().catch(() => null) as { error?: string } | null;
+        console.warn("[demoLogin]", response.status, detail?.error ?? "failed");
+        return false;
+      }
       const session = (await response.json()) as AuthSession;
-      applySession(session, true);
+      applySession(session, true, role);
       return true;
     } catch {
       return false;
@@ -233,6 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(CYCLE_KEY);
     localStorage.removeItem(CYCLE_META_KEY);
     localStorage.removeItem(ARCHITECTURE_KEY);
+    sessionStorage.removeItem(DEMO_ROLE_OVERRIDE_KEY);
     setState({ user: null, tenant: null, selectedArchitectureId: null, activeCycleId: null, activeCycleMeta: null });
   }, []);
 

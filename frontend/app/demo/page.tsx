@@ -8,6 +8,14 @@ import { useAuth } from "@/lib/auth-context";
 import { ROLE_LABELS } from "@/lib/data/roles";
 import { DEMO_ROLE_STEPS, type DemoRole } from "@/lib/demo-auth";
 
+const DEMO_ENV_PREFIX: Record<DemoRole, string> = {
+  compliance_officer: "DEMO_COMPLIANCE_OFFICER",
+  it_sme: "DEMO_IT_SME",
+  internal_reviewer_l1: "DEMO_INTERNAL_REVIEWER_L1",
+  internal_reviewer_l2: "DEMO_INTERNAL_REVIEWER_L2",
+  external_assessor: "DEMO_EXTERNAL_ASSESSOR",
+};
+
 function DemoRoleCard({
   role,
   step,
@@ -71,7 +79,9 @@ export default function DemoPage() {
       router.push("/dashboard");
       return;
     }
-    setError("Demo login failed. Check the server-only demo credential configuration.");
+    setError(
+      `Could not sign in as ${ROLE_LABELS[role]}. Confirm ${DEMO_ENV_PREFIX[role]}_EMAIL/PASSWORD are set, DEMO_LOGIN_ENABLED=true, and the frontend was redeployed.`,
+    );
     setActiveRole(null);
   };
 
