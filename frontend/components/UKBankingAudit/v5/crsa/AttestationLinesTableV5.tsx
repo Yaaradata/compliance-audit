@@ -10,6 +10,7 @@ import {
   hasCompletenessClaim,
   lineAgeingForCycle,
   resolveLineAgeing,
+  type AttestationLineShape,
   type GsrShape,
 } from "@/lib/ukbankingaudit/v5/crsaAttestation";
 import { AttestationDenominatorStrip } from "./AttestationDenominatorStrip";
@@ -33,7 +34,9 @@ export function AttestationLinesTableV5({ cycle, onDrillLine, onOpenEvidence }: 
   }, []);
 
   const rows = useMemo(() => {
-    const lines = (crsaAttestationLines || []).filter((l) => l.cycleId === cycle.id);
+    const lines = ((crsaAttestationLines || []) as AttestationLineShape[]).filter(
+      (l) => l.cycleId === cycle.id,
+    );
     const ageingRank = new Map(
       lineAgeingForCycle(lines, gsrById).map((a, i) => [a.lineId, i]),
     );

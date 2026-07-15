@@ -19,14 +19,17 @@ type Props = {
 };
 
 /** For a CRSA area, the precedents matched by any control's mechanism tags (deduped by precedent). */
-function crsaPrecedentMatches(area: string): { precedent: Precedent; crsaRef: string }[] {
+function crsaPrecedentMatches(
+  area: string,
+  domainId: string,
+): { precedent: Precedent; crsaRef: string }[] {
   const rows = CRSA_DATA[area] ?? [];
   const seen = new Set<string>();
   const matches: { precedent: Precedent; crsaRef: string }[] = [];
   for (const row of rows) {
     const tags = CRSA_MECHANISM_TAGS[row.ref];
     if (!tags) continue;
-    for (const precedent of matchPrecedents(tags, "UK")) {
+    for (const precedent of matchPrecedents(tags, "UK", domainId)) {
       if (seen.has(precedent.id)) continue;
       seen.add(precedent.id);
       matches.push({ precedent, crsaRef: row.ref });
@@ -43,8 +46,8 @@ export function DomainDrillPanel({ domain, onClose }: Props) {
   const band = domain.status === "RED" ? "red" : domain.status === "AMBER" ? "amber" : "green";
   const rag = RAG_STYLES[band];
   const precedentMatches = useMemo(
-    () => (domain.crsa ? crsaPrecedentMatches(domain.crsa) : []),
-    [domain.crsa],
+    () => (domain.crsa ? crsaPrecedentMatches(domain.crsa, domain.id) : []),
+    [domain.crsa, domain.id],
   );
 
   const toggleSub = (idx: number) => {

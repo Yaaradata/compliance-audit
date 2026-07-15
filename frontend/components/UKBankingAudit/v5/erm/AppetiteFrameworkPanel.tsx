@@ -7,6 +7,15 @@ import { RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v5/riskDomainsV5";
 import { StatusBadge } from "@/components/UKBankingAudit/v5/screens/_shared";
 import { AppetiteBreachNoPlan } from "./AppetiteBreachNoPlan";
 
+type AppetiteMetric = {
+  id: string;
+  metric: string;
+  current: number;
+  currentBand: string;
+  rasVersion: number;
+  accountableSMFId: string;
+};
+
 type Props = {
   onOpenEvidence?: (ref: string) => void;
 };
@@ -16,7 +25,10 @@ type Props = {
  */
 export function AppetiteFrameworkPanel({ onOpenEvidence }: Props) {
   const breachedMetrics = useMemo(
-    () => (riskAppetiteMetrics || []).filter((m) => m.currentBand === "red" || m.currentBand === "amber"),
+    () =>
+      ((riskAppetiteMetrics || []) as AppetiteMetric[]).filter(
+        (m) => m.currentBand === "red" || m.currentBand === "amber",
+      ),
     [],
   );
 
@@ -36,7 +48,7 @@ export function AppetiteFrameworkPanel({ onOpenEvidence }: Props) {
       </header>
 
       <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-        {breachedMetrics.map((m) => (
+        {breachedMetrics.map((m: AppetiteMetric) => (
           <div
             key={m.id}
             className="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3"

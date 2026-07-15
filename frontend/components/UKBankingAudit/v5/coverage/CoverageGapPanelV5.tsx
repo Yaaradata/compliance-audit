@@ -13,6 +13,29 @@ import { RACMRefBadge } from "@/components/UKBankingAudit/v5/screens/_shared";
 import { resolveGapPrecedent } from "@/lib/ukbankingaudit/v5/enforcementCoverage";
 import { PrecedentGapBadge } from "./PrecedentGapBadge";
 
+type GsrItem = {
+  id: string;
+  thinCoverageFlag?: boolean;
+  controlIds?: string[];
+  controlObjectiveId: string;
+  racmRef?: string;
+  requirementText?: string;
+};
+
+type ControlItem = {
+  id: string;
+  ces?: { band?: string; current?: number };
+};
+
+type CoverageGapItem = {
+  id: string;
+  gapType: string;
+  entityId: string;
+  recommendedRemediation: string;
+  severity: string;
+  ageDays: number;
+};
+
 type Props = {
   setSelectedGSRId?: (gsrId: string, cycleId: string) => void;
   setActiveScreen?: (screen: string) => void;
@@ -20,30 +43,30 @@ type Props = {
 
 /** v5 gaps lens — thin GSR surfacing plus coverageGaps register with precedent badges. */
 export function CoverageGapPanelV5({ setSelectedGSRId, setActiveScreen }: Props) {
-  const all = groupSetRequirements || [];
+  const all = (groupSetRequirements || []) as GsrItem[];
   const total = all.length;
 
   const thin = useMemo(() => {
-    return all.filter((g) => {
+    return all.filter((g: GsrItem) => {
       if (g.thinCoverageFlag) return true;
       const cIds = g.controlIds || [];
       if (cIds.length !== 1) return false;
-      const c = (controls || []).find((cc) => cc.id === cIds[0]);
+      const c = (controls || []).find((cc: ControlItem) => cc.id === cIds[0]);
       return c && (c.ces?.band === "amber" || c.ces?.band === "red");
     });
-  }, []);
+  }, [all]);
 
-  const drill = (g: { id: string; controlObjectiveId: string }) => {
-    const co = (controlObjectives || []).find((c) => c.id === g.controlObjectiveId);
-    const area = co ? (riskAreas || []).find((a) => a.id === co.riskAreaId) : null;
-    const cycle = area ? (crsaAttestationCycles || []).find((c) => c.riskAreaId === area.id) : null;
+  const drill = (g: GsrItem) => {
+    const co = (controlObjectives || []).find((c: { id: string; riskAreaId?: string }) => c.id === g.controlObjectiveId);
+    const area = co ? (riskAreas || []).find((a: { id: string }) => a.id === co.riskAreaId) : null;
+    const cycle = area ? (crsaAttestationCycles || []).find((c: { riskAreaId?: string; id: string }) => c.riskAreaId === area.id) : null;
     if (cycle) {
       setSelectedGSRId?.(g.id, cycle.id);
       setActiveScreen?.("perRequirementAttestation");
     }
   };
 
-  const gaps = coverageGaps || [];
+  const gaps = (coverageGaps || []) as CoverageGapItem[];
 
   return (
     <div className="space-y-4">
@@ -71,7 +94,7 @@ export function CoverageGapPanelV5({ setSelectedGSRId, setActiveScreen }: Props)
           {gaps.length === 0 ? (
             <p className="p-4 text-[11px] italic text-slate-400">No coverage gaps in register.</p>
           ) : (
-            gaps.map((g) => {
+            gaps.map((g: CoverageGapItem) => {
               const precedent = resolveGapPrecedent(g);
               return (
                 <div key={g.id} className="px-5 py-3">
@@ -108,9 +131,9 @@ export function CoverageGapPanelV5({ setSelectedGSRId, setActiveScreen }: Props)
           {thin.length === 0 ? (
             <p className="p-4 text-[11px] italic text-slate-400">No coverage gaps surfaced.</p>
           ) : (
-            thin.map((g) => {
+            thin.map((g: GsrItem) => {
               const cIds = g.controlIds || [];
-              const c = cIds.length ? (controls || []).find((cc) => cc.id === cIds[0]) : null;
+              const c = cIds.length ? (controls || []).find((cc: ControlItem) => cc.id === cIds[0]) : null;
               return (
                 <button
                   key={g.id}
