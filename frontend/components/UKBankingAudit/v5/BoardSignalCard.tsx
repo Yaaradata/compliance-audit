@@ -3,27 +3,10 @@
 import { formatConsequence } from "@/lib/ukbankingaudit/v5/precedentCorpus";
 import { canDisposition } from "@/lib/ukbankingaudit/v5/dispositions";
 import { getAccountability } from "@/lib/ukbankingaudit/v5/riskDomainsV5";
-import type { BoardSignal, FailureMechanism, Precedent } from "@/lib/ukbankingaudit/v5/types";
+import type { BoardSignal, Precedent } from "@/lib/ukbankingaudit/v5/types";
 import { useBoardRole } from "./boardRoleContext";
 import { useJurisdiction } from "./jurisdictionContext";
 import { OwnerChip } from "./OwnerChip";
-
-const MECHANISM_LABEL: Record<FailureMechanism, string> = {
-  "assertion-unevidenced": "Unevidenced assertion",
-  "periodic-review-absent": "Periodic review absent",
-  "cdd-coverage-shortfall": "CDD coverage shortfall",
-  "sanctions-screening-misconfigured": "Sanctions screening misconfigured",
-  "tm-scope-gap": "Transaction monitoring scope gap",
-  "alert-suppression": "Alert suppression",
-  "remediation-unevidenced": "Remediation unevidenced",
-  "closure-signed-unevidenced": "Closure signed, unevidenced",
-  "risk-tolerated-past-expiry": "Risk tolerated past expiry",
-  "kri-breach-no-plan": "KRI breach, no plan",
-  "accountability-orphan": "Accountability orphan",
-  "repeat-finding": "Repeat finding",
-  "deadline-missed": "Deadline missed",
-  "restriction-breach": "Restriction breach",
-};
 
 const SEVERITY_RAIL: Record<BoardSignal["severity"], string> = {
   S1: "bg-red-500",
@@ -70,7 +53,7 @@ export function BoardSignalCard({ signal, precedent, onInvestigate, onAccept }: 
         {/* 2 · title */}
         <div className="flex items-start justify-between gap-2">
           <span className="text-[13px] font-bold leading-tight text-slate-900">
-            {MECHANISM_LABEL[signal.mechanism]}
+            {signal.title}
           </span>
           {/* 8b · status pill */}
           <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${status.className}`}>
