@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import {
   Activity,
   AlertTriangle,
-  Circle,
   Cpu,
   Gauge,
   ListChecks,
@@ -18,10 +17,7 @@ import type {
   UkProcessAuditOverview,
   UkResidualRisk,
 } from "@/lib/UK_Process_Audit/types";
-import type { UkSignal } from "@/lib/UK_Process_Audit/signals";
-import { UK_PRECEDENTS } from "@/lib/UK_Process_Audit/signals";
 import { DomainAuditCard } from "./DomainAuditCard";
-import { UkSignalCard, type UkSignalCardPrecedent } from "../v3/signal/UkSignalCard";
 
 const POSTURE_BANNER: Record<UkResidualRisk, { ring: string; text: string; dot: string; label: string }> = {
   Critical: { ring: "ring-red-200 bg-red-50", text: "text-red-800", dot: "bg-red-500", label: "Critical" },
@@ -30,30 +26,17 @@ const POSTURE_BANNER: Record<UkResidualRisk, { ring: string; text: string; dot: 
   Low: { ring: "ring-emerald-200 bg-emerald-50", text: "text-emerald-800", dot: "bg-emerald-500", label: "Stable" },
 };
 
-export type OverviewLiveIntel = {
-  silent: number;
-  unarmed: number;
-  matches: number;
-  totalControls: number;
-  signals: UkSignal[];
-};
-
 export function OverviewTab({
   overview,
   domainCards,
   onDrillDown,
-  liveIntel,
   focusLabel,
-  onOpenSignalControl,
 }: {
   overview: UkProcessAuditOverview;
   domainCards: UkDomainAuditCard[];
   onDrillDown: (id: UkProcessAuditDomainId) => void;
-  /** When set (v3), prepend live KPIs and replace AI panel body with UkSignalCard. */
-  liveIntel?: OverviewLiveIntel;
   /** Domain card focus block label. Default preserves v1 "AI focus". */
   focusLabel?: string;
-  onOpenSignalControl?: (controlId: string) => void;
 }) {
   const sortedCards = useMemo(
     () =>
@@ -74,7 +57,6 @@ export function OverviewTab({
   );
 
   const banner = POSTURE_BANNER[overview.posture];
-  const topSignals = liveIntel?.signals.slice(0, 4) ?? [];
 
   return (
     <div className="space-y-6">
@@ -99,34 +81,7 @@ export function OverviewTab({
         </span>
       </div>
 
-      {/* KPI strip — live intel tiles first when provided (v3) */}
-      <div
-        className={`grid grid-cols-2 gap-3 md:grid-cols-3 ${
-          liveIntel ? "xl:grid-cols-9" : "xl:grid-cols-6"
-        }`}
-      >
-        {liveIntel ? (
-          <>
-            <Kpi
-              icon={Circle}
-              label="Silent controls"
-              value={`${liveIntel.silent} of ${liveIntel.totalControls}`}
-              tint="#ef4444"
-            />
-            <Kpi
-              icon={Circle}
-              label="Unarmed controls"
-              value={`${liveIntel.unarmed} of ${liveIntel.totalControls}`}
-              tint="#94a3b8"
-            />
-            <Kpi
-              icon={Sparkles}
-              label="Precedent matches"
-              value={`${liveIntel.matches}`}
-              tint="#7c3aed"
-            />
-          </>
-        ) : null}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Kpi icon={ListChecks} label="Controls in scope" value={String(overview.totalControls)} tint="#0f172a" />
         <Kpi icon={Gauge} label="Avg compliance" value={`${overview.avgCompliance}%`} tint="#10b981" />
         <Kpi icon={Activity} label="Open exceptions" value={String(overview.openExceptions)} tint="#f59e0b" />
@@ -135,75 +90,39 @@ export function OverviewTab({
         <Kpi icon={ShieldCheck} label="Preventive" value={`${overview.preventivePct}%`} tint="#6366f1" />
       </div>
 
-      {/* AI audit intelligence — signal cards when liveIntel provided */}
       <section className="overflow-hidden rounded-lg bg-gradient-to-br from-slate-900 to-slate-800 text-white ring-1 ring-slate-900">
         <div className="flex items-center gap-2 border-b border-white/10 px-5 py-3">
           <Sparkles className="h-4 w-4 text-emerald-300" />
           <h3 className="text-sm font-semibold">AI audit intelligence</h3>
-          <span className="ml-auto text-[11px] text-slate-400">
-            {liveIntel ? "Evidence-bound signals · last 24 hours" : "Where to focus this cycle"}
-          </span>
+          <span className="ml-auto text-[11px] text-slate-400">Where to focus this cycle</span>
         </div>
-        {liveIntel ? (
-          <div className="grid gap-px bg-white/10 sm:grid-cols-2">
-            {topSignals.length === 0 ? (
-              <div className="bg-slate-900 px-5 py-4 text-[13px] text-slate-300 sm:col-span-2">
-                No signals in 24 hours. 23 controls unarmed — cadence unconfirmed.
-              </div>
-            ) : (
-              topSignals.map((s) => {
-                const precedent = s.precedentId
-                  ? (UK_PRECEDENTS.find((p) => p.id === s.precedentId) as
-                      | UkSignalCardPrecedent
-                      | undefined) ?? null
-                  : null;
-                if (s.precedentId && (!precedent || precedent.admissionPosture == null)) {
-                  return null;
-                }
-                return (
-                  <div key={s.id} className="bg-slate-900 p-3">
-                    <UkSignalCard
-                      signal={s}
-                      precedent={precedent}
-                      onOpenControl={(id) => onOpenSignalControl?.(id)}
-                      onOpenEvidence={(ref) => onOpenSignalControl?.(ref.split(":")[0] ?? ref)}
-                      onOpenInvestigation={() => onOpenSignalControl?.(s.controlId)}
-                      onAcceptWithReason={() => undefined}
-                    />
-                  </div>
-                );
-              })
-            )}
-          </div>
-        ) : (
-          <div className="grid gap-px bg-white/10 sm:grid-cols-3">
-            {attentionDomains.length === 0 ? (
-              <div className="bg-slate-900 px-5 py-4 text-[13px] text-slate-300 sm:col-span-3">
-                No critical or high-risk domains this cycle — maintain BAU testing cadence.
-              </div>
-            ) : (
-              attentionDomains.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => onDrillDown(c.id)}
-                  className="flex flex-col gap-1 bg-slate-900 px-5 py-4 text-left transition-colors hover:bg-slate-800"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="truncate text-[13px] font-semibold">{c.domain}</span>
-                    <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold">
-                      {c.residualRisk}
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-slate-400">
-                    {c.exceptions} exceptions · {c.violations} critical · {c.compliance.toFixed(1)}% pass
+        <div className="grid gap-px bg-white/10 sm:grid-cols-3">
+          {attentionDomains.length === 0 ? (
+            <div className="bg-slate-900 px-5 py-4 text-[13px] text-slate-300 sm:col-span-3">
+              No critical or high-risk domains this cycle — maintain BAU testing cadence.
+            </div>
+          ) : (
+            attentionDomains.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onDrillDown(c.id)}
+                className="flex flex-col gap-1 bg-slate-900 px-5 py-4 text-left transition-colors hover:bg-slate-800"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="truncate text-[13px] font-semibold">{c.domain}</span>
+                  <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold">
+                    {c.residualRisk}
                   </span>
-                  <span className="mt-1 line-clamp-2 text-[12px] text-slate-300">{c.action}</span>
-                </button>
-              ))
-            )}
-          </div>
-        )}
+                </div>
+                <span className="text-[11px] text-slate-400">
+                  {c.exceptions} exceptions · {c.violations} critical · {c.compliance.toFixed(1)}% pass
+                </span>
+                <span className="mt-1 line-clamp-2 text-[12px] text-slate-300">{c.action}</span>
+              </button>
+            ))
+          )}
+        </div>
       </section>
 
       <section className="overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
@@ -254,16 +173,11 @@ function Kpi({
 }) {
   return (
     <div className="rounded-lg bg-white px-4 py-3 ring-1 ring-slate-200">
-      <div className="flex items-center gap-2">
-        <span
-          className="flex h-7 w-7 items-center justify-center rounded-md"
-          style={{ backgroundColor: `${tint}14`, color: tint }}
-        >
-          <Icon className="h-4 w-4" />
-        </span>
-        <span className="text-[11px] font-medium text-slate-500">{label}</span>
+      <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500">
+        <Icon className="h-3.5 w-3.5" style={{ color: tint }} />
+        {label}
       </div>
-      <div className="mt-2 text-xl font-semibold tabular-nums text-slate-900">{value}</div>
+      <div className="mt-1 text-lg font-semibold tracking-tight text-slate-900">{value}</div>
     </div>
   );
 }

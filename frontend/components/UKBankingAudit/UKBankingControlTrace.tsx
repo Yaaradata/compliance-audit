@@ -19,6 +19,11 @@ import {
 import {
   CROBoardViewV5,
 } from '@/components/UKBankingAudit/v5';
+import { PrecedentDetailContent } from '@/components/UKBankingAudit/v5/drawers/PrecedentDetailContent';
+import { DerivationDetailContent } from '@/components/UKBankingAudit/v5/drawers/DerivationDetailContent';
+import { StatusEvidenceDetailContent } from '@/components/UKBankingAudit/v5/drawers/StatusEvidenceDetailContent';
+import { CrsaRefDetailContent } from '@/components/UKBankingAudit/v5/drawers/CrsaRefDetailContent';
+import { resolveV5Entity } from '@/lib/ukbankingaudit/v5/resolveV5Entity';
 
 import {
   bindUkTraceMock,
@@ -582,6 +587,26 @@ function reducer(state, action) {
 // here since reducer is module-scope. Mirrors the App-body resolver.
 function resolveEntity(type, id) {
   if (!type || !id) return null;
+  if (
+    type === 'precedent' ||
+    type === 'derivation' ||
+    type === 'statusEvidence' ||
+    type === 'crsaRef'
+  ) {
+    if (type === 'crsaRef') {
+      const line = getAttestationLine(id);
+      if (line) return line;
+      const gsrDirect = getGSR(id);
+      if (gsrDirect) return gsrDirect;
+      const gsrByRacm = (groupSetRequirements || []).find((g) => g.racmRef === id);
+      if (gsrByRacm) return gsrByRacm;
+    }
+    return resolveV5Entity(type, id, {
+      getEvidence,
+      getKRI,
+      getControl,
+    });
+  }
   return ({
     risk: getRisk, control: getControl, obligation: getObligation, issue: getIssue,
     evidence: getEvidence, smf: getSMF, auditPack: getAuditPack, aiInsight: getInsight,
@@ -800,7 +825,9 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
         {activeScreen === "smcrWorkspace" && variant === "v5" && <SMCRReasonableStepsWorkspaceV5 variant={variant} selectedSMFId={selectedSMFId} setSelectedSMFId={setSelectedSMFId} smfTrails={smfTrails} pendingDecisionId={pendingDecisionId} setPendingDecisionId={setPendingDecisionId} decisionRationale={decisionRationale} setDecisionRationale={setDecisionRationale} captureSMFDecision={captureSMFDecision} openDrawer={openDrawer} setActiveScreen={setActiveScreen} setSelectedPackId={setSelectedPackId} />}
         {activeScreen === "smcrWorkspace" && variant !== "v5" && <SMCRReasonableStepsWorkspace variant={variant} selectedSMFId={selectedSMFId} setSelectedSMFId={setSelectedSMFId} smfTrails={smfTrails} pendingDecisionId={pendingDecisionId} setPendingDecisionId={setPendingDecisionId} decisionRationale={decisionRationale} setDecisionRationale={setDecisionRationale} captureSMFDecision={captureSMFDecision} openDrawer={openDrawer} setActiveScreen={setActiveScreen} setSelectedPackId={setSelectedPackId} />}
         {activeScreen === "monitoringReportBuilder" && <MonitoringReportBuilder variant={variant} selectedPackId={selectedPackId} setSelectedPackId={setSelectedPackId} openDrawer={openDrawer} />}
-        {activeScreen === "aiInsights" && variant === "v5" && <AIInsightExplorerV5 openDrawer={openDrawer} />}
+        {activeScreen === "aiInsights" && variant === "v5" && (
+          <AIInsightExplorerV5 openDrawer={openDrawer} activePersona={activePersona} />
+        )}
         {activeScreen === "aiInsights" && variant !== "v5" && <AIInsightExplorer openDrawer={openDrawer} />}
 
         {/* Pass 7.5 — Obligation Coverage Map promoted to top-level cross-persona screen. */}
@@ -2329,6 +2356,10 @@ function DetailDrawer({ drawer, closeDrawer, drillFromDrawer, drillBack, setActi
             <AIInsightDetailContent insight={getInsight(entityId)} drillFromDrawer={drillFromDrawer} />
           )}
           {entityType === "kri" && <KRIDetailContent kri={getKRI(entityId)} drillFromDrawer={drillFromDrawer} />}
+          {entityType === "precedent" && <PrecedentDetailContent entityId={entityId} />}
+          {entityType === "derivation" && <DerivationDetailContent entityId={entityId} />}
+          {entityType === "statusEvidence" && <StatusEvidenceDetailContent entityId={entityId} />}
+          {entityType === "crsaRef" && <CrsaRefDetailContent entityId={entityId} />}
         </div>
       </div>
     </>

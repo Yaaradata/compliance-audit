@@ -38,14 +38,18 @@ export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
   return (
     <div>
       <h2 className="mb-3 text-base font-bold text-slate-900">Categories</h2>
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+      <div
+        className={`grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 ${
+          expandedId ? "" : "auto-rows-fr"
+        }`}
+      >
         {sorted.map((domain) => {
           const band = domain.status === "RED" ? "red" : domain.status === "AMBER" ? "amber" : "green";
           const rag = RAG_STYLES[band];
           const expanded = expandedId === domain.id;
 
           return (
-            <div key={domain.id} className={expanded ? "col-span-full" : undefined}>
+            <div key={domain.id} className={expanded ? "col-span-full" : "h-full"}>
               <div
                 role="button"
                 tabIndex={0}
@@ -59,7 +63,7 @@ export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
                 className={`flex cursor-pointer flex-col border-[1.5px] px-3 py-2.5 transition-all ${rag.bg} ${rag.border} ${
                   expanded
                     ? "rounded-t-[10px] rounded-b-none shadow-[0_0_0_2px] shadow-current/20"
-                    : "rounded-[10px] hover:shadow-md"
+                    : "h-full rounded-[10px] hover:shadow-md"
                 }`}
               >
                 <div className="mb-1.5 flex items-start justify-between gap-2">
@@ -67,7 +71,7 @@ export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
                   <RagBadge status={domain.status} />
                 </div>
                 <p className="mb-1.5 line-clamp-3 text-[11.5px] leading-snug text-slate-600">{domain.summary}</p>
-                <div className="flex items-center justify-between gap-2">
+                <div className="mt-auto flex items-center justify-between gap-2">
                   <span className="text-[10px] font-medium text-slate-400">W/W</span>
                   <div className="flex items-center gap-1.5">
                     {domain.deadline ? (

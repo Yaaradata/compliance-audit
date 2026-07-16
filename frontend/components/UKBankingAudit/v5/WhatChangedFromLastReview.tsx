@@ -6,10 +6,11 @@ import { RAG_STYLES } from "./ragTokens";
 
 type Props = {
   items: ChangeRowV5[];
+  onOpenEvidence?: (ref: string) => void;
 };
 
 /** v5 What Changed — each row's derivation is an evidence-bound claim, never a bare confidence %. */
-export function WhatChangedFromLastReview({ items }: Props) {
+export function WhatChangedFromLastReview({ items, onOpenEvidence }: Props) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <header className="mb-4">
@@ -40,7 +41,11 @@ export function WhatChangedFromLastReview({ items }: Props) {
                   </span>
                 </div>
                 <div className="mt-1.5">
-                  <ClaimLine derivation={item.derivation} evidenceRef={item.evidenceRef}>
+                  <ClaimLine
+                    derivation={item.derivation}
+                    evidenceRef={item.evidenceRef}
+                    onOpenEvidence={onOpenEvidence}
+                  >
                     {item.derivation === "RULE" ? "Rule" : "LLM"} · {item.text} · evidence{" "}
                     {item.evidenceRef} · {item.detectionVersion}
                   </ClaimLine>

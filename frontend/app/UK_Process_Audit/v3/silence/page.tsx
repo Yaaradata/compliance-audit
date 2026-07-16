@@ -1,13 +1,6 @@
-/**
- * Route: `/UK_Process_Audit/v3/silence` — Heartbeat Grid (presence map).
- */
-import UkSilenceHeartbeatPage from "@/components/UK_Process_Audit/v3/UkSilenceHeartbeatPage";
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Heartbeat Grid",
-};
-
-export default function UKProcessAuditV3SilencePage() {
-  return <UkSilenceHeartbeatPage />;
+/** Legacy silence route — redirect to latest UK Process Audit (v2). */
+export default function UKProcessAuditV3SilenceRedirectPage() {
+  redirect("/UK_Process_Audit/v2");
 }

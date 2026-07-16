@@ -19,7 +19,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { UkControlResult, UkEvidencePack } from "@/lib/UK_Process_Audit/types";
-import type { MissingEvidenceSection } from "@/lib/UK_Process_Audit/v3/liveIntel";
+import type { MissingEvidenceSection } from "@/lib/UK_Process_Audit/liveIntel";
 import { Avatar, ComplianceCell, StatusBadge } from "../shared/journeyUi";
 import { ResidualPill } from "../shared/pills";
 

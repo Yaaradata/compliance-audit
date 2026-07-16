@@ -3,7 +3,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
 /**
- * Banned overstated prose under UKPA v3 + signals.
+ * Banned overstated prose under UKPA signals.
  * Fail the build (eslint), not the 2am review.
  *
  * WHY "illegal": Nationwide Final Notice ¶4.72–4.73 calls the firm's
@@ -89,10 +89,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
   ]),
   {
-    files: [
-      "components/UK_Process_Audit/v3/**/*.{js,jsx,ts,tsx}",
-      "lib/UK_Process_Audit/signals/**/*.{js,jsx,ts,tsx}",
-    ],
+    files: ["lib/UK_Process_Audit/signals/**/*.{js,jsx,ts,tsx}"],
     rules: {
       "no-restricted-syntax": ["error", ...UKPA_BANNED_PROSE],
     },

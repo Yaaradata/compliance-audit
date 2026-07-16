@@ -2,7 +2,6 @@
  * Compile-time contracts for UKPA signals.
  * These fail `tsc --noEmit` — not a runtime review — when violated.
  */
-import type { ClaimLineProps } from "@/components/UK_Process_Audit/v3/signal/ClaimLine";
 import type {
   UkAuditTrailActor,
   UkPrecedent,
@@ -10,6 +9,14 @@ import type {
   UkRuleConfigChange,
   UkSignalDispositionActor,
 } from "./contracts.types";
+
+/** Mirrors ClaimLineProps — artefactRef must stay required (no default, not optional). */
+type ClaimLineProps = {
+  children: unknown;
+  derivation: "RULE" | "LLM";
+  artefactRef: string;
+  onOpenEvidence: (ref: string) => void;
+};
 
 type Expect<T extends true> = T;
 type IsNotNullable<T> = null extends T ? false : undefined extends T ? false : true;

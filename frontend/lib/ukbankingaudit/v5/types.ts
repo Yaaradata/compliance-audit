@@ -45,6 +45,8 @@ export type StatusEvidence = {
   expectedCadenceDays: number | null;
   cadenceSource: "register" | "policy-extracted" | "human-confirmed";
   sourceSystem?: string; sha256?: string;
+  confirmedBy?: string;
+  confirmedAt?: string;
 };
 // A domain is ARMED only when cadenceSource === "human-confirmed".
 // An unarmed domain must NEVER produce a "green without evidence" signal.
@@ -78,7 +80,12 @@ export type Precedent = {
   domainScope: RiskDomainV4["id"][];       // REQUIRED — which CRO domains this notice is ABOUT
   failureMechanismTags: FailureMechanism[];
   mechanism: string;                       // one paragraph, paraphrased from the notice
+  hook: string;                            // REQUIRED. One clause, max 10 words — the finding at a glance.
   sourceUrl: string; confidence: "verified" | "probable" | "unverified";
+  /** Regulatory instruments named in the notice, when transcribed. */
+  instrument?: string[];
+  /** Tribunal-reduced figure when admissionPosture is tribunal-varied. */
+  tribunalReducedTo?: number | null;
 };
 
 export type Derivation = "RULE" | "LLM";

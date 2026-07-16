@@ -4,6 +4,7 @@
  */
 import type { Accountability, BoardSignal, Derivation, Precedent } from "./types";
 import { DOMAIN_ACCOUNTABILITY } from "./riskDomainsV5";
+import { V5_PERSONA_INSIGHTS } from "./personaInsightSeeds";
 
 export type SourceRecordRef = {
   type: string;
@@ -57,6 +58,12 @@ const CONFIDENCE_BAND_LABEL: Record<ConfidenceBand, string> = {
 
 export function confidenceBandLabel(band: ConfidenceBand): string {
   return CONFIDENCE_BAND_LABEL[band];
+}
+
+/** Make repeated detector families visually unique in the explorer. */
+export function boardSignalDisplayTitle(signal: BoardSignal): string {
+  const subject = signal.crsaRef ?? signal.subCategory ?? signal.domainName;
+  return `${signal.title} · ${subject}`;
 }
 
 /** Parse "silence-rule@1.0.0" into modelId + modelVersion. */
@@ -151,11 +158,18 @@ export function boardSignalToAiInsight(signal: BoardSignal): AIInsightV5 {
     return true;
   });
 
+  const personaRelevance = personaRelevanceFromAccountability(signal.accountability);
+  // Exclusive ownership: CRO-primary board signals stay on Board View; otherwise the
+  // accountable persona sees them once in AI Insights — never on both surfaces.
+  const primaryPersona = personaRelevance[0] ?? "cro";
+  const screenRelevance =
+    primaryPersona === "cro" ? ["croBoardView", "signal"] : ["aiInsights", "signal"];
+
   return {
     id: `SIG-INS-${signal.id}`,
     boardSignalId: signal.id,
     type: "signal",
-    title: signal.title,
+    title: boardSignalDisplayTitle(signal),
     summary: signal.soWhat,
     derivation: signal.derivation,
     confidenceBand: signal.confidence.level,
@@ -165,8 +179,8 @@ export function boardSignalToAiInsight(signal: BoardSignal): AIInsightV5 {
     modelVersion,
     generatedAt: signal.evaluatedAt,
     methodology: signal.trigger,
-    personaRelevance: personaRelevanceFromAccountability(signal.accountability),
-    screenRelevance: ["signal", "croBoardView", "aiInsights"],
+    personaRelevance,
+    screenRelevance,
     sourceRecordIds,
     counterfactual: signal.alternativeExplanation,
     inputsNotSeen: signal.missingEvidence.length ? signal.missingEvidence : undefined,
@@ -232,14 +246,17 @@ export function legacyInsightToV5(insight: LegacyInsight): AIInsightV5 {
   };
 }
 
-/** Explorer feed — legacy insights plus mapped board signals. One object, two surfaces. */
+/**
+ * Explorer feed — detector signals, legacy records, and v5 persona-owned records.
+ * Persona/screen filtering and deduplication are applied by selectInsightsForView.
+ */
 export function buildExplorerInsights(
   legacyInsights: LegacyInsight[],
   boardSignals: BoardSignal[],
 ): AIInsightV5[] {
   const base = legacyInsights.map(legacyInsightToV5);
   const signals = boardSignals.map(boardSignalToAiInsight);
-  return [...signals, ...base];
+  return [...signals, ...V5_PERSONA_INSIGHTS, ...base];
 }
 
 export function findExplorerInsight(

@@ -14,7 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import type { UkAuditControl, UkControlStatus } from "@/lib/UK_Process_Audit/types";
-import type { EvidenceAgeCell } from "@/lib/UK_Process_Audit/v3/liveIntel";
+import type { EvidenceAgeCell } from "@/lib/UK_Process_Audit/liveIntel";
 import { ControlTable } from "./ControlTable";
 
 type Filter = "all" | UkControlStatus;

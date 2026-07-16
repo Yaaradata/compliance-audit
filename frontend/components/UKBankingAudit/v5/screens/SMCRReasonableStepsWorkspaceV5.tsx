@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { getUkAuditUi } from '@/components/UKBankingAudit/v3';
+import { getUkAuditUi, RssDecomposition } from '@/components/UKBankingAudit/v3';
 import {
   smfHolders,
   getSMF,
@@ -10,8 +10,6 @@ import {
   getIssue,
   getKRI,
   getAppetite,
-  issues,
-  findingsLedger,
 } from '@/components/UKBankingAudit/ukTraceRuntime';
 import {
   EmptyState,
@@ -22,43 +20,33 @@ import {
 } from './_shared';
 import {
   PrecedentAwarenessPanel,
-  RssDecompositionV5,
-  StandingAwarenessGap,
 } from '@/components/UKBankingAudit/v5/smcr';
 import type { SmcrTrailEvent } from '@/lib/ukbankingaudit/v5/smcrPrecedentAwareness';
 import { useBoardRole } from '@/components/UKBankingAudit/v5/boardRoleContext';
-import { canDisposition, recordAcknowledgement } from '@/lib/ukbankingaudit/v5/dispositions';
+import { recordAcknowledgement } from '@/lib/ukbankingaudit/v5/dispositions';
+import { v5RefKind } from '@/lib/ukbankingaudit/v5/refRouter';
 
 export function SMCRReasonableStepsWorkspaceV5({ variant = 'v2', selectedSMFId, setSelectedSMFId, smfTrails, pendingDecisionId, setPendingDecisionId, decisionRationale, setDecisionRationale, captureSMFDecision, openDrawer, setActiveScreen, setSelectedPackId }) {
+  const ui = getUkAuditUi(variant === 'v4' || variant === 'v5' ? 'v3' : variant);
   const smf = getSMF(selectedSMFId);
   const [awarenessTrail, setAwarenessTrail] = useState<SmcrTrailEvent[]>([]);
   const boardRole = useBoardRole();
-  const mayDisposition = canDisposition(boardRole);
-
-  if (!smf) return <EmptyState message="Select an SMF." />;
   const live = smfTrails[selectedSMFId];
-  const rss = live.rss;
-
-  /** v5 SMCR surfaces all seven RSS evidence dimensions — not the v3 merged trio. */
-  const rssComponents = getUkAuditUi('v2').rssComponents;
 
   const mergedTrail = useMemo(
-    () => [...awarenessTrail, ...live.trail],
-    [awarenessTrail, live.trail],
+    () => [...awarenessTrail, ...(live?.trail ?? [])],
+    [awarenessTrail, live?.trail],
   );
 
   const openEvidence = useCallback(
     (ref: string) => {
-      if (ref.startsWith('PREC-')) {
-        openDrawer && openDrawer('aiInsight', ref, 'smcrWorkspace');
-        return;
-      }
-      openDrawer && openDrawer('evidence', ref, 'smcrWorkspace');
+      openDrawer?.(v5RefKind(ref), ref, 'smcrWorkspace');
     },
     [openDrawer],
   );
 
   const acknowledgePrecedent = useCallback((precedentId: string, rationale: string) => {
+    if (!smf) return;
     const result = recordAcknowledgement({
       role: boardRole,
       actorId: smf.id,
@@ -74,7 +62,11 @@ export function SMCRReasonableStepsWorkspaceV5({ variant = 'v2', selectedSMFId, 
       precedentId,
     };
     setAwarenessTrail((prev) => [entry, ...prev]);
-  }, [boardRole, smf.id]);
+  }, [boardRole, smf]);
+
+  if (!smf || !live) return <EmptyState message="Select an SMF." />;
+  const rss = live.rss;
+  const rssComponents = ui.rssComponents;
 
   return (
     <div className="space-y-6">
@@ -132,13 +124,7 @@ export function SMCRReasonableStepsWorkspaceV5({ variant = 'v2', selectedSMFId, 
       <div className="grid grid-cols-12 gap-6">
         {/* RSS decomposition */}
         <div className="col-span-12 lg:col-span-4 space-y-4">
-          <RssDecompositionV5
-            components={rss.components}
-            defs={rssComponents}
-            bandText={bandText}
-            bandBar={bandBar}
-            onOpenEvidence={openEvidence}
-          />
+          <RssDecomposition components={rss.components} defs={rssComponents} bandText={bandText} bandBar={bandBar} />
 
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-sm font-semibold mb-2">Accountability Boundary</h3>
@@ -195,14 +181,12 @@ export function SMCRReasonableStepsWorkspaceV5({ variant = 'v2', selectedSMFId, 
                           <div className="text-sm text-slate-900">{target?.title || target?.metric || target?.name || "—"}</div>
                           <div className="text-xs text-slate-500 mt-0.5">Raised {a.raisedDate}</div>
                         </div>
-                        {mayDisposition ? (
                         <button onClick={() => setPendingDecisionId(isExpanded ? null : a.targetId)}
                           className="px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 rounded-md flex-shrink-0">
                           {isExpanded ? "Cancel" : "Capture decision"}
                         </button>
-                        ) : null}
                       </div>
-                      {isExpanded && mayDisposition && (
+                      {isExpanded && (
                         <div className="mt-3 pt-3 border-t border-slate-100">
                           <textarea value={decisionRationale} onChange={(e) => setDecisionRationale(e.target.value)}
                             placeholder="Capture your reasonable-steps rationale: what you knew, what you did, what evidence supports the decision…"
@@ -233,7 +217,7 @@ export function SMCRReasonableStepsWorkspaceV5({ variant = 'v2', selectedSMFId, 
               {mergedTrail.map((t, idx) => (
                 <button key={idx} onClick={() => t.evidenceId && openEvidence(t.evidenceId)}
                   className="w-full text-left px-5 py-3 hover:bg-slate-50 transition flex items-start gap-3">
-                  <div className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${t.eventType === 'awareness' ? 'bg-violet-500' : 'bg-indigo-500'}`} />
+                  <div className="mt-1.5 h-2 w-2 rounded-full bg-indigo-500 flex-shrink-0" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-700">{t.eventType}</span>
@@ -247,18 +231,6 @@ export function SMCRReasonableStepsWorkspaceV5({ variant = 'v2', selectedSMFId, 
             </div>
           </div>
 
-          <StandingAwarenessGap
-            smf={{
-              id: smf.id,
-              smfFunction: smf.smfFunction,
-              lastAttestationDate: smf.lastAttestationDate,
-              nextAttestationDue: smf.nextAttestationDue,
-            }}
-            trail={mergedTrail}
-            issues={issues || []}
-            findings={findingsLedger || []}
-            onOpenEvidence={openEvidence}
-          />
         </div>
 
         {/* Right: actions + accountable obligations */}

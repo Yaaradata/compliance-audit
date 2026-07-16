@@ -25,8 +25,14 @@ describe("aiContract", () => {
     assert.ok(["high", "medium", "low"].includes(mapped.confidenceBand));
     assert.equal(typeof (mapped as { confidence?: number }).confidence, "undefined");
     assert.ok(mapped.screenRelevance.includes("signal"));
-    assert.ok(mapped.screenRelevance.includes("croBoardView"));
-    assert.ok(mapped.screenRelevance.includes("aiInsights"));
+    // Exclusive ownership: CRO-primary → Board View; other primary → AI Insights.
+    if (mapped.personaRelevance[0] === "cro") {
+      assert.ok(mapped.screenRelevance.includes("croBoardView"));
+      assert.ok(!mapped.screenRelevance.includes("aiInsights"));
+    } else {
+      assert.ok(mapped.screenRelevance.includes("aiInsights"));
+      assert.ok(!mapped.screenRelevance.includes("croBoardView"));
+    }
     assert.equal(mapped.derivation, signals[0].derivation);
     assert.ok(mapped.sourceRecordIds.length > 0);
   });

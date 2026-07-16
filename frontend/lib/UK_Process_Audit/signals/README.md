@@ -34,12 +34,12 @@ All face copy is produced by `copy.ts` from the closed `Predicate` enum:
 
 `SIGNAL_FIRED` · `EVIDENCE_GAP_OBSERVED` · `PRECEDENT_MATCHED` · `HUMAN_REVIEW_REQUIRED`
 
-There is no free-prose field on the card for headlines. ESLint bans overstated literals under `signals/` and `components/UK_Process_Audit/v3/`.
+There is no free-prose field on the card for headlines. ESLint bans overstated literals under `signals/`.
 
 ## Disposition
 
 Every disposition writes `{ actorId, reason, ts }`. `actorId` is non-nullable.
-No system actor may disposition — enforced at runtime in `v3/dispositionStore.ts`.
+No system actor may disposition — enforced at the type/contracts layer.
 
 ## Outbound regulators
 

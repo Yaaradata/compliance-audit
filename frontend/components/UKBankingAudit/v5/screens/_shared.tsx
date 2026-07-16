@@ -123,8 +123,16 @@ export const CoverageMetric = ({ mode = "full", populationSize = 0, size = "md" 
 };
 
 export const EntityTypeBadge = ({ type }) => {
-  const map = { risk: "RISK", control: "CONTROL", obligation: "OBLIGATION", issue: "ISSUE", evidence: "EVIDENCE", smf: "SMF", auditPack: "MONITORING REPORT", aiInsight: "AI INSIGHT", kri: "KRI" };
-  const tone = { risk: "rose", control: "indigo", obligation: "purple", issue: "amber", evidence: "sky", smf: "emerald", auditPack: "slate", aiInsight: "violet", kri: "cyan" }[type] || "slate";
+  const map = {
+    risk: "RISK", control: "CONTROL", obligation: "OBLIGATION", issue: "ISSUE", evidence: "EVIDENCE",
+    smf: "SMF", auditPack: "MONITORING REPORT", aiInsight: "AI INSIGHT", kri: "KRI",
+    precedent: "PRECEDENT", derivation: "DERIVATION", statusEvidence: "STATUS EVIDENCE", crsaRef: "CRSA",
+  };
+  const tone = {
+    risk: "rose", control: "indigo", obligation: "purple", issue: "amber", evidence: "sky",
+    smf: "emerald", auditPack: "slate", aiInsight: "violet", kri: "cyan",
+    precedent: "rose", derivation: "slate", statusEvidence: "sky", crsaRef: "indigo",
+  }[type] || "slate";
   return <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold tracking-wider bg-${tone}-100 text-${tone}-800 border border-${tone}-200`}>{map[type] || type}</span>;
 };
 

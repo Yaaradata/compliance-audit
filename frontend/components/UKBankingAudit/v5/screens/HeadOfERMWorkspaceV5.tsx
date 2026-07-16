@@ -15,6 +15,7 @@ import { BoardRoleContext } from '@/components/UKBankingAudit/v5/boardRoleContex
 import { CategoryTileGrid } from '@/components/UKBankingAudit/v5/CategoryTileGrid';
 import { AppetiteFrameworkPanel } from '@/components/UKBankingAudit/v5/erm';
 import { EmptyState, StatusBadge } from './_shared';
+import { v5RefKind } from '@/lib/ukbankingaudit/v5/refRouter';
 
 export function HeadOfERMWorkspaceV5({ openDrawer }) {
   const persona = personas.find((p) => p.id === 'head_of_erm');
@@ -74,7 +75,7 @@ export function HeadOfERMWorkspaceV5({ openDrawer }) {
         ) : null}
 
         <AppetiteFrameworkPanel
-          onOpenEvidence={(ref) => openDrawer?.('evidence', ref, 'headOfERMWorkspace')}
+          onOpenEvidence={(ref) => openDrawer?.(v5RefKind(ref), ref, 'headOfERMWorkspace')}
         />
 
         {breachSignals.length > 0 ? (

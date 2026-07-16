@@ -6,22 +6,24 @@ import { runBoardDetectors } from "@/lib/ukbankingaudit/v5/detectors";
 import { WHAT_CHANGED_V5 } from "@/lib/ukbankingaudit/v5/whatChangedV5";
 import { BoardRoleContext } from "./boardRoleContext";
 import { BoardSignalsStrip } from "./BoardSignalsStrip";
-import { CategoryTileGrid } from "./CategoryTileGrid";
-import { FirmPostureBanner, RagCountPills } from "./FirmPostureSummary";
+import { FirmRiskPosturePanel } from "./cro/FirmRiskPosturePanel";
+import { RiskCategoriesPanel } from "./cro/RiskCategoriesPanel";
 import { JurisdictionContext } from "./jurisdictionContext";
 import { WhatChangedFromLastReview } from "./WhatChangedFromLastReview";
 import { WhatHasNotChanged } from "./WhatHasNotChanged";
+import { v5RefKind } from "@/lib/ukbankingaudit/v5/refRouter";
 
 type Props = {
   openDrawer?: (entityType: string, entityId: string, sourceScreen: string) => void;
 };
 
 /** v5 CRO board — 9-domain mockup (Categories + inline drill + What Changed). */
-export function CROBoardViewV5({ openDrawer: _openDrawer }: Props) {
+export function CROBoardViewV5({ openDrawer }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const signals = runBoardDetectors("UK");
 
   const toggle = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
+  const onOpenEvidence = (ref: string) => openDrawer?.(v5RefKind(ref), ref, "croBoard");
 
   return (
     <BoardRoleContext.Provider value="second-line">
@@ -46,15 +48,26 @@ export function CROBoardViewV5({ openDrawer: _openDrawer }: Props) {
         </div>
       </div>
 
-      <FirmPostureBanner status={FIRM_POSTURE_V4.firmStatus} narrative={FIRM_POSTURE_V4.narrative} />
+      <div className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-12 xl:gap-6">
+        <div className="min-w-0 space-y-5 xl:col-span-8">
+          <FirmRiskPosturePanel
+            status={FIRM_POSTURE_V4.firmStatus}
+            narrative={FIRM_POSTURE_V4.narrative}
+          />
+          <RiskCategoriesPanel
+            domains={RISK_DOMAINS_V4}
+            expandedId={expandedId}
+            onToggle={toggle}
+          />
+        </div>
+        <div className="min-w-0 xl:relative xl:col-span-4">
+          <div className="xl:absolute xl:inset-0">
+            <BoardSignalsStrip signals={signals} />
+          </div>
+        </div>
+      </div>
 
-      <RagCountPills counts={FIRM_POSTURE_V4.counts} />
-
-      <BoardSignalsStrip signals={signals} />
-
-      <CategoryTileGrid domains={RISK_DOMAINS_V4} expandedId={expandedId} onToggle={toggle} />
-
-      <WhatChangedFromLastReview items={WHAT_CHANGED_V5} />
+      <WhatChangedFromLastReview items={WHAT_CHANGED_V5} onOpenEvidence={onOpenEvidence} />
 
       <WhatHasNotChanged />
     </div>

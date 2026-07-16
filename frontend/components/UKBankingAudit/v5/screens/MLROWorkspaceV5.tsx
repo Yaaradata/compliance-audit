@@ -22,29 +22,33 @@ import {
   SanctionsScreeningPosture,
   CapacityVsDemandGauge,
 } from './_shared';
-import {
-  SuppressionLedger,
-  DispositionDispersion,
-  ScreeningDenominator,
-  CadenceFeasibility,
-} from '@/components/UKBankingAudit/v5/mlro';
 
+/**
+ * v5 MLRO Workspace — same structure and layout as v4.
+ * SMF17 landing: KRI ribbon, alert backlog, SAR / EDD, sanctions / capacity.
+ */
 export function MLROWorkspaceV5({ openDrawer, setActiveScreen, setSelectedGSRId }) {
-  const persona = personas.find(p => p.id === "smf17");
+  const persona = personas.find((p) => p.id === 'smf17');
   if (!persona) return <EmptyState message="MLRO persona not configured." />;
 
-  const fcKRIs = (kris || []).filter(k => {
-    const r = (risks || []).find(rr => rr.id === k.riskId);
-    return r && (r.croCategoryId === "fraud_financial_crime" || r.id === "R-FC-AML" || r.id === "R-FC-OFSI" || r.id === "R-FC-KYC");
+  const fcKRIs = (kris || []).filter((k) => {
+    const r = (risks || []).find((rr) => rr.id === k.riskId);
+    return (
+      r &&
+      (r.croCategoryId === 'fraud_financial_crime' ||
+        r.id === 'R-FC-AML' ||
+        r.id === 'R-FC-OFSI' ||
+        r.id === 'R-FC-KYC')
+    );
   });
 
-  const amlAppetite = (riskAppetiteMetrics || []).find(a => a.id === "APP-FC-002");
+  const amlAppetite = (riskAppetiteMetrics || []).find((a) => a.id === 'APP-FC-002');
 
   const drillTo = (target) => {
     const t = MLRO_DRILL_TARGETS[target];
     if (!t) return;
     setSelectedGSRId && setSelectedGSRId(t.gsrId, t.cycleId);
-    setActiveScreen && setActiveScreen("perRequirementAttestation");
+    setActiveScreen && setActiveScreen('perRequirementAttestation');
   };
 
   return (
@@ -52,11 +56,13 @@ export function MLROWorkspaceV5({ openDrawer, setActiveScreen, setSelectedGSRId 
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-violet-700 font-bold">{persona.smfDesignation}</div>
-          <h1 className="text-2xl font-bold text-slate-900 mt-0.5">{persona.label}</h1>
-          <p className="text-sm text-slate-600 mt-1">{persona.subhead}</p>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-violet-700">
+            {persona.smfDesignation}
+          </div>
+          <h1 className="mt-0.5 text-2xl font-bold text-slate-900">{persona.label}</h1>
+          <p className="mt-1 text-sm text-slate-600">{persona.subhead}</p>
         </div>
-        <div className="text-[10px] uppercase tracking-wider text-slate-500 font-medium">
+        <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
           AML programme posture · POCA / MLR 2017 / OFSI
         </div>
       </div>
@@ -68,41 +74,30 @@ export function MLROWorkspaceV5({ openDrawer, setActiveScreen, setSelectedGSRId 
       <AlertBacklogVsAppetite
         alertSeries={amlAlertsByWeek || []}
         appetiteMetric={amlAppetite}
-        onDrill={() => drillTo("alertBacklog")}
+        onDrill={() => drillTo('alertBacklog')}
       />
 
-      <SuppressionLedger
-        alertSeries={amlAlertsByWeek || []}
-        onOpenEvidence={(ref) => openDrawer?.('evidence', ref, 'mlroWorkspace')}
-      />
-
-      {/* SAR timeliness beside disposition dispersion; EDD with cadence feasibility below */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <SARTimelinessBand series={sarFilingsByWeek || []} onDrill={() => drillTo("sarTimeliness")} />
-        <DispositionDispersion
-          onOpenEvidence={(ref) => openDrawer?.('evidence', ref, 'mlroWorkspace')}
+      {/* Mid 2-up — SAR timeliness + EDD pipeline */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <SARTimelinessBand
+          series={sarFilingsByWeek || []}
+          onDrill={() => drillTo('sarTimeliness')}
+        />
+        <EDDPipelineStatus
+          items={eddPipelineItems || []}
+          onDrill={() => drillTo('eddPipeline')}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="space-y-5">
-          <EDDPipelineStatus items={eddPipelineItems || []} onDrill={() => drillTo("eddPipeline")} />
-          <CadenceFeasibility
-            onOpenEvidence={(ref) => openDrawer?.('evidence', ref, 'mlroWorkspace')}
-          />
-        </div>
-        <div className="space-y-5">
-          <SanctionsScreeningPosture metrics={sanctionsScreeningMetrics} />
-          <ScreeningDenominator
-            onOpenEvidence={(ref) => openDrawer?.('evidence', ref, 'mlroWorkspace')}
-          />
-        </div>
+      {/* Bottom 2-up — Sanctions + Capacity */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <SanctionsScreeningPosture metrics={sanctionsScreeningMetrics} />
+        <CapacityVsDemandGauge series={capacityVsDemandSeries || []} />
       </div>
 
-      <CapacityVsDemandGauge series={capacityVsDemandSeries || []} />
-
-      <p className="text-[10px] text-slate-400 text-center pt-2">
-        Walk-through line: alert backlog rising → capacity stress is the why → AML.01.05.02 evidence completeness degrading is the consequence on the CRSA.
+      <p className="pt-2 text-center text-[10px] text-slate-400">
+        Walk-through line: alert backlog rising → capacity stress is the why → AML.01.05.02
+        evidence completeness degrading is the consequence on the CRSA.
       </p>
     </div>
   );

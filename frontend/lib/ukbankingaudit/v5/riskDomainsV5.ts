@@ -143,6 +143,8 @@ export const DOMAIN_EVIDENCE: StatusEvidence[] = [
     cadenceSource: "human-confirmed",
     sourceSystem: "InfoSecClosurePack",
     sha256: "cbe70000000000000000000000000000000000000000000000000closure07",
+    confirmedBy: "Head of InfoSec",
+    confirmedAt: "2026-07-02T16:40:00.000Z",
   },
 ];
 

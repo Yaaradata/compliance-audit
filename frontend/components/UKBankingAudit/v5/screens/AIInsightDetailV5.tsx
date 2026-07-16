@@ -7,6 +7,22 @@ import {
   type AIInsightV5,
 } from "@/lib/ukbankingaudit/v5/aiContract";
 
+const DRILLABLE_SOURCE_TYPES = new Set([
+  "risk",
+  "control",
+  "obligation",
+  "issue",
+  "evidence",
+  "smf",
+  "auditPack",
+  "aiInsight",
+  "kri",
+  "precedent",
+  "derivation",
+  "statusEvidence",
+  "crsaRef",
+]);
+
 function DerivationDot({ derivation }: { derivation: "RULE" | "LLM" }) {
   return derivation === "RULE" ? (
     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-700" aria-hidden />
@@ -94,19 +110,34 @@ export function AIInsightDetailV5({ insight, drillFromDrawer }: Props) {
         <div>
           <h3 className="text-sm font-semibold mb-2">Source Records ({insight.sourceRecordIds.length})</h3>
           <div className="space-y-1">
-            {insight.sourceRecordIds.map((s) => (
-              <button
-                key={`${s.type}:${s.id}`}
-                type="button"
-                onClick={() => drillFromDrawer?.(s.type, s.id)}
-                className="w-full text-left p-2 rounded border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 text-xs flex items-center gap-2"
-              >
-                <span className="text-[10px] uppercase tracking-wider text-slate-500">{s.type}</span>
-                <span className="font-mono text-slate-600">{s.id}</span>
-                <span className="text-slate-700 truncate flex-1">{s.label}</span>
-                <span className="text-indigo-600">→</span>
-              </button>
-            ))}
+            {insight.sourceRecordIds.map((s) => {
+              const drillable = DRILLABLE_SOURCE_TYPES.has(s.type);
+              const content = (
+                <>
+                  <span className="text-[10px] uppercase tracking-wider text-slate-500">{s.type}</span>
+                  <span className="font-mono text-slate-600">{s.id}</span>
+                  <span className="text-slate-700 truncate flex-1">{s.label}</span>
+                  {drillable ? <span className="text-indigo-600">→</span> : null}
+                </>
+              );
+              return drillable ? (
+                <button
+                  key={`${s.type}:${s.id}`}
+                  type="button"
+                  onClick={() => drillFromDrawer?.(s.type, s.id)}
+                  className="w-full text-left p-2 rounded border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 text-xs flex items-center gap-2"
+                >
+                  {content}
+                </button>
+              ) : (
+                <div
+                  key={`${s.type}:${s.id}`}
+                  className="flex w-full items-center gap-2 rounded border border-slate-200 bg-slate-50/60 p-2 text-left text-xs"
+                >
+                  {content}
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : null}

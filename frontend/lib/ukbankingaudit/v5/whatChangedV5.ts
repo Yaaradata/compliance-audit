@@ -56,9 +56,9 @@ const ROWS: ChangeRowV5[] = [
     domainName: "Fraud & Financial Crime",
     status: "AMBER",
     derivation: "RULE",
-    basis: "KRI threshold comparison, KRI-FC-0417, 2026-07-01",
+    basis: "KRI threshold comparison, KRI-FC-016, 2026-07-01",
     detectionVersion: "kri-threshold@1.0.0",
-    evidenceRef: "KRI-FC-0417",
+    evidenceRef: "KRI-FC-016",
     evaluatedAt: EVALUATED_AT,
   },
   {

@@ -17,6 +17,7 @@ import {
   CoverageGapPanelV5,
 } from '@/components/UKBankingAudit/v5/coverage';
 import { buildEnforcementNotices } from '@/lib/ukbankingaudit/v5/enforcementCoverage';
+import { v5RefKind } from '@/lib/ukbankingaudit/v5/refRouter';
 
 /** v5-only lens catalog — sixth enforcement tab; shared _shared COVERAGE_LENSES untouched. */
 const COVERAGE_LENSES_V5 = [
@@ -48,7 +49,7 @@ export function ObligationCoverageMapV5({ openDrawer, setActiveScreen, setSelect
 
       <UnassessedNoticeStrip
         notices={enforcementNotices}
-        onOpenEvidence={(ref) => openDrawer?.('evidence', ref, 'coverageMap')}
+        onOpenEvidence={(ref) => openDrawer?.(v5RefKind(ref), ref, 'coverageMap')}
       />
 
       {/* Lens tabs */}

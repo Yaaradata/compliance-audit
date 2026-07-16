@@ -8,7 +8,7 @@ import type {
   UkDomainSop,
   UkJourneyCase,
 } from "@/lib/UK_Process_Audit/types";
-import type { EvidenceAgeCell } from "@/lib/UK_Process_Audit/v3/liveIntel";
+import type { EvidenceAgeCell } from "@/lib/UK_Process_Audit/liveIntel";
 import { ControlRegister } from "./ControlRegister";
 import { JourneyMatrix } from "./JourneyMatrix";
 import { ProcessFlowView } from "./ProcessFlowView";

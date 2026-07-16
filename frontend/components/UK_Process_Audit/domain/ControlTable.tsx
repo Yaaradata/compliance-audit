@@ -2,7 +2,7 @@
 
 import { ChevronRight, Circle } from "lucide-react";
 import type { UkAuditControl } from "@/lib/UK_Process_Audit/types";
-import type { EvidenceAgeCell } from "@/lib/UK_Process_Audit/v3/liveIntel";
+import type { EvidenceAgeCell } from "@/lib/UK_Process_Audit/liveIntel";
 import { AutomationPill, NaturePill, ResidualPill, StatusPill } from "../shared/pills";
 
 export function ControlTable({

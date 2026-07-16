@@ -41,6 +41,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["alert-suppression"],
     mechanism:
       "A rule designed to flag suspicious activity was switched off because it produced too many alerts. Eleven internal suspicion reports raised by staff and ten automated alerts were inadequately investigated.",
+    hook: "A rule was switched off for producing too many alerts",
     sourceUrl:
       "https://www.fca.org.uk/news/press-releases/natwest-fined-264.8million-anti-money-laundering-failures",
     confidence: "verified",
@@ -64,9 +65,11 @@ export const PRECEDENTS: Precedent[] = [
     ],
     mechanism:
       "The MLRO report to senior management recorded that customer due diligence had been enhanced. The uplift reached 888,618 of approximately 18 million customers. High-risk relationships identified stood at approximately 2,000; after remediation, more than 18,000. Internal Audit reported the underlying failure in October 2016 and the board agreed to tolerate it for three months in September 2017; the position stood until April 2020.",
+    hook: "\"Enhanced\" CDD reached 4.9% of the book",
     sourceUrl:
       "https://www.fca.org.uk/news/press-releases/fca-fines-nationwide-44m-failings-financial-crime-controls",
     confidence: "verified",
+    instrument: ["PRIN 3", "SYSC 6.1.1R", "SYSC 6.3.1R"],
   },
   {
     id: "uk-starling-2024",
@@ -82,6 +85,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["sanctions-screening-misconfigured", "restriction-breach"],
     mechanism:
       "Sanctions screening ran against a fraction of the Consolidated List from 2017 and reported as functioning. It was surfaced by the firm's own second-line review in January 2023. 54,359 accounts were opened for 49,183 high- or higher-risk customers in breach of a requirement the firm had itself applied for.",
+    hook: "Screened against a fraction of the sanctions list for six years",
     sourceUrl: "",
     confidence: "probable",
   },
@@ -99,6 +103,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["kri-breach-no-plan", "remediation-unevidenced"],
     mechanism:
       "The firm's financial crime controls did not keep pace with rapid customer growth, and it onboarded customers on limited and sometimes implausible information. A requirement (VREQ) prevented it from opening accounts for high-risk customers; between August 2020 and June 2022 the firm repeatedly breached that requirement, signing up over 34,000 high-risk customers. The VREQ was lifted in February 2025.",
+    hook: "Breached its own requested restriction for 22 months",
     sourceUrl:
       "https://www.fca.org.uk/news/press-releases/fca-fines-monzo-21m-failings-financial-crime-controls",
     confidence: "verified",
@@ -117,6 +122,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["periodic-review-absent", "repeat-finding"],
     mechanism:
       "The firm reviewed its exposure only after learning the regulator had decided to prosecute another bank over the same underlying matter. Prior actions in 2015 and 2022 were treated as aggravating.",
+    hook: "Reviewed exposure only after a peer was prosecuted",
     sourceUrl:
       "https://www.fca.org.uk/news/press-releases/fca-fines-barclays-42-million-poor-handling-financial-crime-risks",
     confidence: "verified",
@@ -135,6 +141,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["remediation-unevidenced", "closure-signed-unevidenced"],
     mechanism:
       "A skilled person was appointed under s166. Approximately £233m of redress was offered and approximately £185m paid; remediation spend was approximately £94m.",
+    hook: "Redress paid £185m. Penalty £6.3m.",
     sourceUrl:
       "https://www.fca.org.uk/news/press-releases/fca-fines-hsbc-6-million-over-treatment-customers-financial-difficulty",
     confidence: "verified",
@@ -153,6 +160,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["remediation-unevidenced"],
     mechanism:
       "Between June 2014 and March 2020 the firm lacked adequate systems and controls to treat customers in arrears fairly. A skilled person review ordered in July 2020 identified the extent of the failings. The firm paid £99.9m in redress to 232,849 affected customers and spent approximately £105m on remediation.",
+    hook: "Skilled person found 55% of sampled files unfair",
     sourceUrl:
       "https://www.fca.org.uk/news/press-releases/fca-fines-tsb-over-treatment-customers-financial-difficulty",
     confidence: "verified",
@@ -173,6 +181,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["tm-scope-gap"],
     mechanism:
       "A transaction monitoring scope gap: a category of transactions fell outside automated screening. The specific scope, penalty and date are unconfirmed pending retrieval of the primary Final Notice.",
+    hook: "Day-one transactions never reached monitoring for 4.5 years",
     sourceUrl: "",
     confidence: "unverified",
   },
@@ -190,6 +199,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["deadline-missed"],
     mechanism:
       "THE COUNTER-CASE. The firm missed a regulatory go-live deadline. Before the deadline, the only signal was an internal IT project RAG status. No control, evidence or ledger data could have predicted it.",
+    hook: "Only pre-deadline signal was a project RAG status",
     sourceUrl: "",
     confidence: "probable",
   },
@@ -209,6 +219,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["assertion-unevidenced"],
     mechanism:
       "Six open Consumer Duty fair-value investigations. The FCA has not named the firms under investigation. This record represents open supervisory attention only and must never be rendered as a finding against any named firm.",
+    hook: "Six open fair-value investigations. Firms not named.",
     sourceUrl: "",
     confidence: "probable",
   },
@@ -228,6 +239,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["repeat-finding", "accountability-orphan", "remediation-unevidenced"],
     mechanism:
       "A growth restriction, not a fine, was the operative consequence. An asset cap is a far larger commercial event than any penalty.",
+    hook: "Asset cap capped growth pending governance remediation",
     sourceUrl: "",
     confidence: "probable",
   },
@@ -247,6 +259,7 @@ export const PRECEDENTS: Precedent[] = [
     failureMechanismTags: ["repeat-finding"],
     mechanism:
       "Placeholder for a repeat Matter Requiring Attention (MRA) on the same control resulting in an OCC consent order. Replace with a verified OCC consent order, including respondent and date, before any US demonstration.",
+    hook: "Repeat MRA on the same control triggered a consent order",
     sourceUrl: "",
     confidence: "unverified",
   },
@@ -305,7 +318,7 @@ export function resolvePrecedent(
 }
 
 /** Grouped £ amount; decimals only when the value is not a whole number. */
-function formatGbp(amount: number): string {
+export function formatGbp(amount: number): string {
   if (Number.isNaN(amount)) return "—";
   const hasFraction = !Number.isInteger(amount);
   return `£${amount.toLocaleString("en-GB", {
@@ -324,6 +337,9 @@ function formatGbp(amount: number): string {
  * asset cap has no figure and is the more serious outcome.
  */
 export function formatConsequence(p: Precedent): string {
+  if (p.tribunalReducedTo != null && p.penalty != null) {
+    return `${formatGbp(p.tribunalReducedTo)} (tribunal-reduced from ${formatGbp(p.penalty)})`;
+  }
   if (p.penalty != null) {
     const discounted =
       p.penaltyPreDiscount != null &&

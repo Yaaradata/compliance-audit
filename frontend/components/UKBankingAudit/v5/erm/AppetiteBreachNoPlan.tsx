@@ -37,7 +37,7 @@ export function AppetiteBreachNoPlan({ signal, onOpenEvidence }: Props) {
         Appetite breach without remediation progress
       </div>
 
-      <ClaimLine derivation="RULE" evidenceRef={`KRI-BREACH-${signal.domainId.toUpperCase()}`} onOpenEvidence={onOpenEvidence}>
+            <ClaimLine derivation="RULE" evidenceRef={`APPETITE-BREACH-${signal.domainId.toUpperCase()}`} onOpenEvidence={onOpenEvidence}>
         {signal.breachedKris.length} KRI(s) outside appetite (worst: {worst.label} at {worstLabel}) while step
         &quot;{signal.stalledStepTitle}&quot; is {signal.stalledStepStatus} at {signal.stalledStepProgress}%
         progress.

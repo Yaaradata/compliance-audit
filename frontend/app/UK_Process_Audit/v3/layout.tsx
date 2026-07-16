@@ -1,12 +1,6 @@
-import { UkProcessAuditAppLayout, ukProcessAuditAppMetadata } from "../_shared/UkProcessAuditAppLayout";
-import { UkpaV3SessionProvider } from "@/components/UK_Process_Audit/v3/UkpaV3SessionProvider";
+import type { ReactNode } from "react";
 
-export const metadata = ukProcessAuditAppMetadata;
-
-export default function UKProcessAuditV3Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <UkProcessAuditAppLayout version="v3">
-      <UkpaV3SessionProvider>{children}</UkpaV3SessionProvider>
-    </UkProcessAuditAppLayout>
-  );
+/** Passthrough — v3 UI removed; child routes redirect to v2. */
+export default function UKProcessAuditV3Layout({ children }: { children: ReactNode }) {
+  return children;
 }

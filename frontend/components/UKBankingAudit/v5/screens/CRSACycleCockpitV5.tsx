@@ -1,12 +1,10 @@
 // @ts-nocheck
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   personas,
   crsaAttestationCycles,
-  crsaAttestationLines,
-  groupSetRequirements,
   riskAreas,
   horizonScanItems,
   findingsLedger,
@@ -19,58 +17,50 @@ import {
   FindingsLedger,
   QuarterlyReportGenerator,
 } from './_shared';
-import {
-  AttestationWithoutPack,
-  AttestationLinesTableV5,
-} from '@/components/UKBankingAudit/v5/crsa';
 
-export function CRSACycleCockpitV5({ openDrawer, setActiveScreen, setSelectedRiskAreaId, setSelectedCycleId, selectedCycleId, setSelectedGSRId }) {
-  const persona = personas.find(p => p.id === "smf16");
+/**
+ * v5 CRSA Cycle Cockpit — same structure and layout as v4.
+ * Persona landing for SMF16: active cycle, area tiles, horizon scanner, findings.
+ */
+export function CRSACycleCockpitV5({
+  openDrawer,
+  setActiveScreen,
+  setSelectedRiskAreaId,
+  setSelectedCycleId,
+  selectedCycleId,
+}) {
+  const persona = personas.find((p) => p.id === 'smf16');
   const [reportCycleId, setReportCycleId] = useState(null);
 
   if (!persona) return <EmptyState message="SMF16 persona not configured." />;
 
   const cycles = crsaAttestationCycles || [];
-  const focalCycle = cycles.find(c => c.id === selectedCycleId) || cycles[0];
+  const focalCycle = cycles.find((c) => c.id === selectedCycleId) || cycles[0];
 
   const drillToArea = (cycle) => {
     setSelectedCycleId(cycle.id);
     setSelectedRiskAreaId(cycle.riskAreaId);
-    setActiveScreen("controlUniverse"); // repurposed as the area-drill view
+    setActiveScreen('controlUniverse');
   };
 
-  const reportCycle = reportCycleId ? cycles.find(c => c.id === reportCycleId) : null;
-
-  const focalLines = useMemo(
-    () => (crsaAttestationLines || []).filter((l) => l.cycleId === focalCycle?.id),
-    [focalCycle?.id],
-  );
-
-  const gsrById = useMemo(() => {
-    const m = {};
-    for (const g of groupSetRequirements || []) {
-      m[g.id] = { id: g.id, racmRef: g.racmRef, requirementText: g.requirementText };
-    }
-    return m;
-  }, []);
-
-  const drillToLine = (gsrId) => {
-    if (!focalCycle) return;
-    setSelectedGSRId?.(gsrId, focalCycle.id);
-    setActiveScreen?.('perRequirementAttestation');
-  };
+  const reportCycle = reportCycleId ? cycles.find((c) => c.id === reportCycleId) : null;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-amber-700 font-bold">{persona.smfDesignation}</div>
-          <h1 className="text-2xl font-bold text-slate-900 mt-0.5">{persona.label}</h1>
-          <p className="text-sm text-slate-600 mt-1">{persona.subhead}</p>
+          <div className="text-[10px] uppercase tracking-wider text-amber-700 font-bold">
+            {persona.smfDesignation}
+          </div>
+          <h1 className="mt-0.5 text-2xl font-bold text-slate-900">{persona.label}</h1>
+          <p className="mt-1 text-sm text-slate-600">{persona.subhead}</p>
         </div>
-        <button onClick={() => setReportCycleId(focalCycle?.id || null)}
-          className="px-4 py-2 text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 rounded-md shadow-sm">
+        <button
+          type="button"
+          onClick={() => setReportCycleId(focalCycle?.id || null)}
+          className="rounded-md bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700"
+        >
           Generate Quarterly Report →
         </button>
       </div>
@@ -78,72 +68,69 @@ export function CRSACycleCockpitV5({ openDrawer, setActiveScreen, setSelectedRis
       {/* Cycle summary card — focuses on AML by default (the demo focal cycle). */}
       {focalCycle && (
         <div className="rounded-xl border-2 border-amber-200 bg-amber-50/40 p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-6 flex-wrap">
+          <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-amber-800 font-bold">Active Cycle</div>
-              <h2 className="text-lg font-bold text-slate-900 mt-0.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                Active Cycle
+              </div>
+              <h2 className="mt-0.5 text-lg font-bold text-slate-900">
                 {focalCycle.id} · {focalCycle.periodLabel}
               </h2>
-              <p className="text-xs text-slate-600 mt-1">
-                Owner {focalCycle.ownerSMFId} · due {focalCycle.dueDate} · source template{" "}
+              <p className="mt-1 text-xs text-slate-600">
+                Owner {focalCycle.ownerSMFId} · due {focalCycle.dueDate} · source template{' '}
                 <span className="font-mono">{focalCycle.sourceTemplateRef}</span>
               </p>
             </div>
             <div className="grid grid-cols-3 gap-6 text-center">
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Completion</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Completion
+                </div>
                 <div className="text-3xl font-bold text-slate-900">{focalCycle.completionPct}%</div>
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Exceptions</div>
-                <div className={`text-3xl font-bold ${focalCycle.exceptionsCount > 0 ? "text-amber-700" : "text-emerald-700"}`}>{focalCycle.exceptionsCount}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Exceptions
+                </div>
+                <div
+                  className={`text-3xl font-bold ${
+                    focalCycle.exceptionsCount > 0 ? 'text-amber-700' : 'text-emerald-700'
+                  }`}
+                >
+                  {focalCycle.exceptionsCount}
+                </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Status</div>
-                <div className="text-sm font-bold text-slate-900 mt-2">{focalCycle.status.replace(/_/g, " ")}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Status
+                </div>
+                <div className="mt-2 text-sm font-bold text-slate-900">
+                  {focalCycle.status.replace(/_/g, ' ')}
+                </div>
               </div>
             </div>
           </div>
           <div className="mt-4">
-            <CoverageMetric mode={focalCycle.coverageMode} populationSize={focalCycle.populationSize} size="lg" />
-          </div>
-
-          <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
-            <button
-              type="button"
-              className="shrink-0 rounded-md bg-amber-700 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-amber-800"
-            >
-              Submit cycle sign-off →
-            </button>
-            <div className="min-w-0 flex-1">
-              <AttestationWithoutPack
-                cycle={focalCycle}
-                lines={focalLines}
-                gsrById={gsrById}
-                onOpenEvidence={(ref) => openDrawer?.('evidence', ref, 'crsaCycleCockpit')}
-              />
-            </div>
+            <CoverageMetric
+              mode={focalCycle.coverageMode}
+              populationSize={focalCycle.populationSize}
+              size="lg"
+            />
           </div>
         </div>
       )}
 
-      {focalCycle ? (
-        <AttestationLinesTableV5
-          cycle={focalCycle}
-          onDrillLine={drillToLine}
-          onOpenEvidence={(ref) => openDrawer?.('evidence', ref, 'crsaCycleCockpit')}
-        />
-      ) : null}
-
       {/* 5-up area tile grid */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-900">CRSA Cycles · Q2 2026</h2>
-          <span className="text-[10px] uppercase tracking-wider text-slate-500 font-medium">click an area to drill (per-requirement view)</span>
+          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
+            click an area to drill (per-requirement view)
+          </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          {cycles.map(cycle => {
-            const area = (riskAreas || []).find(a => a.id === cycle.riskAreaId);
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {cycles.map((cycle) => {
+            const area = (riskAreas || []).find((a) => a.id === cycle.riskAreaId);
             if (!area) return null;
             return (
               <RiskAreaTile
@@ -159,7 +146,7 @@ export function CRSACycleCockpitV5({ openDrawer, setActiveScreen, setSelectedRis
       </div>
 
       {/* Bottom: Horizon Scanner + Findings Ledger side-by-side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <HorizonScannerPanel items={horizonScanItems || []} />
         <FindingsLedger findings={findingsLedger || []} openDrawer={openDrawer} />
       </div>
