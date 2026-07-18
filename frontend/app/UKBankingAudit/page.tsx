@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function UKBankingAuditIndexPage() {
-  redirect("/UKBankingAudit/v5");
+  redirect("/UKBankingAudit/v6");
 }

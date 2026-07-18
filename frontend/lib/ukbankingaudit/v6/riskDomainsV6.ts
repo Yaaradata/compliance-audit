@@ -1,6 +1,6 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────
- *  UK Banking Audit — v5 evidence layer  (SYNTHETIC DATA)
+ *  UK Banking Audit — v6 evidence layer  (SYNTHETIC DATA)
  * ─────────────────────────────────────────────────────────────────────────
  *  Everything exported from THIS file is SYNTHETIC and deterministic:
  *  DOMAIN_EVIDENCE, DOMAIN_HISTORY, RISK_ACCEPTANCES, DOMAIN_ACCOUNTABILITY
@@ -25,7 +25,7 @@ import type {
   StatusHistory,
 } from "./types";
 
-// Re-export the v4 domains unchanged so v5 consumers have a single import site.
+// Re-export the v4 domains unchanged so v6 consumers have a single import site.
 export { RISK_DOMAINS_V4, CRSA_DATA, computeFirmPostureV4 };
 
 /**

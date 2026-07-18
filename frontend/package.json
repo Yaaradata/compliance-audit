@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:ukpa-signals": "tsx --test lib/UK_Process_Audit/signals/**/*.test.ts",
     "test:ukba-v5": "tsx --test lib/ukbankingaudit/v5/**/*.test.ts",
+    "test:ukba-v6": "tsx --test lib/ukbankingaudit/v6/**/*.test.ts",
     "clean": "node -e \"const fs=require('fs');for (const p of ['.next','node_modules/.cache']) { try { fs.rmSync(p,{recursive:true,force:true}); console.log('removed',p); } catch {} }\"",
     "dev:clean": "npm run clean && npm run dev"
   },

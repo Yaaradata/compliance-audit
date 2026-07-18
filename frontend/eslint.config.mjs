@@ -77,6 +77,35 @@ const UKPA_BANNED_PROSE = [
   },
 ];
 
+/**
+ * v6-only additions: the Exposure lens ranks CLUSTERS, never people. No phrase
+ * may score or verdict an individual customer.
+ */
+const UKPA_EXPOSURE_BANNED_PROSE = [
+  {
+    selector: "Literal[value=/exit this client/i]",
+    message:
+      "UKPA v6: banned prose \"exit this client\". The exit-candidate lens ranks clusters, never names or actions an individual customer.",
+  },
+  {
+    selector: "Literal[value=/score this customer/i]",
+    message:
+      "UKPA v6: banned prose \"score this customer\". No individual customer scoring — the lens surfaces and routes; a human decides.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/exit this client/i]",
+    message: "UKPA v6: banned prose \"exit this client\" in template literal.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/score this customer/i]",
+    message: "UKPA v6: banned prose \"score this customer\" in template literal.",
+  },
+  {
+    selector: "JSXText[value=/exit this client|score this customer/i]",
+    message: "UKPA v6: banned prose in JSX text. The exposure lens ranks clusters, never individual customers.",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -102,6 +131,17 @@ const eslintConfig = defineConfig([
     ],
     rules: {
       "no-restricted-syntax": ["error", ...UKPA_BANNED_PROSE],
+    },
+  },
+  {
+    // UK Banking Audit v6 — v5's banned prose, extended for the Exposure lens:
+    // it ranks clusters, never scores or verdicts an individual customer.
+    files: [
+      "components/UKBankingAudit/v6/**/*.{js,jsx,ts,tsx}",
+      "lib/ukbankingaudit/v6/**/*.{js,jsx,ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-syntax": ["error", ...UKPA_BANNED_PROSE, ...UKPA_EXPOSURE_BANNED_PROSE],
     },
   },
 ]);

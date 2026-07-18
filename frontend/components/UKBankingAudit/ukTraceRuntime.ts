@@ -14,8 +14,10 @@ export let personas, navigationItems, croCategories, risks, controls, obligation
   sanctionsScreeningMetrics, capacityVsDemandSeries;
 
 export let activeUkUi = getUkAuditUi('v2');
+export let activeVariant = 'v2';
 
 export function bindUkTraceMock(mock, variant = 'v2') {
+  activeVariant = variant;
   personas = mock.personas;
   navigationItems = mock.navigationItems;
   croCategories = mock.croCategories;
@@ -56,7 +58,7 @@ export function bindUkTraceMock(mock, variant = 'v2') {
   eddPipelineItems = mock.eddPipelineItems;
   sanctionsScreeningMetrics = mock.sanctionsScreeningMetrics;
   capacityVsDemandSeries = mock.capacityVsDemandSeries;
-  activeUkUi = getUkAuditUi(variant === 'v4' || variant === 'v5' ? 'v3' : variant);
+  activeUkUi = getUkAuditUi(variant === 'v4' || variant === 'v5' || variant === 'v6' ? 'v3' : variant);
 }
 
 export const findById = (arr, id) => (arr || []).find(x => x.id === id) || null;
