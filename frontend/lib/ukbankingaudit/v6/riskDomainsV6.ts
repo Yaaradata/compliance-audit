@@ -15,8 +15,12 @@
  *  accountability overlay. riskDomainsV4.ts is not edited.
  * ─────────────────────────────────────────────────────────────────────────
  */
-import type { RagStatus } from "../riskDomainTypes";
-import { RISK_DOMAINS_V4, CRSA_DATA, computeFirmPostureV4 } from "../riskDomainsV4";
+import type { RagStatus, RiskDomainV4 } from "../riskDomainTypes";
+import {
+  RISK_DOMAINS_V4 as RISK_DOMAINS_V4_BASE,
+  CRSA_DATA,
+  computeFirmPostureV4,
+} from "../riskDomainsV4";
 import type {
   Accountability,
   FailureMechanism,
@@ -24,9 +28,41 @@ import type {
   StatusEvidence,
   StatusHistory,
 } from "./types";
+import { getFraudPosture } from "./fraudData";
 
-// Re-export the v4 domains unchanged so v6 consumers have a single import site.
-export { RISK_DOMAINS_V4, CRSA_DATA, computeFirmPostureV4 };
+/**
+ * Fraud is a peer of AML/sanctions in UK financial crime and was missing
+ * entirely from the domain-level sub-categories. Derived from fraudData.ts —
+ * status follows the trend (majority of fraud types trending up week-on-week
+ * ⇒ AMBER), never a hardcoded literal. v6-local only: riskDomainsV4.ts (the
+ * shared v1–v5 file) is not edited; this overlay is built on a copy.
+ */
+function buildFraudSubCategory() {
+  const posture = getFraudPosture();
+  const risingCount = posture.rows.filter((r) => r.trendWoW > 0).length;
+  const status: RagStatus = risingCount >= Math.ceil(posture.rows.length / 2) ? "AMBER" : "GREEN";
+  const totalGBP = (posture.totalConfirmedNetLossGBP / 1_000_000).toFixed(2);
+  const appGBP = (posture.appReimbursementExposureGBP / 1_000).toFixed(0);
+  return {
+    name: "Fraud & Scams",
+    status,
+    desc:
+      `£${totalGBP}m confirmed net fraud losses across ${posture.rows.length} fraud types over the ` +
+      `last 12 months (internal / external / card / electronic / APP); ${risingCount} of ` +
+      `${posture.rows.length} trending up week-on-week. APP reimbursement exposure £${appGBP}k under PSR rules.`,
+  };
+}
+
+// v6 overlay: the shared nine domains, with a Fraud & Scams sub-category added
+// to fincrime. riskDomainsV4.ts itself is untouched — every other domain, and
+// every field on it, is passed through unchanged.
+export const RISK_DOMAINS_V4: RiskDomainV4[] = RISK_DOMAINS_V4_BASE.map((domain) =>
+  domain.id === "fincrime"
+    ? { ...domain, subCategories: [...domain.subCategories, buildFraudSubCategory()] }
+    : domain,
+);
+
+export { CRSA_DATA, computeFirmPostureV4 };
 
 /**
  * CRSA reference → failure mechanisms the control guards against.

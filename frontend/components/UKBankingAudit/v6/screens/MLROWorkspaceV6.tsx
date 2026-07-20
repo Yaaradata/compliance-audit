@@ -1,6 +1,7 @@
 // @ts-nocheck
 'use client';
 
+import { useState } from 'react';
 import {
   personas,
   kris,
@@ -24,16 +25,30 @@ import {
 } from './_shared';
 import { RISK_DOMAINS_V4 } from '@/lib/ukbankingaudit/v6/riskDomainsV6';
 import { ExposureLens } from '@/components/UKBankingAudit/v6/ExposureLens';
+import { OperationalAssuranceVerdict } from '@/components/UKBankingAudit/v6/mlro/OperationalAssuranceVerdict';
+import { FraudLossPanel } from '@/components/UKBankingAudit/v6/mlro/FraudLossPanel';
+import { LensToggle } from '@/components/UKBankingAudit/v6/LensToggle';
+
+const LENSES = [
+  { id: 'assurance', label: 'Operational Assurance' },
+  { id: 'exposure', label: 'Inherent Exposure' },
+  { id: 'fraud', label: 'Fraud' },
+];
 
 /**
  * v6 MLRO Workspace — same structure and layout as v4.
  * SMF17 landing: KRI ribbon, alert backlog, SAR / EDD, sanctions / capacity.
+ * Pass 6 — the three views Saurabh asked for together (Operational Assurance,
+ * Inherent Exposure, Fraud) are now peers under a lens selector, not one
+ * always-on panel plus a flat list below.
  */
 export function MLROWorkspaceV6({ openDrawer, setActiveScreen, setSelectedGSRId }) {
   const persona = personas.find((p) => p.id === 'smf17');
   if (!persona) return <EmptyState message="MLRO persona not configured." />;
 
   const fincrimeDomain = RISK_DOMAINS_V4.find((d) => d.id === 'fincrime');
+
+  const [lens, setLens] = useState('assurance');
 
   const fcKRIs = (kris || []).filter((k) => {
     const r = (risks || []).find((rr) => rr.id === k.riskId);
@@ -71,56 +86,71 @@ export function MLROWorkspaceV6({ openDrawer, setActiveScreen, setSelectedGSRId 
         </div>
       </div>
 
-      {/* Exposure — standing panel, not a toggle. The MLRO builds the exposure
-          view before it reaches the CRO. */}
-      {fincrimeDomain ? (
-        <section>
-          <header className="mb-2">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-violet-700">
-              Exposure
-            </div>
-            <h2 className="mt-0.5 text-base font-bold text-slate-900">
-              Client concentration · Fraud &amp; Financial Crime
-            </h2>
-          </header>
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-            <ExposureLens domain={fincrimeDomain} />
+      {/* Lens selector — three peers, selectable. Default: Operational Assurance. */}
+      <LensToggle options={LENSES} value={lens} onChange={setLens} />
+
+      {lens === 'assurance' ? (
+        <>
+          {fincrimeDomain ? <OperationalAssuranceVerdict domain={fincrimeDomain} /> : null}
+
+          {/* Header strip — KRI ribbon */}
+          <div id="mlro-panel-kri-strip">
+            <FinancialCrimeKRIStrip kriList={fcKRIs} openDrawer={openDrawer} />
           </div>
-        </section>
+
+          {/* Top zone — primary widget */}
+          <div id="mlro-panel-alert-backlog">
+            <AlertBacklogVsAppetite
+              alertSeries={amlAlertsByWeek || []}
+              appetiteMetric={amlAppetite}
+              onDrill={() => drillTo('alertBacklog')}
+            />
+          </div>
+
+          {/* Mid 2-up — SAR timeliness + EDD pipeline */}
+          <div id="mlro-panel-sar-edd" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <SARTimelinessBand
+              series={sarFilingsByWeek || []}
+              onDrill={() => drillTo('sarTimeliness')}
+            />
+            <EDDPipelineStatus
+              items={eddPipelineItems || []}
+              onDrill={() => drillTo('eddPipeline')}
+            />
+          </div>
+
+          {/* Bottom 2-up — Sanctions + Capacity */}
+          <div id="mlro-panel-sanctions-capacity" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <SanctionsScreeningPosture metrics={sanctionsScreeningMetrics} />
+            <CapacityVsDemandGauge series={capacityVsDemandSeries || []} />
+          </div>
+
+          <p className="pt-2 text-center text-[10px] text-slate-400">
+            Walk-through line: alert backlog rising → capacity stress is the why → AML.01.05.02
+            evidence completeness degrading is the consequence on the CRSA.
+          </p>
+        </>
       ) : null}
 
-      {/* Header strip — KRI ribbon */}
-      <FinancialCrimeKRIStrip kriList={fcKRIs} openDrawer={openDrawer} />
+      {lens === 'exposure' ? (
+        fincrimeDomain ? (
+          <section>
+            <header className="mb-2">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-violet-700">
+                Exposure
+              </div>
+              <h2 className="mt-0.5 text-base font-bold text-slate-900">
+                Client concentration · Fraud &amp; Financial Crime
+              </h2>
+            </header>
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+              <ExposureLens domain={fincrimeDomain} />
+            </div>
+          </section>
+        ) : null
+      ) : null}
 
-      {/* Top zone — primary widget */}
-      <AlertBacklogVsAppetite
-        alertSeries={amlAlertsByWeek || []}
-        appetiteMetric={amlAppetite}
-        onDrill={() => drillTo('alertBacklog')}
-      />
-
-      {/* Mid 2-up — SAR timeliness + EDD pipeline */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <SARTimelinessBand
-          series={sarFilingsByWeek || []}
-          onDrill={() => drillTo('sarTimeliness')}
-        />
-        <EDDPipelineStatus
-          items={eddPipelineItems || []}
-          onDrill={() => drillTo('eddPipeline')}
-        />
-      </div>
-
-      {/* Bottom 2-up — Sanctions + Capacity */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <SanctionsScreeningPosture metrics={sanctionsScreeningMetrics} />
-        <CapacityVsDemandGauge series={capacityVsDemandSeries || []} />
-      </div>
-
-      <p className="pt-2 text-center text-[10px] text-slate-400">
-        Walk-through line: alert backlog rising → capacity stress is the why → AML.01.05.02
-        evidence completeness degrading is the consequence on the CRSA.
-      </p>
+      {lens === 'fraud' ? <FraudLossPanel /> : null}
     </div>
   );
 }

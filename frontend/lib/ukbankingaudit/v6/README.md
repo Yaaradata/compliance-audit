@@ -57,6 +57,19 @@ v6 in front of a client or a regulator.
 - `dispositions.ts` — every disposition and acknowledgement writes `{ actorId, reason, ts }`
   with a non-nullable `actorId`; the third line (Internal Audit) and any system actor are
   refused at the data layer.
+- The Fraud lens inherits the same "exit this client" / "score this customer" bans as
+  the Exposure lens (same ESLint block, same file globs) — `FraudLossPanel.tsx` and
+  `fraudData.ts` aggregate confirmed net loss BY TYPE only (internal / external / card /
+  electronic / APP), never by individual. `typeContracts.test-d.ts` also asserts at
+  compile time that `FraudLossRow` carries no `customerId`/`customerName`/`individual`
+  field — the ban is structural, not just a lint rule.
+- `LensToggle.tsx` — the ONE segmented-control component behind every "lens" surface in
+  v6 (the MLRO three-tab selector, the CRO drill's Assurance/Exposure toggle). Same
+  active/inactive styling everywhere; never forked per screen.
+- Path-to-green provenance (`system` = STATED / solid dot vs `email` = INFERRED /
+  hollow dot) renders through the one `PathToGreenStrip` component everywhere it
+  appears — board cards, MLRO panels, and the investigation drawer all use the same
+  instance, so the badge treatment can't drift screen to screen.
 
 ## Exposure lens — honesty notes
 
@@ -76,6 +89,49 @@ v6 in front of a client or a regulator.
   unstructured/parsed input (INFERRED). The distinction rides a separate axis from RAG
   severity and must survive into any production data model — never fold it into the
   severity dot.
+
+## Personas — Head of ERM is dormant, not deleted
+
+The live nav carries THREE personas: CRO (SMF4), Head of Compliance Monitoring (SMF16),
+MLRO (SMF17). Head of ERM was removed from `personas`/`navigationItems` back in
+`mockDataV3.ts` (filtered out of the v2 graph) and every version built on top of v3 —
+v4, v5, and v6 via `mockDataV6.ts` → `mockDataV5.ts` → `mockDataV4.ts` — inherits that
+filter. There is no `head_of_erm` persona and no `headOfERMWorkspace` nav entry
+anywhere in the v6 nav graph; it cannot be reached by clicking through the product.
+
+`components/UKBankingAudit/v6/screens/HeadOfERMWorkspaceV6.tsx` is kept in the
+codebase — v6 isolation means nothing gets deleted just because it's unreferenced —
+but it is **DORMANT**: no persona defaults to it and no nav item points at it. Router
+plumbing for it still exists in `UKBankingControlTrace.tsx` (`variant === "v6"` branch)
+for completeness, but nothing in the live UI drives a user there.
+
+The appetite-vs-concentration verdict that used to sit on that dormant screen
+(`<ExposureConcentrationCard/>` beside `AppetiteFrameworkPanel`) is NOT lost: appetite
+is a CRO (SMF4) concern at firm level, and the CRO Board View's Fraud & Financial Crime
+domain drill already renders the full `<ExposureLens/>` under its Exposure toggle
+(`DomainDrillPanel.tsx`) — Block 1 of which *is* `<ExposureConcentrationCard/>`. The
+"15.1% vs 15% appetite" verdict is reachable there without an ERM persona. It still
+renders only for fincrime (`dataAvailable: true`) and the honest empty state for every
+other domain — see the Exposure lens honesty notes above.
+
+## MLRO — three lenses, one screen
+
+Per Saurabh's "all three, one screen," the MLRO workspace presents THREE lenses behind
+one `LensToggle`, defaulting to Operational Assurance:
+
+- **Operational Assurance** — `OperationalAssuranceVerdict.tsx` computes a verdict
+  (`BEHIND`/`KEEPING UP` on n of m controls) from the KRIs already on screen (KYC
+  backlog, TM SLA, high-risk reviews overdue, EDD), plus the existing operational
+  panels below it. The verdict's "sustained operational lag is a leading indicator of
+  enforcement" line is a risk INTERPRETATION, not a measured fact — it renders through
+  `ClaimLine derivation="LLM"` (hollow dot), the same inferred-signal treatment used
+  everywhere else, deliberately off the RAG severity axis.
+- **Inherent Exposure** — the built `ExposureLens`, unchanged from the CRO drill.
+- **Fraud** — `FraudLossPanel.tsx` / `fraudData.ts`. Confirmed net fraud losses and the
+  APP reimbursement exposure are **SYNTHETIC and seeded** — they demonstrate the view,
+  not a real firm's numbers. The underlying obligation is real: APP reimbursement has
+  been mandatory under PSR rules since Oct 2024, and the reimbursement share is a
+  genuine board-level exposure — only the figures shown are fixture data.
 
 ## Regions
 

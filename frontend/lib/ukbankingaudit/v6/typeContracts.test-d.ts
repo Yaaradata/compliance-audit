@@ -9,6 +9,7 @@ import type { AcknowledgementEntry, AuditEntry } from "./dispositions";
 import type { Accountability, BoardSignal, BoardSignalTitle, Precedent } from "./types";
 import type { DomainExposure, ExposureCount } from "./exposureTypes";
 import type { PathToGreen } from "./pathToGreen";
+import type { FraudLossRow } from "./fraudData";
 
 type Expect<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -52,3 +53,8 @@ export type _UnavailableExitCandidatesEmpty = Expect<Equal<UnavailableExposure["
 // PathToGreen.lastUpdate.source is only "system" | "email" — no third provenance value.
 type PathToGreenSource = NonNullable<PathToGreen["lastUpdate"]>["source"];
 export type _PathToGreenSourceUnion = Expect<Equal<PathToGreenSource, "system" | "email">>;
+
+// FraudLossRow aggregates by type only — no field identifies an individual customer.
+export type _NoCustomerIdOnFraudRow = Expect<
+  Equal<Extract<FraudLossRow, { customerId: unknown } | { customerName: unknown } | { individual: unknown }>, never>
+>;

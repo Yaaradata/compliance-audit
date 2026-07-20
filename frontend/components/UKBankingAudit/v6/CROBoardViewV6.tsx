@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FIRM_POSTURE_V4, RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/riskDomainsV4";
+import { FIRM_POSTURE_V4 } from "@/lib/ukbankingaudit/riskDomainsV4";
+import { RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v6/riskDomainsV6";
 import { runBoardDetectors } from "@/lib/ukbankingaudit/v6/detectors";
 import { WHAT_CHANGED_V6 } from "@/lib/ukbankingaudit/v6/whatChangedV6";
 import { BoardRoleContext } from "./boardRoleContext";

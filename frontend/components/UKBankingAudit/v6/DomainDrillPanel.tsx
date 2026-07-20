@@ -14,6 +14,7 @@ import { RAG_STYLES } from "./ragTokens";
 import type { RiskDomainV4 } from "./types";
 import { ExposureLens } from "./ExposureLens";
 import { PathToGreenStrip } from "./PathToGreenStrip";
+import { LensToggle } from "./LensToggle";
 
 type Props = {
   domain: RiskDomainV4;
@@ -77,16 +78,14 @@ export function DomainDrillPanel({ domain, onClose }: Props) {
         <span className="text-[11px] text-slate-300">›</span>
         <span className="text-[11.5px] font-semibold text-slate-700">{domain.name}</span>
         <div className="ml-auto flex items-center gap-3">
-          <div className="flex rounded-md border border-slate-200 bg-white p-0.5 text-[11px]">
-            <button onClick={() => setLens('assurance')}
-              className={lens==='assurance' ? "rounded bg-slate-900 px-2.5 py-1 text-white" : "px-2.5 py-1 text-slate-500"}>
-              Assurance
-            </button>
-            <button onClick={() => setLens('exposure')}
-              className={lens==='exposure' ? "rounded bg-slate-900 px-2.5 py-1 text-white" : "px-2.5 py-1 text-slate-500"}>
-              Exposure
-            </button>
-          </div>
+          <LensToggle
+            options={[
+              { id: "assurance", label: "Assurance" },
+              { id: "exposure", label: "Exposure" },
+            ]}
+            value={lens}
+            onChange={setLens}
+          />
           <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
             Overall Residual: <RagBadge status={domain.status} />
           </span>
