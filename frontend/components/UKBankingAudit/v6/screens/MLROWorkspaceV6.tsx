@@ -71,29 +71,18 @@ export function MLROWorkspaceV6({ openDrawer, setActiveScreen, setSelectedGSRId 
 
   return (
     <div className="space-y-5">
-      {/* Compact header — title + posture on one band; subhead + lens on the next */}
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1">
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-violet-700">
-              {persona.smfDesignation}
-            </div>
-            <h1 className="mt-0.5 text-2xl font-bold text-slate-900">{persona.label}</h1>
-          </div>
-          <p className="shrink-0 pt-1 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">
-            AML programme posture · POCA / MLR 2017 / OFSI
-          </p>
+      {/* Compact header — title + subhead left; lens toggle top-right */}
+      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0 max-w-2xl">
+          <h1 className="text-2xl font-bold text-slate-900">{persona.label}</h1>
+          <p className="mt-1 text-sm leading-snug text-slate-600">{persona.subhead}</p>
         </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <p className="min-w-0 flex-1 text-sm leading-snug text-slate-600">{persona.subhead}</p>
-          <LensToggle
-            options={LENSES}
-            value={lens}
-            onChange={setLens}
-            className="w-fit shrink-0"
-          />
-        </div>
+        <LensToggle
+          options={LENSES}
+          value={lens}
+          onChange={setLens}
+          className="w-fit shrink-0"
+        />
       </header>
 
       {lens === 'assurance' ? (

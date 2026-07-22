@@ -155,13 +155,13 @@ export function groupInsightsByType(
 export function personaLabel(persona: string): string {
   switch (persona) {
     case "cro":
-      return "CRO (SMF4)";
+      return "CRO";
     case "head_of_erm":
       return "Head of ERM";
     case "smf16":
-      return "Head of Compliance Monitoring (SMF16)";
+      return "Head of Compliance Monitoring";
     case "smf17":
-      return "MLRO (SMF17)";
+      return "MLRO";
     default:
       return persona;
   }

@@ -168,10 +168,7 @@ export const PersonaStubLanding = ({ accent, persona, subhead, ownedByPass }) =>
       <div className={`rounded-xl border ${accent.border} ${accent.bg} p-6 shadow-sm`}>
         <div className="flex items-start justify-between gap-6">
           <div>
-            <div className={`text-[10px] uppercase tracking-wider font-bold ${accent.kicker}`}>
-              {persona.smfDesignation || "Non-SMF"}
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900 mt-1">{persona.label}</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{persona.label}</h1>
             <p className="text-sm text-slate-600 mt-1.5 max-w-2xl">{subhead}</p>
           </div>
           <div className={`flex-shrink-0 h-12 w-12 rounded-lg ${accent.iconBg} flex items-center justify-center`}>

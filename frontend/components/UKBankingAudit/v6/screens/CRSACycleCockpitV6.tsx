@@ -32,7 +32,7 @@ export function CRSACycleCockpitV6({
   const persona = personas.find((p) => p.id === 'smf16');
   const [reportCycleId, setReportCycleId] = useState(null);
 
-  if (!persona) return <EmptyState message="SMF16 persona not configured." />;
+  if (!persona) return <EmptyState message="Compliance Monitoring persona not configured." />;
 
   const cycles = crsaAttestationCycles || [];
   const focalCycle = cycles.find((c) => c.id === selectedCycleId) || cycles[0];
@@ -50,10 +50,7 @@ export function CRSACycleCockpitV6({
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-amber-700 font-bold">
-            {persona.smfDesignation}
-          </div>
-          <h1 className="mt-0.5 text-2xl font-bold text-slate-900">{persona.label}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{persona.label}</h1>
           <p className="mt-1 text-sm text-slate-600">{persona.subhead}</p>
         </div>
         <button

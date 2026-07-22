@@ -41,8 +41,7 @@ export function CROBoardViewV6({ openDrawer }: Props) {
       `}</style>
       <div>
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-violet-700">SMF4</div>
-          <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight text-slate-900">CRO (SMF4)</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">CRO</h1>
           <p className="mt-1 text-sm text-slate-600">
             Firm-level risk posture across {RISK_DOMAINS_V4.length} UK CRO categories. Ten-minute board read.
           </p>
