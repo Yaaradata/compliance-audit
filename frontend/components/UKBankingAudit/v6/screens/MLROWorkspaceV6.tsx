@@ -25,7 +25,6 @@ import {
 } from './_shared';
 import { RISK_DOMAINS_V4 } from '@/lib/ukbankingaudit/v6/riskDomainsV6';
 import { ExposureLens } from '@/components/UKBankingAudit/v6/ExposureLens';
-import { OperationalAssuranceVerdict } from '@/components/UKBankingAudit/v6/mlro/OperationalAssuranceVerdict';
 import { FraudLossPanel } from '@/components/UKBankingAudit/v6/mlro/FraudLossPanel';
 import { LensToggle } from '@/components/UKBankingAudit/v6/LensToggle';
 
@@ -71,28 +70,34 @@ export function MLROWorkspaceV6({ openDrawer, setActiveScreen, setSelectedGSRId 
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-violet-700">
-            {persona.smfDesignation}
+    <div className="space-y-5">
+      {/* Compact header — title + posture on one band; subhead + lens on the next */}
+      <header className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-violet-700">
+              {persona.smfDesignation}
+            </div>
+            <h1 className="mt-0.5 text-2xl font-bold text-slate-900">{persona.label}</h1>
           </div>
-          <h1 className="mt-0.5 text-2xl font-bold text-slate-900">{persona.label}</h1>
-          <p className="mt-1 text-sm text-slate-600">{persona.subhead}</p>
+          <p className="shrink-0 pt-1 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">
+            AML programme posture · POCA / MLR 2017 / OFSI
+          </p>
         </div>
-        <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
-          AML programme posture · POCA / MLR 2017 / OFSI
-        </div>
-      </div>
 
-      {/* Lens selector — three peers, selectable. Default: Operational Assurance. */}
-      <LensToggle options={LENSES} value={lens} onChange={setLens} />
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="min-w-0 flex-1 text-sm leading-snug text-slate-600">{persona.subhead}</p>
+          <LensToggle
+            options={LENSES}
+            value={lens}
+            onChange={setLens}
+            className="w-fit shrink-0"
+          />
+        </div>
+      </header>
 
       {lens === 'assurance' ? (
         <>
-          {fincrimeDomain ? <OperationalAssuranceVerdict domain={fincrimeDomain} /> : null}
-
           {/* Header strip — KRI ribbon */}
           <div id="mlro-panel-kri-strip">
             <FinancialCrimeKRIStrip kriList={fcKRIs} openDrawer={openDrawer} />

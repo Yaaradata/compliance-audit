@@ -59,12 +59,12 @@ function StatusChip({ status }: { status: ExposureCount["status"] }) {
 
 function CountTile({ domainId, count }: { domainId: string; count: ExposureCount }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3.5">
-      <div className="text-2xl font-bold text-slate-900">
+    <div className="flex min-w-0 flex-col rounded-lg border border-slate-200 bg-white p-3.5">
+      <div className="text-2xl font-bold tabular-nums text-slate-900">
         {count.value}
         {count.unit === "%" ? "%" : ""}
       </div>
-      <div className="mt-0.5 text-[11px] font-medium text-slate-600">{count.label}</div>
+      <div className="mt-0.5 text-[11px] font-medium leading-snug text-slate-600">{count.label}</div>
       {count.unit !== "%" ? (
         <div className="mt-0.5 text-[10px] uppercase tracking-wide text-slate-400">{count.unit}</div>
       ) : null}
@@ -72,7 +72,7 @@ function CountTile({ domainId, count }: { domainId: string; count: ExposureCount
       {count.appetite != null ? (
         <>
           <AppetiteBar value={count.value} appetite={count.appetite} />
-          <div className="mt-1 flex items-center justify-between">
+          <div className="mt-1 flex items-center justify-between gap-2">
             <span className="text-[9px] text-slate-400">appetite {count.appetite}</span>
             <StatusChip status={count.status} />
           </div>
@@ -83,9 +83,13 @@ function CountTile({ domainId, count }: { domainId: string; count: ExposureCount
         </div>
       )}
 
-      <div className="mt-2 border-t border-slate-100 pt-1.5">
-        <ClaimLine derivation="RULE" evidenceRef={claimRef(domainId, count.id.toUpperCase())}>
-          <span className="text-[10px] text-slate-500">{count.sourceLabel}</span>
+      <div className="mt-auto border-t border-slate-100 pt-1.5">
+        <ClaimLine
+          layout="stack"
+          derivation="RULE"
+          evidenceRef={claimRef(domainId, count.id.toUpperCase())}
+        >
+          <span className="block text-[10px] leading-snug text-slate-500">{count.sourceLabel}</span>
         </ClaimLine>
       </div>
     </div>
@@ -122,7 +126,7 @@ export function ExposureConcentrationCard({ domain }: Props) {
 
   return (
     <div className="rounded-[10px] border border-slate-200 bg-white p-4">
-      <ClaimLine derivation="RULE" evidenceRef={claimRef(domain.id, "DIST-HIGH")}>
+      <ClaimLine layout="stack" derivation="RULE" evidenceRef={claimRef(domain.id, "DIST-HIGH")}>
         <span className={`text-[13px] font-bold ${distribution.status === "OVER" ? "text-rose-700" : "text-emerald-700"}`}>
           EXPOSURE · High-risk clients {highBand?.pctOfBook ?? 0}% vs {distribution.appetitePctHigh}% appetite ·{" "}
           {distribution.status}
@@ -147,8 +151,8 @@ export function ExposureConcentrationCard({ domain }: Props) {
 
       <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
         {distribution.bands.map((b) => (
-          <span key={b.band} className="text-[11px] text-slate-600">
-            <span className={`mr-1 inline-block h-2 w-2 rounded-sm align-middle ${BAND_COLOR[b.band] ?? "bg-slate-300"}`} />
+          <span key={b.band} className="inline-flex items-center gap-1.5 text-[11px] text-slate-600">
+            <span className={`inline-block h-2 w-2 shrink-0 rounded-sm ${BAND_COLOR[b.band] ?? "bg-slate-300"}`} />
             {BAND_LABEL[b.band] ?? b.band}: {b.pctOfBook}% · {b.clientCount} clients
           </span>
         ))}
@@ -187,37 +191,71 @@ export function ExposureLens({ domain }: Props) {
       </div>
 
       {/* BLOCK 3 — Exit candidates (the drill) */}
-      <div className="rounded-[10px] border border-slate-200 bg-white p-4">
+      <div className="overflow-x-auto rounded-[10px] border border-slate-200 bg-white p-4">
         <h3 className="text-[13px] font-bold uppercase tracking-wide text-slate-600">Exit Candidate Clusters</h3>
         <p className="mt-0.5 text-[10.5px] text-slate-500">
           Ranked by contribution to appetite breach. The firm decides any action.
         </p>
 
-        <div className="mt-3 grid grid-cols-[minmax(0,2.4fr)_0.9fr_1.1fr_0.8fr_minmax(0,2fr)] gap-x-3 border-b border-slate-100 pb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-          <span>Cluster</span>
-          <span className="text-right">High-risk wt.</span>
-          <span className="text-right">Contribution</span>
-          <span className="text-right">Clients</span>
-          <span>Note</span>
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          {exitCandidates.map((cluster) => (
-            <ClaimLine
-              key={cluster.id}
-              derivation="RULE"
-              evidenceRef={claimRef(domain.id, cluster.id.toUpperCase())}
-            >
-              <div className="grid grid-cols-[minmax(0,2.4fr)_0.9fr_1.1fr_0.8fr_minmax(0,2fr)] items-start gap-x-3 py-1 text-[11.5px]">
-                <span className="font-medium text-slate-900">{cluster.label}</span>
-                <span className="text-right text-slate-700">{cluster.highRiskWeightPct}%</span>
-                <span className="text-right font-semibold text-slate-900">{cluster.contributionToBreachPct}%</span>
-                <span className="text-right text-slate-700">{cluster.clientCount}</span>
-                <span className="text-slate-500">{cluster.note}</span>
-              </div>
-            </ClaimLine>
-          ))}
-        </div>
+        <table className="mt-3 w-full border-collapse text-left">
+          <thead>
+            <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              <th scope="col" className="w-[30%] pb-2 pr-6 font-semibold">
+                Cluster
+              </th>
+              <th scope="col" className="whitespace-nowrap pb-2 pr-5 text-right font-semibold">
+                High-risk wt.
+              </th>
+              <th scope="col" className="whitespace-nowrap pb-2 pr-5 text-right font-semibold">
+                Contribution
+              </th>
+              <th scope="col" className="whitespace-nowrap pb-2 pr-8 text-right font-semibold">
+                Clients
+              </th>
+              <th scope="col" className="pb-2 pl-2 text-left font-semibold">
+                Note
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {exitCandidates.map((cluster) => {
+              const ref = claimRef(domain.id, cluster.id.toUpperCase());
+              return (
+                <tr key={cluster.id} className="border-b border-slate-100 last:border-b-0">
+                  <td className="py-3 pr-6 align-middle">
+                    <div className="flex items-start gap-2.5">
+                      <span
+                        className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-700"
+                        title="RULE · matched deterministically"
+                        aria-label="RULE"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-medium leading-snug text-slate-900">
+                          {cluster.label}
+                        </div>
+                        <div className="mt-0.5 font-mono text-[9.5px] text-slate-400" title={ref}>
+                          {ref}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap py-3 pr-5 align-middle text-right text-[12px] tabular-nums text-slate-700">
+                    {cluster.highRiskWeightPct}%
+                  </td>
+                  <td className="whitespace-nowrap py-3 pr-5 align-middle text-right text-[12px] font-semibold tabular-nums text-slate-900">
+                    {cluster.contributionToBreachPct}%
+                  </td>
+                  <td className="whitespace-nowrap py-3 pr-8 align-middle text-right text-[12px] tabular-nums text-slate-700">
+                    {cluster.clientCount}
+                  </td>
+                  <td className="py-3 pl-2 align-middle text-[12px] leading-snug text-slate-500">
+                    {cluster.note}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

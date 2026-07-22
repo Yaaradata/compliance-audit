@@ -31,16 +31,15 @@ function TrendBadge({ trendWoW }: { trendWoW: number }) {
 /**
  * Verdict-first Fraud lens for the MLRO workspace. Fraud is a peer of
  * AML/sanctions, not a subset of it — reads only lib/ukbankingaudit/v6/fraudData,
- * no chart library, hand-rolled table.
+ * no chart library. Uses a real HTML table so columns cannot drift.
  */
 export function FraudLossPanel() {
   const posture = getFraudPosture();
 
   return (
     <div className="space-y-5">
-      {/* Verdict-first banner */}
       <div className="rounded-xl border-[1.5px] border-rose-300 bg-rose-50 p-5">
-        <ClaimLine derivation="RULE" evidenceRef="FRAUD-TOTAL-NET-LOSS-12MO">
+        <ClaimLine layout="stack" derivation="RULE" evidenceRef="FRAUD-TOTAL-NET-LOSS-12MO">
           <span className="text-[13px] font-bold text-rose-700">
             FRAUD · {formatGBP(posture.totalConfirmedNetLossGBP)} confirmed net loss (12mo) · APP
             reimbursement exposure {formatGBP(posture.appReimbursementExposureGBP)}
@@ -48,35 +47,71 @@ export function FraudLossPanel() {
         </ClaimLine>
       </div>
 
-      {/* Hand-rolled table — no chart library */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-[minmax(0,2.2fr)_1fr_0.8fr_1fr_1fr] gap-x-3 border-b border-slate-100 pb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-          <span>Type</span>
-          <span className="text-right">Confirmed net loss</span>
-          <span className="text-right">Volume</span>
-          <span className="text-right">Trend</span>
-          <span className="text-right">APP apportionment</span>
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          {posture.rows.map((row) => (
-            <ClaimLine key={row.id} derivation="RULE" evidenceRef={claimRef(row, "ROW")}>
-              <div className="grid grid-cols-[minmax(0,2.2fr)_1fr_0.8fr_1fr_1fr] items-center gap-x-3 py-1.5 text-[12px]">
-                <span className="font-medium text-slate-900">{row.label}</span>
-                <span className="text-right font-semibold text-slate-900">
-                  {formatGBP(row.confirmedNetLossGBP)}
-                </span>
-                <span className="text-right text-slate-700">{row.volume.toLocaleString()}</span>
-                <span className="text-right">
-                  <TrendBadge trendWoW={row.trendWoW} />
-                </span>
-                <span className="text-right text-slate-700">
-                  {row.appApportionmentGBP != null ? formatGBP(row.appApportionmentGBP) : "—"}
-                </span>
-              </div>
-            </ClaimLine>
-          ))}
-        </div>
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <table className="w-full table-fixed border-collapse text-left">
+          <colgroup>
+            <col className="w-[34%]" />
+            <col className="w-[16%]" />
+            <col className="w-[12%]" />
+            <col className="w-[16%]" />
+            <col className="w-[22%]" />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              <th scope="col" className="pb-2 pr-3 font-semibold">
+                Type
+              </th>
+              <th scope="col" className="pb-2 pr-3 text-right font-semibold">
+                Confirmed net loss
+              </th>
+              <th scope="col" className="pb-2 pr-3 text-right font-semibold">
+                Volume
+              </th>
+              <th scope="col" className="pb-2 pr-3 text-right font-semibold">
+                Trend
+              </th>
+              <th scope="col" className="pb-2 text-right font-semibold">
+                APP apportionment
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {posture.rows.map((row) => {
+              const ref = claimRef(row, "ROW");
+              return (
+                <tr key={row.id} className="border-b border-slate-100 last:border-b-0">
+                  <td className="py-3 pr-3 align-middle">
+                    <div className="flex items-start gap-2.5">
+                      <span
+                        className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-700"
+                        title="RULE · matched deterministically"
+                        aria-label="RULE"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-medium leading-snug text-slate-900">{row.label}</div>
+                        <div className="mt-0.5 truncate font-mono text-[9.5px] text-slate-400" title={ref}>
+                          {ref}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 pr-3 align-middle text-right text-[12px] font-semibold tabular-nums text-slate-900">
+                    {formatGBP(row.confirmedNetLossGBP)}
+                  </td>
+                  <td className="py-3 pr-3 align-middle text-right text-[12px] tabular-nums text-slate-700">
+                    {row.volume.toLocaleString()}
+                  </td>
+                  <td className="py-3 pr-3 align-middle text-right">
+                    <TrendBadge trendWoW={row.trendWoW} />
+                  </td>
+                  <td className="py-3 align-middle text-right text-[12px] tabular-nums text-slate-700">
+                    {row.appApportionmentGBP != null ? formatGBP(row.appApportionmentGBP) : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       <p className="text-[10.5px] leading-relaxed text-slate-500">

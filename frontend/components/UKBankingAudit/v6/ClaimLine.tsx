@@ -9,12 +9,17 @@
  *
  *   RULE → solid 6px dot   (matched deterministically)
  *   LLM  → hollow 6px ring  (extracted by a model, weaker)
+ *
+ * `layout`:
+ *   "inline" (default) — marker | children | evidenceRef on one row
+ *   "stack" — marker | children above evidenceRef (for cards / full-width grids)
  */
 export type ClaimLineProps = {
   children: React.ReactNode;
   derivation: "RULE" | "LLM";
   evidenceRef: string;
   onOpenEvidence?: (ref: string) => void;
+  layout?: "inline" | "stack";
 };
 
 function Marker({ derivation }: { derivation: "RULE" | "LLM" }) {
@@ -25,22 +30,62 @@ function Marker({ derivation }: { derivation: "RULE" | "LLM" }) {
   );
 }
 
-export function ClaimLine({ children, derivation, evidenceRef, onOpenEvidence }: ClaimLineProps) {
+function EvidenceRef({
+  evidenceRef,
+  onOpenEvidence,
+  className,
+}: {
+  evidenceRef: string;
+  onOpenEvidence?: (ref: string) => void;
+  className?: string;
+}) {
+  const classes =
+    className ??
+    "shrink-0 font-mono text-[10px] text-slate-400";
+  if (onOpenEvidence) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpenEvidence(evidenceRef)}
+        className={`${classes} text-indigo-600 underline decoration-dotted underline-offset-2 hover:text-indigo-800`}
+      >
+        {evidenceRef}
+      </button>
+    );
+  }
+  return <span className={classes}>{evidenceRef}</span>;
+}
+
+export function ClaimLine({
+  children,
+  derivation,
+  evidenceRef,
+  onOpenEvidence,
+  layout = "inline",
+}: ClaimLineProps) {
+  if (layout === "stack") {
+    return (
+      <div className="flex items-start gap-2 py-1 text-[12px] leading-snug text-slate-700">
+        <Marker derivation={derivation} />
+        <div className="min-w-0 flex-1">
+          {children}
+          <div className="mt-1">
+            <EvidenceRef
+              evidenceRef={evidenceRef}
+              onOpenEvidence={onOpenEvidence}
+              className="break-all font-mono text-[10px] text-slate-400"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-start gap-2 py-1 text-[12px] leading-snug text-slate-700">
       <Marker derivation={derivation} />
-      <span className="flex-1">{children}</span>
-      {onOpenEvidence ? (
-        <button
-          type="button"
-          onClick={() => onOpenEvidence(evidenceRef)}
-          className="shrink-0 font-mono text-[10px] text-indigo-600 underline decoration-dotted underline-offset-2 hover:text-indigo-800"
-        >
-          {evidenceRef}
-        </button>
-      ) : (
-        <span className="shrink-0 font-mono text-[10px] text-slate-400">{evidenceRef}</span>
-      )}
+      <span className="min-w-0 flex-1">{children}</span>
+      <EvidenceRef evidenceRef={evidenceRef} onOpenEvidence={onOpenEvidence} />
     </div>
   );
 }
