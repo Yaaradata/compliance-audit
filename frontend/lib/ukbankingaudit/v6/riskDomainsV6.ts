@@ -53,14 +53,55 @@ function buildFraudSubCategory() {
   };
 }
 
-// v6 overlay: the shared nine domains, with a Fraud & Scams sub-category added
-// to fincrime. riskDomainsV4.ts itself is untouched — every other domain, and
-// every field on it, is passed through unchanged.
-export const RISK_DOMAINS_V4: RiskDomainV4[] = RISK_DOMAINS_V4_BASE.map((domain) =>
-  domain.id === "fincrime"
-    ? { ...domain, subCategories: [...domain.subCategories, buildFraudSubCategory()] }
-    : domain,
-);
+// v6 overlay: shared nine domains, with Fraud & Scams on fincrime and Climate
+// re-anchored as prudential Climate Risk (PRA SS3/19 / CBES). riskDomainsV4.ts
+// itself is untouched.
+export const RISK_DOMAINS_V4: RiskDomainV4[] = RISK_DOMAINS_V4_BASE.map((domain) => {
+  if (domain.id === "fincrime") {
+    return { ...domain, subCategories: [...domain.subCategories, buildFraudSubCategory()] };
+  }
+  if (domain.id === "climate") {
+    return {
+      ...domain,
+      name: "Climate Risk",
+      summary:
+        "Transition risk concentrated in high-carbon lending; physical risk to mortgage collateral within appetite. Aligned to PRA SS3/19.",
+      subCategories: [
+        {
+          name: "Transition Risk",
+          status: "GREEN",
+          desc: "High-transition-risk sector lending 6.8% of book — within 8% appetite. CBES pathways applied to wholesale exposures.",
+        },
+        {
+          name: "Physical Risk",
+          status: "GREEN",
+          desc: "Climate-vulnerable mortgage collateral mapped; flood/physical-risk overlay within appetite.",
+        },
+        {
+          name: "CBES / Stress Testing",
+          status: "GREEN",
+          desc: "PRA Climate Biennial Exploratory Scenario pathways refreshed; no material capital add-on signal.",
+        },
+      ],
+      kris: [
+        {
+          label: "High-Transition-Risk Sector Lending",
+          value: 6.8,
+          target: 8,
+          unit: "%",
+          status: "GREEN",
+        },
+      ],
+      changes: [
+        {
+          text: "Transition-risk sector classification refreshed against CBES pathways; high-transition-risk lending remains within the 8% book appetite.",
+          confidence: 84,
+        },
+      ],
+    };
+  }
+  return domain;
+});
 
 export { CRSA_DATA, computeFirmPostureV4 };
 
@@ -119,12 +160,12 @@ export const DOMAIN_EVIDENCE: StatusEvidence[] = [
   },
   {
     domainId: "climate",
-    artefactId: "EVID-CLIMATE-TCFD-2026",
+    artefactId: "EVID-CLIMATE-SS319-2026",
     artefactTs: "2026-05-20T00:00:00.000Z",
     expectedCadenceDays: 365,
     cadenceSource: "register",
-    sourceSystem: "ESGRegister",
-    sha256: "c11ma7e0000000000000000000000000000000000000000000000000tcfd2026",
+    sourceSystem: "ClimateRiskRegister",
+    sha256: "c11ma7e000000000000000000000000000000000000000000000000ss3192026",
   },
   {
     domainId: "market",

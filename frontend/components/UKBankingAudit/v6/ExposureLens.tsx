@@ -213,7 +213,7 @@ export function ExposureConcentrationCard({ domain }: Props) {
     <div className="rounded-[10px] border border-slate-200 bg-white p-4">
       <ClaimLine layout="stack" derivation="RULE" evidenceRef={claimRef(domain.id, "DIST-HIGH")}>
         <span className={`text-[13px] font-bold ${distribution.status === "OVER" ? "text-rose-700" : "text-emerald-700"}`}>
-          EXPOSURE · High-risk clients {highBand?.pctOfBook ?? 0}% vs {distribution.appetitePctHigh}% appetite ·{" "}
+          EXPOSURE · High band {highBand?.pctOfBook ?? 0}% vs {distribution.appetitePctHigh}% appetite ·{" "}
           {distribution.status}
         </span>
       </ClaimLine>
@@ -238,7 +238,7 @@ export function ExposureConcentrationCard({ domain }: Props) {
         {distribution.bands.map((b) => (
           <span key={b.band} className="inline-flex items-center gap-1.5 text-[11px] text-slate-600">
             <span className={`inline-block h-2 w-2 shrink-0 rounded-sm ${BAND_COLOR[b.band] ?? "bg-slate-300"}`} />
-            {BAND_LABEL[b.band] ?? b.band}: {b.pctOfBook}% · {b.clientCount} clients
+            {BAND_LABEL[b.band] ?? b.band}: {b.pctOfBook}% · {b.clientCount}
           </span>
         ))}
       </div>
@@ -295,7 +295,7 @@ export function ExposureLens({ domain }: Props) {
                 Contribution
               </th>
               <th scope="col" className="whitespace-nowrap pb-2 pr-8 text-right font-semibold">
-                Clients
+                Count
               </th>
               <th scope="col" className="pb-2 pl-2 text-left font-semibold">
                 Note
