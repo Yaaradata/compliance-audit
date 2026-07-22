@@ -111,7 +111,7 @@ export function SignalInvestigationDrawer({
 
           {/* Path to Green — "what is being done" reads before "what is wrong".
               Moved above the fold, directly under soWhat, ahead of the evidence chain. */}
-          <PathToGreenStrip entityRef={signal.crsaRef ?? signal.id} />
+          <PathToGreenStrip entityRef={signal.crsaRef ?? signal.id} defaultOpen />
 
           {/* b · Expected vs Observed — two literal columns, equal width */}
           <div>
