@@ -20,6 +20,10 @@ export type ClaimLineProps = {
   evidenceRef: string;
   onOpenEvidence?: (ref: string) => void;
   layout?: "inline" | "stack";
+  /** Board lenses: attach ref as title / click target, do not print the string. */
+  hideEvidenceRef?: boolean;
+  /** Optional hover on the RULE/LLM marker (methodology). Evidence ref stays on aria-label when hidden. */
+  markerTitle?: string;
 };
 
 function Marker({ derivation }: { derivation: "RULE" | "LLM" }) {
@@ -62,20 +66,47 @@ export function ClaimLine({
   evidenceRef,
   onOpenEvidence,
   layout = "inline",
+  hideEvidenceRef = false,
+  markerTitle,
 }: ClaimLineProps) {
+  const hoverTitle =
+    [markerTitle, hideEvidenceRef ? evidenceRef : null].filter(Boolean).join(" · ") ||
+    undefined;
+  const marker = (
+    <span title={hoverTitle} className="shrink-0">
+      {onOpenEvidence && hideEvidenceRef ? (
+        <button
+          type="button"
+          onClick={() => onOpenEvidence(evidenceRef)}
+          className="mt-1 block"
+          title={hoverTitle ?? evidenceRef}
+          aria-label={`Evidence ${evidenceRef}`}
+        >
+          <Marker derivation={derivation} />
+        </button>
+      ) : (
+        <span aria-label={hideEvidenceRef ? `Evidence ${evidenceRef}` : undefined}>
+          <Marker derivation={derivation} />
+        </span>
+      )}
+    </span>
+  );
+
   if (layout === "stack") {
     return (
       <div className="flex items-start gap-2 py-1 text-[12px] leading-snug text-slate-700">
-        <Marker derivation={derivation} />
+        {marker}
         <div className="min-w-0 flex-1">
           {children}
-          <div className="mt-1">
-            <EvidenceRef
-              evidenceRef={evidenceRef}
-              onOpenEvidence={onOpenEvidence}
-              className="break-all font-mono text-[10px] text-slate-400"
-            />
-          </div>
+          {!hideEvidenceRef ? (
+            <div className="mt-1">
+              <EvidenceRef
+                evidenceRef={evidenceRef}
+                onOpenEvidence={onOpenEvidence}
+                className="break-all font-mono text-[10px] text-slate-400"
+              />
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -83,9 +114,11 @@ export function ClaimLine({
 
   return (
     <div className="flex items-start gap-2 py-1 text-[12px] leading-snug text-slate-700">
-      <Marker derivation={derivation} />
+      {marker}
       <span className="min-w-0 flex-1">{children}</span>
-      <EvidenceRef evidenceRef={evidenceRef} onOpenEvidence={onOpenEvidence} />
+      {!hideEvidenceRef ? (
+        <EvidenceRef evidenceRef={evidenceRef} onOpenEvidence={onOpenEvidence} />
+      ) : null}
     </div>
   );
 }

@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * Ownership lens — Senior Management Function allocation and reasonable-steps
- * trail age against SYSC 25 / SYSC 26 appetite. Names the orphan (unallocated
- * domain), never a person as culpable. Trail age is a role-level record signal.
+ * Ownership lens — CRO board face. Surfaces SMF allocation and trail age —
+ * what the RAG badge cannot say. Names the orphan, never a person as culpable.
  */
 import {
   DOMAIN_ACCOUNTABILITY,
@@ -16,6 +15,11 @@ import {
   type OwnershipStateResult,
 } from "@/lib/ukbankingaudit/v6/ownershipData";
 import { ClaimLine } from "./ClaimLine";
+import {
+  ownershipBarFill,
+  ownershipVerdictTone,
+  OWNERSHIP_METHOD_HOVER,
+} from "./lensChrome";
 import type { RiskDomainV4 } from "./types";
 
 type Props = {
@@ -32,21 +36,6 @@ function verdictLine(own: OwnershipStateResult): string {
       return `OWNERSHIP · ${own.smf} · ${own.holder} · last recorded step ${own.trailAgeDays} days ago · CURRENT`;
     default: {
       const _exhaustive: never = own.state;
-      return _exhaustive;
-    }
-  }
-}
-
-function verdictTone(state: OwnershipState): string {
-  switch (state) {
-    case "UNALLOCATED":
-      return "text-rose-700";
-    case "OWNED_STALE":
-      return "text-amber-700";
-    case "OWNED_CURRENT":
-      return "text-emerald-700";
-    default: {
-      const _exhaustive: never = state;
       return _exhaustive;
     }
   }
@@ -71,40 +60,40 @@ function stepTypeLabel(stepType: OwnershipStateResult["stepType"]): string {
   }
 }
 
-/** Days-since-step bar with the 90-day appetite marker. */
-function TrailAgeBar({ ageDays }: { ageDays: number }) {
+/** Days-since-step bar — state colour, 90-day appetite marker. */
+function TrailAgeBar({
+  ageDays,
+  state,
+}: {
+  ageDays: number;
+  state: OwnershipState;
+}) {
   const appetite = OWNERSHIP_APPETITE.maxTrailAgeDays;
   const scale = Math.max(ageDays, appetite) * 1.15;
   const fillPct = Math.min(100, (ageDays / scale) * 100);
   const tickPct = Math.min(100, (appetite / scale) * 100);
-  const over = ageDays > appetite;
+  const fill = ownershipBarFill(state);
   return (
-    <div className="mt-3">
+    <div className="mt-2">
       <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
         <div
-          className={over ? "h-full rounded-full bg-amber-400" : "h-full rounded-full bg-slate-500"}
-          style={{ width: `${fillPct}%` }}
+          className="h-full rounded-full"
+          style={{ width: `${fillPct}%`, backgroundColor: fill }}
         />
         <div
-          className="absolute top-0 bottom-0 w-px bg-slate-900"
+          className="absolute top-0 bottom-0 w-px bg-slate-400"
           style={{ left: `${tickPct}%` }}
           title={`Appetite — ${appetite} days`}
         />
       </div>
       <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500">
-        <span>
-          {ageDays} days since last recorded step
-        </span>
+        <span>{ageDays} days since last recorded step</span>
         <span>appetite {appetite} days</span>
       </div>
     </div>
   );
 }
 
-/**
- * Firm-wide Management Responsibilities Map grid.
- * Orphan cells are dashed empty holes — the absence is the visual.
- */
 function FirmOwnershipGrid({ activeDomainId }: { activeDomainId: string }) {
   return (
     <div>
@@ -153,10 +142,6 @@ function FirmOwnershipGrid({ activeDomainId }: { activeDomainId: string }) {
           );
         })}
       </div>
-      <p className="mt-2 text-[10px] text-slate-500">
-        Dashed cells are domains with no Senior Management Function on the Management
-        Responsibilities Map — the orphan is the finding.
-      </p>
     </div>
   );
 }
@@ -166,21 +151,21 @@ export function OwnershipLens({ domain }: Props) {
   const acc = DOMAIN_ACCOUNTABILITY[domain.id];
 
   return (
-    <div className="space-y-5 p-[18px]">
-      {/* Verdict-first */}
+    <div className="space-y-4 p-[18px]">
       <ClaimLine
         layout="stack"
         derivation="RULE"
         evidenceRef={own.stepRef ?? `OWN-${domain.id.toUpperCase()}-MAP`}
+        hideEvidenceRef
+        markerTitle={OWNERSHIP_METHOD_HOVER}
       >
-        <span className={`text-[13px] font-bold ${verdictTone(own.state)}`}>
+        <span className={`text-[13px] font-bold ${ownershipVerdictTone(own.state)}`}>
           {verdictLine(own)}
         </span>
       </ClaimLine>
 
-      {/* Block 1 — the accountable person */}
       <section>
-        <h3 className="mb-2.5 text-[13px] font-bold uppercase tracking-wide text-slate-600">
+        <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-slate-600">
           Senior Management Function
         </h3>
         {own.state === "UNALLOCATED" || !acc || ("unowned" in acc && acc.unowned) ? (
@@ -188,10 +173,6 @@ export function OwnershipLens({ domain }: Props) {
             <p className="text-[13px] font-semibold text-slate-800">
               No Senior Management Function is mapped to this domain in the Management
               Responsibilities Map.
-            </p>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
-              The Statement of Responsibilities does not allocate a prescribed
-              responsibility for this domain. The orphan is the content.
             </p>
           </div>
         ) : (
@@ -210,28 +191,29 @@ export function OwnershipLens({ domain }: Props) {
         )}
       </section>
 
-      {/* Block 2 — reasonable-steps trail */}
       <section>
-        <h3 className="mb-2.5 text-[13px] font-bold uppercase tracking-wide text-slate-600">
+        <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-slate-600">
           Reasonable steps trail
         </h3>
         {own.state === "UNALLOCATED" ? (
-          <div className="rounded-[10px] border border-dashed border-slate-300 bg-white px-4 py-3.5">
+          <div className="rounded-[10px] border border-dashed border-slate-300 bg-white px-4 py-3">
             <p className="text-[13px] text-slate-700">
               No trail is possible without an allocated Senior Manager.
             </p>
           </div>
         ) : (
-          <div className="rounded-[10px] border border-slate-200 bg-white px-4 py-3.5">
-            <p className="text-[12px] text-slate-600">
-              Days since the accountable Senior Management Function last recorded a
-              reasonable steps entry against this domain, against the{" "}
-              {OWNERSHIP_APPETITE.maxTrailAgeDays}-day attestation-cycle appetite.
-            </p>
-            {own.trailAgeDays !== null ? <TrailAgeBar ageDays={own.trailAgeDays} /> : null}
+          <div className="rounded-[10px] border border-slate-200 bg-white px-4 py-3">
+            {own.trailAgeDays !== null ? (
+              <TrailAgeBar ageDays={own.trailAgeDays} state={own.state} />
+            ) : null}
             {own.stepRef ? (
               <div className="mt-3 border-t border-slate-100 pt-2">
-                <ClaimLine layout="stack" derivation="RULE" evidenceRef={own.stepRef}>
+                <ClaimLine
+                  layout="stack"
+                  derivation="RULE"
+                  evidenceRef={own.stepRef}
+                  hideEvidenceRef
+                >
                   <span className="text-[12px] text-slate-700">
                     Last recorded step · {stepTypeLabel(own.stepType)}
                   </span>
@@ -242,10 +224,9 @@ export function OwnershipLens({ domain }: Props) {
         )}
       </section>
 
-      {/* Block 3 — firm-wide orphan grid */}
       <FirmOwnershipGrid activeDomainId={domain.id} />
 
-      <p className="border-t border-slate-100 pt-3 text-[10px] text-slate-400">
+      <p className="border-t border-slate-100 pt-2 text-[10px] text-slate-400">
         SYSC 25 · SYSC 26 · s.66A(5) FSMA
       </p>
     </div>
