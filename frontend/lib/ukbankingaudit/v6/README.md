@@ -64,12 +64,39 @@ v6 in front of a client or a regulator.
   compile time that `FraudLossRow` carries no `customerId`/`customerName`/`individual`
   field — the ban is structural, not just a lint rule.
 - `LensToggle.tsx` — the ONE segmented-control component behind every "lens" surface in
-  v6 (the MLRO three-tab selector, the CRO drill's Assurance/Exposure toggle). Same
+  v6 (MLRO tabs; CRO drill Assurance｜Exposure｜Momentum｜Ownership｜Defensibility). Same
   active/inactive styling everywhere; never forked per screen.
 - Path-to-green provenance (`system` = STATED / solid dot vs `email` = INFERRED /
   hollow dot) renders through the one `PathToGreenStrip` component everywhere it
   appears — board cards, MLRO panels, and the investigation drawer all use the same
   instance, so the badge treatment can't drift screen to screen.
+
+## Ownership · Momentum · Defensibility (CRO drill)
+
+Three lenses sit beside Assurance and Exposure on every domain drill
+(`DomainDrillPanel` toggle: Assurance｜Exposure｜Momentum｜Ownership｜Defensibility).
+They answer different board questions from Assurance RAG.
+
+| Lens | Question | Appetite line | Absolute vs firm-set |
+| --- | --- | --- | --- |
+| **Ownership** | Is a Senior Management Function mapped, and is the reasonable-steps trail current? | Unallocated domains = 0; trail age ≤ 90 days | **Absolute:** unallocated prescribed responsibilities (SYSC 25 / SYSC 26). **Firm-set:** 90-day trail age (one attestation cycle). |
+| **Momentum** | On current trend, does any KRI project to breach risk appetite inside the EWI horizon? | Red ≤ 90 days; amber ≤ 180 days | **Firm-set:** 90 / 180-day early-warning horizons. Part 1 of the appetite line is the existing KRI target on `riskDomainsV4`. |
+| **Defensibility** | Would the evidence pack survive a hostile skilled person (s.166) request today? | Unmapped material obligations = 0; unretrievable critical = 0; retrievability floor 95% | **Absolute:** unmapped obligations (SYSC 6.1.1R); statutory retention (MLR 2017 reg 40). **Firm-set:** 95% retrievability floor. |
+
+**Synthetic vs real (state plainly):** ownership, momentum and defensibility data
+(`ownershipData.ts`, `momentumData.ts`, `defensibilityData.ts`) is **SYNTHETIC and
+seeded** for the demo. Precedents in `precedentCorpus.ts` remain **REAL**. Do not mix
+them.
+
+**Momentum is deterministic projection only — no model.** Slope is least-squares over
+the trailing three board cycles. The horizon is an **early warning indicator**, not a
+forecast. ESLint bans "prediction", "forecast", "will breach", "certain to"; permitted
+phrasing is "projected", "early warning indicator", "on current trend".
+
+**Cross-lens alert** (`CrossLensAlert` / `getCrossLensFindings`): fires where a domain
+reads GREEN on the board pack and fails two or more of Ownership (UNALLOCATED),
+Momentum (ALREADY_BREACHED | PROJECTED_BREACH_RED), Defensibility (INDEFENSIBLE). The
+seeded climate card is the demo — assert it fires for climate only.
 
 ## Exposure lens — honesty notes
 

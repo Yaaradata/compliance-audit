@@ -12,7 +12,10 @@ import { PrecedentBanner } from "./PrecedentBanner";
 import { RemediationTimeline } from "./RemediationTimeline";
 import { RAG_STYLES } from "./ragTokens";
 import type { RiskDomainV4 } from "./types";
+import { DefensibilityLens } from "./DefensibilityLens";
 import { ExposureLens } from "./ExposureLens";
+import { MomentumLens } from "./MomentumLens";
+import { OwnershipLens } from "./OwnershipLens";
 import { PathToGreenStrip } from "./PathToGreenStrip";
 import { LensToggle } from "./LensToggle";
 
@@ -43,7 +46,7 @@ function crsaPrecedentMatches(
 
 /** Inline domain drill attached below expanded tile (v4 mockup). */
 export function DomainDrillPanel({ domain, onClose }: Props) {
-  const [lens, setLens] = useState<'assurance' | 'exposure'>('assurance');
+  const [lens, setLens] = useState<'assurance' | 'exposure' | 'ownership' | 'momentum' | 'defensibility'>('assurance');
   const [expandedSub, setExpandedSub] = useState<number | null>(null);
   const [showRemediation, setShowRemediation] = useState(false);
   const [showCrsa, setShowCrsa] = useState(false);
@@ -82,6 +85,9 @@ export function DomainDrillPanel({ domain, onClose }: Props) {
             options={[
               { id: "assurance", label: "Assurance" },
               { id: "exposure", label: "Exposure" },
+              { id: "momentum", label: "Momentum" },
+              { id: "ownership", label: "Ownership" },
+              { id: "defensibility", label: "Defensibility" },
             ]}
             value={lens}
             onChange={setLens}
@@ -197,8 +203,14 @@ export function DomainDrillPanel({ domain, onClose }: Props) {
           <p className="text-xs italic leading-relaxed text-slate-600">{getDomainNarrative(domain)}</p>
         </div>
         </div>
-      ) : (
+      ) : lens === 'exposure' ? (
         <ExposureLens domain={domain} />
+      ) : lens === 'momentum' ? (
+        <MomentumLens domain={domain} />
+      ) : lens === 'ownership' ? (
+        <OwnershipLens domain={domain} />
+      ) : (
+        <DefensibilityLens domain={domain} />
       )}
     </div>
   );

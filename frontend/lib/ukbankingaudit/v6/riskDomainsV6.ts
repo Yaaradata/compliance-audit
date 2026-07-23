@@ -226,7 +226,7 @@ export const DOMAIN_EVIDENCE: StatusEvidence[] = [
 ];
 
 /** Twelve monthly review cycles, newest LAST. Shared by every domain history. */
-const REVIEW_DATES: readonly string[] = [
+export const REVIEW_DATES: readonly string[] = [
   "2025-07-31", "2025-08-31", "2025-09-30", "2025-10-31", "2025-11-30", "2025-12-31",
   "2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30", "2026-05-31", "2026-06-30",
 ];
