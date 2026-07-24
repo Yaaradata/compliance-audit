@@ -183,6 +183,41 @@ function KriSparkline({ label, momentum, unit }: Row) {
   const padY = 8;
   const innerW = w - padX * 2;
   const innerH = h - padY * 2;
+  const caption = captionFor(momentum, unit);
+  const slopeTitle = `slope ${slopePerMonth >= 0 ? "+" : ""}${slopePerMonth.toFixed(3)} / month`;
+
+  /** Quiet states: one straight line at current — no series, no appetite apparatus. */
+  if (state === "STABLE" || state === "AT_TARGET_NO_HEADROOM") {
+    const midY = padY + innerH / 2;
+    return (
+      <div className="rounded-[10px] border border-slate-200 bg-white px-3 py-2.5" title={slopeTitle}>
+        <div className="flex items-baseline justify-between gap-2">
+          <h4 className="text-[12px] font-semibold text-slate-800">{label}</h4>
+          <span className="text-[10px] text-slate-400">
+            appetite {target}
+            {unit === "%" ? "%" : ""}
+          </span>
+        </div>
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          className="mt-1.5 w-full"
+          role="img"
+          aria-label={`${label} · ${caption}`}
+        >
+          <line
+            x1={padX}
+            x2={padX + innerW}
+            y1={midY}
+            y2={midY}
+            stroke="#cbd5e1"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+          />
+        </svg>
+        <p className="mt-1 text-[11px] leading-snug text-slate-600">{caption}</p>
+      </div>
+    );
+  }
 
   const monthsToBreach =
     daysToBreach !== null && daysToBreach > 0 ? daysToBreach / (365 / 12) : 0;
@@ -218,20 +253,21 @@ function KriSparkline({ label, momentum, unit }: Row) {
             height: Math.max(0, padY + innerH - appetiteY),
           };
 
-  const slopeTitle = `slope ${slopePerMonth >= 0 ? "+" : ""}${slopePerMonth.toFixed(3)} / month`;
-
   return (
     <div className="rounded-[10px] border border-slate-200 bg-white px-3 py-2.5" title={slopeTitle}>
       <div className="flex items-baseline justify-between gap-2">
         <h4 className="text-[12px] font-semibold text-slate-800">{label}</h4>
-        <span className="text-[10px] text-slate-400">appetite {target}{unit === "%" ? "%" : ""}</span>
+        <span className="text-[10px] text-slate-400">
+          appetite {target}
+          {unit === "%" ? "%" : ""}
+        </span>
       </div>
 
       <svg
         viewBox={`0 0 ${w} ${h}`}
         className="mt-1.5 w-full"
         role="img"
-        aria-label={`${label} · ${captionFor(momentum, unit)}`}
+        aria-label={`${label} · ${caption}`}
       >
         {breachRect && tint ? (
           <rect
@@ -252,7 +288,6 @@ function KriSparkline({ label, momentum, unit }: Row) {
           strokeWidth={1}
           strokeDasharray="4 3"
         />
-        {/* Baseline shadow */}
         <polyline
           fill="none"
           stroke={stroke}
@@ -295,7 +330,7 @@ function KriSparkline({ label, momentum, unit }: Row) {
         ) : null}
       </svg>
 
-      <p className="mt-1 text-[11px] leading-snug text-slate-600">{captionFor(momentum, unit)}</p>
+      <p className="mt-1 text-[11px] leading-snug text-slate-600">{caption}</p>
     </div>
   );
 }

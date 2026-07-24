@@ -1,16 +1,16 @@
 "use client";
 
 /**
- * Defensibility lens — CRO board face. Hero is what is not producible today.
- * Checks lead with the failing one. Methodology lives on the marker hover.
+ * Defensibility lens — CRO board face. Numbers first (scoreboard), then map,
+ * then producibility, then feed. Methodology lives on the marker hover.
  */
 import {
   getDefensibility,
   getPackIntegrity,
+  type DefensibilityResult,
   type DefensibilityState,
   type FeedState,
 } from "@/lib/ukbankingaudit/v6/defensibilityData";
-import type { ReactNode } from "react";
 import { ClaimLine } from "./ClaimLine";
 import {
   defensibilityVerdictTone,
@@ -24,8 +24,6 @@ type Props = {
 };
 
 type ManifestFailure = "not-produced" | "not-retrievable";
-
-type CheckKind = "map" | "manifest" | "feed";
 
 function classifyManifestItem(item: string): ManifestFailure {
   const lower = item.toLowerCase();
@@ -63,71 +61,121 @@ function feedLabel(feedState: FeedState): string {
   }
 }
 
-function checkSeverity(
-  kind: CheckKind,
-  d: ReturnType<typeof getDefensibility>,
-): number {
-  switch (kind) {
-    case "manifest":
-      return d.missingManifest.length > 0 ? 3 : 0;
-    case "map":
-      return d.unmappedRefs.length > 0 || d.obligationGaps > 0 ? 2 : 0;
-    case "feed":
-      return d.feedState === "FRESH" ? 0 : 1;
-    default: {
-      const _exhaustive: never = kind;
-      return _exhaustive;
-    }
+/** One clause + state. Counts live on the scoreboard. */
+function buildVerdict(d: DefensibilityResult): string {
+  const state = stateLabel(d.state);
+  if (d.obligationGaps > 0) {
+    return (
+      `DEFENSIBILITY · ${d.obligationGaps} of ${d.totalObligations} obligations ` +
+      `have no mapped control · ${state}`
+    );
   }
+  if (d.missingManifest.length > 0) {
+    return (
+      `DEFENSIBILITY · ${d.missingManifest.length} artefacts not producible · ${state}`
+    );
+  }
+  if (d.feedState === "UNATTRIBUTED") {
+    return `DEFENSIBILITY · data feed has no named source system · ${state}`;
+  }
+  if (d.feedState === "STALE") {
+    return `DEFENSIBILITY · data feed is outside expected cadence · ${state}`;
+  }
+  return `DEFENSIBILITY · all three checks clean · ${state}`;
+}
+
+function unmappedTone(n: number): string {
+  if (n > 2) return "text-rose-700";
+  if (n >= 1) return "text-amber-700";
+  return "text-slate-700";
+}
+
+function ObligationScoreboard({ d }: { d: DefensibilityResult }) {
+  const cells: { value: number; label: string; valueClass: string }[] = [
+    { value: d.totalObligations, label: "Obligations", valueClass: "text-slate-900" },
+    { value: d.controlsInScope, label: "Controls", valueClass: "text-slate-900" },
+    { value: d.mappedToControl, label: "Mapped", valueClass: "text-slate-900" },
+    {
+      value: d.obligationGaps,
+      label: "Unmapped",
+      valueClass: unmappedTone(d.obligationGaps),
+    },
+  ];
+  return (
+    <div className="grid grid-cols-4 gap-px overflow-hidden rounded-[10px] border border-slate-200 bg-slate-200">
+      {cells.map((cell) => (
+        <div key={cell.label} className="bg-white px-2 py-3 text-center">
+          <div className={`text-[22px] font-bold tabular-nums leading-none ${cell.valueClass}`}>
+            {cell.value}
+          </div>
+          <div className="mt-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+            {cell.label}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function DefensibilityLens({ domain }: Props) {
   const d = getDefensibility(domain.id);
   const pack = getPackIntegrity();
-
-  const verdict =
-    `DEFENSIBILITY · ${d.obligationGaps} obligations unmapped · ` +
-    `feed ${feedLabel(d.feedState)} · ${stateLabel(d.state)}`;
+  const verdict = buildVerdict(d);
 
   const notProduced = d.missingManifest.filter((m) => classifyManifestItem(m) === "not-produced");
   const notRetrievable = d.missingManifest.filter(
     (m) => classifyManifestItem(m) === "not-retrievable",
   );
 
-  const checkOrder = (["manifest", "map", "feed"] as const)
-    .map((kind) => ({ kind, severity: checkSeverity(kind, d) }))
-    .sort((a, b) => b.severity - a.severity)
-    .map((c) => c.kind);
+  return (
+    <div className="space-y-4 p-[18px]">
+      <ClaimLine
+        layout="stack"
+        derivation="RULE"
+        evidenceRef={`DEF-${domain.id.toUpperCase()}-VERDICT`}
+        hideEvidenceRef
+        markerTitle={DEFENSIBILITY_METHOD_HOVER}
+      >
+        <span className={`text-[13px] font-bold ${defensibilityVerdictTone(d.state)}`}>
+          {verdict}
+        </span>
+      </ClaimLine>
 
-  const sections: Record<CheckKind, ReactNode> = {
-    map: (
-      <section key="map">
+      <ObligationScoreboard d={d} />
+
+      <section>
         <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-slate-600">
           Obligation → control map
         </h3>
         <div className="rounded-[10px] border border-slate-200 bg-white px-4 py-3.5">
-          <p className="text-[13px] font-semibold text-slate-800">
-            {d.mappedToControl} of {d.totalObligations} obligations map to a control.
-          </p>
-          {d.unmappedRefs.length > 0 ? (
-            <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
-              {d.unmappedRefs.map((ref) => (
-                <li key={ref} className="flex gap-2 text-[12px] leading-snug text-slate-700">
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-500" aria-hidden />
-                  <span className="font-mono text-[11px]">{ref}</span>
-                </li>
-              ))}
-            </ul>
+          {d.obligationGaps > 0 ? (
+            <>
+              <p className="text-[13px] font-semibold text-slate-800">
+                {d.mappedToControl} of {d.totalObligations} obligations map to at least one of{" "}
+                {d.controlsInScope} controls.
+              </p>
+              <p className="mt-2 text-[12px] font-medium text-slate-700">
+                {d.obligationGaps} obligation{d.obligationGaps === 1 ? "" : "s"} have no control
+                mapped:
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {d.unmappedRefs.map((ref) => (
+                  <li key={ref} className="flex gap-2 text-[12px] leading-snug text-slate-700">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-500" aria-hidden />
+                    <span className="font-mono text-[11px]">{ref}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
           ) : (
-            <p className="mt-3 border-t border-slate-100 pt-3 text-[12px] text-emerald-700">
-              No unmapped obligations — control map is complete for this domain.
+            <p className="text-[13px] font-semibold text-slate-800">
+              All {d.totalObligations} obligations map to a control.
             </p>
           )}
         </div>
       </section>
-    ),
-    manifest: (
-      <section key="manifest">
+
+      <section>
         <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-slate-600">
           Requested and not producible
         </h3>
@@ -185,9 +233,8 @@ export function DefensibilityLens({ domain }: Props) {
           )}
         </div>
       </section>
-    ),
-    feed: (
-      <section key="feed">
+
+      <section>
         <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-slate-600">
           Feed integrity
         </h3>
@@ -231,24 +278,6 @@ export function DefensibilityLens({ domain }: Props) {
           </dl>
         </div>
       </section>
-    ),
-  };
-
-  return (
-    <div className="space-y-4 p-[18px]">
-      <ClaimLine
-        layout="stack"
-        derivation="RULE"
-        evidenceRef={`DEF-${domain.id.toUpperCase()}-VERDICT`}
-        hideEvidenceRef
-        markerTitle={DEFENSIBILITY_METHOD_HOVER}
-      >
-        <span className={`text-[13px] font-bold ${defensibilityVerdictTone(d.state)}`}>
-          {verdict}
-        </span>
-      </ClaimLine>
-
-      {checkOrder.map((kind) => sections[kind])}
 
       <p className="text-[10px] text-slate-500">
         Firm pack integrity: {pack.withinCadence} of {pack.total} domain feeds within

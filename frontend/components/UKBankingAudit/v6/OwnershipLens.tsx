@@ -3,11 +3,9 @@
 /**
  * Ownership lens — CRO board face. Surfaces SMF allocation and trail age —
  * what the RAG badge cannot say. Names the orphan, never a person as culpable.
+ * Firm-wide orphan count lives on FirmPostureSummary — not in this domain drill.
  */
-import {
-  DOMAIN_ACCOUNTABILITY,
-  RISK_DOMAINS_V4,
-} from "@/lib/ukbankingaudit/v6/riskDomainsV6";
+import { DOMAIN_ACCOUNTABILITY } from "@/lib/ukbankingaudit/v6/riskDomainsV6";
 import {
   getOwnershipState,
   OWNERSHIP_APPETITE,
@@ -94,58 +92,6 @@ function TrailAgeBar({
   );
 }
 
-function FirmOwnershipGrid({ activeDomainId }: { activeDomainId: string }) {
-  return (
-    <div>
-      <h3 className="mb-2.5 text-[13px] font-bold uppercase tracking-wide text-slate-600">
-        Management Responsibilities Map · nine domains
-      </h3>
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-3">
-        {RISK_DOMAINS_V4.map((d) => {
-          const own = getOwnershipState(d.id);
-          const active = d.id === activeDomainId;
-          if (own.state === "UNALLOCATED") {
-            return (
-              <div
-                key={d.id}
-                className={`flex min-h-[72px] flex-col justify-center rounded-lg border border-dashed border-rose-300 bg-transparent px-2.5 py-2 ${
-                  active ? "ring-2 ring-rose-400 ring-offset-1" : ""
-                }`}
-                aria-label={`${d.name}: unallocated Senior Management Function`}
-              >
-                <div className="text-[11px] font-semibold text-slate-700">{d.name}</div>
-                <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-rose-600">
-                  Unallocated
-                </div>
-              </div>
-            );
-          }
-          return (
-            <div
-              key={d.id}
-              className={`flex min-h-[72px] flex-col justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-2 ${
-                active ? "ring-2 ring-slate-400 ring-offset-1" : ""
-              }`}
-            >
-              <div className="text-[11px] font-semibold text-slate-700">{d.name}</div>
-              <div className="mt-0.5 text-[11px] font-medium text-slate-800">
-                {own.smf} · {own.holder}
-              </div>
-              <div
-                className={`mt-1 text-[9px] font-bold uppercase tracking-wider ${
-                  own.state === "OWNED_STALE" ? "text-amber-600" : "text-emerald-600"
-                }`}
-              >
-                {own.state === "OWNED_STALE" ? "Stale trail" : "Current trail"}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export function OwnershipLens({ domain }: Props) {
   const own = getOwnershipState(domain.id);
   const acc = DOMAIN_ACCOUNTABILITY[domain.id];
@@ -223,8 +169,6 @@ export function OwnershipLens({ domain }: Props) {
           </div>
         )}
       </section>
-
-      <FirmOwnershipGrid activeDomainId={domain.id} />
 
       <p className="border-t border-slate-100 pt-2 text-[10px] text-slate-400">
         SYSC 25 · SYSC 26 · s.66A(5) FSMA

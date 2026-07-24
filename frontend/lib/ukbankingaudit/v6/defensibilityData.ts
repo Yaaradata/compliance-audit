@@ -12,6 +12,8 @@ export type ObligationCoverage = {
   domainId: string;
   totalObligations: number;
   mappedToControl: number;
+  /** Controls in scope for this domain (firm-wide sum = 180 against 312 obligations). */
+  controlsInScope: number;
   unmappedRefs: string[];
 };
 
@@ -35,17 +37,31 @@ export const OBLIGATION_COVERAGE: ObligationCoverage[] = [
     domainId: "credit",
     totalObligations: 38,
     mappedToControl: 36,
+    controlsInScope: 24,
     unmappedRefs: [
       "CONC 5.2A.4R creditworthiness assessment records",
       "MCOB 11.6.5R affordability evidence retention",
     ],
   },
-  { domainId: "market", totalObligations: 22, mappedToControl: 22, unmappedRefs: [] },
-  { domainId: "liquidity", totalObligations: 19, mappedToControl: 19, unmappedRefs: [] },
+  {
+    domainId: "market",
+    totalObligations: 22,
+    mappedToControl: 22,
+    controlsInScope: 14,
+    unmappedRefs: [],
+  },
+  {
+    domainId: "liquidity",
+    totalObligations: 19,
+    mappedToControl: 19,
+    controlsInScope: 12,
+    unmappedRefs: [],
+  },
   {
     domainId: "conduct",
     totalObligations: 61,
     mappedToControl: 54,
+    controlsInScope: 31,
     unmappedRefs: [
       "PRIN 2A.9.9R outcomes monitoring",
       "PRIN 2A.9.15R board report content",
@@ -60,6 +76,7 @@ export const OBLIGATION_COVERAGE: ObligationCoverage[] = [
     domainId: "climate",
     totalObligations: 14,
     mappedToControl: 11,
+    controlsInScope: 8,
     unmappedRefs: [
       "SS3/19 §3.7 scenario analysis embedding",
       "SS3/19 §4.2 climate risk appetite metrics",
@@ -70,6 +87,7 @@ export const OBLIGATION_COVERAGE: ObligationCoverage[] = [
     domainId: "fincrime",
     totalObligations: 87,
     mappedToControl: 82,
+    controlsInScope: 46,
     unmappedRefs: [
       "MLR 2017 reg 18A proliferation financing risk assessment",
       "MLR 2017 reg 21(1)(b) independent audit function",
@@ -82,13 +100,26 @@ export const OBLIGATION_COVERAGE: ObligationCoverage[] = [
     domainId: "opsres",
     totalObligations: 33,
     mappedToControl: 31,
+    controlsInScope: 19,
     unmappedRefs: [
       "PS16/24 critical third party register maintenance",
       "SS2/21 §7.4 sub-outsourcing chain mapping",
     ],
   },
-  { domainId: "cyber", totalObligations: 26, mappedToControl: 26, unmappedRefs: [] },
-  { domainId: "regulatory", totalObligations: 12, mappedToControl: 12, unmappedRefs: [] },
+  {
+    domainId: "cyber",
+    totalObligations: 26,
+    mappedToControl: 26,
+    controlsInScope: 17,
+    unmappedRefs: [],
+  },
+  {
+    domainId: "regulatory",
+    totalObligations: 12,
+    mappedToControl: 12,
+    controlsInScope: 9,
+    unmappedRefs: [],
+  },
 ];
 
 export const EVIDENCE_RETRIEVABILITY: EvidenceRetrievability[] = [
@@ -253,6 +284,7 @@ export type DefensibilityResult = {
   unmappedRefs: string[];
   mappedToControl: number;
   totalObligations: number;
+  controlsInScope: number;
   retrievabilityPct: number;
   missingManifest: string[];
   feedState: FeedState;
@@ -318,6 +350,7 @@ export function getDefensibility(domainId: string): DefensibilityResult {
     unmappedRefs: [...coverage.unmappedRefs],
     mappedToControl: coverage.mappedToControl,
     totalObligations: coverage.totalObligations,
+    controlsInScope: coverage.controlsInScope,
     retrievabilityPct,
     missingManifest: [...evidence.missingManifest],
     feedState,
