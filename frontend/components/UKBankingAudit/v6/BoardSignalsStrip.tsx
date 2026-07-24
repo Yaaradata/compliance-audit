@@ -5,7 +5,6 @@ import { resolvePrecedent } from "@/lib/ukbankingaudit/v6/precedentCorpus";
 import type { AuditEntry, DispositionKind } from "@/lib/ukbankingaudit/v6/dispositions";
 import type { BoardSignal } from "@/lib/ukbankingaudit/v6/types";
 import { BoardSignalCard } from "./BoardSignalCard";
-import { CrossLensAlert } from "./CrossLensAlert";
 import { useJurisdiction } from "./jurisdictionContext";
 import { SignalInvestigationDrawer } from "./SignalInvestigationDrawer";
 
@@ -36,9 +35,6 @@ export function BoardSignalsStrip({ signals }: Props) {
     return (
       <div className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200/90 bg-white p-3 shadow-sm sm:p-4">
         <h2 className="mb-3 shrink-0 text-base font-bold text-slate-900">Board challenge</h2>
-        <div className="mb-3 shrink-0">
-          <CrossLensAlert />
-        </div>
         <div className="rounded-[10px] border border-slate-200 bg-slate-50 p-4 text-[13px] font-medium text-slate-600">
           No signals this cycle. 3 domains unarmed — evidence cadence unconfirmed.
         </div>
@@ -49,10 +45,6 @@ export function BoardSignalsStrip({ signals }: Props) {
   return (
     <div className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200/90 bg-white p-3 shadow-sm sm:p-4">
       <h2 className="mb-3 shrink-0 text-base font-bold text-slate-900">Board challenge</h2>
-
-      <div className="mb-3 shrink-0">
-        <CrossLensAlert />
-      </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
         <div className="flex flex-col gap-2.5 pb-1">

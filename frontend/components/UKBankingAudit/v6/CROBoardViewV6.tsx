@@ -5,6 +5,7 @@ import { FIRM_POSTURE_V4 } from "@/lib/ukbankingaudit/riskDomainsV4";
 import { RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v6/riskDomainsV6";
 import { runBoardDetectors } from "@/lib/ukbankingaudit/v6/detectors";
 import { WHAT_CHANGED_V6 } from "@/lib/ukbankingaudit/v6/whatChangedV6";
+import { personas } from "@/components/UKBankingAudit/ukTraceRuntime";
 import { BoardRoleContext } from "./boardRoleContext";
 import { BoardSignalsStrip } from "./BoardSignalsStrip";
 import { FirmRiskPosturePanel } from "./cro/FirmRiskPosturePanel";
@@ -22,6 +23,7 @@ type Props = {
 export function CROBoardViewV6({ openDrawer }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const signals = runBoardDetectors("UK");
+  const persona = personas.find((p: { id: string }) => p.id === "cro");
 
   const toggle = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
   const onOpenEvidence = (ref: string) => openDrawer?.(v6RefKind(ref), ref, "croBoard");
@@ -41,7 +43,9 @@ export function CROBoardViewV6({ openDrawer }: Props) {
       `}</style>
       <div>
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">CRO</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+            {persona?.label ?? "CRO (SMF4)"}
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             Firm-level risk posture across {RISK_DOMAINS_V4.length} UK CRO categories. Ten-minute board read.
           </p>

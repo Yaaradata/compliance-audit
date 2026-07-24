@@ -1,7 +1,6 @@
 "use client";
 
 import { DOMAIN_EVIDENCE, RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v6/riskDomainsV6";
-import { getFirmLensPostureLines } from "@/lib/ukbankingaudit/v6/lensBoardSummary";
 import type { StatusEvidence } from "@/lib/ukbankingaudit/v6/types";
 import { RAG_STYLES } from "./ragTokens";
 import type { RagStatus } from "./types";
@@ -45,7 +44,6 @@ export function FirmPostureBanner({
 }) {
   const band = status === "RED" ? "red" : status === "AMBER" ? "amber" : "green";
   const rag = RAG_STYLES[band];
-  const lensLines = getFirmLensPostureLines();
   return (
     <div className={`rounded-xl border-[1.5px] p-5 ${rag.bg} ${rag.border}`}>
       <div className="mb-2.5 flex items-center gap-3">
@@ -60,11 +58,6 @@ export function FirmPostureBanner({
         {GREEN_DOMAINS} of {TOTAL_DOMAINS} domains GREEN · {UNEVIDENCED_GREEN} of those have no evidence
         artefact within cadence.
       </p>
-      <ul className="mt-2 max-w-4xl space-y-1 text-[12px] leading-snug text-slate-600">
-        <li>{lensLines.ownershipLine}</li>
-        <li>{lensLines.momentumLine}</li>
-        <li>{lensLines.defensibilityLine}</li>
-      </ul>
     </div>
   );
 }
