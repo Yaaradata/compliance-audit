@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { UserButton, type DemoSession } from "@/components/access/UserButton";
+import { canOpenDashboard, keyForPath } from "@/lib/demo-access";
 import {
   INDIAN_BANKING_PATHS,
   INDIAN_BANKING_VERSION_SELECT_LABELS,
@@ -113,6 +115,77 @@ const REGION_OPTIONS: RegionOption[] = [
   },
 ];
 
+function PadlockIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="ml-1.5 inline-block h-3.5 w-3.5 shrink-0 text-slate-400 align-middle"
+      aria-hidden
+    >
+      <path
+        fill="currentColor"
+        d="M8 1a3 3 0 0 0-3 3v2H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1V4a3 3 0 0 0-3-3Zm1.5 5h-3V4a1.5 1.5 0 1 1 3 0v2Z"
+      />
+    </svg>
+  );
+}
+
+/** null access = session still loading — do not flash locks. SWIFT (no key) never locks. */
+function isCardLocked(
+  href: string,
+  access: string | null,
+  role: string | null,
+): boolean {
+  if (access === null) return false;
+  const key = keyForPath(href);
+  if (!key) return false;
+  return !canOpenDashboard(role, access, key);
+}
+
+function cardShellClass(locked: boolean): string {
+  return locked
+    ? "flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm opacity-70 transition-all"
+    : "flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md";
+}
+
+function CardTitle({ title, locked }: { title: string; locked: boolean }) {
+  return (
+    <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">
+      <span className="inline-flex items-center justify-center">
+        {title}
+        {locked ? <PadlockIcon /> : null}
+      </span>
+    </h2>
+  );
+}
+
+function OpenDashboardButton({
+  locked,
+  nextPath,
+  onOpen,
+}: {
+  locked: boolean;
+  nextPath: string;
+  onOpen: () => void;
+}) {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (locked) {
+          router.push(`/access?next=${encodeURIComponent(nextPath)}`);
+          return;
+        }
+        onOpen();
+      }}
+      className="mt-4 min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+    >
+      {locked ? "Sign in to open" : "Open dashboard"}
+    </button>
+  );
+}
+
 function RegionCardIcon({ option }: { option: RegionOption }) {
   return (
     <div className="mb-5 flex items-center justify-center">
@@ -127,16 +200,19 @@ function RegionCardIcon({ option }: { option: RegionOption }) {
   );
 }
 
-function UKBankingAuditCard({ option }: { option: RegionOption }) {
+function UKBankingAuditCard({
+  option,
+  locked,
+}: {
+  option: RegionOption;
+  locked: boolean;
+}) {
   const router = useRouter();
   const [version, setVersion] = useState<UkBankingAuditVersion>(LATEST_UK_BANKING_VERSION);
-
-  const openDashboard = () => {
-    router.push(UK_BANKING_PATHS[version]);
-  };
+  const nextPath = UK_BANKING_PATHS[version];
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className={cardShellClass(locked)}>
       <div className="relative mb-3">
         <div className="flex justify-center">
           <div
@@ -162,30 +238,31 @@ function UKBankingAuditCard({ option }: { option: RegionOption }) {
         </select>
       </div>
 
-      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">{option.title}</h2>
+      <CardTitle title={option.title} locked={locked} />
       <p className="mt-1 text-center text-sm text-slate-500">Choose dashboard to continue</p>
 
-      <button
-        type="button"
-        onClick={openDashboard}
-        className="mt-4 min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-      >
-        Open dashboard
-      </button>
+      <OpenDashboardButton
+        locked={locked}
+        nextPath={nextPath}
+        onOpen={() => router.push(nextPath)}
+      />
     </div>
   );
 }
 
-function IndianProcessAuditCard({ option }: { option: RegionOption }) {
+function IndianProcessAuditCard({
+  option,
+  locked,
+}: {
+  option: RegionOption;
+  locked: boolean;
+}) {
   const router = useRouter();
   const [version, setVersion] = useState<IndianProcessAuditVersion>(LATEST_INDIAN_PROCESS_AUDIT_VERSION);
-
-  const openDashboard = () => {
-    router.push(INDIAN_PROCESS_AUDIT_PATHS[version]);
-  };
+  const nextPath = INDIAN_PROCESS_AUDIT_PATHS[version];
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className={cardShellClass(locked)}>
       <div className="relative mb-3">
         <div className="flex justify-center">
           <div
@@ -211,30 +288,31 @@ function IndianProcessAuditCard({ option }: { option: RegionOption }) {
         </select>
       </div>
 
-      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">{option.title}</h2>
+      <CardTitle title={option.title} locked={locked} />
       <p className="mt-1 text-center text-sm text-slate-500">Choose dashboard to continue</p>
 
-      <button
-        type="button"
-        onClick={openDashboard}
-        className="mt-4 min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-      >
-        Open dashboard
-      </button>
+      <OpenDashboardButton
+        locked={locked}
+        nextPath={nextPath}
+        onOpen={() => router.push(nextPath)}
+      />
     </div>
   );
 }
 
-function UKProcessAuditCard({ option }: { option: RegionOption }) {
+function UKProcessAuditCard({
+  option,
+  locked,
+}: {
+  option: RegionOption;
+  locked: boolean;
+}) {
   const router = useRouter();
   const [version, setVersion] = useState<UkProcessAuditVersion>(LATEST_UK_PROCESS_AUDIT_VERSION);
-
-  const openDashboard = () => {
-    router.push(UK_PROCESS_AUDIT_PATHS[version]);
-  };
+  const nextPath = UK_PROCESS_AUDIT_PATHS[version];
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className={cardShellClass(locked)}>
       <div className="relative mb-3">
         <div className="flex justify-center">
           <div
@@ -260,30 +338,31 @@ function UKProcessAuditCard({ option }: { option: RegionOption }) {
         </select>
       </div>
 
-      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">{option.title}</h2>
+      <CardTitle title={option.title} locked={locked} />
       <p className="mt-1 text-center text-sm text-slate-500">Choose dashboard to continue</p>
 
-      <button
-        type="button"
-        onClick={openDashboard}
-        className="mt-4 min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-      >
-        Open dashboard
-      </button>
+      <OpenDashboardButton
+        locked={locked}
+        nextPath={nextPath}
+        onOpen={() => router.push(nextPath)}
+      />
     </div>
   );
 }
 
-function IndianBankingAuditCard({ option }: { option: RegionOption }) {
+function IndianBankingAuditCard({
+  option,
+  locked,
+}: {
+  option: RegionOption;
+  locked: boolean;
+}) {
   const router = useRouter();
   const [version, setVersion] = useState<IndianBankingAuditVersion>(LATEST_INDIAN_BANKING_VERSION);
-
-  const openDashboard = () => {
-    router.push(INDIAN_BANKING_PATHS[version]);
-  };
+  const nextPath = INDIAN_BANKING_PATHS[version];
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className={cardShellClass(locked)}>
       <div className="relative mb-3">
         <div className="flex justify-center">
           <div
@@ -306,30 +385,31 @@ function IndianBankingAuditCard({ option }: { option: RegionOption }) {
         </select>
       </div>
 
-      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">{option.title}</h2>
+      <CardTitle title={option.title} locked={locked} />
       <p className="mt-1 text-center text-sm text-slate-500">Choose dashboard to continue</p>
 
-      <button
-        type="button"
-        onClick={openDashboard}
-        className="mt-4 min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-      >
-        Open dashboard
-      </button>
+      <OpenDashboardButton
+        locked={locked}
+        nextPath={nextPath}
+        onOpen={() => router.push(nextPath)}
+      />
     </div>
   );
 }
 
-function SoftwareAuditCard({ option }: { option: RegionOption }) {
+function SoftwareAuditCard({
+  option,
+  locked,
+}: {
+  option: RegionOption;
+  locked: boolean;
+}) {
   const router = useRouter();
-  const [version, setVersion] = useState<SoftwareAuditVersion>('v2');
-
-  const openDashboard = () => {
-    router.push(SOFTWARE_AUDIT_PATHS[version]);
-  };
+  const [version, setVersion] = useState<SoftwareAuditVersion>("v2");
+  const nextPath = SOFTWARE_AUDIT_PATHS[version];
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className={cardShellClass(locked)}>
       <div className="relative mb-3">
         <div className="flex justify-center">
           <div
@@ -353,30 +433,31 @@ function SoftwareAuditCard({ option }: { option: RegionOption }) {
         </select>
       </div>
 
-      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">{option.title}</h2>
+      <CardTitle title={option.title} locked={locked} />
       <p className="mt-1 text-center text-sm text-slate-500">Choose dashboard to continue</p>
 
-      <button
-        type="button"
-        onClick={openDashboard}
-        className="mt-4 min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-      >
-        Open dashboard
-      </button>
+      <OpenDashboardButton
+        locked={locked}
+        nextPath={nextPath}
+        onOpen={() => router.push(nextPath)}
+      />
     </div>
   );
 }
 
-function SrilankaRetailCard({ option }: { option: RegionOption }) {
+function SrilankaRetailCard({
+  option,
+  locked,
+}: {
+  option: RegionOption;
+  locked: boolean;
+}) {
   const router = useRouter();
   const [version, setVersion] = useState<SrilankaRetailVersion>(LATEST_SRILANKA_RETAIL_VERSION);
-
-  const openDashboard = () => {
-    router.push(SRILANKA_RETAIL_PATHS[version]);
-  };
+  const nextPath = SRILANKA_RETAIL_PATHS[version];
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className={cardShellClass(locked)}>
       <div className="relative mb-3">
         <div className="flex justify-center">
           <div
@@ -402,38 +483,64 @@ function SrilankaRetailCard({ option }: { option: RegionOption }) {
         </select>
       </div>
 
-      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">{option.title}</h2>
+      <CardTitle title={option.title} locked={locked} />
       <p className="mt-1 text-center text-sm text-slate-500">Choose dashboard to continue</p>
 
-      <button
-        type="button"
-        onClick={openDashboard}
-        className="mt-4 min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-      >
-        Open dashboard
-      </button>
+      <OpenDashboardButton
+        locked={locked}
+        nextPath={nextPath}
+        onOpen={() => router.push(nextPath)}
+      />
     </div>
   );
 }
 
-function RegionCard({ option }: { option: RegionOption }) {
+function RegionCard({
+  option,
+  access,
+  role,
+}: {
+  option: RegionOption;
+  access: string | null;
+  role: string | null;
+}) {
+  const locked = isCardLocked(option.href, access, role);
+
   if (option.id === "uk-process-audit") {
-    return <UKProcessAuditCard option={option} />;
+    return <UKProcessAuditCard option={option} locked={locked} />;
   }
   if (option.id === "uk-banking-audit") {
-    return <UKBankingAuditCard option={option} />;
+    return <UKBankingAuditCard option={option} locked={locked} />;
   }
   if (option.id === "srilanka-retail") {
-    return <SrilankaRetailCard option={option} />;
+    return <SrilankaRetailCard option={option} locked={locked} />;
   }
   if (option.id === "indian-process") {
-    return <IndianProcessAuditCard option={option} />;
+    return <IndianProcessAuditCard option={option} locked={locked} />;
   }
   if (option.id === "indian-banking-audit") {
-    return <IndianBankingAuditCard option={option} />;
+    return <IndianBankingAuditCard option={option} locked={locked} />;
   }
   if (option.id === "software-audit") {
-    return <SoftwareAuditCard option={option} />;
+    return <SoftwareAuditCard option={option} locked={locked} />;
+  }
+
+  // SWIFT (never locked) and simple link cards (e.g. US Banking).
+  if (locked) {
+    return (
+      <div className={cardShellClass(true)}>
+        <RegionCardIcon option={option} />
+        <CardTitle title={option.title} locked />
+        <p className="mt-2 text-center text-sm leading-6 text-slate-500">
+          Choose dashboard to continue
+        </p>
+        <OpenDashboardButton
+          locked
+          nextPath={option.href}
+          onOpen={() => undefined}
+        />
+      </div>
+    );
   }
 
   return (
@@ -442,16 +549,30 @@ function RegionCard({ option }: { option: RegionOption }) {
       className="block rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
     >
       <RegionCardIcon option={option} />
-      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">{option.title}</h2>
+      <h2 className="text-center text-[1.7rem] font-bold leading-tight text-slate-900">
+        {option.title}
+      </h2>
       <p className="mt-2 text-center text-sm leading-6 text-slate-500">Choose dashboard to continue</p>
     </Link>
   );
 }
 
 export default function SelectRegionPage() {
+  const [access, setAccess] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+
+  const onSessionChange = (session: DemoSession) => {
+    setAccess(session.signedIn ? (session.access ?? "") : "");
+    setRole(session.signedIn ? (session.role ?? "") : "");
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-white px-4 py-10 sm:px-6">
       <div className="mx-auto w-full max-w-6xl">
+        <div className="mb-6 flex justify-end">
+          <UserButton onSessionChange={onSessionChange} />
+        </div>
+
         <header className="mb-10 text-center">
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
             Welcome to Compliance Audit
@@ -463,7 +584,7 @@ export default function SelectRegionPage() {
 
         <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {REGION_OPTIONS.map((option) => (
-            <RegionCard key={option.id} option={option} />
+            <RegionCard key={option.id} option={option} access={access} role={role} />
           ))}
         </section>
       </div>
