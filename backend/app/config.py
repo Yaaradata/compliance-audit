@@ -69,7 +69,7 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
-        "https://compliance-audit.vercel.app",
+        "https://riskcxdemo.yaaralabs.ai",
     ]
 
     # Optional: upstream SWIFT AWS Evidence service base URL (e.g. http://127.0.0.1:8001)
