@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DASHBOARD_LABELS } from "@/lib/demo-access";
 
@@ -15,11 +15,17 @@ const labelClass = "mb-1 block text-xs font-semibold uppercase tracking-wide tex
 const primaryBtnClass =
   "w-full rounded-lg bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60";
 
+function safeNextPath(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/select_region";
+  return raw;
+}
+
 function AccessForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/select_region";
+  const next = safeNextPath(searchParams.get("next"));
 
+  const [checkingSession, setCheckingSession] = useState(true);
   const [mode, setMode] = useState<Mode>("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,6 +34,28 @@ function AccessForm() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [signupDone, setSignupDone] = useState(false);
+
+  // Client fallback: if proxy did not catch it, bounce signed-in users off this page.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/access/me", { cache: "no-store" });
+        const d = (await r.json()) as { signedIn?: boolean };
+        if (cancelled) return;
+        if (d.signedIn) {
+          router.replace(next);
+          return;
+        }
+      } catch {
+        // stay on form
+      }
+      if (!cancelled) setCheckingSession(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [next, router]);
 
   const toggleKey = (key: string) => {
     setRequested((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -55,7 +83,8 @@ function AccessForm() {
         setSubmitting(false);
         return;
       }
-      router.push(next);
+      // replace so Back does not return to /access
+      router.replace(next);
     } catch {
       setError("Something went wrong. Please try again.");
       setSubmitting(false);
@@ -98,6 +127,9 @@ function AccessForm() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-100 via-slate-50 to-white px-4 py-10">
+      {checkingSession ? (
+        <div className="h-10 w-48 animate-pulse rounded-full bg-slate-200" aria-label="Checking session" />
+      ) : (
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
@@ -260,6 +292,7 @@ function AccessForm() {
           </Link>
         </p>
       </div>
+      )}
     </main>
   );
 }

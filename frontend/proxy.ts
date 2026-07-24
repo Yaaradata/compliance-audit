@@ -4,8 +4,20 @@ import { keyForPath, canOpenDashboard } from "@/lib/demo-access";
 
 const secret = new TextEncoder().encode(process.env.SESSION_SECRET!);
 
+/** Only same-origin relative paths — never open redirects. */
+function safeNextPath(raw: string | null | undefined): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/select_region";
+  return raw;
+}
+
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Already signed in → never show the sign-in form again (fixes browser Back).
+  if (pathname === "/access") {
+    return redirectAwayFromAccessIfSignedIn(req);
+  }
+
   const key = keyForPath(pathname);
   if (!key) return NextResponse.next(); // SWIFT and everything ungated
 
@@ -28,6 +40,22 @@ export async function proxy(req: NextRequest) {
   }
 }
 
+async function redirectAwayFromAccessIfSignedIn(req: NextRequest) {
+  const token = req.cookies.get("demo_session")?.value;
+  if (!token) return NextResponse.next();
+
+  try {
+    await jwtVerify(token, secret);
+    const dest = safeNextPath(req.nextUrl.searchParams.get("next"));
+    const url = req.nextUrl.clone();
+    url.pathname = dest;
+    url.search = "";
+    return NextResponse.redirect(url);
+  } catch {
+    return NextResponse.next();
+  }
+}
+
 function toAccess(req: NextRequest, from: string) {
   const url = req.nextUrl.clone();
   url.pathname = "/access";
@@ -37,6 +65,7 @@ function toAccess(req: NextRequest, from: string) {
 
 export const config = {
   matcher: [
+    "/access",
     "/UKBankingAudit/:path*",
     "/UK_Process_Audit/:path*",
     "/USBankingAudit/:path*",
