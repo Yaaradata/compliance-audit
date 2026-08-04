@@ -7,6 +7,7 @@ import mockDataV3 from '@/lib/ukbankingaudit/mockDataV3';
 import mockDataV4 from '@/lib/ukbankingaudit/mockDataV4';
 import mockDataV5 from '@/lib/ukbankingaudit/mockDataV5';
 import mockDataV6 from '@/lib/ukbankingaudit/mockDataV6';
+import mockDataV7 from '@/lib/ukbankingaudit/mockDataV7';
 import {
   getUkAuditUi,
   computeRssScore,
@@ -23,6 +24,9 @@ import {
 import {
   CROBoardViewV6,
 } from '@/components/UKBankingAudit/v6';
+import {
+  CROBoardViewV7,
+} from '@/components/UKBankingAudit/v7';
 import { PrecedentDetailContent } from '@/components/UKBankingAudit/v5/drawers/PrecedentDetailContent';
 import { DerivationDetailContent } from '@/components/UKBankingAudit/v5/drawers/DerivationDetailContent';
 import { StatusEvidenceDetailContent } from '@/components/UKBankingAudit/v5/drawers/StatusEvidenceDetailContent';
@@ -31,8 +35,13 @@ import { PrecedentDetailContent as PrecedentDetailContentV6 } from '@/components
 import { DerivationDetailContent as DerivationDetailContentV6 } from '@/components/UKBankingAudit/v6/drawers/DerivationDetailContent';
 import { StatusEvidenceDetailContent as StatusEvidenceDetailContentV6 } from '@/components/UKBankingAudit/v6/drawers/StatusEvidenceDetailContent';
 import { CrsaRefDetailContent as CrsaRefDetailContentV6 } from '@/components/UKBankingAudit/v6/drawers/CrsaRefDetailContent';
+import { PrecedentDetailContent as PrecedentDetailContentV7 } from '@/components/UKBankingAudit/v7/drawers/PrecedentDetailContent';
+import { DerivationDetailContent as DerivationDetailContentV7 } from '@/components/UKBankingAudit/v7/drawers/DerivationDetailContent';
+import { StatusEvidenceDetailContent as StatusEvidenceDetailContentV7 } from '@/components/UKBankingAudit/v7/drawers/StatusEvidenceDetailContent';
+import { CrsaRefDetailContent as CrsaRefDetailContentV7 } from '@/components/UKBankingAudit/v7/drawers/CrsaRefDetailContent';
 import { resolveV5Entity } from '@/lib/ukbankingaudit/v5/resolveV5Entity';
 import { resolveV6Entity } from '@/lib/ukbankingaudit/v6/resolveV6Entity';
+import { resolveV7Entity } from '@/lib/ukbankingaudit/v7/resolveV7Entity';
 
 import {
   bindUkTraceMock,
@@ -152,6 +161,15 @@ import { AIInsightDetailV6 } from '@/components/UKBankingAudit/v6/screens/AIInsi
 import { resolveExplorerInsight as resolveExplorerInsightV6 } from '@/lib/ukbankingaudit/v6/aiContract';
 import { runBoardDetectors as runBoardDetectorsV6 } from '@/lib/ukbankingaudit/v6/detectors';
 import { HeadOfERMWorkspaceV6 } from '@/components/UKBankingAudit/v6/screens/HeadOfERMWorkspaceV6';
+import { SMCRReasonableStepsWorkspaceV7 } from '@/components/UKBankingAudit/v7/screens/SMCRReasonableStepsWorkspaceV7';
+import { ObligationCoverageMapV7 } from '@/components/UKBankingAudit/v7/screens/ObligationCoverageMapV7';
+import { MLROWorkspaceV7 } from '@/components/UKBankingAudit/v7/screens/MLROWorkspaceV7';
+import { CRSACycleCockpitV7 } from '@/components/UKBankingAudit/v7/screens/CRSACycleCockpitV7';
+import { AIInsightExplorerV7 } from '@/components/UKBankingAudit/v7/screens/AIInsightExplorerV7';
+import { AIInsightDetailV7 } from '@/components/UKBankingAudit/v7/screens/AIInsightDetailV7';
+import { resolveExplorerInsight as resolveExplorerInsightV7 } from '@/lib/ukbankingaudit/v7/aiContract';
+import { runBoardDetectors as runBoardDetectorsV7 } from '@/lib/ukbankingaudit/v7/detectors';
+import { HeadOfERMWorkspaceV7 } from '@/components/UKBankingAudit/v7/screens/HeadOfERMWorkspaceV7';
 
 function bindUkMock(mock, variant = 'v2') {
   bindUkTraceMock(mock, variant);
@@ -620,7 +638,9 @@ function resolveEntity(type, id) {
       const gsrByRacm = (groupSetRequirements || []).find((g) => g.racmRef === id);
       if (gsrByRacm) return gsrByRacm;
     }
-    return activeVariant === 'v6'
+    return activeVariant === 'v7'
+      ? resolveV7Entity(type, id, { getEvidence, getKRI, getControl })
+      : activeVariant === 'v6'
       ? resolveV6Entity(type, id, { getEvidence, getKRI, getControl })
       : resolveV5Entity(type, id, { getEvidence, getKRI, getControl });
   }
@@ -653,7 +673,7 @@ const selectSMFTrails           = (s) => s.domain.smfTrails;
 // ─── App Component ────────────────────────────────────────────────────────
 export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
   bindUkMock(
-    variant === 'v6' ? mockDataV6 : variant === 'v5' ? mockDataV5 : variant === 'v4' ? mockDataV4 : variant === 'v3' ? mockDataV3 : mockDataV2,
+    variant === 'v7' ? mockDataV7 : variant === 'v6' ? mockDataV6 : variant === 'v5' ? mockDataV5 : variant === 'v4' ? mockDataV4 : variant === 'v3' ? mockDataV3 : mockDataV2,
     variant,
   );
   // Pass 7.0 — single useReducer replaces 12 fragmented useState calls.
@@ -766,6 +786,9 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
       <main className="px-6 py-6">
         {/* Pass 7.1 — four SMF-aligned persona landings (stubs; Passes 7.2–7.4 fill them in). */}
         {/* Pass 7.2 — CROBoardView is now real (three-zone board view). */}
+        {activeScreen === "croBoardView" && variant === "v7" && (
+          <CROBoardViewV7 openDrawer={openDrawer} />
+        )}
         {activeScreen === "croBoardView" && variant === "v6" && (
           <CROBoardViewV6 openDrawer={openDrawer} />
         )}
@@ -775,13 +798,24 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
         {activeScreen === "croBoardView" && variant === "v4" && (
           <CROBoardViewV4 openDrawer={openDrawer} />
         )}
-        {activeScreen === "croBoardView" && variant !== "v4" && variant !== "v5" && variant !== "v6" && (
+        {activeScreen === "croBoardView" && variant !== "v4" && variant !== "v5" && variant !== "v6" && variant !== "v7" && (
           <CROBoardView openDrawer={openDrawer} variant={variant} />
         )}
+        {activeScreen === "headOfERMWorkspace" && variant === "v7" && <HeadOfERMWorkspaceV7 openDrawer={openDrawer} />}
         {activeScreen === "headOfERMWorkspace" && variant === "v6" && <HeadOfERMWorkspaceV6 openDrawer={openDrawer} />}
         {activeScreen === "headOfERMWorkspace" && variant === "v5" && <HeadOfERMWorkspaceV5 openDrawer={openDrawer} />}
-        {activeScreen === "headOfERMWorkspace" && variant !== "v3" && variant !== "v4" && variant !== "v5" && variant !== "v6" && <HeadOfERMWorkspace />}
+        {activeScreen === "headOfERMWorkspace" && variant !== "v3" && variant !== "v4" && variant !== "v5" && variant !== "v6" && variant !== "v7" && <HeadOfERMWorkspace />}
         {/* Pass 7.3 — CRSACycleCockpit is now real (CRSA-anchored SMF16 landing). */}
+        {activeScreen === "crsaCycleCockpit" && variant === "v7" && (
+          <CRSACycleCockpitV7
+            openDrawer={openDrawer}
+            setActiveScreen={setActiveScreen}
+            setSelectedRiskAreaId={setSelectedRiskAreaId}
+            setSelectedCycleId={setSelectedCycleId}
+            setSelectedGSRId={setSelectedGSRId}
+            selectedCycleId={selectedCycleId}
+          />
+        )}
         {activeScreen === "crsaCycleCockpit" && variant === "v6" && (
           <CRSACycleCockpitV6
             openDrawer={openDrawer}
@@ -802,13 +836,20 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
             selectedCycleId={selectedCycleId}
           />
         )}
-        {activeScreen === "crsaCycleCockpit" && variant !== "v5" && variant !== "v6" && (
+        {activeScreen === "crsaCycleCockpit" && variant !== "v5" && variant !== "v6" && variant !== "v7" && (
           <CRSACycleCockpit
             openDrawer={openDrawer}
             setActiveScreen={setActiveScreen}
             setSelectedRiskAreaId={setSelectedRiskAreaId}
             setSelectedCycleId={setSelectedCycleId}
             selectedCycleId={selectedCycleId}
+          />
+        )}
+        {activeScreen === "mlroWorkspace" && variant === "v7" && (
+          <MLROWorkspaceV7
+            openDrawer={openDrawer}
+            setActiveScreen={setActiveScreen}
+            setSelectedGSRId={setSelectedGSRId}
           />
         )}
         {activeScreen === "mlroWorkspace" && variant === "v6" && (
@@ -825,7 +866,7 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
             setSelectedGSRId={setSelectedGSRId}
           />
         )}
-        {activeScreen === "mlroWorkspace" && variant !== "v5" && variant !== "v6" && (
+        {activeScreen === "mlroWorkspace" && variant !== "v5" && variant !== "v6" && variant !== "v7" && (
           <MLROWorkspace
             openDrawer={openDrawer}
             setActiveScreen={setActiveScreen}
@@ -860,19 +901,30 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
         )}
 
         {/* Surviving cross-persona screens. */}
+        {activeScreen === "smcrWorkspace" && variant === "v7" && <SMCRReasonableStepsWorkspaceV7 variant={variant} selectedSMFId={selectedSMFId} setSelectedSMFId={setSelectedSMFId} smfTrails={smfTrails} pendingDecisionId={pendingDecisionId} setPendingDecisionId={setPendingDecisionId} decisionRationale={decisionRationale} setDecisionRationale={setDecisionRationale} captureSMFDecision={captureSMFDecision} openDrawer={openDrawer} setActiveScreen={setActiveScreen} setSelectedPackId={setSelectedPackId} />}
         {activeScreen === "smcrWorkspace" && variant === "v6" && <SMCRReasonableStepsWorkspaceV6 variant={variant} selectedSMFId={selectedSMFId} setSelectedSMFId={setSelectedSMFId} smfTrails={smfTrails} pendingDecisionId={pendingDecisionId} setPendingDecisionId={setPendingDecisionId} decisionRationale={decisionRationale} setDecisionRationale={setDecisionRationale} captureSMFDecision={captureSMFDecision} openDrawer={openDrawer} setActiveScreen={setActiveScreen} setSelectedPackId={setSelectedPackId} />}
         {activeScreen === "smcrWorkspace" && variant === "v5" && <SMCRReasonableStepsWorkspaceV5 variant={variant} selectedSMFId={selectedSMFId} setSelectedSMFId={setSelectedSMFId} smfTrails={smfTrails} pendingDecisionId={pendingDecisionId} setPendingDecisionId={setPendingDecisionId} decisionRationale={decisionRationale} setDecisionRationale={setDecisionRationale} captureSMFDecision={captureSMFDecision} openDrawer={openDrawer} setActiveScreen={setActiveScreen} setSelectedPackId={setSelectedPackId} />}
-        {activeScreen === "smcrWorkspace" && variant !== "v5" && variant !== "v6" && <SMCRReasonableStepsWorkspace variant={variant} selectedSMFId={selectedSMFId} setSelectedSMFId={setSelectedSMFId} smfTrails={smfTrails} pendingDecisionId={pendingDecisionId} setPendingDecisionId={setPendingDecisionId} decisionRationale={decisionRationale} setDecisionRationale={setDecisionRationale} captureSMFDecision={captureSMFDecision} openDrawer={openDrawer} setActiveScreen={setActiveScreen} setSelectedPackId={setSelectedPackId} />}
+        {activeScreen === "smcrWorkspace" && variant !== "v5" && variant !== "v6" && variant !== "v7" && <SMCRReasonableStepsWorkspace variant={variant} selectedSMFId={selectedSMFId} setSelectedSMFId={setSelectedSMFId} smfTrails={smfTrails} pendingDecisionId={pendingDecisionId} setPendingDecisionId={setPendingDecisionId} decisionRationale={decisionRationale} setDecisionRationale={setDecisionRationale} captureSMFDecision={captureSMFDecision} openDrawer={openDrawer} setActiveScreen={setActiveScreen} setSelectedPackId={setSelectedPackId} />}
         {activeScreen === "monitoringReportBuilder" && <MonitoringReportBuilder variant={variant} selectedPackId={selectedPackId} setSelectedPackId={setSelectedPackId} openDrawer={openDrawer} />}
+        {activeScreen === "aiInsights" && variant === "v7" && (
+          <AIInsightExplorerV7 openDrawer={openDrawer} activePersona={activePersona} />
+        )}
         {activeScreen === "aiInsights" && variant === "v6" && (
           <AIInsightExplorerV6 openDrawer={openDrawer} activePersona={activePersona} />
         )}
         {activeScreen === "aiInsights" && variant === "v5" && (
           <AIInsightExplorerV5 openDrawer={openDrawer} activePersona={activePersona} />
         )}
-        {activeScreen === "aiInsights" && variant !== "v5" && variant !== "v6" && <AIInsightExplorer openDrawer={openDrawer} />}
+        {activeScreen === "aiInsights" && variant !== "v5" && variant !== "v6" && variant !== "v7" && <AIInsightExplorer openDrawer={openDrawer} />}
 
         {/* Pass 7.5 — Obligation Coverage Map promoted to top-level cross-persona screen. */}
+        {activeScreen === "coverageMap" && variant === "v7" && (
+          <ObligationCoverageMapV7
+            openDrawer={openDrawer}
+            setActiveScreen={setActiveScreen}
+            setSelectedGSRId={setSelectedGSRId}
+          />
+        )}
         {activeScreen === "coverageMap" && variant === "v6" && (
           <ObligationCoverageMapV6
             openDrawer={openDrawer}
@@ -887,7 +939,7 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
             setSelectedGSRId={setSelectedGSRId}
           />
         )}
-        {activeScreen === "coverageMap" && variant !== "v5" && variant !== "v6" && (
+        {activeScreen === "coverageMap" && variant !== "v5" && variant !== "v6" && variant !== "v7" && (
           <ObligationCoverageMap
             openDrawer={openDrawer}
             setActiveScreen={setActiveScreen}
@@ -1341,7 +1393,7 @@ function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveSc
 
 // CRO (SMF4) board view — replaces the Pass 7.1 stub.
 function CROBoardView({ openDrawer, variant = 'v2' }) {
-  const ui = getUkAuditUi(variant === 'v4' || variant === 'v5' || variant === 'v6' ? 'v3' : variant);
+  const ui = getUkAuditUi(variant === 'v4' || variant === 'v5' || variant === 'v6' || variant === 'v7' ? 'v3' : variant);
   const persona = personas.find(p => p.id === "cro");
   const [drilledCategoryId, setDrilledCategoryId] = useState(null);
 
@@ -1990,7 +2042,7 @@ function PopulationTestWorkspace({ selectedTestId, openDrawer, setActiveScreen, 
 
 // ─── SCREEN: SMCR Reasonable Steps Workspace ──────────────────────────────
 function SMCRReasonableStepsWorkspace({ variant = 'v2', selectedSMFId, setSelectedSMFId, smfTrails, pendingDecisionId, setPendingDecisionId, decisionRationale, setDecisionRationale, captureSMFDecision, openDrawer, setActiveScreen, setSelectedPackId }) {
-  const ui = getUkAuditUi(variant === 'v4' || variant === 'v5' || variant === 'v6' ? 'v3' : variant);
+  const ui = getUkAuditUi(variant === 'v4' || variant === 'v5' || variant === 'v6' || variant === 'v7' ? 'v3' : variant);
   const smf = getSMF(selectedSMFId);
   if (!smf) return <EmptyState message="Select an SMF." />;
   const live = smfTrails[selectedSMFId];
@@ -2181,7 +2233,7 @@ function SMCRReasonableStepsWorkspace({ variant = 'v2', selectedSMFId, setSelect
 
 // ─── SCREEN: Monitoring Report Builder ───────────────────────────────────
 function MonitoringReportBuilder({ variant = 'v2', selectedPackId, setSelectedPackId, openDrawer }) {
-  const ui = getUkAuditUi(variant === 'v4' || variant === 'v5' || variant === 'v6' ? 'v3' : variant);
+  const ui = getUkAuditUi(variant === 'v4' || variant === 'v5' || variant === 'v6' || variant === 'v7' ? 'v3' : variant);
   const pack = getAuditPack(selectedPackId);
   if (!pack) return <EmptyState message="Select a monitoring report." />;
 
@@ -2289,7 +2341,7 @@ function MonitoringReportBuilder({ variant = 'v2', selectedPackId, setSelectedPa
 
         {/* Narrative */}
         <div className="col-span-12 lg:col-span-7 space-y-4">
-<GeneratedNarrative pack={pack} subtitle={ui.narrativeSubtitle} singleParagraph={variant === "v3" || variant === "v4" || variant === "v5" || variant === "v6"} />
+<GeneratedNarrative pack={pack} subtitle={ui.narrativeSubtitle} singleParagraph={variant === "v3" || variant === "v4" || variant === "v5" || variant === "v6" || variant === "v7"} />
 
           <div className="flex gap-2">
             <button className="flex-1 py-2.5 text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 rounded-md">Route to Executive Review →</button>
@@ -2395,6 +2447,12 @@ function DetailDrawer({ drawer, closeDrawer, drillFromDrawer, drillBack, setActi
           {entityType === "evidence" && <EvidenceDetailContent entityId={entityId} />}
           {entityType === "smf" && <SMFDetailContent smf={getSMF(entityId)} setSelectedSMFId={setSelectedSMFId} setActiveScreen={setActiveScreen} closeDrawer={closeDrawer} />}
           {entityType === "auditPack" && <AuditPackDetailContent pack={getAuditPack(entityId)} setSelectedPackId={setSelectedPackId} setActiveScreen={setActiveScreen} closeDrawer={closeDrawer} />}
+          {entityType === "aiInsight" && variant === "v7" && (
+            <AIInsightDetailV7
+              insight={resolveExplorerInsightV7(aiInsights || [], runBoardDetectorsV7("UK"), entityId)}
+              drillFromDrawer={drillFromDrawer}
+            />
+          )}
           {entityType === "aiInsight" && variant === "v6" && (
             <AIInsightDetailV6
               insight={resolveExplorerInsightV6(aiInsights || [], runBoardDetectorsV6("UK"), entityId)}
@@ -2407,18 +2465,22 @@ function DetailDrawer({ drawer, closeDrawer, drillFromDrawer, drillBack, setActi
               drillFromDrawer={drillFromDrawer}
             />
           )}
-          {entityType === "aiInsight" && variant !== "v5" && variant !== "v6" && (
+          {entityType === "aiInsight" && variant !== "v5" && variant !== "v6" && variant !== "v7" && (
             <AIInsightDetailContent insight={getInsight(entityId)} drillFromDrawer={drillFromDrawer} />
           )}
           {entityType === "kri" && <KRIDetailContent kri={getKRI(entityId)} drillFromDrawer={drillFromDrawer} />}
+          {entityType === "precedent" && variant === "v7" && <PrecedentDetailContentV7 entityId={entityId} />}
           {entityType === "precedent" && variant === "v6" && <PrecedentDetailContentV6 entityId={entityId} />}
-          {entityType === "precedent" && variant !== "v6" && <PrecedentDetailContent entityId={entityId} />}
+          {entityType === "precedent" && variant !== "v6" && variant !== "v7" && <PrecedentDetailContent entityId={entityId} />}
+          {entityType === "derivation" && variant === "v7" && <DerivationDetailContentV7 entityId={entityId} />}
           {entityType === "derivation" && variant === "v6" && <DerivationDetailContentV6 entityId={entityId} />}
-          {entityType === "derivation" && variant !== "v6" && <DerivationDetailContent entityId={entityId} />}
+          {entityType === "derivation" && variant !== "v6" && variant !== "v7" && <DerivationDetailContent entityId={entityId} />}
+          {entityType === "statusEvidence" && variant === "v7" && <StatusEvidenceDetailContentV7 entityId={entityId} />}
           {entityType === "statusEvidence" && variant === "v6" && <StatusEvidenceDetailContentV6 entityId={entityId} />}
-          {entityType === "statusEvidence" && variant !== "v6" && <StatusEvidenceDetailContent entityId={entityId} />}
+          {entityType === "statusEvidence" && variant !== "v6" && variant !== "v7" && <StatusEvidenceDetailContent entityId={entityId} />}
+          {entityType === "crsaRef" && variant === "v7" && <CrsaRefDetailContentV7 entityId={entityId} />}
           {entityType === "crsaRef" && variant === "v6" && <CrsaRefDetailContentV6 entityId={entityId} />}
-          {entityType === "crsaRef" && variant !== "v6" && <CrsaRefDetailContent entityId={entityId} />}
+          {entityType === "crsaRef" && variant !== "v6" && variant !== "v7" && <CrsaRefDetailContent entityId={entityId} />}
         </div>
       </div>
     </>

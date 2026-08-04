@@ -58,7 +58,7 @@ export function bindUkTraceMock(mock, variant = 'v2') {
   eddPipelineItems = mock.eddPipelineItems;
   sanctionsScreeningMetrics = mock.sanctionsScreeningMetrics;
   capacityVsDemandSeries = mock.capacityVsDemandSeries;
-  activeUkUi = getUkAuditUi(variant === 'v4' || variant === 'v5' || variant === 'v6' ? 'v3' : variant);
+  activeUkUi = getUkAuditUi(variant === 'v4' || variant === 'v5' || variant === 'v6' || variant === 'v7' ? 'v3' : variant);
 }
 
 export const findById = (arr, id) => (arr || []).find(x => x.id === id) || null;
