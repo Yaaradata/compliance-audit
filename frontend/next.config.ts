@@ -1,9 +1,14 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "").trim().replace(/\/+$/, "");
 const apiBase = backendOrigin ? `${backendOrigin}/api/v1` : "";
 
 const nextConfig: NextConfig = {
+  // Pin Turbopack to this app so a parent-directory lockfile cannot hijack the root.
+  turbopack: {
+    root: path.join(__dirname),
+  },
   async redirects() {
     const base = "/IndianBankingAudit/v2";
     const v1Base = "/IndianBankingAudit/v1";
