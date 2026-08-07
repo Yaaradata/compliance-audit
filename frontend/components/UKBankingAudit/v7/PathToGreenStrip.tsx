@@ -12,6 +12,8 @@ type Props = {
   entityRef: string;
   /** When true, start expanded. Default: collapsed until the user opens it. */
   defaultOpen?: boolean;
+  /** When true, body stays expanded and the header is not a toggle. */
+  alwaysOpen?: boolean;
 };
 
 const ESCALATION_LABEL: Record<string, string> = {
@@ -414,11 +416,17 @@ function ExpandedBody({ path }: { path: PathToGreen }) {
  * Path-to-Green strip — collapsed by default; expands on click.
  * Remediate: all concurrent actions + combined effect vs appetite.
  * Risk-accept: acceptance record, or unresolved gap if accepter missing.
+ * Pass `alwaysOpen` to keep the plan visible with no close control.
  */
-export function PathToGreenStrip({ entityRef, defaultOpen = false }: Props) {
+export function PathToGreenStrip({
+  entityRef,
+  defaultOpen = false,
+  alwaysOpen = false,
+}: Props) {
   const path = getPathToGreen(entityRef);
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(defaultOpen || alwaysOpen);
   const panelId = useId();
+  const isOpen = alwaysOpen || open;
 
   if (!path) {
     return (
@@ -435,18 +443,24 @@ export function PathToGreenStrip({ entityRef, defaultOpen = false }: Props) {
 
   return (
     <div className="mt-1.5 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-2.5 py-2 text-left hover:bg-slate-100/80"
-      >
-        <CollapsedSummary path={path} />
-        <Chevron open={open} />
-      </button>
+      {alwaysOpen ? (
+        <div className="flex w-full items-center gap-2 px-2.5 py-2 text-left">
+          <CollapsedSummary path={path} />
+        </div>
+      ) : (
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          aria-controls={panelId}
+          onClick={() => setOpen((v) => !v)}
+          className="flex w-full items-center gap-2 px-2.5 py-2 text-left hover:bg-slate-100/80"
+        >
+          <CollapsedSummary path={path} />
+          <Chevron open={isOpen} />
+        </button>
+      )}
 
-      {open ? (
+      {isOpen ? (
         <div id={panelId}>
           <ExpandedBody path={path} />
         </div>

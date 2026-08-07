@@ -1,0 +1,1470 @@
+{
+  "viewports": {
+    "1280": {
+      "zoneB": {
+        "alert": {
+          "id": "mlro-panel-alert-backlog",
+          "top": 290.25,
+          "bottom": 1109,
+          "height": 818.8,
+          "width": 712
+        },
+        "rail": {
+          "id": "mlro-panel-sar-edd",
+          "top": 290.25,
+          "bottom": 1109,
+          "height": 818.8,
+          "width": 504
+        }
+      },
+      "zoneC": {
+        "sanctions": {
+          "id": "mlro-panel-sanctions",
+          "top": 1125,
+          "bottom": 1473.125,
+          "height": 348.1,
+          "width": 712
+        },
+        "training": {
+          "id": "mlro-panel-fc-training",
+          "top": 1125,
+          "bottom": 1473.125,
+          "height": 348.1,
+          "width": 504
+        }
+      },
+      "dashSpan": 1356.1,
+      "dashTop": 117,
+      "dashBottom": 1473.125,
+      "workspaceHeight": 1284.9,
+      "viewport": {
+        "w": 1280,
+        "h": 800
+      },
+      "scroll": {
+        "overflowX": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "scrollHeight": 1497
+      },
+      "ptg": [
+        {
+          "cardBottomGap": 2,
+          "gapAbovePrev": 0,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "Path to Green17%·AMBER→Green·1/3 actions"
+        },
+        {
+          "cardBottomGap": -549.2,
+          "gapAbovePrev": -818.7,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "SAR timeliness · POCA s.330 window (30 days)% of S"
+        },
+        {
+          "cardBottomGap": -263.7,
+          "gapAbovePrev": -818.7,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "EDD pipeline · MLR 2017 Reg 28 / Reg 35High-risk c"
+        },
+        {
+          "cardBottomGap": 0,
+          "gapAbovePrev": null,
+          "footerAtCardFoot": true,
+          "insideCard": true,
+          "sample": "Fraud riskConfirmed losses & APP exposure▾Confirme"
+        },
+        {
+          "cardBottomGap": 2,
+          "gapAbovePrev": 0,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "Path to Green50%·AMBER→Green·2/3 actions"
+        },
+        {
+          "cardBottomGap": 0,
+          "gapAbovePrev": -348.1,
+          "footerAtCardFoot": true,
+          "insideCard": true,
+          "sample": "Financial crime training · CO-AML-12 / CO-FRD-01Pr"
+        }
+      ],
+      "truncated": [
+        {
+          "where": "header-truncate-class",
+          "text": "L3 · L3 complex / escalated",
+          "scrollWidth": 148,
+          "clientWidth": 136
+        }
+      ],
+      "collapseRows": [
+        {
+          "title": "Trends · 13 weeks",
+          "summary": "+2,555 vs 13 wks",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Alerts converted to SARs",
+          "summary": "74 · 3.2%",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Capacity vs demand",
+          "summary": "gap +400/wk",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "TM system health",
+          "summary": "2 outages",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green17%·AMBER→Green·1/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "13-week trend",
+          "summary": "59.4%",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green50%·RED→Green·2/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "Red-band cases",
+          "summary": "3 red",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green·Risk accepted·D. Fairweather (SMF17)",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "▾",
+          "summary": "",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 28
+        },
+        {
+          "title": "Path to Green38%·AMBER→Green·2/4 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "Screening volumes",
+          "summary": "1,284,732",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Screening systems health",
+          "summary": "4 outages",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "OFSI freeze reports",
+          "summary": "1/2",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "OFSI block reports",
+          "summary": "1 due · 1 submitted",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "US OFAC · separate jurisdiction",
+          "summary": "0 due",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "List update detail",
+          "summary": "18.5h",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green50%·AMBER→Green·2/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "Derivation & claims",
+          "summary": "AP-MLRO-2025 · §5.1",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green17%·AMBER→Green·1/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        }
+      ],
+      "tileRoots": [
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 165,
+          "h": 91,
+          "sample": "Appetite breachRED 6.4%breach amber→red"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 220,
+          "h": 121,
+          "sample": "L1 · L1 triageRED385appetite 120OVERsame-day triage · 18 SLA"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 220,
+          "h": 121,
+          "sample": "L2 · L2 investigationRED1,796appetite 280OVER5 BD investigat"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 220,
+          "h": 121,
+          "sample": "L3 · L3 complex / escalatedRED384appetite 40OVER15 BD comple"
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 220,
+          "h": 91,
+          "sample": "Payments hold time2.1hrsSanctions · Consumer Dutyappetite 2O"
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 220,
+          "h": 91,
+          "sample": "OFSI reporting breaches1freeze + block · appetite 0appetite "
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 220,
+          "h": 91,
+          "sample": "List update lag18.5hworst lagappetite 12OVER"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 476,
+          "h": 54,
+          "sample": "98.4%12,300 of 12,500 · target 95%target 95%WITHIN"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 476,
+          "h": 54,
+          "sample": "1.6%200 of 12,500 · appetite ≤1%appetite 1OVER"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 476,
+          "h": 54,
+          "sample": "48open · appetite ≤1% · 7.5% of high-riskappetite 1OVER"
+        }
+      ],
+      "maxTileWidth": 476,
+      "tilesOver280": [
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 476,
+          "h": 54,
+          "sample": "98.4%12,300 of 12,500 · target 95%target 95%WITHIN"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 476,
+          "h": 54,
+          "sample": "1.6%200 of 12,500 · appetite ≤1%appetite 1OVER"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 476,
+          "h": 54,
+          "sample": "48open · appetite ≤1% · 7.5% of high-riskappetite 1OVER"
+        }
+      ],
+      "deltaBeside": [
+        {
+          "verticalStack": true,
+          "topDiff": 34,
+          "sample": "2,565+2,555 vs 13 weeks ago"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "118vs. 4 13 wks ago"
+        },
+        {
+          "verticalStack": true,
+          "topDiff": 30,
+          "sample": "2,300vs. dispositioned 1,900"
+        },
+        {
+          "verticalStack": true,
+          "topDiff": 30,
+          "sample": "RED 6.4%breach amber→red"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 9,
+          "sample": "385appetite 120"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 9,
+          "sample": "1,796appetite 280"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 9,
+          "sample": "384appetite 40"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "2.1hrsSanctions · Consumer Duty"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "1freeze + block · appetite 0"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "18.5hworst lag"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 3,
+          "sample": "98.4%12,300 of 12,500 · target 95%"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 3,
+          "sample": "1.6%200 of 12,500 · appetite ≤1%"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 3,
+          "sample": "48open · appetite ≤1% · 7.5% of high-risk"
+        }
+      ],
+      "pairBaselines": [
+        {
+          "pair": 0,
+          "topDiff": 0,
+          "bottomDiff": 0,
+          "titleA": "Screening volumes1,284,732▾",
+          "titleB": "Screening systems health4 outages▾"
+        },
+        {
+          "pair": 1,
+          "topDiff": 0,
+          "bottomDiff": 0,
+          "titleA": "OFSI freeze reports1/2▾",
+          "titleB": "OFSI block reports1 due · 1 submitted▾"
+        },
+        {
+          "pair": 2,
+          "topDiff": 0,
+          "bottomDiff": 0,
+          "titleA": "US OFAC · separate jurisdiction0 due▾",
+          "titleB": "List update detail18.5h▾"
+        }
+      ],
+      "overflows": [],
+      "zoneBDiff": 0,
+      "zoneCDiff": 0,
+      "zoneBTopDiff": 0,
+      "zoneBBottomDiff": 0,
+      "zoneCTopDiff": 0,
+      "zoneCBottomDiff": 0
+    },
+    "1440": {
+      "zoneB": {
+        "alert": {
+          "id": "mlro-panel-alert-backlog",
+          "top": 290.25,
+          "bottom": 1109,
+          "height": 818.8,
+          "width": 805.3
+        },
+        "rail": {
+          "id": "mlro-panel-sar-edd",
+          "top": 290.25,
+          "bottom": 1109,
+          "height": 818.8,
+          "width": 570.7
+        }
+      },
+      "zoneC": {
+        "sanctions": {
+          "id": "mlro-panel-sanctions",
+          "top": 1125,
+          "bottom": 1473.125,
+          "height": 348.1,
+          "width": 805.3
+        },
+        "training": {
+          "id": "mlro-panel-fc-training",
+          "top": 1125,
+          "bottom": 1473.125,
+          "height": 348.1,
+          "width": 570.7
+        }
+      },
+      "dashSpan": 1356.1,
+      "dashTop": 117,
+      "dashBottom": 1473.125,
+      "workspaceHeight": 1284.9,
+      "viewport": {
+        "w": 1440,
+        "h": 900
+      },
+      "scroll": {
+        "overflowX": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "scrollHeight": 1497
+      },
+      "ptg": [
+        {
+          "cardBottomGap": 2,
+          "gapAbovePrev": 0,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "Path to Green17%·AMBER→Green·1/3 actions"
+        },
+        {
+          "cardBottomGap": -549.2,
+          "gapAbovePrev": -818.7,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "SAR timeliness · POCA s.330 window (30 days)% of S"
+        },
+        {
+          "cardBottomGap": -263.7,
+          "gapAbovePrev": -818.7,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "EDD pipeline · MLR 2017 Reg 28 / Reg 35High-risk c"
+        },
+        {
+          "cardBottomGap": 0,
+          "gapAbovePrev": null,
+          "footerAtCardFoot": true,
+          "insideCard": true,
+          "sample": "Fraud riskConfirmed losses & APP exposure▾Confirme"
+        },
+        {
+          "cardBottomGap": 2,
+          "gapAbovePrev": 0,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "Path to Green50%·AMBER→Green·2/3 actions"
+        },
+        {
+          "cardBottomGap": 0,
+          "gapAbovePrev": -348.1,
+          "footerAtCardFoot": true,
+          "insideCard": true,
+          "sample": "Financial crime training · CO-AML-12 / CO-FRD-01Pr"
+        }
+      ],
+      "truncated": [],
+      "collapseRows": [
+        {
+          "title": "Trends · 13 weeks",
+          "summary": "+2,555 vs 13 wks",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Alerts converted to SARs",
+          "summary": "74 · 3.2%",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Capacity vs demand",
+          "summary": "gap +400/wk",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "TM system health",
+          "summary": "2 outages",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green17%·AMBER→Green·1/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "13-week trend",
+          "summary": "59.4%",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green50%·RED→Green·2/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "Red-band cases",
+          "summary": "3 red",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green·Risk accepted·D. Fairweather (SMF17)",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "▾",
+          "summary": "",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 28
+        },
+        {
+          "title": "Path to Green38%·AMBER→Green·2/4 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "Screening volumes",
+          "summary": "1,284,732",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Screening systems health",
+          "summary": "4 outages",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "OFSI freeze reports",
+          "summary": "1/2",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "OFSI block reports",
+          "summary": "1 due · 1 submitted",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "US OFAC · separate jurisdiction",
+          "summary": "0 due",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "List update detail",
+          "summary": "18.5h",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green50%·AMBER→Green·2/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "Derivation & claims",
+          "summary": "AP-MLRO-2025 · §5.1",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green17%·AMBER→Green·1/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        }
+      ],
+      "tileRoots": [
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 188,
+          "h": 91,
+          "sample": "Appetite breachRED 6.4%breach amber→red"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 251,
+          "h": 121,
+          "sample": "L1 · L1 triageRED385appetite 120OVERsame-day triage · 18 SLA"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 251,
+          "h": 121,
+          "sample": "L2 · L2 investigationRED1,796appetite 280OVER5 BD investigat"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 251,
+          "h": 121,
+          "sample": "L3 · L3 complex / escalatedRED384appetite 40OVER15 BD comple"
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 251,
+          "h": 91,
+          "sample": "Payments hold time2.1hrsSanctions · Consumer Dutyappetite 2O"
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 251,
+          "h": 91,
+          "sample": "OFSI reporting breaches1freeze + block · appetite 0appetite "
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 251,
+          "h": 91,
+          "sample": "List update lag18.5hworst lagappetite 12OVER"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 543,
+          "h": 54,
+          "sample": "98.4%12,300 of 12,500 · target 95%target 95%WITHIN"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 543,
+          "h": 54,
+          "sample": "1.6%200 of 12,500 · appetite ≤1%appetite 1OVER"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 543,
+          "h": 54,
+          "sample": "48open · appetite ≤1% · 7.5% of high-riskappetite 1OVER"
+        }
+      ],
+      "maxTileWidth": 543,
+      "tilesOver280": [
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 543,
+          "h": 54,
+          "sample": "98.4%12,300 of 12,500 · target 95%target 95%WITHIN"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 543,
+          "h": 54,
+          "sample": "1.6%200 of 12,500 · appetite ≤1%appetite 1OVER"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 543,
+          "h": 54,
+          "sample": "48open · appetite ≤1% · 7.5% of high-riskappetite 1OVER"
+        }
+      ],
+      "deltaBeside": [
+        {
+          "verticalStack": true,
+          "topDiff": 34,
+          "sample": "2,565+2,555 vs 13 weeks ago"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "118vs. 4 13 wks ago"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "2,300vs. dispositioned 1,900"
+        },
+        {
+          "verticalStack": true,
+          "topDiff": 30,
+          "sample": "RED 6.4%breach amber→red"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 9,
+          "sample": "385appetite 120"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 9,
+          "sample": "1,796appetite 280"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 9,
+          "sample": "384appetite 40"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "2.1hrsSanctions · Consumer Duty"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "1freeze + block · appetite 0"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "18.5hworst lag"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 3,
+          "sample": "98.4%12,300 of 12,500 · target 95%"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 3,
+          "sample": "1.6%200 of 12,500 · appetite ≤1%"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 3,
+          "sample": "48open · appetite ≤1% · 7.5% of high-risk"
+        }
+      ],
+      "pairBaselines": [
+        {
+          "pair": 0,
+          "topDiff": 0,
+          "bottomDiff": 0,
+          "titleA": "Screening volumes1,284,732▾",
+          "titleB": "Screening systems health4 outages▾"
+        },
+        {
+          "pair": 1,
+          "topDiff": 0,
+          "bottomDiff": 0,
+          "titleA": "OFSI freeze reports1/2▾",
+          "titleB": "OFSI block reports1 due · 1 submitted▾"
+        },
+        {
+          "pair": 2,
+          "topDiff": 0,
+          "bottomDiff": 0,
+          "titleA": "US OFAC · separate jurisdiction0 due▾",
+          "titleB": "List update detail18.5h▾"
+        }
+      ],
+      "overflows": [],
+      "zoneBDiff": 0,
+      "zoneCDiff": 0,
+      "zoneBTopDiff": 0,
+      "zoneBBottomDiff": 0,
+      "zoneCTopDiff": 0,
+      "zoneCBottomDiff": 0
+    },
+    "1920": {
+      "zoneB": {
+        "alert": {
+          "id": "mlro-panel-alert-backlog",
+          "top": 290.25,
+          "bottom": 1109,
+          "height": 818.8,
+          "width": 1085.3
+        },
+        "rail": {
+          "id": "mlro-panel-sar-edd",
+          "top": 290.25,
+          "bottom": 1109,
+          "height": 818.8,
+          "width": 770.7
+        }
+      },
+      "zoneC": {
+        "sanctions": {
+          "id": "mlro-panel-sanctions",
+          "top": 1125,
+          "bottom": 1473.125,
+          "height": 348.1,
+          "width": 1085.3
+        },
+        "training": {
+          "id": "mlro-panel-fc-training",
+          "top": 1125,
+          "bottom": 1473.125,
+          "height": 348.1,
+          "width": 770.7
+        }
+      },
+      "dashSpan": 1356.1,
+      "dashTop": 117,
+      "dashBottom": 1473.125,
+      "workspaceHeight": 1284.9,
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "scroll": {
+        "overflowX": false,
+        "scrollWidth": 1920,
+        "clientWidth": 1920,
+        "scrollHeight": 1497
+      },
+      "ptg": [
+        {
+          "cardBottomGap": 2,
+          "gapAbovePrev": 0,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "Path to Green17%·AMBER→Green·1/3 actions"
+        },
+        {
+          "cardBottomGap": -549.2,
+          "gapAbovePrev": -818.7,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "SAR timeliness · POCA s.330 window (30 days)% of S"
+        },
+        {
+          "cardBottomGap": -263.7,
+          "gapAbovePrev": -818.7,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "EDD pipeline · MLR 2017 Reg 28 / Reg 35High-risk c"
+        },
+        {
+          "cardBottomGap": 0,
+          "gapAbovePrev": null,
+          "footerAtCardFoot": true,
+          "insideCard": true,
+          "sample": "Fraud riskConfirmed losses & APP exposure▾Confirme"
+        },
+        {
+          "cardBottomGap": 2,
+          "gapAbovePrev": 0,
+          "footerAtCardFoot": false,
+          "insideCard": true,
+          "sample": "Path to Green50%·AMBER→Green·2/3 actions"
+        },
+        {
+          "cardBottomGap": 0,
+          "gapAbovePrev": -348.1,
+          "footerAtCardFoot": true,
+          "insideCard": true,
+          "sample": "Financial crime training · CO-AML-12 / CO-FRD-01Pr"
+        }
+      ],
+      "truncated": [],
+      "collapseRows": [
+        {
+          "title": "Trends · 13 weeks",
+          "summary": "+2,555 vs 13 wks",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Alerts converted to SARs",
+          "summary": "74 · 3.2%",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Capacity vs demand",
+          "summary": "gap +400/wk",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "TM system health",
+          "summary": "2 outages",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green17%·AMBER→Green·1/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "13-week trend",
+          "summary": "59.4%",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green50%·RED→Green·2/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "Red-band cases",
+          "summary": "3 red",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green·Risk accepted·D. Fairweather (SMF17)",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "▾",
+          "summary": "",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 28
+        },
+        {
+          "title": "Path to Green38%·AMBER→Green·2/4 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "Screening volumes",
+          "summary": "1,284,732",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Screening systems health",
+          "summary": "4 outages",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "OFSI freeze reports",
+          "summary": "1/2",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "OFSI block reports",
+          "summary": "1 due · 1 submitted",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "US OFAC · separate jurisdiction",
+          "summary": "0 due",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "List update detail",
+          "summary": "18.5h",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green50%·AMBER→Green·2/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        },
+        {
+          "title": "Derivation & claims",
+          "summary": "AP-MLRO-2025 · §5.1",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31.3
+        },
+        {
+          "title": "Path to Green17%·AMBER→Green·1/3 actions",
+          "summary": "Path to Green",
+          "titleTrunc": false,
+          "sumTrunc": false,
+          "sumWrap": false,
+          "height": 31
+        }
+      ],
+      "tileRoots": [
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 258,
+          "h": 75,
+          "sample": "Appetite breachRED 6.4%breach amber→red"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 344,
+          "h": 121,
+          "sample": "L1 · L1 triageRED385appetite 120OVERsame-day triage · 18 SLA"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 344,
+          "h": 121,
+          "sample": "L2 · L2 investigationRED1,796appetite 280OVER5 BD investigat"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 344,
+          "h": 121,
+          "sample": "L3 · L3 complex / escalatedRED384appetite 40OVER15 BD comple"
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 344,
+          "h": 91,
+          "sample": "Payments hold time2.1hrsSanctions · Consumer Dutyappetite 2O"
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 344,
+          "h": 91,
+          "sample": "OFSI reporting breaches1freeze + block · appetite 0appetite "
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 344,
+          "h": 91,
+          "sample": "List update lag18.5hworst lagappetite 12OVER"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 743,
+          "h": 54,
+          "sample": "98.4%12,300 of 12,500 · target 95%target 95%WITHIN"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 743,
+          "h": 54,
+          "sample": "1.6%200 of 12,500 · appetite ≤1%appetite 1OVER"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 743,
+          "h": 54,
+          "sample": "48open · appetite ≤1% · 7.5% of high-riskappetite 1OVER"
+        }
+      ],
+      "maxTileWidth": 743,
+      "tilesOver280": [
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 344,
+          "h": 121,
+          "sample": "L1 · L1 triageRED385appetite 120OVERsame-day triage · 18 SLA"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 344,
+          "h": 121,
+          "sample": "L2 · L2 investigationRED1,796appetite 280OVER5 BD investigat"
+        },
+        {
+          "panel": "mlro-panel-alert-backlog",
+          "w": 344,
+          "h": 121,
+          "sample": "L3 · L3 complex / escalatedRED384appetite 40OVER15 BD comple"
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 344,
+          "h": 91,
+          "sample": "Payments hold time2.1hrsSanctions · Consumer Dutyappetite 2O"
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 344,
+          "h": 91,
+          "sample": "OFSI reporting breaches1freeze + block · appetite 0appetite "
+        },
+        {
+          "panel": "mlro-panel-sanctions",
+          "w": 344,
+          "h": 91,
+          "sample": "List update lag18.5hworst lagappetite 12OVER"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 743,
+          "h": 54,
+          "sample": "98.4%12,300 of 12,500 · target 95%target 95%WITHIN"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 743,
+          "h": 54,
+          "sample": "1.6%200 of 12,500 · appetite ≤1%appetite 1OVER"
+        },
+        {
+          "panel": "mlro-panel-fc-training",
+          "w": 743,
+          "h": 54,
+          "sample": "48open · appetite ≤1% · 7.5% of high-riskappetite 1OVER"
+        }
+      ],
+      "deltaBeside": [
+        {
+          "verticalStack": false,
+          "topDiff": 14,
+          "sample": "2,565+2,555 vs 13 weeks ago"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "118vs. 4 13 wks ago"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "2,300vs. dispositioned 1,900"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "RED 6.4%breach amber→red"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 9,
+          "sample": "385appetite 120"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 9,
+          "sample": "1,796appetite 280"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 9,
+          "sample": "384appetite 40"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "2.1hrsSanctions · Consumer Duty"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "1freeze + block · appetite 0"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 10,
+          "sample": "18.5hworst lag"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 3,
+          "sample": "98.4%12,300 of 12,500 · target 95%"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 3,
+          "sample": "1.6%200 of 12,500 · appetite ≤1%"
+        },
+        {
+          "verticalStack": false,
+          "topDiff": 3,
+          "sample": "48open · appetite ≤1% · 7.5% of high-risk"
+        }
+      ],
+      "pairBaselines": [
+        {
+          "pair": 0,
+          "topDiff": 0,
+          "bottomDiff": 0,
+          "titleA": "Screening volumes1,284,732▾",
+          "titleB": "Screening systems health4 outages▾"
+        },
+        {
+          "pair": 1,
+          "topDiff": 0,
+          "bottomDiff": 0,
+          "titleA": "OFSI freeze reports1/2▾",
+          "titleB": "OFSI block reports1 due · 1 submitted▾"
+        },
+        {
+          "pair": 2,
+          "topDiff": 0,
+          "bottomDiff": 0,
+          "titleA": "US OFAC · separate jurisdiction0 due▾",
+          "titleB": "List update detail18.5h▾"
+        }
+      ],
+      "overflows": [],
+      "zoneBDiff": 0,
+      "zoneCDiff": 0,
+      "zoneBTopDiff": 0,
+      "zoneBBottomDiff": 0,
+      "zoneCTopDiff": 0,
+      "zoneCBottomDiff": 0
+    }
+  },
+  "inventory": [
+    {
+      "label": "KRI strip eyebrow",
+      "ok": true
+    },
+    {
+      "label": "Alert eyebrow",
+      "ok": true
+    },
+    {
+      "label": "Alert title",
+      "ok": true
+    },
+    {
+      "label": "Alert tiers",
+      "ok": true
+    },
+    {
+      "label": "Backlog spark / trends",
+      "ok": true
+    },
+    {
+      "label": "SAR conversion",
+      "ok": true
+    },
+    {
+      "label": "Capacity vs demand",
+      "ok": true
+    },
+    {
+      "label": "TM / systems health",
+      "ok": true
+    },
+    {
+      "label": "SAR title",
+      "ok": true
+    },
+    {
+      "label": "EDD title",
+      "ok": true
+    },
+    {
+      "label": "EDD past due",
+      "ok": true
+    },
+    {
+      "label": "Sanctions title",
+      "ok": true
+    },
+    {
+      "label": "Payments hold",
+      "ok": true
+    },
+    {
+      "label": "OFSI freeze",
+      "ok": true
+    },
+    {
+      "label": "OFSI block",
+      "ok": true
+    },
+    {
+      "label": "US OFAC separate",
+      "ok": true
+    },
+    {
+      "label": "List update",
+      "ok": true
+    },
+    {
+      "label": "Screening systems health",
+      "ok": true
+    },
+    {
+      "label": "Txn screening block",
+      "ok": true
+    },
+    {
+      "label": "Name screening block",
+      "ok": true
+    },
+    {
+      "label": "Training title",
+      "ok": true
+    },
+    {
+      "label": "Derivation claims",
+      "ok": true
+    },
+    {
+      "label": "AP-MLRO narrative",
+      "ok": true
+    },
+    {
+      "label": "Fraud confirmed loss",
+      "ok": true
+    },
+    {
+      "label": "Fraud APP",
+      "ok": true
+    },
+    {
+      "label": "Fraud types trending",
+      "ok": true
+    },
+    {
+      "label": "Path to Green",
+      "ok": true
+    },
+    {
+      "label": "Sanctions team source",
+      "ok": true
+    },
+    {
+      "label": "Non-compliance waivers",
+      "ok": true
+    }
+  ]
+}

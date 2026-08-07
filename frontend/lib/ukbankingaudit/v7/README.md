@@ -115,3 +115,59 @@ provenance (`system` = STATED / `email` = INFERRED) via one `PathToGreenStrip`.
 `lib/ukbankingaudit/v7/*.test.ts` plus `mlroOperational.test.ts` for overlay contracts
 (two tabs, tier sums, face sources, appetites, multi-action / risk-accept PTG, 98.4%
 training lock to the pack narrative).
+
+## MLRO Operational Dashboard — layout (final)
+
+Layout-only multipass. **No data files changed.** Isolation boundary:
+`components/UKBankingAudit/v7/**` + `lib/ukbankingaudit/v7/MLRO_LAYOUT_INVENTORY.md`
+(+ README). Note: `UKBankingControlTrace.tsx` also carries `previousScreen` for
+attestation back-navigation (outside the v7 tree).
+
+### Zone / column assignment (`MLROWorkspaceV7`)
+
+| Region | Layout | Contents | Why |
+| --- | --- | --- | --- |
+| **A** | Full width | `FinancialCrimeKRIStrip` (`#mlro-panel-kri-strip`); walk-through **i** on the eyebrow | Single-glance FC posture; chips hard-right (`justify-between`) |
+| **Ops (lg+)** | `lg:grid-cols-12` **7 / 5**, `items-start`, each column `flex flex-col gap-4` (no stretch) | **Left (7):** TM Alert (`#mlro-panel-alert-backlog`) → Sanctions (`#mlro-panel-sanctions`) → Fraud (`#mlro-panel-fraud`). **Right (5):** SAR+EDD (`#mlro-panel-sar-edd`) → Training (`#mlro-panel-fc-training`) | Balance by content stacking, not forced equal heights. Fraud last in the wide column (shortest; ragged foot OK) |
+| **Ops (< lg)** | Single column via `contents` + `order-*` | TM → SAR → EDD → Sanctions → Training → Fraud | Reading order for narrow viewports |
+
+Client Risk View (`lens === "exposure"`) is unchanged.
+
+### Collapsed by default (and why)
+
+| Widget | Collapsed / open | Why |
+| --- | --- | --- |
+| Alert backlog | **Trends · 13 weeks open by default**; Alerts→SARs, Capacity vs demand, TM system health collapsed | Direction of travel is the card’s argument |
+| SAR timeliness | 13-week trend collapsed | Face = % on time |
+| EDD pipeline | Red-band cases collapsed | Face = past due / in progress / awaiting MLRO |
+| Sanctions | Six sections collapsed (2-across pairings) | Face = hold / OFSI breaches / list lag **3-up** |
+| Training | Derivation & claims (summary `AP-MLRO-2025 · Pack 5.1`) | Face = three **tight** stacked tiles |
+| Fraud | Own expand grammar (collapsed by default) | Face = three headline GBP / trend tiles |
+
+Path to Green mounts inside `WidgetCardFooter` when band is amber or red.
+
+### Shared primitives (v7 only)
+
+| Primitive | Role |
+| --- | --- |
+| `CollapsibleSection` | Collapse row; summary while collapsed; wraps (no ellipsis); `openClassName` / `defaultOpen` |
+| `StatTile` | Label + value + delta beside number; appetite; sizes `lg` / `sm` / `xs` / `tight` |
+| `WidgetShell` / `WidgetCardFooter` | Card frame + flush Path-to-Green footer |
+
+### Measured verify — 1920×1080, default collapse (Playwright)
+
+| Metric | Value | Target |
+| --- | --- | --- |
+| Left column (TM → Sanctions → Fraud) | **1238.8px** | — |
+| Right column (SAR+EDD → Training) | **918.8px** | — |
+| Column Δ | **320px** | ~≤ 300px (slightly over) |
+| Cards with internal gap > 24px (last content → bottom / body→footer) | **0** | 0 |
+| Dashboard content span (h1 → ops foot) | **1412px** | — |
+| Viewport multiples | **1.31×** | ≤ 2.00× |
+| Primary micro-copy lines (tiers → collapses) | **1** | ≤ 1 |
+| Investigation-tiers section label / duplicated L# headings | **absent** | absent |
+| Inventory parity (all collapsibles expanded) | **0 missing** | 0 |
+| Horizontal overflow @ 1280 / 1440 / 1920 | **none** | none |
+| Collapsed summary wrap @ those widths | **none** | none |
+
+Artifacts: `frontend/.verify-mlro-v7/verify-final-{1280,1440,1920}.png` (local only).

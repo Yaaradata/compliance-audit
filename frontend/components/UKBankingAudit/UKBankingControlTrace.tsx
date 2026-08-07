@@ -407,6 +407,7 @@ const CRO_CATEGORIES = {
 const initialUI = {
   activePersona: 'cro',                  // 'cro'|'head_of_erm'|'smf16'|'smf17' (Pass 7.1 — 4-persona array surfaced)
   activeScreen: 'croBoardView',          // Pass 7.2 — was 'riskPosture' (CRORiskPostureCockpit deleted).
+  previousScreen: null,                  // last activeScreen before the most recent SET_ACTIVE_SCREEN
   drawer: { isOpen: false, entityType: null, entityId: null, sourceScreen: null, drillPath: [] },
   timeTravel: { mode: 'live', asOfDate: null },
   filterCROCategoryId: null,             // replaces filterDomain
@@ -451,13 +452,22 @@ function reducer(state, action) {
         ui: {
           ...state.ui,
           activePersona: action.personaId,
+          previousScreen: null,
           activeScreen: nextScreen,
           drawer: { isOpen: false, entityType: null, entityId: null, sourceScreen: null, drillPath: [] },
         },
       };
     }
     case 'SET_ACTIVE_SCREEN':
-      return { ...state, ui: { ...state.ui, activeScreen: action.screen } };
+      if (action.screen === state.ui.activeScreen) return state;
+      return {
+        ...state,
+        ui: {
+          ...state.ui,
+          previousScreen: state.ui.activeScreen,
+          activeScreen: action.screen,
+        },
+      };
 
     case 'OPEN_DRAWER':
       return {
@@ -656,6 +666,7 @@ function resolveEntity(type, id) {
 // ─── Selectors (thin pure functions) ────────────────────────────────────────
 const selectActivePersona       = (s) => s.ui.activePersona;
 const selectActiveScreen        = (s) => s.ui.activeScreen;
+const selectPreviousScreen      = (s) => s.ui.previousScreen;
 const selectDrawer              = (s) => s.ui.drawer;
 const selectTimeTravel          = (s) => s.ui.timeTravel;
 const selectFilterCROCategoryId = (s) => s.ui.filterCROCategoryId;
@@ -682,6 +693,7 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
   // ── Selectors (read-side; cheap, called per render) ──────────────────────
   const activePersona       = selectActivePersona(state);
   const activeScreen        = selectActiveScreen(state);
+  const previousScreen      = selectPreviousScreen(state);
   const drawer              = selectDrawer(state);
   const timeTravel          = selectTimeTravel(state);
   const filterCROCategoryId = selectFilterCROCategoryId(state);
@@ -896,6 +908,7 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
             cycleId={selectedCycleId}
             openDrawer={openDrawer}
             setActiveScreen={setActiveScreen}
+            previousScreen={previousScreen}
             expandSample={expandSample}
           />
         )}
@@ -1259,7 +1272,24 @@ const ExpandSampleButton = ({ lineId, currentMode, onExpand }) => (
   </button>
 );
 
-function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveScreen, expandSample }) {
+function screenBackLabel(screen) {
+  switch (screen) {
+    case "mlroWorkspace":
+      return "MLRO Workspace";
+    case "crsaCycleCockpit":
+      return "CRSA Cycle Cockpit";
+    case "controlUniverse":
+      return "Area drill";
+    case "coverageMap":
+      return "Coverage Map";
+    case "croBoardView":
+      return "CRO Board";
+    default:
+      return "previous page";
+  }
+}
+
+function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveScreen, previousScreen, expandSample }) {
   const gsr = (groupSetRequirements || []).find(g => g.id === gsrId);
   const cycle = (crsaAttestationCycles || []).find(c => c.id === cycleId);
   const co = gsr ? (controlObjectives || []).find(c => c.id === gsr.controlObjectiveId) : null;
@@ -1267,11 +1297,19 @@ function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveSc
   const line = (crsaAttestationLines || []).find(l =>
     l.groupSetRequirementId === gsrId && l.cycleId === cycleId);
 
+  const backTarget = previousScreen || "crsaCycleCockpit";
+  const goBack = () => setActiveScreen(backTarget);
+
   if (!gsr || !line) {
     return (
       <div className="space-y-4">
-        <button onClick={() => setActiveScreen("crsaCycleCockpit")}
-          className="text-xs text-indigo-700 hover:underline">← back to Cycle Cockpit</button>
+        <button
+          type="button"
+          onClick={goBack}
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm hover:border-indigo-300 hover:bg-indigo-50"
+        >
+          ← Back to {screenBackLabel(backTarget)}
+        </button>
         <EmptyState message="No attestation line found for this requirement / cycle pair." />
       </div>
     );
@@ -1285,17 +1323,27 @@ function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveSc
 
   return (
     <div className="space-y-5">
-      {/* Breadcrumb back */}
-      <div className="flex items-center gap-2 text-[11px] text-slate-500">
-        <button onClick={() => setActiveScreen("crsaCycleCockpit")} className="hover:text-indigo-700 hover:underline">
-          CRSA Cycle Cockpit
+      {/* Back + breadcrumb */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button
+          type="button"
+          onClick={goBack}
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm hover:border-indigo-300 hover:bg-indigo-50"
+          aria-label={`Back to ${screenBackLabel(backTarget)}`}
+        >
+          ← Back
         </button>
-        <span>›</span>
-        <button onClick={() => setActiveScreen("controlUniverse")} className="hover:text-indigo-700 hover:underline">
-          {area?.code || "—"} · area drill
-        </button>
-        <span>›</span>
-        <span className="font-mono text-slate-700">{gsr.racmRef}</span>
+        <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] text-slate-500">
+          <button type="button" onClick={() => setActiveScreen("crsaCycleCockpit")} className="hover:text-indigo-700 hover:underline">
+            CRSA Cycle Cockpit
+          </button>
+          <span aria-hidden>›</span>
+          <button type="button" onClick={() => setActiveScreen("controlUniverse")} className="hover:text-indigo-700 hover:underline">
+            {area?.code || "—"} · area drill
+          </button>
+          <span aria-hidden>›</span>
+          <span className="font-mono text-slate-700">{gsr.racmRef}</span>
+        </div>
       </div>
 
       {/* Header card */}

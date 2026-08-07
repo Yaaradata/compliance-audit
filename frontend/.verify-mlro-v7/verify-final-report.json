@@ -1,0 +1,365 @@
+{
+  "viewports": {
+    "1280": {
+      "blanks": [
+        {
+          "label": "alert",
+          "cardH": 626.6,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "sanctions",
+          "cardH": 348.1,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "fraud",
+          "cardH": 247.8,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "training",
+          "cardH": 347.8,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "kri",
+          "cardH": 86,
+          "gapLastToBottom": 9,
+          "gapBodyToFoot": null,
+          "emptyInBody": 0,
+          "hasPtg": false
+        },
+        {
+          "label": "sar",
+          "cardH": 234,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "edd",
+          "cardH": 305,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        }
+      ],
+      "gapsOver24": [],
+      "cols": {
+        "leftH": 1254.5,
+        "rightH": 918.8,
+        "diff": 335.8
+      },
+      "dashSpan": 1427.8,
+      "ratio": 1.785,
+      "textDensity": {
+        "microLines": 1,
+        "microSample": "Tier backlogs sum to 2,565 · Transaction Monitoring · alert case register · Drill into AML.01.05.02 →",
+        "hasInvestigationHeading": false,
+        "hasDupTier": false
+      },
+      "collapseWrap": [],
+      "overflows": [],
+      "scroll": {
+        "overflowX": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      }
+    },
+    "1440": {
+      "blanks": [
+        {
+          "label": "alert",
+          "cardH": 626.6,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "sanctions",
+          "cardH": 348.1,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "fraud",
+          "cardH": 247.8,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "training",
+          "cardH": 347.8,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "kri",
+          "cardH": 86,
+          "gapLastToBottom": 9,
+          "gapBodyToFoot": null,
+          "emptyInBody": 0,
+          "hasPtg": false
+        },
+        {
+          "label": "sar",
+          "cardH": 234,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "edd",
+          "cardH": 305,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        }
+      ],
+      "gapsOver24": [],
+      "cols": {
+        "leftH": 1254.5,
+        "rightH": 918.8,
+        "diff": 335.8
+      },
+      "dashSpan": 1427.8,
+      "ratio": 1.586,
+      "textDensity": {
+        "microLines": 1,
+        "microSample": "Tier backlogs sum to 2,565 · Transaction Monitoring · alert case register · Drill into AML.01.05.02 →",
+        "hasInvestigationHeading": false,
+        "hasDupTier": false
+      },
+      "collapseWrap": [],
+      "overflows": [],
+      "scroll": {
+        "overflowX": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      }
+    },
+    "1920": {
+      "blanks": [
+        {
+          "label": "alert",
+          "cardH": 610.9,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "sanctions",
+          "cardH": 348.1,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "fraud",
+          "cardH": 247.8,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "training",
+          "cardH": 347.8,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "kri",
+          "cardH": 86,
+          "gapLastToBottom": 9,
+          "gapBodyToFoot": null,
+          "emptyInBody": 0,
+          "hasPtg": false
+        },
+        {
+          "label": "sar",
+          "cardH": 234,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        },
+        {
+          "label": "edd",
+          "cardH": 305,
+          "gapLastToBottom": 2,
+          "gapBodyToFoot": 0,
+          "emptyInBody": 0,
+          "hasPtg": true
+        }
+      ],
+      "gapsOver24": [],
+      "cols": {
+        "leftH": 1238.8,
+        "rightH": 918.8,
+        "diff": 320
+      },
+      "dashSpan": 1412,
+      "ratio": 1.307,
+      "textDensity": {
+        "microLines": 1,
+        "microSample": "Tier backlogs sum to 2,565 · Transaction Monitoring · alert case register · Drill into AML.01.05.02 →",
+        "hasInvestigationHeading": false,
+        "hasDupTier": false
+      },
+      "collapseWrap": [],
+      "overflows": [],
+      "scroll": {
+        "overflowX": false,
+        "scrollWidth": 1920,
+        "clientWidth": 1920
+      }
+    }
+  },
+  "inventory": [
+    {
+      "label": "KRI strip",
+      "ok": true
+    },
+    {
+      "label": "Alert primary",
+      "ok": true
+    },
+    {
+      "label": "Trends chart",
+      "ok": true
+    },
+    {
+      "label": "SAR conversion",
+      "ok": true
+    },
+    {
+      "label": "Capacity",
+      "ok": true
+    },
+    {
+      "label": "TM systems health",
+      "ok": true
+    },
+    {
+      "label": "SAR",
+      "ok": true
+    },
+    {
+      "label": "EDD",
+      "ok": true
+    },
+    {
+      "label": "Past due",
+      "ok": true
+    },
+    {
+      "label": "Sanctions",
+      "ok": true
+    },
+    {
+      "label": "Payments hold",
+      "ok": true
+    },
+    {
+      "label": "OFSI freeze",
+      "ok": true
+    },
+    {
+      "label": "OFSI block",
+      "ok": true
+    },
+    {
+      "label": "OFAC",
+      "ok": true
+    },
+    {
+      "label": "List update",
+      "ok": true
+    },
+    {
+      "label": "Screening systems",
+      "ok": true
+    },
+    {
+      "label": "Txn screening",
+      "ok": true
+    },
+    {
+      "label": "Name screening",
+      "ok": true
+    },
+    {
+      "label": "Training",
+      "ok": true
+    },
+    {
+      "label": "Derivation",
+      "ok": true
+    },
+    {
+      "label": "Fraud loss",
+      "ok": true
+    },
+    {
+      "label": "Fraud APP",
+      "ok": true
+    },
+    {
+      "label": "Fraud trend",
+      "ok": true
+    },
+    {
+      "label": "Path to Green",
+      "ok": true
+    },
+    {
+      "label": "Sanctions team",
+      "ok": true
+    },
+    {
+      "label": "Waivers",
+      "ok": true
+    },
+    {
+      "label": "Fraud in left col reachable",
+      "ok": true
+    },
+    {
+      "label": "Sanctions in left col",
+      "ok": true
+    },
+    {
+      "label": "Training in right col",
+      "ok": true
+    }
+  ]
+}

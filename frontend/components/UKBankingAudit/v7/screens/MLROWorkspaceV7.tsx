@@ -29,9 +29,17 @@ import { ExposureLens } from '@/components/UKBankingAudit/v7/ExposureLens';
 import { FraudLossPanel } from '@/components/UKBankingAudit/v7/mlro/FraudLossPanel';
 import { LensToggle } from '@/components/UKBankingAudit/v7/LensToggle';
 
+const MLRO_WALKTHROUGH_LINE =
+  'Walk-through line: alert backlog rising → capacity stress is the why → AML.01.05.02 evidence completeness degrading is the consequence on the CRSA.';
+
 /**
  * v7 MLRO Workspace — two tabs (Operational Dashboard, Client Risk View).
  * FraudLossPanel is a widget on the Operational Dashboard, not a third tab.
+ *
+ * Operational Dashboard layout (12-col zones):
+ *   A — full-width posture strip
+ *   B — 7/5 alert primary + SAR/EDD/Fraud rail
+ *   C — 7/5 Sanctions + Training
  */
 export function MLROWorkspaceV7({ openDrawer, setActiveScreen, setSelectedGSRId }) {
   const persona = personas.find((p) => p.id === 'smf17');
@@ -62,7 +70,7 @@ export function MLROWorkspaceV7({ openDrawer, setActiveScreen, setSelectedGSRId 
   };
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-4">
       {/* Compact header — title + subhead left; lens toggle top-right */}
       <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="min-w-0 max-w-2xl">
@@ -78,54 +86,72 @@ export function MLROWorkspaceV7({ openDrawer, setActiveScreen, setSelectedGSRId 
       </header>
 
       {lens === 'assurance' ? (
-        <>
-          {/* Header strip — KRI ribbon */}
-          <div id="mlro-panel-kri-strip">
-            <FinancialCrimeKRIStrip kriList={fcKRIs} openDrawer={openDrawer} />
-          </div>
-
-          {/* Top zone — primary widget (L1/L2/L3 backlog + nested capacity + SAR conversion) */}
-          <div id="mlro-panel-alert-backlog">
-            <AlertBacklogVsAppetite
+        <div className="min-w-0 space-y-4">
+          {/* ZONE A — full-width posture strip; walk-through "i" on the eyebrow */}
+          <div id="mlro-panel-kri-strip" className="min-w-0">
+            <FinancialCrimeKRIStrip
+              kriList={fcKRIs}
+              openDrawer={openDrawer}
               alertSeries={amlAlertsByWeek || []}
-              appetiteMetric={amlAppetite}
-              capacitySeries={capacityVsDemandSeries || []}
-              onDrill={() => drillTo('alertBacklog')}
+              sarSeries={sarFilingsByWeek || []}
+              eddItems={eddPipelineItems || []}
+              walkthroughLine={MLRO_WALKTHROUGH_LINE}
             />
           </div>
 
-          {/* Mid 2-up — SAR timeliness + EDD pipeline */}
-          <div id="mlro-panel-sar-edd" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <SARTimelinessBand
-              series={sarFilingsByWeek || []}
-              onDrill={() => drillTo('sarTimeliness')}
-            />
-            <EDDPipelineStatus
-              items={eddPipelineItems || []}
-              onDrill={() => drillTo('eddPipeline')}
-            />
-          </div>
+          {/* Ops cards — one 7/5 region. flex-col stacks (no stretch).
+              Mobile order via order-*: TM → SAR → EDD → Sanctions → Training → Fraud.
+              lg: left = TM / Sanctions / Fraud; right = SAR+EDD / Training. */}
+          <div className="flex min-w-0 flex-col gap-4 lg:grid lg:grid-cols-12 lg:items-start">
+            <div className="contents min-w-0 lg:col-span-7 lg:flex lg:flex-col lg:gap-4">
+              <div id="mlro-panel-alert-backlog" className="order-1 min-w-0 lg:order-none">
+                <AlertBacklogVsAppetite
+                  alertSeries={amlAlertsByWeek || []}
+                  appetiteMetric={amlAppetite}
+                  capacitySeries={capacityVsDemandSeries || []}
+                  onDrill={() => drillTo('alertBacklog')}
+                  compact
+                />
+              </div>
+              <div
+                id="mlro-panel-sanctions"
+                className="order-3 min-w-0 overflow-hidden lg:order-none"
+              >
+                <SanctionsScreeningPosture
+                  metrics={sanctionsScreeningMetrics}
+                  density="compact"
+                />
+              </div>
+              <div id="mlro-panel-fraud" className="order-5 min-w-0 lg:order-none">
+                <FraudLossPanel />
+              </div>
+            </div>
 
-          {/* Sanctions — capacity gauge now nested inside alert backlog widget */}
-          <div id="mlro-panel-sanctions">
-            <SanctionsScreeningPosture metrics={sanctionsScreeningMetrics} />
+            <div className="contents min-w-0 lg:col-span-5 lg:flex lg:flex-col lg:gap-4">
+              <div
+                id="mlro-panel-sar-edd"
+                className="order-2 flex min-w-0 flex-col gap-4 lg:order-none"
+              >
+                <SARTimelinessBand
+                  series={sarFilingsByWeek || []}
+                  onDrill={() => drillTo('sarTimeliness')}
+                  density="compact"
+                />
+                <EDDPipelineStatus
+                  items={eddPipelineItems || []}
+                  onDrill={() => drillTo('eddPipeline')}
+                  density="compact"
+                />
+              </div>
+              <div
+                id="mlro-panel-fc-training"
+                className="order-4 min-w-0 overflow-hidden lg:order-none"
+              >
+                <FinancialCrimeTrainingPosture density="compact" />
+              </div>
+            </div>
           </div>
-
-          {/* Financial crime training — firm-wide % from AP-MLRO-2025 narrative */}
-          <div id="mlro-panel-fc-training">
-            <FinancialCrimeTrainingPosture />
-          </div>
-
-          {/* Fraud risk (collapsed summary; expands to full table) */}
-          <div id="mlro-panel-fraud">
-            <FraudLossPanel />
-          </div>
-
-          <p className="pt-2 text-center text-[10px] text-slate-400">
-            Walk-through line: alert backlog rising → capacity stress is the why → AML.01.05.02
-            evidence completeness degrading is the consequence on the CRSA.
-          </p>
-        </>
+        </div>
       ) : null}
 
       {lens === 'exposure' ? (

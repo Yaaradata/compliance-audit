@@ -18,6 +18,9 @@ import {
   getAppetite,
 } from '@/components/UKBankingAudit/ukTraceRuntime';
 import { PathToGreenStrip } from '@/components/UKBankingAudit/v7/PathToGreenStrip';
+import { CollapsibleSection } from '@/components/UKBankingAudit/v7/CollapsibleSection';
+import { StatTile } from '@/components/UKBankingAudit/v7/StatTile';
+import { WidgetCardFooter } from '@/components/UKBankingAudit/v7/WidgetShell';
 import {
   EDD_PAST_DUE_APPETITE,
   FC_TRAINING_POSTURE,
@@ -67,8 +70,8 @@ function SystemHealthBlock({ health }) {
   const band = systemHealthWorstBand(health);
   const windows = health.windows || [];
   return (
-    <div className="mt-4">
-      <div className={`rounded-lg border bg-white p-3 ${bandBg(band)}`}>
+    <div className={`mt-3 overflow-hidden rounded-lg border ${bandBg(band)}`}>
+      <div className="p-3">
         <div className="flex items-start justify-between gap-2 mb-2">
           <div>
             <div className="text-[10px] uppercase tracking-wider font-bold opacity-80">
@@ -88,13 +91,13 @@ function SystemHealthBlock({ health }) {
           return (
             <div key={w.id} className="mt-2 rounded-md border border-slate-200 bg-white/80 p-2.5">
               <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">{w.label}</span>
-                <span className="text-[9px] text-slate-400">
+                <span className="text-xs font-semibold text-slate-600">{w.label}</span>
+                <span className="text-[10px] text-slate-400">
                   {w.from} → {w.to}
                 </span>
               </div>
 
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+              <div className="text-xs font-medium text-slate-500 mb-1">
                 Outages
               </div>
               {outages.length === 0 ? (
@@ -124,7 +127,7 @@ function SystemHealthBlock({ health }) {
                 </ul>
               )}
 
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+              <div className="text-xs font-medium text-slate-500 mb-1">
                 Data quality issues
               </div>
               {dqIssues.length === 0 ? (
@@ -157,7 +160,9 @@ function SystemHealthBlock({ health }) {
         </div>
       </div>
       {band === "red" || band === "amber" ? (
-        <PathToGreenStrip entityRef={health.pathToGreenRef} />
+        <WidgetCardFooter>
+          <PathToGreenStrip entityRef={health.pathToGreenRef} />
+        </WidgetCardFooter>
       ) : null}
     </div>
   );
@@ -620,46 +625,176 @@ export const MLRO_DRILL_TARGETS = {
   eddPipeline: { gsrId: 'GSR-AML-05-02', cycleId: 'CYC-Q2-2026-AML' },
 };
 
-// FinancialCrimeKRIStrip — horizontal ribbon of FC-attached KRIs.
-export const FinancialCrimeKRIStrip = ({ kriList, openDrawer }) => (
-  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-    <div className="flex items-center justify-between mb-3">
-      <h3 className="text-sm font-semibold text-slate-900">Financial Crime KRIs · mapped to F&amp;FC appetite</h3>
-      <span className="text-[10px] uppercase tracking-wider text-slate-500 font-medium">click a KRI for definition, bands, trend, and links</span>
-    </div>
-    {kriList.length === 0 ? <EmptyState message="No FC KRIs attached." /> : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {kriList.map(kri => {
-          const series = (kri.series || []).map(p => p.value);
-          return (
-            <button key={kri.id} onClick={() => openDrawer && openDrawer("kri", kri.id, "mlroWorkspace")}
-              className={`text-left p-3 rounded-lg border-2 hover:shadow-md transition ${bandBg(kri.currentBand)}`}>
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <div className="text-[11px] font-semibold leading-tight">{kri.name}</div>
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${bandText(kri.currentBand)}`}>{kri.currentBand}</span>
-              </div>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-2xl font-bold">{kri.current}</span>
-                <span className="text-[10px] text-slate-500">{kri.unit}</span>
-              </div>
-              <div className="mt-1.5">
-                <Sparkline series={series} band={kri.currentBand} width={160} height={24} fill />
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1">
-                green ≤{kri.greenBand?.[1]} · amber ≤{kri.amberBand?.[1]} · {kri.unit === "%" ? "%" : "ct"}
-              </div>
-            </button>
-          );
-        })}
+const KRI_CHIP_TITLE = "Click a KRI for definition, bands, trend, and links";
+
+/** Join labels for plain-English posture clauses. */
+function joinPostureLabels(labels) {
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+}
+
+/**
+ * Plain-English verdict from operational widget bands
+ * (Alert backlog / SAR timeliness / EDD past-due).
+ */
+export function buildMlroPostureVerdict(signals) {
+  const red = [];
+  const amber = [];
+  const green = [];
+  for (const s of signals || []) {
+    if (!s?.label) continue;
+    if (s.band === "red") red.push(s.label);
+    else if (s.band === "amber") amber.push(s.label);
+    else green.push(s.label);
+  }
+  const clauses = [];
+  if (red.length) {
+    clauses.push(
+      `${joinPostureLabels(red)} ${red.length === 1 ? "is" : "are"} out of appetite`,
+    );
+  }
+  if (amber.length) {
+    const approaching = red.length ? "approaching it" : "approaching appetite";
+    clauses.push(
+      `${joinPostureLabels(amber)} ${amber.length === 1 ? "is" : "are"} ${approaching}`,
+    );
+  }
+  if (!red.length && !amber.length && green.length) {
+    clauses.push(
+      `${joinPostureLabels(green)} ${green.length === 1 ? "is" : "are"} within appetite`,
+    );
+  }
+  if (!clauses.length) return "Financial crime posture is within appetite.";
+  return `${clauses.join("; ")}.`;
+}
+
+function postureSignalsFromWidgets({ alertSeries, sarSeries, eddItems }) {
+  const tiered = buildAmlAlertTiersByWeek(alertSeries || []);
+  const alertBand = tiered[tiered.length - 1]?.worstBand || "green";
+  const sarLast = (sarSeries || [])[(sarSeries || []).length - 1] || {};
+  const sarBand = sarLast.band || "green";
+  const pastDue = (eddItems || []).filter((it) => it.status === "past_due").length;
+  const eddBand = eddPastDueBand(pastDue, EDD_PAST_DUE_APPETITE);
+  return [
+    { label: "Alert backlog", band: alertBand },
+    { label: "SAR timeliness", band: sarBand },
+    { label: "EDD past-due", band: eddBand },
+  ];
+}
+
+// FinancialCrimeKRIStrip — compact full-width posture strip (~84px).
+// justify-between: verdict (max-w-sm) left, fixed 240px chips hard-right (ml-auto).
+// Walk-through "i" sits on the eyebrow, not floating in the corner.
+export const FinancialCrimeKRIStrip = ({
+  kriList,
+  openDrawer,
+  alertSeries,
+  sarSeries,
+  eddItems,
+  walkthroughLine,
+}) => {
+  const verdict = buildMlroPostureVerdict(
+    postureSignalsFromWidgets({ alertSeries, sarSeries, eddItems }),
+  );
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <div className="flex min-h-[68px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0 max-w-sm">
+          <div className="flex items-center gap-1.5">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+              Financial Crime KRIs · mapped to F&amp;FC appetite
+            </div>
+            {walkthroughLine ? (
+              <span
+                className="inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center rounded-full border border-slate-200 bg-white text-[9px] font-bold text-slate-400"
+                title={walkthroughLine}
+                aria-label={walkthroughLine}
+              >
+                i
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-0.5 text-[12px] leading-snug text-slate-800 line-clamp-2">
+            {verdict}
+          </p>
+        </div>
+
+        {kriList.length === 0 ? (
+          <EmptyState message="No FC KRIs attached." />
+        ) : (
+          <div className="ml-auto flex shrink-0 flex-row flex-wrap justify-end gap-3">
+            {kriList.map((kri) => {
+              const series = (kri.series || []).map((p) => p.value);
+              return (
+                <button
+                  key={kri.id}
+                  type="button"
+                  title={KRI_CHIP_TITLE}
+                  onClick={() => openDrawer && openDrawer("kri", kri.id, "mlroWorkspace")}
+                  className={`w-[240px] shrink-0 cursor-pointer rounded-lg border-2 px-2.5 py-1.5 text-left transition hover:shadow-md ${bandBg(kri.currentBand)}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 truncate text-[10px] font-semibold leading-tight">
+                      {kri.name}
+                    </div>
+                    <span
+                      className={`shrink-0 text-[9px] font-bold uppercase tracking-wider ${bandText(kri.currentBand)}`}
+                    >
+                      {kri.currentBand}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <div className="flex min-w-0 items-baseline gap-1">
+                      <span className="text-xl font-bold tabular-nums leading-none">
+                        {kri.current}
+                      </span>
+                      <span className="text-[9px] text-slate-500">{kri.unit}</span>
+                    </div>
+                    <Sparkline
+                      series={series}
+                      band={kri.currentBand}
+                      width={90}
+                      height={20}
+                      fill
+                    />
+                  </div>
+                  <div className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                    green ≤{kri.greenBand?.[1]} · amber ≤{kri.amberBand?.[1]} ·{" "}
+                    {kri.unit === "%" ? "%" : "ct"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
-    )}
-  </div>
-);
+    </div>
+  );
+};
 
 // AlertBacklogVsAppetite — primary widget. L1/L2/L3 tier backlogs vs appetite,
 // with capacity-vs-demand nested as the causal "why", plus TM→SAR conversion
 // (single source: TM_INVESTIGATIONS_SAR_CONVERSION). Click drills to AML.01.05.02.
-export const AlertBacklogVsAppetite = ({ alertSeries, appetiteMetric, capacitySeries, onDrill }) => {
+// Trends open by default; SAR / capacity / TM health stay collapsed.
+// `compact` = layout for ~8/12 columns (no viewport-width assumptions).
+function alertTierHeading(id, label) {
+  const stripped = String(label || "")
+    .replace(new RegExp(`^${id}\\s+`, "i"), "")
+    .trim();
+  if (!stripped) return `${id}`;
+  return `${id} · ${stripped.charAt(0).toUpperCase()}${stripped.slice(1)}`;
+}
+
+export const AlertBacklogVsAppetite = ({
+  alertSeries,
+  appetiteMetric,
+  capacitySeries,
+  onDrill,
+  compact = false,
+}) => {
   const tiered = buildAmlAlertTiersByWeek(alertSeries || []);
   const last = tiered[tiered.length - 1] || { openBacklog: 0, slaBreaches: 0, generated: 0, dispositioned: 0, tiers: [], worstBand: "green" };
   const first = tiered[0] || last;
@@ -669,19 +804,32 @@ export const AlertBacklogVsAppetite = ({ alertSeries, appetiteMetric, capacitySe
   const slaSeries = tiered.map(p => p.slaBreaches);
   const widgetBand = last.worstBand || "green";
   const sar = TM_INVESTIGATIONS_SAR_CONVERSION;
+  const capSeries = capacitySeries || [];
+  const capLast = capSeries[capSeries.length - 1] || {};
+  const capacityGap = (capLast.demand || 0) - (capLast.capacity || 0);
+  const tmOutages = outagesForWindow(TM_SYSTEM_HEALTH, "last_3_months");
+  const tmBand = systemHealthWorstBand(TM_SYSTEM_HEALTH);
+  const sparkW = compact ? 280 : 420;
+  const roseValue = widgetBand === "red";
+
+  const trendsSummary = `${backlogDelta >= 0 ? "+" : ""}${backlogDelta.toLocaleString("en-GB")} vs 13 wks`;
+  const sarSummary = `${sar.count.toLocaleString("en-GB")} · ${sar.pct}%`;
+  const capacitySummary = `gap ${capacityGap >= 0 ? "+" : ""}${capacityGap}/wk`;
+  const tmSummary = `${tmOutages.length} outage${tmOutages.length === 1 ? "" : "s"}`;
 
   return (
-    <div>
-      <div className={`w-full rounded-xl border-2 p-5 shadow-sm ${bandBg(widgetBand)}`}>
+    <div
+      className={`flex h-full w-full flex-col overflow-hidden rounded-xl border-2 shadow-sm ${bandBg(widgetBand)}`}
+    >
+      <div className={`flex-1 ${compact ? "p-3" : "p-4"}`}>
         <button type="button" onClick={onDrill} className="w-full text-left hover:opacity-95 transition">
           <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
-            <div>
+            <div className="min-w-0">
               <div className="text-[10px] uppercase tracking-wider font-bold opacity-80">AML Programme Posture · Primary widget</div>
-              <h2 className="text-lg font-bold text-slate-900 mt-0.5">L1 / L2 / L3 alert backlog vs. appetite</h2>
-              <p className="text-xs text-slate-700 mt-1 leading-relaxed max-w-2xl">
-                Three investigation tiers, each against its own appetite. Capacity is fixed while demand has risen —
-                backlog concentrates in L2. Aggregate backlog crossed the {appetiteMetric?.amberThreshold ?? "—"}% programme appetite threshold.
-              </p>
+              <h2 className={`font-bold text-slate-900 mt-0.5 ${compact ? "text-base" : "text-lg"}`}>
+                L1 / L2 / L3 alert backlog vs. appetite
+              </h2>
+              <p className="text-xs text-slate-700 mt-1">Backlog concentrates in L2.</p>
             </div>
             <StatusBadge
               tone={widgetBand}
@@ -689,201 +837,309 @@ export const AlertBacklogVsAppetite = ({ alertSeries, appetiteMetric, capacitySe
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4">
-            <div className="rounded-md bg-white border border-slate-200 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Backlog (current)</div>
-              <div className={`text-3xl font-bold mt-0.5 ${widgetBand === "red" ? "text-rose-700" : "text-slate-900"}`}>
-                {last.openBacklog?.toLocaleString("en-GB") ?? "—"}
-              </div>
-              <div className="text-[10px] text-slate-500 mt-0.5">
-                {backlogDelta >= 0 ? "+" : ""}{backlogDelta.toLocaleString("en-GB")} vs 13 weeks ago
-              </div>
-            </div>
-            <div className="rounded-md bg-white border border-slate-200 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">SLA breaches (this wk)</div>
-              <div className={`text-3xl font-bold mt-0.5 ${widgetBand === "red" ? "text-rose-700" : "text-slate-900"}`}>
-                {last.slaBreaches?.toLocaleString("en-GB") ?? "—"}
-              </div>
-              <div className="text-[10px] text-slate-500 mt-0.5">vs. {first.slaBreaches} 13 wks ago</div>
-            </div>
-            <div className="rounded-md bg-white border border-slate-200 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Generated (this wk)</div>
-              <div className="text-3xl font-bold text-slate-900 mt-0.5">{last.generated?.toLocaleString("en-GB") ?? "—"}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">vs. dispositioned {last.dispositioned?.toLocaleString("en-GB") ?? "—"}</div>
-            </div>
-            <div className="rounded-md bg-white border border-slate-200 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Appetite breach</div>
-              <div className={`text-base font-bold mt-1 ${widgetBand === "red" ? "text-rose-700" : "text-slate-900"}`}>
-                {breachWeek ? `${appetiteMetric?.currentBand?.toUpperCase()} ${appetiteMetric?.current}%` : "—"}
-              </div>
-              <div className="text-[10px] text-slate-500 mt-0.5">
-                {breachWeek ? `breach ${breachWeek.fromBand}→${breachWeek.toBand}` : "—"}
-              </div>
-            </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-4">
+            {/* One primary number: current backlog stays text-3xl; peers are subordinate. */}
+            <StatTile
+              label="Backlog (current)"
+              size="lg"
+              className="!p-3"
+              value={
+                <span className={roseValue ? "text-rose-700" : undefined}>
+                  {last.openBacklog?.toLocaleString("en-GB") ?? "—"}
+                </span>
+              }
+              delta={`${backlogDelta >= 0 ? "+" : ""}${backlogDelta.toLocaleString("en-GB")} vs 13 weeks ago`}
+              deltaTone={backlogDelta > 0 ? "rose" : "slate"}
+            />
+            <StatTile
+              label="SLA breaches (this wk)"
+              size="sm"
+              className="!p-3"
+              value={
+                <span className={roseValue ? "text-rose-700" : undefined}>
+                  {last.slaBreaches?.toLocaleString("en-GB") ?? "—"}
+                </span>
+              }
+              delta={`vs. ${first.slaBreaches} 13 wks ago`}
+              deltaTone="slate"
+            />
+            <StatTile
+              label="Generated (this wk)"
+              size="sm"
+              className="!p-3"
+              value={last.generated?.toLocaleString("en-GB") ?? "—"}
+              delta={`vs. dispositioned ${last.dispositioned?.toLocaleString("en-GB") ?? "—"}`}
+              deltaTone="slate"
+            />
+            <StatTile
+              label="Appetite breach"
+              size="sm"
+              className="!p-3"
+              value={
+                <span className={roseValue ? "text-rose-700" : undefined}>
+                  {breachWeek ? `${appetiteMetric?.currentBand?.toUpperCase()} ${appetiteMetric?.current}%` : "—"}
+                </span>
+              }
+              delta={breachWeek ? `breach ${breachWeek.fromBand}→${breachWeek.toBand}` : "—"}
+              deltaTone="slate"
+            />
           </div>
 
-          {/* L1 / L2 / L3 tier rows — each against its own appetite */}
-          <div className="mt-4 space-y-2">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              Investigation tiers · backlog vs appetite
-            </div>
-            {(last.tiers || []).map((tier) => {
-              const scale = Math.max(tier.backlog, tier.appetite) * 1.3;
-              const fillPct = Math.min(100, (tier.backlog / scale) * 100);
-              const tickPct = Math.min(100, (tier.appetite / scale) * 100);
-              const over = tier.backlog > tier.appetite;
-              return (
-                <div key={tier.id} className={`rounded-md border bg-white p-3 ${bandBg(tier.band)}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-bold text-slate-900">
-                        {tier.id} · {tier.label}
-                      </div>
-                      <div className="text-[10px] text-slate-500">{tier.slaLabel} · {tier.slaBreaches} SLA breaches this wk</div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className={`text-xl font-bold tabular-nums ${over ? "text-rose-700" : "text-slate-900"}`}>
-                        {tier.backlog.toLocaleString("en-GB")}
+          {/* L1 / L2 / L3 — 3-up; tile headings carry the tier identity */}
+          <div className="mt-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {(last.tiers || []).map((tier) => {
+                const scale = Math.max(tier.backlog, tier.appetite) * 1.3;
+                const fillPct = Math.min(100, (tier.backlog / scale) * 100);
+                const tickPct = Math.min(100, (tier.appetite / scale) * 100);
+                const over = tier.backlog > tier.appetite;
+                return (
+                  <div
+                    key={tier.id}
+                    className={`rounded-md border bg-white px-2.5 py-2 ${bandBg(tier.band)}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 truncate text-[11px] font-bold text-slate-900">
+                        {alertTierHeading(tier.id, tier.label)}
                       </div>
                       <StatusBadge tone={tier.band} label={tier.band.toUpperCase()} />
                     </div>
+                    <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <span
+                        className={`text-2xl font-bold tabular-nums leading-none ${
+                          over ? "text-rose-700" : "text-slate-900"
+                        }`}
+                      >
+                        {tier.backlog.toLocaleString("en-GB")}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        appetite {tier.appetite}
+                      </span>
+                    </div>
+                    <div className="relative mt-1.5 flex items-center gap-2">
+                      <div className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className={
+                            over
+                              ? "h-full rounded-full bg-rose-400"
+                              : "h-full rounded-full bg-slate-400"
+                          }
+                          style={{ width: `${fillPct}%` }}
+                        />
+                        <div
+                          className="absolute top-0 bottom-0 w-px bg-slate-900"
+                          style={{ left: `${tickPct}%` }}
+                        />
+                      </div>
+                      <span
+                        className={`shrink-0 text-[9px] font-bold uppercase tracking-wider ${
+                          over ? "text-rose-600" : "text-emerald-600"
+                        }`}
+                      >
+                        {over ? "OVER" : "WITHIN"}
+                      </span>
+                    </div>
+                    <div className="mt-1 truncate text-[10px] leading-snug text-slate-500">
+                      {tier.slaLabel} · {tier.slaBreaches} SLA breaches
+                    </div>
+                    <div className="mt-0.5 truncate text-[10px] leading-snug text-slate-500">
+                      {tier.sourceLabel}
+                    </div>
                   </div>
-                  <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className={over ? "h-full rounded-full bg-rose-400" : "h-full rounded-full bg-slate-400"}
-                      style={{ width: `${fillPct}%` }}
-                    />
-                    <div className="absolute top-0 bottom-0 w-px bg-slate-900" style={{ left: `${tickPct}%` }} />
-                  </div>
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <span className="text-[9px] text-slate-400">appetite {tier.appetite}</span>
-                    <span className={`text-[9px] font-bold uppercase tracking-wider ${over ? "text-rose-600" : "text-emerald-600"}`}>
-                      {over ? "OVER" : "WITHIN"}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 border-t border-slate-200/80 pt-1">
-                    <span className="block text-[10px] leading-snug text-slate-500">{tier.sourceLabel}</span>
-                  </div>
-                </div>
-              );
-            })}
-            <div className="text-[10px] text-slate-500">
-              Tier backlogs sum to programme backlog {last.openBacklog?.toLocaleString("en-GB")}
+                );
+              })}
             </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-md bg-white border border-slate-200 p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Open backlog · 13 wk</span>
-                <span className="text-[10px] text-rose-700 font-semibold">↗ {tiered.length} weeks</span>
-              </div>
-              <Sparkline series={backlogSeries} band={widgetBand} width={420} height={48} fill />
-            </div>
-            <div className="rounded-md bg-white border border-slate-200 p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">SLA breaches · 13 wk</span>
-                <span className="text-[10px] text-rose-700 font-semibold">↗ accelerating</span>
-              </div>
-              <Sparkline series={slaSeries} band={widgetBand} width={420} height={48} fill />
-            </div>
-          </div>
-
-          {/* TM → SAR conversion — moved from Client Risk View; single source */}
-          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                  Alert → SAR conversion
-                </div>
-                <div className="mt-0.5 text-[11px] font-medium text-slate-700">{sar.label}</div>
-              </div>
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Informational</span>
-            </div>
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-              <div>
-                <span className="text-2xl font-bold tabular-nums text-slate-900">{sar.count.toLocaleString("en-GB")}</span>
-                <span className="ml-1.5 text-[10px] uppercase tracking-wide text-slate-400">SARs</span>
-              </div>
-              <div>
-                <span className="text-2xl font-bold tabular-nums text-slate-900">{sar.pct}%</span>
-                <span className="ml-1.5 text-[10px] text-slate-400">of {sar.investigations.toLocaleString("en-GB")} investigations</span>
-              </div>
-            </div>
-            <div className="mt-2 border-t border-slate-100 pt-1.5">
-              <span className="block text-[10px] leading-snug text-slate-500">{sar.sourceLabel}</span>
-            </div>
-          </div>
-
-          <div className="mt-3 border-t border-slate-200/80 pt-1.5">
-            <span className="block text-[10px] leading-snug text-slate-500">{OPERATIONAL_WIDGET_SOURCES.alertBacklog}</span>
-          </div>
-
-          <div className="mt-4 text-[11px] font-medium opacity-80">
-            Drill into AML.01.05.02 (MLRO Reporting) Per-Requirement Attestation View →
+            <p className="mt-1.5 text-[10px] leading-snug text-slate-500">
+              Tier backlogs sum to {last.openBacklog?.toLocaleString("en-GB")} ·{" "}
+              {OPERATIONAL_WIDGET_SOURCES.alertBacklog} · Drill into AML.01.05.02 →
+            </p>
           </div>
         </button>
 
-        {/* Capacity vs demand — causal panel nested inside Widget 2 (not a peer). */}
-        <div className="mt-4 border-t border-slate-200/80 pt-4">
-          <CapacityVsDemandGauge series={capacitySeries || []} nested />
-        </div>
+        {/* Secondary detail — trends open (direction of travel); others collapsed */}
+        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+          <CollapsibleSection
+            title="Trends · 13 weeks"
+            summary={trendsSummary}
+            tone={widgetBand}
+            defaultOpen
+            openClassName="md:col-span-2"
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: "1rem",
+              }}
+            >
+              <div className="rounded-md bg-white border border-slate-200 p-3 overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-500">Open backlog · 13 wk</span>
+                  <span className="text-[10px] text-rose-700 font-semibold">↗ {tiered.length} weeks</span>
+                </div>
+                <Sparkline series={backlogSeries} band={widgetBand} width={sparkW} height={48} fill />
+              </div>
+              <div className="rounded-md bg-white border border-slate-200 p-3 overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-500">SLA breaches · 13 wk</span>
+                  <span className="text-[10px] text-rose-700 font-semibold">↗ accelerating</span>
+                </div>
+                <Sparkline series={slaSeries} band={widgetBand} width={sparkW} height={48} fill />
+              </div>
+            </div>
+          </CollapsibleSection>
 
-        {/* TM system health — technology signal next to the process it degrades. */}
-        <div className="border-t border-slate-200/80 pt-1">
-          <SystemHealthBlock health={TM_SYSTEM_HEALTH} />
+          <CollapsibleSection
+            title="Alerts converted to SARs"
+            summary={sarSummary}
+            tone="slate"
+            openClassName="md:col-span-2"
+          >
+            <div className="rounded-md border border-slate-200 bg-white p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-medium text-slate-500">
+                    Alert → SAR conversion
+                  </div>
+                  <div className="mt-0.5 text-[11px] font-medium text-slate-700">{sar.label}</div>
+                </div>
+                <span className="text-[10px] font-semibold text-slate-400">Informational</span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <div className="flex flex-wrap items-baseline gap-x-1.5">
+                  <span className="text-2xl font-bold tabular-nums text-slate-900">{sar.count.toLocaleString("en-GB")}</span>
+                  <span className="text-[11px] text-slate-400">SARs</span>
+                </div>
+                <div className="flex flex-wrap items-baseline gap-x-1.5">
+                  <span className="text-2xl font-bold tabular-nums text-slate-900">{sar.pct}%</span>
+                  <span className="text-[11px] text-slate-400">of {sar.investigations.toLocaleString("en-GB")} investigations</span>
+                </div>
+              </div>
+              <div className="mt-2 border-t border-slate-100 pt-1.5">
+                <span className="block text-[10px] leading-snug text-slate-500">{sar.sourceLabel}</span>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Capacity vs demand"
+            summary={capacitySummary}
+            tone={capacityGap > 0 ? "red" : "green"}
+            openClassName="md:col-span-2"
+          >
+            <CapacityVsDemandGauge series={capSeries} nested />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="TM system health"
+            summary={tmSummary}
+            tone={tmBand}
+            openClassName="md:col-span-2"
+          >
+            <SystemHealthBlock health={TM_SYSTEM_HEALTH} />
+          </CollapsibleSection>
         </div>
       </div>
       {widgetBand === "red" || widgetBand === "amber" ? (
-        <PathToGreenStrip entityRef="TM Alerts Closed in SLA" />
+        <WidgetCardFooter>
+          <PathToGreenStrip entityRef="TM Alerts Closed in SLA" />
+        </WidgetCardFooter>
       ) : null}
     </div>
   );
 };
 
 // SARTimelinessBand — % SARs filed within statutory POCA s.330 window.
-export const SARTimelinessBand = ({ series, onDrill }) => {
+// `compact` / density="compact" = 4-col rail: headline open; sparkline + footer collapse.
+export const SARTimelinessBand = ({ series, onDrill, compact = false, density }) => {
+  const isCompact = compact || density === "compact";
   const last = series[series.length - 1] || {};
   const seriesValues = series.map(p => p.pctOnTime);
+  const filedPeriod = series.reduce((s, p) => s + (p.filed || 0), 0);
+  const withinPeriod = series.reduce((s, p) => s + (p.withinWindow || 0), 0);
+  const pctLabel =
+    last.pctOnTime != null ? `${Number(last.pctOnTime).toFixed(1)}%` : "—";
+  const sparkW = isCompact ? 180 : 420;
+  const sparkH = isCompact ? 28 : 40;
+  const pad = isCompact ? "p-3" : "p-4";
+
+  const sparkAndFooter = (
+    <>
+      <div className="overflow-hidden">
+        <Sparkline series={seriesValues} band={last.band} width={sparkW} height={sparkH} fill />
+      </div>
+      <div
+        className="mt-2 text-[10px] text-slate-500"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))",
+          gap: "0.5rem",
+        }}
+      >
+        <div>Filed (period): <span className="font-semibold">{filedPeriod}</span></div>
+        <div>Within window: <span className="font-semibold">{withinPeriod}</span></div>
+        <div>Submission: NCA SAR Online</div>
+      </div>
+    </>
+  );
+
   return (
-    <div>
-      <button onClick={onDrill}
-        className={`w-full text-left rounded-xl border-2 p-4 shadow-sm hover:shadow-md transition ${bandBg(last.band)}`}>
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider font-bold opacity-80">SAR timeliness · POCA s.330 window (30 days)</div>
-            <h3 className="text-sm font-bold text-slate-900 mt-0.5">% of SARs filed within statutory window</h3>
+    <div className={`flex h-full w-full flex-col overflow-hidden rounded-xl border-2 shadow-sm ${bandBg(last.band)}`}>
+      <div className={`flex-1 ${pad}`}>
+        <button type="button" onClick={onDrill} className="w-full text-left hover:opacity-95 transition">
+          <div className="flex items-start justify-between mb-2 gap-2">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider font-bold opacity-80">
+                SAR timeliness · POCA s.330 window (30 days)
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 mt-0.5">
+                % of SARs filed within statutory window
+              </h3>
+            </div>
+            <StatusBadge tone={last.band} label={last.band?.toUpperCase()} />
           </div>
-          <StatusBadge tone={last.band} label={last.band?.toUpperCase()} />
-        </div>
-        <div className="flex items-baseline gap-2 mt-2">
-          <span className="text-3xl font-bold">{last.pctOnTime?.toFixed(1)}%</span>
-          <span className="text-[10px] text-slate-500">of {last.filed} filings this week</span>
-        </div>
-        <div className="mt-3">
-          <Sparkline series={seriesValues} band={last.band} width={420} height={40} fill />
-        </div>
-        <div className="mt-2 text-[10px] text-slate-500 grid grid-cols-3 gap-2">
-          <div>Filed (period): <span className="font-semibold">{series.reduce((s, p) => s + (p.filed || 0), 0)}</span></div>
-          <div>Within window: <span className="font-semibold">{series.reduce((s, p) => s + (p.withinWindow || 0), 0)}</span></div>
-          <div>Submission: NCA SAR Online</div>
-        </div>
-        <div className="mt-2 border-t border-slate-200/80 pt-1.5">
-          <span className="block text-[10px] leading-snug text-slate-500">{OPERATIONAL_WIDGET_SOURCES.sarTimeliness}</span>
-        </div>
-        <div className="mt-2 text-[11px] font-medium opacity-80">
-          Drill into AML.01.07.01 (FCA Annual FC Report / FIU regime) →
-        </div>
-      </button>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 mt-2">
+            <span className={`font-bold tabular-nums ${isCompact ? "text-2xl" : "text-3xl"}`}>
+              {pctLabel}
+            </span>
+            <span className="text-[10px] text-slate-500">of {last.filed} filings this week</span>
+          </div>
+          {!isCompact ? <div className="mt-3">{sparkAndFooter}</div> : null}
+          <div className="mt-2 border-t border-slate-200/80 pt-1.5">
+            <span className="block text-[10px] leading-snug text-slate-500">
+              {OPERATIONAL_WIDGET_SOURCES.sarTimeliness}
+            </span>
+          </div>
+          <div className="mt-2 text-[11px] font-medium opacity-80">
+            Drill into AML.01.07.01 (FCA Annual FC Report / FIU regime) →
+          </div>
+        </button>
+        {isCompact ? (
+          <div className="mt-2">
+            <CollapsibleSection
+              title="13-week trend"
+              summary={pctLabel}
+              tone={last.band || "slate"}
+              alwaysOpen
+            >
+              {sparkAndFooter}
+            </CollapsibleSection>
+          </div>
+        ) : null}
+      </div>
       {last.band === "red" || last.band === "amber" ? (
-        <PathToGreenStrip entityRef="sar-timeliness" />
+        <WidgetCardFooter>
+          <PathToGreenStrip entityRef="sar-timeliness" />
+        </WidgetCardFooter>
       ) : null}
     </div>
   );
 };
 
 // EDDPipelineStatus — high-risk customer review pipeline.
-export const EDDPipelineStatus = ({ items, onDrill }) => {
+// `compact` / density="compact" = 4-col rail: counts + appetite open; red-item list collapses (LR-002 scroll).
+export const EDDPipelineStatus = ({ items, onDrill, compact = false, density }) => {
+  const isCompact = compact || density === "compact";
   const counts = items.reduce((acc, it) => {
     acc[it.status] = (acc[it.status] || 0) + 1;
     if (it.band === "red") acc.red = (acc.red || 0) + 1;
@@ -898,68 +1154,111 @@ export const EDDPipelineStatus = ({ items, onDrill }) => {
   const appetiteScale = Math.max(pastDue, appetite) * 1.3;
   const appetiteFillPct = Math.min(100, (pastDue / appetiteScale) * 100);
   const appetiteTickPct = Math.min(100, (appetite / appetiteScale) * 100);
+  const redItems = items.filter((it) => it.band === "red");
+  const redSummary = `${redItems.length} red`;
+  const pad = isCompact ? "p-3" : "p-4";
+
+  /** LR-002: dense list — show ~4 lines in a fixed-height scroll box; never silent-truncate. */
+  const redItemList = (
+    <div
+      className="max-h-[7rem] overflow-y-auto overscroll-contain rounded-md border border-slate-200/80 bg-white/60 pr-1"
+      role="region"
+      aria-label="Red-band EDD cases"
+    >
+      <ul className="space-y-1 p-1.5 text-[11px]">
+        {redItems.map((it) => (
+          <li key={it.id} className="flex items-center gap-2 min-h-[1.5rem]">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500 flex-shrink-0" />
+            <span className="font-mono text-slate-600 text-[10px] shrink-0">{it.id}</span>
+            <span className="text-slate-700 truncate min-w-0">{it.notes}</span>
+            <span className="text-rose-700 font-semibold ml-auto shrink-0">{it.daysOpen}d</span>
+          </li>
+        ))}
+        {redItems.length === 0 ? (
+          <li className="text-[10px] text-slate-500 px-1 py-0.5">No red-band cases.</li>
+        ) : null}
+      </ul>
+    </div>
+  );
+
   return (
-    <div>
-      <button onClick={onDrill}
-        className={`w-full text-left rounded-xl border-2 p-4 shadow-sm hover:shadow-md transition ${bandBg(totalBand)}`}>
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider font-bold opacity-80">EDD pipeline · MLR 2017 Reg 28 / Reg 35</div>
-            <h3 className="text-sm font-bold text-slate-900 mt-0.5">High-risk customer reviews</h3>
-          </div>
-          <StatusBadge tone={totalBand} label={`${pastDue} PAST DUE`} />
-        </div>
-        <div className="grid grid-cols-3 gap-2 mt-3">
-          <div className="rounded bg-white/70 border border-slate-200 p-2">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Past due</div>
-            <div className={`text-2xl font-bold tabular-nums ${pastDue > appetite ? "text-rose-700" : "text-slate-900"}`}>{pastDue}</div>
-            {/* Same AppetiteBar grammar as ExposureLens CountTile — do not fork the style. */}
-            <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-              <div
-                className={pastDue > appetite ? "h-full rounded-full bg-rose-400" : "h-full rounded-full bg-slate-400"}
-                style={{ width: `${appetiteFillPct}%` }}
-              />
-              <div className="absolute top-0 bottom-0 w-px bg-slate-900" style={{ left: `${appetiteTickPct}%` }} />
+    <div className={`flex h-full w-full flex-col overflow-hidden rounded-xl border-2 shadow-sm ${bandBg(totalBand)}`}>
+      <div className={`flex-1 ${pad}`}>
+        <button type="button" onClick={onDrill} className="w-full text-left hover:opacity-95 transition">
+          <div className="flex items-start justify-between mb-2 gap-2">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider font-bold opacity-80">
+                EDD pipeline · MLR 2017 Reg 28 / Reg 35
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 mt-0.5">High-risk customer reviews</h3>
             </div>
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <span className="text-[9px] text-slate-400">appetite {appetite}</span>
-              <span
-                className={`text-[9px] font-bold uppercase tracking-wider ${
-                  pastDue > appetite ? "text-rose-600" : "text-emerald-600"
-                }`}
-              >
-                {pastDue > appetite ? "OVER" : "WITHIN"}
-              </span>
+            <StatusBadge tone={totalBand} label={`${pastDue} PAST DUE`} />
+          </div>
+          <div
+            className="mt-3"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: "0.5rem",
+            }}
+          >
+            <div className="rounded bg-white/70 border border-slate-200 p-2 min-w-0">
+              <div className="text-xs font-medium text-slate-500">Past due</div>
+              <div className={`text-2xl font-bold tabular-nums ${pastDue > appetite ? "text-rose-700" : "text-slate-900"}`}>
+                {pastDue}
+              </div>
+              <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className={pastDue > appetite ? "h-full rounded-full bg-rose-400" : "h-full rounded-full bg-slate-400"}
+                  style={{ width: `${appetiteFillPct}%` }}
+                />
+                <div className="absolute top-0 bottom-0 w-px bg-slate-900" style={{ left: `${appetiteTickPct}%` }} />
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <span className="text-[10px] text-slate-400">appetite {appetite}</span>
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-wider ${
+                    pastDue > appetite ? "text-rose-600" : "text-emerald-600"
+                  }`}
+                >
+                  {pastDue > appetite ? "OVER" : "WITHIN"}
+                </span>
+              </div>
+            </div>
+            <div className="rounded bg-white/70 border border-slate-200 p-2 min-w-0">
+              <div className="text-xs font-medium text-slate-500">In progress</div>
+              <div className="text-xl font-bold text-slate-900">{inProgress}</div>
+            </div>
+            <div className="rounded bg-white/70 border border-slate-200 p-2 min-w-0">
+              <div className="text-xs font-medium text-slate-500">Awaiting MLRO</div>
+              <div className="text-xl font-bold text-slate-900">{awaiting}</div>
             </div>
           </div>
-          <div className="rounded bg-white/70 border border-slate-200 p-2">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">In progress</div>
-            <div className="text-2xl font-bold text-slate-900">{inProgress}</div>
+          {!isCompact ? <div className="mt-3">{redItemList}</div> : null}
+          <div className="mt-2 border-t border-slate-200/80 pt-1.5">
+            <span className="block text-[10px] leading-snug text-slate-500">{appetiteCfg.sourceLabel}</span>
           </div>
-          <div className="rounded bg-white/70 border border-slate-200 p-2">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Awaiting MLRO</div>
-            <div className="text-2xl font-bold text-slate-900">{awaiting}</div>
+          <div className="mt-2 text-[11px] font-medium opacity-80">
+            Drill into AML.01.05.02 attestation (capacity is the why) →
           </div>
-        </div>
-        <ul className="mt-3 space-y-1 text-[11px]">
-          {items.filter(it => it.band === "red").slice(0, 3).map(it => (
-            <li key={it.id} className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-              <span className="font-mono text-slate-600 text-[10px]">{it.id}</span>
-              <span className="text-slate-700 truncate">{it.notes}</span>
-              <span className="text-rose-700 font-semibold ml-auto">{it.daysOpen}d</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-2 border-t border-slate-200/80 pt-1.5">
-          <span className="block text-[10px] leading-snug text-slate-500">{appetiteCfg.sourceLabel}</span>
-        </div>
-        <div className="mt-2 text-[11px] font-medium opacity-80">
-          Drill into AML.01.05.02 attestation (capacity is the why) →
-        </div>
-      </button>
+        </button>
+        {isCompact ? (
+          <div className="mt-2">
+            <CollapsibleSection
+              title="Red-band cases"
+              summary={redSummary}
+              tone="red"
+              alwaysOpen
+            >
+              {redItemList}
+            </CollapsibleSection>
+          </div>
+        ) : null}
+      </div>
       {totalBand === "red" || totalBand === "amber" ? (
-        <PathToGreenStrip entityRef="EDD Completed on Time" />
+        <WidgetCardFooter>
+          <PathToGreenStrip entityRef="EDD Completed on Time" />
+        </WidgetCardFooter>
       ) : null}
     </div>
   );
@@ -967,7 +1266,10 @@ export const EDDPipelineStatus = ({ items, onDrill }) => {
 
 // SanctionsScreeningPosture — OFSI freeze/block breaches, list-update lag,
 // payments hold time. Data from v7 overlay (mockDataV7); V2 snapshot untouched.
-export const SanctionsScreeningPosture = ({ metrics }) => {
+// Compact Zone-C face: three StatTiles open; secondary blocks collapse by default.
+export const SanctionsScreeningPosture = ({ metrics, density }) => {
+  // density="compact" is the Zone-C face (already the default layout).
+  void density;
   const m = metrics || {};
   const p = m.payments || {};
   const c = m.customers || {};
@@ -979,214 +1281,333 @@ export const SanctionsScreeningPosture = ({ metrics }) => {
   const hold = p.holdTime || null;
   const postureBand = m.postureBand || "green";
 
+  const ofsiBreachTotal = (freeze.breachCount ?? 0) + (ofsiBlock.breachCount ?? 0);
+  const ofsiAppetite = 0;
+  const worstList = listUpdates.reduce(
+    (best, u) => (!best || (u.lagHours ?? 0) > (best.lagHours ?? 0) ? u : best),
+    null,
+  );
+  const worstLagHours = worstList?.lagHours ?? 0;
+  const worstLagAppetite = worstList?.appetiteHours ?? 0;
+
+  const freezeOnTime = (freeze.reports || []).filter((rep) => !(rep.daysLate > 0)).length;
+  const freezeReportCount = (freeze.reports || []).length;
+  const freezeRatioSummary =
+    freezeReportCount > 0
+      ? `${freezeOnTime}/${freezeReportCount}`
+      : `${freeze.submitted ?? 0}/${freeze.dueThisPeriod ?? 0}`;
+
+  const txnOutages = outagesForWindow(TXN_SCREENING_SYSTEM_HEALTH, "last_3_months").length;
+  const nameOutages = outagesForWindow(NAME_SCREENING_SYSTEM_HEALTH, "last_3_months").length;
+  const systemsOutageTotal = txnOutages + nameOutages;
+  const txnBand = systemHealthWorstBand(TXN_SCREENING_SYSTEM_HEALTH);
+  const nameBand = systemHealthWorstBand(NAME_SCREENING_SYSTEM_HEALTH);
+  const systemsTone =
+    txnBand === "red" || nameBand === "red"
+      ? "red"
+      : txnBand === "amber" || nameBand === "amber"
+        ? "amber"
+        : "green";
+
   return (
-    <div>
-      <div className={`w-full rounded-xl border-2 p-4 shadow-sm ${bandBg(postureBand)}`}>
-        <div className="flex items-start justify-between mb-2">
-          <div>
+    <div className={`flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 shadow-sm ${bandBg(postureBand)}`}>
+      <div className="flex-1 p-3">
+        <div className="flex items-start justify-between mb-2 gap-2">
+          <div className="min-w-0">
             <div className="text-[10px] uppercase tracking-wider font-bold opacity-80">
-              Sanctions posture · OFSI / UN / EU
-              {ofacUs.jurisdictionLabel ? " · US OFAC (separate)" : ""}
+              Sanctions posture · OFSI / OFAC / UN / EU
             </div>
             <h3 className="text-sm font-bold text-slate-900 mt-0.5">Screening &amp; reporting</h3>
           </div>
           <StatusBadge tone={postureBand} label={postureBand?.toUpperCase()} />
         </div>
-        <p className="text-[11px] text-slate-700 mt-1 leading-relaxed">{m.postureNarrative}</p>
 
-        {/* Payments hold time — first-class metric (Sanctions + Consumer Duty) */}
-        {hold ? (
-          <div className={`mt-3 rounded-md border bg-white p-3 ${bandBg(hold.band)}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                  Payments hold time
-                </div>
-                <div className="text-[10px] text-slate-500 mt-0.5">
-                  Sanctions · Consumer Duty
-                </div>
-              </div>
-              <StatusBadge tone={hold.band} label={hold.band.toUpperCase()} />
-            </div>
-            <div className={`mt-1 text-2xl font-bold tabular-nums ${hold.averageHoldHours > hold.appetiteHours ? "text-rose-700" : "text-slate-900"}`}>
-              {hold.averageHoldHours}
-              <span className="ml-1 text-sm font-semibold text-slate-500">hours</span>
-            </div>
-            <div className="text-[10px] text-slate-500">
-              {p.holdsThisPeriod} holds · {p.truePositives} TP · {p.blockedTransactions} blocked ·{" "}
-              {p.screenedThisPeriod?.toLocaleString("en-GB")} payments screened
-            </div>
-            <MiniAppetiteBar
-              value={hold.averageHoldHours}
-              appetite={hold.appetiteHours}
-              over={hold.averageHoldHours > hold.appetiteHours}
+        {/* 3-up in the 7-col Sanctions slot — value, sub-label, appetite, OVER */}
+        <div className="mt-2 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3">
+          {hold ? (
+            <StatTile
+              label="Payments hold time"
+              size="sm"
+              value={
+                <span className={hold.averageHoldHours > hold.appetiteHours ? "text-rose-700" : undefined}>
+                  {hold.averageHoldHours}
+                  <span className="ml-0.5 text-[11px] font-semibold text-slate-500">hrs</span>
+                </span>
+              }
+              delta="Sanctions · Consumer Duty"
+              deltaTone="slate"
+              appetite={{
+                value: hold.averageHoldHours,
+                appetite: hold.appetiteHours,
+              }}
             />
-            <div className="mt-1.5 border-t border-slate-200/80 pt-1">
-              <span className="block text-[10px] leading-snug text-slate-500">{hold.sourceLabel}</span>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <div className="rounded bg-white/70 border border-slate-200 p-2">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Payments screened</div>
-            <div className="text-base font-bold text-slate-900 mt-0.5">{p.screenedThisPeriod?.toLocaleString("en-GB")}</div>
-            <div className="text-[10px] text-slate-500">{p.holdsThisPeriod} holds · {p.truePositives} TP · {p.blockedTransactions} blocked</div>
-          </div>
-          <div className="rounded bg-white/70 border border-slate-200 p-2">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Customers screened</div>
-            <div className="text-base font-bold text-slate-900 mt-0.5">{c.screenedAtOnboarding?.toLocaleString("en-GB")}</div>
-            <div className="text-[10px] text-slate-500">{c.truePositives} TP · {c.falsePositives} FP · {c.screenedOnListUpdate?.toLocaleString("en-GB")} on list update</div>
-          </div>
-        </div>
-
-        {/* OFSI freeze — breach count vs appetite 0 */}
-        <div className={`mt-3 rounded-md border bg-white p-3 ${bandBg((freeze.breachCount ?? 0) > 0 ? "red" : "green")}`}>
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                OFSI freeze report timeliness
-              </div>
-              <div className="text-[11px] text-slate-700 mt-0.5">
-                {freeze.submitted}/{freeze.dueThisPeriod} submitted · last {freeze.lastSubmitted}
-              </div>
-            </div>
-            <StatusBadge
-              tone={(freeze.breachCount ?? 0) > 0 ? "red" : "green"}
-              label={`${freeze.breachCount ?? 0} BREACH`}
-            />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className={`text-2xl font-bold tabular-nums ${(freeze.breachCount ?? 0) > 0 ? "text-rose-700" : "text-slate-900"}`}>
-              {freeze.breachCount ?? 0}
-            </span>
-            <span className="text-[10px] text-slate-500">breaches · appetite {freeze.appetite ?? 0}</span>
-          </div>
-          <MiniAppetiteBar
-            value={freeze.breachCount ?? 0}
-            appetite={freeze.appetite ?? 0}
-            over={(freeze.breachCount ?? 0) > (freeze.appetite ?? 0)}
-          />
-          {(freeze.reports || []).length > 0 ? (
-            <ul className="mt-2 space-y-1 text-[10px] text-slate-600">
-              {freeze.reports.map((rep) => (
-                <li key={rep.id} className="flex items-center gap-2">
-                  <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${rep.daysLate > 0 ? "bg-rose-500" : "bg-emerald-500"}`} />
-                  <span className="font-mono">{rep.id}</span>
-                  <span className="ml-auto font-semibold">
-                    {rep.daysLate > 0 ? `${rep.daysLate}d late` : "on time"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <div className="mt-1.5 border-t border-slate-200/80 pt-1">
-            <span className="block text-[10px] leading-snug text-slate-500">{freeze.sourceLabel || "Sanctions team"}</span>
-          </div>
-        </div>
-
-        {/* OFSI block reports — UK regime (not OFAC) */}
-        <div className={`mt-2 rounded-md border bg-white p-3 ${bandBg((ofsiBlock.breachCount ?? 0) > 0 ? "red" : "green")}`}>
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                OFSI block reports
-              </div>
-              <div className="text-[11px] text-slate-700 mt-0.5">
-                UK reporting obligation · {ofsiBlock.submitted}/{ofsiBlock.dueThisPeriod} submitted · last {ofsiBlock.lastSubmitted}
-              </div>
-            </div>
-            <StatusBadge
-              tone={(ofsiBlock.breachCount ?? 0) > 0 ? "red" : "green"}
-              label={`${ofsiBlock.breachCount ?? 0} BREACH`}
-            />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tabular-nums text-slate-900">{ofsiBlock.breachCount ?? 0}</span>
-            <span className="text-[10px] text-slate-500">breaches · appetite {ofsiBlock.appetite ?? 0}</span>
-          </div>
-          <MiniAppetiteBar
-            value={ofsiBlock.breachCount ?? 0}
-            appetite={ofsiBlock.appetite ?? 0}
-            over={(ofsiBlock.breachCount ?? 0) > (ofsiBlock.appetite ?? 0)}
-          />
-          <div className="mt-1.5 border-t border-slate-200/80 pt-1">
-            <span className="block text-[10px] leading-snug text-slate-500">{ofsiBlock.sourceLabel || "Sanctions team"}</span>
-          </div>
-        </div>
-
-        {/* US OFAC — separate jurisdiction, not a stand-in for OFSI */}
-        {ofacUs.jurisdictionLabel ? (
-          <div className="mt-2 rounded-md border border-slate-200 bg-white/70 p-2.5 text-[11px]">
-            <div className="flex items-center gap-2">
-              <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${(ofacUs.breachCount ?? 0) > 0 ? "bg-rose-500" : "bg-emerald-500"}`} />
-              <span className="font-semibold text-slate-800">{ofacUs.jurisdictionLabel} blocking reports</span>
-              <span className="text-slate-600">
-                {ofacUs.dueThisPeriod} due · {ofacUs.breachCount ?? 0} breaches
+          ) : (
+            <StatTile label="Payments hold time" size="sm" value="—" />
+          )}
+          <StatTile
+            label="OFSI reporting breaches"
+            size="sm"
+            value={
+              <span className={ofsiBreachTotal > ofsiAppetite ? "text-rose-700" : undefined}>
+                {ofsiBreachTotal}
               </span>
-              <span className="text-slate-500 ml-auto">last {ofacUs.lastSubmitted}</span>
-            </div>
-            <span className="mt-1 block text-[10px] leading-snug text-slate-500">{ofacUs.sourceLabel}</span>
-          </div>
-        ) : null}
+            }
+            delta="freeze + block · appetite 0"
+            deltaTone={ofsiBreachTotal > 0 ? "rose" : "slate"}
+            appetite={{
+              value: ofsiBreachTotal,
+              appetite: ofsiAppetite,
+            }}
+          />
+          <StatTile
+            label="List update lag"
+            size="sm"
+            value={
+              <span className={worstLagHours > worstLagAppetite ? "text-rose-700" : undefined}>
+                {worstLagHours}
+                <span className="ml-0.5 text-[11px] font-semibold text-slate-500">h</span>
+              </span>
+            }
+            delta="worst lag"
+            deltaTone={worstLagHours > worstLagAppetite ? "rose" : "slate"}
+            appetite={{
+              value: worstLagHours,
+              appetite: worstLagAppetite,
+            }}
+          />
+        </div>
 
-        {/* List update lag — publication → bank ingestion */}
-        <div className="mt-3">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">
-            List update lag · publication → bank ingestion
-          </div>
-          <div className="space-y-2">
-            {listUpdates.map((u) => (
-              <div key={u.id} className={`rounded-md border bg-white p-2.5 ${bandBg(u.band)}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-bold text-slate-900 truncate">{u.listName}</div>
-                    <div className="text-[10px] text-slate-500">
-                      {u.regulator} · pub {u.publishedAt?.replace("T", " ").replace("Z", " UTC")} → in{" "}
-                      {u.ingestedAt?.replace("T", " ").replace("Z", " UTC")}
+        <div className="mt-2 grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
+          <CollapsibleSection
+            title="Screening volumes"
+            summary={(p.screenedThisPeriod ?? 0).toLocaleString("en-GB")}
+            tone="slate"
+            openClassName="md:col-span-2"
+          >
+            {m.postureNarrative ? (
+              <p className="text-[11px] text-slate-700 mb-3 leading-relaxed">{m.postureNarrative}</p>
+            ) : null}
+            {hold ? (
+              <div className={`mb-3 rounded-md border bg-white p-3 ${bandBg(hold.band)}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-medium text-slate-500">
+                      Payments hold time
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Sanctions · Consumer Duty
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className={`text-lg font-bold tabular-nums ${u.lagHours > u.appetiteHours ? "text-rose-700" : "text-slate-900"}`}>
-                      {u.lagHours}
-                      <span className="text-[10px] font-semibold text-slate-500 ml-0.5">h</span>
-                    </div>
-                    <StatusBadge tone={u.band} label={u.band.toUpperCase()} />
-                  </div>
+                  <StatusBadge tone={hold.band} label={hold.band.toUpperCase()} />
+                </div>
+                <div className={`mt-1 text-2xl font-bold tabular-nums ${hold.averageHoldHours > hold.appetiteHours ? "text-rose-700" : "text-slate-900"}`}>
+                  {hold.averageHoldHours}
+                  <span className="ml-1 text-sm font-semibold text-slate-500">hours</span>
+                </div>
+                <div className="text-[10px] text-slate-500">
+                  {p.holdsThisPeriod} holds · {p.truePositives} TP · {p.blockedTransactions} blocked ·{" "}
+                  {p.screenedThisPeriod?.toLocaleString("en-GB")} payments screened
                 </div>
                 <MiniAppetiteBar
-                  value={u.lagHours}
-                  appetite={u.appetiteHours}
-                  over={u.lagHours > u.appetiteHours}
+                  value={hold.averageHoldHours}
+                  appetite={hold.appetiteHours}
+                  over={hold.averageHoldHours > hold.appetiteHours}
                 />
-                <div className="mt-1 border-t border-slate-200/80 pt-1">
-                  <span className="block text-[10px] leading-snug text-slate-500">{u.sourceLabel}</span>
+                <div className="mt-1.5 border-t border-slate-200/80 pt-1">
+                  <span className="block text-[10px] leading-snug text-slate-500">{hold.sourceLabel}</span>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            ) : null}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded bg-white/70 border border-slate-200 p-2">
+                <div className="text-xs font-medium text-slate-500">Payments screened</div>
+                <div className="text-base font-bold text-slate-900 mt-0.5">{p.screenedThisPeriod?.toLocaleString("en-GB")}</div>
+                <div className="text-[10px] text-slate-500">{p.holdsThisPeriod} holds · {p.truePositives} TP · {p.blockedTransactions} blocked</div>
+              </div>
+              <div className="rounded bg-white/70 border border-slate-200 p-2">
+                <div className="text-xs font-medium text-slate-500">Customers screened</div>
+                <div className="text-base font-bold text-slate-900 mt-0.5">{c.screenedAtOnboarding?.toLocaleString("en-GB")}</div>
+                <div className="text-[10px] text-slate-500">{c.truePositives} TP · {c.falsePositives} FP · {c.screenedOnListUpdate?.toLocaleString("en-GB")} on list update</div>
+              </div>
+            </div>
+          </CollapsibleSection>
 
-        <div className="mt-3 space-y-1 text-[11px]">
-          <div className="flex items-center gap-2">
-            <span className={`h-1.5 w-1.5 rounded-full ${(r.nonComplianceWaivers?.open ?? 0) === 0 ? "bg-emerald-500" : "bg-amber-500"} flex-shrink-0`} />
-            <span className="text-slate-700">Non-compliance waivers:</span>
-            <span className="font-semibold text-slate-900">{r.nonComplianceWaivers?.open} open</span>
-          </div>
+          <CollapsibleSection
+            title="Screening systems health"
+            summary={`${systemsOutageTotal} outage${systemsOutageTotal === 1 ? "" : "s"}`}
+            tone={systemsTone}
+            openClassName="md:col-span-2"
+          >
+            {/* Transaction screening and name screening stay separate — two systems, two failure modes. */}
+            <SystemHealthBlock health={TXN_SCREENING_SYSTEM_HEALTH} />
+            <SystemHealthBlock health={NAME_SCREENING_SYSTEM_HEALTH} />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="OFSI freeze reports"
+            summary={freezeRatioSummary}
+            tone={(freeze.breachCount ?? 0) > 0 ? "red" : "green"}
+            openClassName="md:col-span-2"
+          >
+            <div className={`rounded-md border bg-white p-3 ${bandBg((freeze.breachCount ?? 0) > 0 ? "red" : "green")}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="text-xs font-medium text-slate-500">
+                    OFSI freeze report timeliness
+                  </div>
+                  <div className="text-[11px] text-slate-700 mt-0.5">
+                    {freeze.submitted}/{freeze.dueThisPeriod} submitted · last {freeze.lastSubmitted}
+                  </div>
+                </div>
+                <StatusBadge
+                  tone={(freeze.breachCount ?? 0) > 0 ? "red" : "green"}
+                  label={`${freeze.breachCount ?? 0} BREACH`}
+                />
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className={`text-2xl font-bold tabular-nums ${(freeze.breachCount ?? 0) > 0 ? "text-rose-700" : "text-slate-900"}`}>
+                  {freeze.breachCount ?? 0}
+                </span>
+                <span className="text-[10px] text-slate-500">breaches · appetite {freeze.appetite ?? 0}</span>
+              </div>
+              <MiniAppetiteBar
+                value={freeze.breachCount ?? 0}
+                appetite={freeze.appetite ?? 0}
+                over={(freeze.breachCount ?? 0) > (freeze.appetite ?? 0)}
+              />
+              {(freeze.reports || []).length > 0 ? (
+                <ul className="mt-2 space-y-1 text-[10px] text-slate-600">
+                  {freeze.reports.map((rep) => (
+                    <li key={rep.id} className="flex items-center gap-2">
+                      <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${rep.daysLate > 0 ? "bg-rose-500" : "bg-emerald-500"}`} />
+                      <span className="font-mono">{rep.id}</span>
+                      <span className="ml-auto font-semibold">
+                        {rep.daysLate > 0 ? `${rep.daysLate}d late` : "on time"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <div className="mt-1.5 border-t border-slate-200/80 pt-1">
+                <span className="block text-[10px] leading-snug text-slate-500">{freeze.sourceLabel || "Sanctions team"}</span>
+              </div>
+            </div>
+            <div className="mt-3 space-y-1 text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className={`h-1.5 w-1.5 rounded-full ${(r.nonComplianceWaivers?.open ?? 0) === 0 ? "bg-emerald-500" : "bg-amber-500"} flex-shrink-0`} />
+                <span className="text-slate-700">Non-compliance waivers:</span>
+                <span className="font-semibold text-slate-900">{r.nonComplianceWaivers?.open} open</span>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="OFSI block reports"
+            summary={`${ofsiBlock.dueThisPeriod ?? 0} due · ${ofsiBlock.submitted ?? 0} submitted`}
+            tone={(ofsiBlock.breachCount ?? 0) > 0 ? "red" : "green"}
+            openClassName="md:col-span-2"
+          >
+            <div className={`rounded-md border bg-white p-3 ${bandBg((ofsiBlock.breachCount ?? 0) > 0 ? "red" : "green")}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="text-xs font-medium text-slate-500">
+                    OFSI block reports
+                  </div>
+                  <div className="text-[11px] text-slate-700 mt-0.5">
+                    UK reporting obligation · {ofsiBlock.submitted}/{ofsiBlock.dueThisPeriod} submitted · last {ofsiBlock.lastSubmitted}
+                  </div>
+                </div>
+                <StatusBadge
+                  tone={(ofsiBlock.breachCount ?? 0) > 0 ? "red" : "green"}
+                  label={`${ofsiBlock.breachCount ?? 0} BREACH`}
+                />
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-bold tabular-nums text-slate-900">{ofsiBlock.breachCount ?? 0}</span>
+                <span className="text-[10px] text-slate-500">breaches · appetite {ofsiBlock.appetite ?? 0}</span>
+              </div>
+              <MiniAppetiteBar
+                value={ofsiBlock.breachCount ?? 0}
+                appetite={ofsiBlock.appetite ?? 0}
+                over={(ofsiBlock.breachCount ?? 0) > (ofsiBlock.appetite ?? 0)}
+              />
+              <div className="mt-1.5 border-t border-slate-200/80 pt-1">
+                <span className="block text-[10px] leading-snug text-slate-500">{ofsiBlock.sourceLabel || "Sanctions team"}</span>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          {ofacUs.jurisdictionLabel ? (
+            <CollapsibleSection
+              title="US OFAC · separate jurisdiction"
+              summary={`${ofacUs.dueThisPeriod ?? 0} due`}
+              tone={(ofacUs.breachCount ?? 0) > 0 ? "red" : "slate"}
+              openClassName="md:col-span-2"
+            >
+              <div className="rounded-md border border-slate-200 bg-white/70 p-2.5 text-[11px]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${(ofacUs.breachCount ?? 0) > 0 ? "bg-rose-500" : "bg-emerald-500"}`} />
+                  <span className="font-semibold text-slate-800">{ofacUs.jurisdictionLabel} blocking reports</span>
+                  <span className="text-slate-600">
+                    {ofacUs.dueThisPeriod} due · {ofacUs.breachCount ?? 0} breaches
+                  </span>
+                  <span className="text-slate-500 sm:ml-auto">last {ofacUs.lastSubmitted}</span>
+                </div>
+                <span className="mt-1 block text-[10px] leading-snug text-slate-500">{ofacUs.sourceLabel}</span>
+              </div>
+            </CollapsibleSection>
+          ) : null}
+
+          <CollapsibleSection
+            title="List update detail"
+            summary={`${worstLagHours}h`}
+            tone={worstList?.band || "slate"}
+            openClassName="md:col-span-2"
+          >
+            <div className="text-xs font-medium text-slate-500 mb-1.5">
+              List update lag · publication → bank ingestion
+            </div>
+            <div className="space-y-2">
+              {listUpdates.map((u) => (
+                <div key={u.id} className={`rounded-md border bg-white p-2.5 ${bandBg(u.band)}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-bold text-slate-900">{u.listName}</div>
+                      <div className="text-[10px] text-slate-500">
+                        {u.regulator} · pub {u.publishedAt?.replace("T", " ").replace("Z", " UTC")} → in{" "}
+                        {u.ingestedAt?.replace("T", " ").replace("Z", " UTC")}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className={`text-xl font-bold tabular-nums ${u.lagHours > u.appetiteHours ? "text-rose-700" : "text-slate-900"}`}>
+                        {u.lagHours}
+                        <span className="text-[10px] font-semibold text-slate-500 ml-0.5">h</span>
+                      </div>
+                      <StatusBadge tone={u.band} label={u.band.toUpperCase()} />
+                    </div>
+                  </div>
+                  <MiniAppetiteBar
+                    value={u.lagHours}
+                    appetite={u.appetiteHours}
+                    over={u.lagHours > u.appetiteHours}
+                  />
+                  <div className="mt-1 border-t border-slate-200/80 pt-1">
+                    <span className="block text-[10px] leading-snug text-slate-500">{u.sourceLabel}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CollapsibleSection>
         </div>
 
         <div className="mt-2 border-t border-slate-200/80 pt-1.5">
           <span className="block text-[10px] leading-snug text-slate-500">{OPERATIONAL_WIDGET_SOURCES.sanctions}</span>
         </div>
-
-        {/* Screening systems health — txn and name kept separate (two systems, two failure modes). */}
-        <div className="mt-2 border-t border-slate-200/80 pt-1">
-          <SystemHealthBlock health={TXN_SCREENING_SYSTEM_HEALTH} />
-          <SystemHealthBlock health={NAME_SCREENING_SYSTEM_HEALTH} />
-        </div>
       </div>
       {postureBand === "red" || postureBand === "amber" ? (
-        <PathToGreenStrip entityRef="SCTN.01.01.01" />
+        <WidgetCardFooter>
+          <PathToGreenStrip entityRef="SCTN.01.01.01" />
+        </WidgetCardFooter>
       ) : null}
     </div>
   );
@@ -1195,8 +1616,15 @@ export const SanctionsScreeningPosture = ({ metrics }) => {
 /**
  * FinancialCrimeTrainingPosture — firm-wide % from AP-MLRO-2025 narrative (98.4%);
  * overdue + high-risk split are LMS overlay fields (v7 only).
+ * `compact` = Zone-C 5-col: three tight StatTiles stacked; derivation collapses.
+ * Do not recompute trainedPct — it must match the MLRO Annual Report figure.
  */
-export const FinancialCrimeTrainingPosture = ({ posture = FC_TRAINING_POSTURE }) => {
+export const FinancialCrimeTrainingPosture = ({
+  posture = FC_TRAINING_POSTURE,
+  compact = false,
+  density,
+}) => {
+  const isCompact = compact || density === "compact";
   const p = posture;
   const band = fcTrainingWidgetBand(p);
   const overdueBand = fcTrainingOverdueBand(p.overduePct, p.overdueAppetitePct, p.overdueRedThresholdPct);
@@ -1211,103 +1639,239 @@ export const FinancialCrimeTrainingPosture = ({ posture = FC_TRAINING_POSTURE })
   const completionScale = 100 * 1.05;
   const completionFill = Math.min(100, (p.trainedPct / completionScale) * 100);
   const completionTick = Math.min(100, (p.programmeTargetPct / completionScale) * 100);
+  const pad = isCompact ? "p-3" : "p-4";
+
+  const supportingDetail = (
+    <>
+      <p className="text-[11px] text-slate-700 leading-relaxed">
+        Firm-wide attestation is the figure already in the MLRO Annual Report
+        ({p.narrativeSource}). Overdue headcount is from the LMS overlay; high-risk
+        roles use the ABC.01.03.01 advanced-training cohort basis (benchmark{" "}
+        {p.highRisk.advancedTrainingBenchmarkPct}%).
+      </p>
+      <div className="mt-3 rounded-md border border-slate-200 bg-white p-2.5">
+        <div className="text-xs font-medium text-slate-500">
+          Programme target
+        </div>
+        <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="h-full rounded-full bg-slate-400" style={{ width: `${completionFill}%` }} />
+          <div className="absolute top-0 bottom-0 w-px bg-slate-900" style={{ left: `${completionTick}%` }} />
+        </div>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <span className="text-[9px] text-slate-400">target {p.programmeTargetPct}%</span>
+          <span className={`text-[9px] font-bold uppercase tracking-wider ${
+            p.trainedPct >= p.programmeTargetPct ? "text-emerald-600" : "text-rose-600"
+          }`}>
+            {p.trainedPct >= p.programmeTargetPct ? "WITHIN" : "UNDER"}
+          </span>
+        </div>
+      </div>
+      <div className="mt-2 text-[10px] text-slate-500 leading-snug">
+        Advanced training benchmark {p.highRisk.advancedTrainingBenchmarkPct}% ({p.highRisk.racmRef}) —
+        regulatory exposure sits here.
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
+        <span>Linked: {p.linkedGsrRefs.join(" · ")}</span>
+      </div>
+    </>
+  );
+
+  const trainedTile = (
+    <StatTile
+      label="Staff trained (firm-wide)"
+      size="tight"
+      value={
+        <>
+          {p.trainedPct}
+          <span className="ml-0.5 text-[11px] font-semibold text-slate-500">%</span>
+        </>
+      }
+      delta={`${p.trainedCount.toLocaleString("en-GB")} of ${p.populationInScope.toLocaleString("en-GB")} · target ${p.programmeTargetPct}%`}
+      deltaTone={p.trainedPct >= p.programmeTargetPct ? "emerald" : "rose"}
+      appetite={{
+        value: p.trainedPct,
+        appetite: p.programmeTargetPct,
+        caption: `target ${p.programmeTargetPct}%`,
+        higherIsBetter: true,
+      }}
+    />
+  );
+
+  const overdueTile = (
+    <StatTile
+      label="Overdue"
+      size="tight"
+      className={bandBg(overdueBand)}
+      value={
+        <span className={overdueOver ? "text-rose-700" : undefined}>
+          {p.overduePct}
+          <span className="ml-0.5 text-[11px] font-semibold text-slate-500">%</span>
+        </span>
+      }
+      delta={`${p.overdueCount.toLocaleString("en-GB")} of ${p.populationInScope.toLocaleString("en-GB")} · appetite ≤${p.overdueAppetitePct}%`}
+      deltaTone={overdueOver ? "rose" : "slate"}
+      appetite={{
+        value: p.overduePct,
+        appetite: p.overdueAppetitePct,
+      }}
+    />
+  );
+
+  const highRiskTile = (
+    <StatTile
+      label="High-risk roles overdue"
+      size="tight"
+      className={bandBg(highRiskBand)}
+      value={
+        <span className={highRiskOver ? "text-rose-700" : undefined}>
+          {p.highRisk.overdueCount}
+        </span>
+      }
+      delta={`open · appetite ≤${p.overdueAppetitePct}% · ${p.highRisk.overduePct}% of high-risk`}
+      deltaTone={highRiskOver ? "rose" : "slate"}
+      appetite={{
+        value: p.highRisk.overduePct,
+        appetite: p.overdueAppetitePct,
+      }}
+    />
+  );
+
+  /** Non-compact keeps the original completion-target bar on the trained tile. */
+  const trainedTileLegacy = (
+    <div className="rounded-md border border-slate-200 bg-white p-3">
+      <div className="text-xs font-medium text-slate-500">
+        Staff trained (firm-wide)
+      </div>
+      <div className="text-3xl font-bold tabular-nums text-slate-900 mt-0.5">
+        {p.trainedPct}
+        <span className="text-base font-semibold text-slate-500">%</span>
+      </div>
+      <div className="text-[10px] text-slate-500 mt-0.5">
+        {p.trainedCount.toLocaleString("en-GB")} of {p.populationInScope.toLocaleString("en-GB")} · target{" "}
+        {p.programmeTargetPct}%
+        {p.programmeTargetConfigurable ? " (configurable)" : ""}
+      </div>
+      <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+        <div className="h-full rounded-full bg-slate-400" style={{ width: `${completionFill}%` }} />
+        <div className="absolute top-0 bottom-0 w-px bg-slate-900" style={{ left: `${completionTick}%` }} />
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-2">
+        <span className="text-[9px] text-slate-400">target {p.programmeTargetPct}%</span>
+        <span className={`text-[9px] font-bold uppercase tracking-wider ${
+          p.trainedPct >= p.programmeTargetPct ? "text-emerald-600" : "text-rose-600"
+        }`}>
+          {p.trainedPct >= p.programmeTargetPct ? "WITHIN" : "UNDER"}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
-    <div>
-      <div className={`w-full rounded-xl border-2 p-4 shadow-sm ${bandBg(band)}`}>
+    <div className={`flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 shadow-sm ${bandBg(band)}`}>
+      <div className={`flex-1 ${pad}`}>
         <div className="flex items-start justify-between mb-2 gap-3">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider font-bold opacity-80">
-              Financial crime training · CO-AML-12 / CO-FRD-01 / CO-ABC-03 / CO-PTE-03
+          <div className="min-w-0">
+            <div
+              className="text-[10px] uppercase tracking-wider font-bold opacity-80"
+              title="Financial crime training · CO-AML-12 / CO-FRD-01 / CO-ABC-03 / CO-PTE-03"
+            >
+              Financial crime training · CO-AML-12 / CO-FRD-01
             </div>
             <h3 className="text-sm font-bold text-slate-900 mt-0.5">Programme completion &amp; overdue</h3>
-            <p className="text-[11px] text-slate-700 mt-1 leading-relaxed max-w-2xl">
-              Firm-wide attestation is the figure already in the MLRO Annual Report
-              ({p.narrativeSource}). Overdue headcount is from the LMS overlay; high-risk
-              roles use the ABC.01.03.01 advanced-training cohort basis (benchmark {p.highRisk.advancedTrainingBenchmarkPct}%).
-            </p>
+            {!isCompact ? (
+              <p className="text-[11px] text-slate-700 mt-1 leading-relaxed max-w-2xl">
+                Firm-wide attestation is the figure already in the MLRO Annual Report
+                ({p.narrativeSource}). Overdue headcount is from the LMS overlay; high-risk
+                roles use the ABC.01.03.01 advanced-training cohort basis (benchmark {p.highRisk.advancedTrainingBenchmarkPct}%).
+              </p>
+            ) : null}
           </div>
           <StatusBadge tone={band} label={band.toUpperCase()} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-3">
-          {/* Firm-wide trained % — pack figure */}
-          <div className="rounded-md border border-slate-200 bg-white p-3">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              Staff trained (firm-wide)
+        <div
+          className={`mt-2 grid min-w-0 gap-1.5 ${isCompact ? "grid-cols-1" : ""}`}
+          style={
+            isCompact
+              ? undefined
+              : {
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: "0.75rem",
+                }
+          }
+        >
+          {isCompact ? trainedTile : trainedTileLegacy}
+          {isCompact ? (
+            overdueTile
+          ) : (
+            <div className={`rounded-md border bg-white p-3 ${bandBg(overdueBand)}`}>
+              <div className="text-xs font-medium text-slate-500">
+                Overdue
+              </div>
+              <div className={`text-3xl font-bold tabular-nums mt-0.5 ${overdueOver ? "text-rose-700" : "text-slate-900"}`}>
+                {p.overduePct}
+                <span className="text-base font-semibold text-slate-500">%</span>
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5">
+                {p.overdueCount.toLocaleString("en-GB")} people · appetite {p.overdueAppetitePct}%
+                {p.overdueAppetiteConfigurable ? " (configurable)" : ""}
+              </div>
+              <MiniAppetiteBar value={p.overduePct} appetite={p.overdueAppetitePct} over={overdueOver} />
             </div>
-            <div className="text-3xl font-bold tabular-nums text-slate-900 mt-0.5">
-              {p.trainedPct}
-              <span className="text-base font-semibold text-slate-500">%</span>
+          )}
+          {isCompact ? (
+            highRiskTile
+          ) : (
+            <div className={`rounded-md border bg-white p-3 ${bandBg(highRiskBand)}`}>
+              <div className="text-xs font-medium text-slate-500">
+                High-risk roles overdue
+              </div>
+              <div className={`text-3xl font-bold tabular-nums mt-0.5 ${highRiskOver ? "text-rose-700" : "text-slate-900"}`}>
+                {p.highRisk.overdueCount}
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5">
+                {p.highRisk.overduePct}% of {p.highRisk.population.toLocaleString("en-GB")} high-risk ·{" "}
+                {p.otherRoles.overdueCount} other-role overdue
+              </div>
+              <MiniAppetiteBar
+                value={p.highRisk.overduePct}
+                appetite={p.overdueAppetitePct}
+                over={highRiskOver}
+              />
+              <div className="mt-1.5 text-[10px] text-slate-500 leading-snug">
+                Advanced training benchmark {p.highRisk.advancedTrainingBenchmarkPct}% ({p.highRisk.racmRef}) —
+                regulatory exposure sits here.
+              </div>
             </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">
-              {p.trainedCount.toLocaleString("en-GB")} of {p.populationInScope.toLocaleString("en-GB")} · target{" "}
-              {p.programmeTargetPct}%
-              {p.programmeTargetConfigurable ? " (configurable)" : ""}
-            </div>
-            <div className="relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-slate-400" style={{ width: `${completionFill}%` }} />
-              <div className="absolute top-0 bottom-0 w-px bg-slate-900" style={{ left: `${completionTick}%` }} />
-            </div>
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <span className="text-[9px] text-slate-400">target {p.programmeTargetPct}%</span>
-              <span className={`text-[9px] font-bold uppercase tracking-wider ${
-                p.trainedPct >= p.programmeTargetPct ? "text-emerald-600" : "text-rose-600"
-              }`}>
-                {p.trainedPct >= p.programmeTargetPct ? "WITHIN" : "UNDER"}
-              </span>
-            </div>
-          </div>
-
-          {/* Overdue vs appetite */}
-          <div className={`rounded-md border bg-white p-3 ${bandBg(overdueBand)}`}>
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              Overdue
-            </div>
-            <div className={`text-3xl font-bold tabular-nums mt-0.5 ${overdueOver ? "text-rose-700" : "text-slate-900"}`}>
-              {p.overduePct}
-              <span className="text-base font-semibold text-slate-500">%</span>
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">
-              {p.overdueCount.toLocaleString("en-GB")} people · appetite {p.overdueAppetitePct}%
-              {p.overdueAppetiteConfigurable ? " (configurable)" : ""}
-            </div>
-            <MiniAppetiteBar value={p.overduePct} appetite={p.overdueAppetitePct} over={overdueOver} />
-          </div>
-
-          {/* High-risk role split */}
-          <div className={`rounded-md border bg-white p-3 ${bandBg(highRiskBand)}`}>
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-              High-risk roles overdue
-            </div>
-            <div className={`text-3xl font-bold tabular-nums mt-0.5 ${highRiskOver ? "text-rose-700" : "text-slate-900"}`}>
-              {p.highRisk.overdueCount}
-            </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">
-              {p.highRisk.overduePct}% of {p.highRisk.population.toLocaleString("en-GB")} high-risk ·{" "}
-              {p.otherRoles.overdueCount} other-role overdue
-            </div>
-            <MiniAppetiteBar
-              value={p.highRisk.overduePct}
-              appetite={p.overdueAppetitePct}
-              over={highRiskOver}
-            />
-            <div className="mt-1.5 text-[10px] text-slate-500 leading-snug">
-              Advanced training benchmark {p.highRisk.advancedTrainingBenchmarkPct}% ({p.highRisk.racmRef}) —
-              regulatory exposure sits here.
-            </div>
-          </div>
+          )}
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
-          <span>Linked: {p.linkedGsrRefs.join(" · ")}</span>
-        </div>
-        <div className="mt-2 border-t border-slate-200/80 pt-1.5">
-          <span className="block text-[10px] leading-snug text-slate-500">{p.sourceLabel}</span>
-        </div>
+        {isCompact ? (
+          <div className="mt-2 min-w-0 space-y-1.5">
+            <CollapsibleSection
+              title="Derivation & claims"
+              summary="AP-MLRO-2025 · Pack 5.1"
+              tone="slate"
+              alwaysOpen
+            >
+              {supportingDetail}
+            </CollapsibleSection>
+          </div>
+        ) : (
+          <>
+            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
+              <span>Linked: {p.linkedGsrRefs.join(" · ")}</span>
+            </div>
+            <div className="mt-2 border-t border-slate-200/80 pt-1.5">
+              <span className="block text-[10px] leading-snug text-slate-500">{p.sourceLabel}</span>
+            </div>
+          </>
+        )}
       </div>
       {band === "red" || band === "amber" ? (
-        <PathToGreenStrip entityRef={p.pathToGreenRef} />
+        <WidgetCardFooter>
+          <PathToGreenStrip entityRef={p.pathToGreenRef} />
+        </WidgetCardFooter>
       ) : null}
     </div>
   );
