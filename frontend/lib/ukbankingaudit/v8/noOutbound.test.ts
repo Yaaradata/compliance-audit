@@ -49,7 +49,7 @@ function sourceFiles(dir: string): string[] {
 
 const FILES = SCAN_DIRS.flatMap(sourceFiles);
 
-test("v6 contains no outbound network sinks", () => {
+test("v8 contains no outbound network sinks", () => {
   const offenders: string[] = [];
   for (const file of FILES) {
     const text = readFileSync(file, "utf8");
@@ -57,7 +57,7 @@ test("v6 contains no outbound network sinks", () => {
       if (sink.re.test(text)) offenders.push(`${file} → ${sink.name}`);
     }
   }
-  assert.deepEqual(offenders, [], `v6 must have no network sinks; found: ${offenders.join(", ")}`);
+  assert.deepEqual(offenders, [], `v8 must have no network sinks; found: ${offenders.join(", ")}`);
 });
 
 test("no regulator hostname sits on a line with a network sink", () => {
