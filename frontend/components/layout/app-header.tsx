@@ -25,7 +25,8 @@ function getBreadcrumb(pathname: string | null): { label: string; href?: string 
     else if (parts[2] === "report") segs.push({ label: "Report" });
     else if (parts[2] === "team-setup") segs.push({ label: "Team setup" });
     else if (parts[2] === "domains" && parts[3]) {
-      segs.push({ label: "Domains", href: `${base}/domains` });
+      // No /cycles/[id]/domains index route; domains are listed on the cycle dashboard.
+      segs.push({ label: "Domains", href: `${base}/dashboard` });
       segs.push({ label: `Domain ${parts[3]}`, href: `${base}/domains/${parts[3]}` });
       if (parts[4] === "items" && parts[5]) segs.push({ label: parts[5] });
     }

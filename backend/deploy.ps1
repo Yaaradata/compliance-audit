@@ -160,11 +160,12 @@ try {
 Write-Host "  Image pushed: $FullImage" -ForegroundColor Green
 
 # 6. Deploy to Cloud Run
+# --update-env-vars (not --set-env-vars): keeps console-managed vars (JWT_SECRET_KEY, CORS_ORIGINS, OAuth/cloud secrets).
 $CloudSqlInstance = "${ProjectId}:${Region}:compliance-audit01"
 $BaseEnv = "GOOGLE_CLOUD_PROJECT=$ProjectId,GCS_BUCKET_NAME=$BucketName,DB_HOST=$DbHost,DB_PORT=$DbPort,DB_NAME=$DbName,DB_USER=$DbUser,DB_USER_APP=$DbUserApp,DB_PASSWORD=$DbPassword,DB_SSL=$DbSsl,CLOUD_SQL_INSTANCE=$CloudSqlInstance"
 if ($SkipDeploy) {
     Write-Host "[6/7] Skipping deploy (use -SkipDeploy). Run manually in a separate terminal:" -ForegroundColor Yellow
-    Write-Host "  gcloud run deploy $ServiceName --image=$FullImage --region=$Region --platform=managed --allow-unauthenticated --service-account=compliance-api-runner@${ProjectId}.iam.gserviceaccount.com --add-cloudsql-instances=$CloudSqlInstance --memory=2Gi --cpu=2 --cpu-boost --min-instances=0 --max-instances=10 --port=8080 --set-env-vars=`"$BaseEnv`""
+    Write-Host "  gcloud run deploy $ServiceName --image=$FullImage --region=$Region --platform=managed --allow-unauthenticated --service-account=compliance-api-runner@${ProjectId}.iam.gserviceaccount.com --add-cloudsql-instances=$CloudSqlInstance --memory=2Gi --cpu=2 --cpu-boost --min-instances=0 --max-instances=10 --port=8080 --update-env-vars=`"$BaseEnv`""
     exit 0
 }
 Write-Host "[6/7] Deploying to Cloud Run..." -ForegroundColor Yellow
@@ -182,7 +183,7 @@ Write-Host "[6/7] Deploying to Cloud Run..." -ForegroundColor Yellow
     --min-instances=0 `
     --max-instances=10 `
     --port=8080 `
-    --set-env-vars=$BaseEnv `
+    --update-env-vars=$BaseEnv `
     --quiet
 
 if ($LASTEXITCODE -ne 0) { throw "Cloud Run deploy failed" }
