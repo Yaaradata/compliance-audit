@@ -4,7 +4,7 @@ import {
   buildEnforcementNotices,
   resolveGapPrecedent,
   unassessedNoticeSummary,
-} from "./enforcementCoverage.ts";
+} from "./enforcementCoverage";
 
 const MOCK_GSRS = [
   { id: "GSR-AML-05-02", racmRef: "AML.01.05.02", controlIds: ["AML-C002"] },

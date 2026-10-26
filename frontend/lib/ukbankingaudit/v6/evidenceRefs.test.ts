@@ -4,10 +4,10 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import mockDataV2 from "../mockDataV2.ts";
-import { collectV6EvidenceRefs } from "./collectV6EvidenceRefs.ts";
-import { v6RefKind } from "./refRouter.ts";
-import { resolveV6Entity } from "./resolveV6Entity.ts";
+import mockDataV2 from "../mockDataV2";
+import { collectV6EvidenceRefs } from "./collectV6EvidenceRefs";
+import { v6RefKind } from "./refRouter";
+import { resolveV6Entity } from "./resolveV6Entity";
 
 const evidenceById = new Map((mockDataV2.evidenceRecords || []).map((e: { id: string }) => [e.id, e]));
 const kriById = new Map((mockDataV2.kris || []).map((k: { id: string }) => [k.id, k]));

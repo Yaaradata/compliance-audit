@@ -8,7 +8,7 @@ import {
   cadenceFeasibilityResults,
   infeasibleCadenceChecks,
   evaluateCadenceFeasibility,
-} from "./mlroSignals.ts";
+} from "./mlroSignals";
 
 describe("mlroSignals — suppression ledger", () => {
   it("fires only on less-sensitive + rising backlog conjunction", () => {

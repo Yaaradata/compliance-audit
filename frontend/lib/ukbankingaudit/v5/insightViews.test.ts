@@ -3,16 +3,16 @@ import { describe, it } from "node:test";
 import {
   buildExplorerInsights,
   boardSignalToAiInsight,
-} from "./aiContract.ts";
-import { runBoardDetectors } from "./detectors/index.ts";
-import mockDataV2 from "../mockDataV2.ts";
-import { PERSONA_INSIGHT_MINIMUM } from "./personaInsightSeeds.ts";
+} from "./aiContract";
+import { runBoardDetectors } from "./detectors/index";
+import mockDataV2 from "../mockDataV2";
+import { PERSONA_INSIGHT_MINIMUM } from "./personaInsightSeeds";
 import {
   groupInsightsByType,
   insightFingerprint,
   owningScreen,
   selectInsightsForView,
-} from "./insightViews.ts";
+} from "./insightViews";
 
 const LEGACY = [
   {

@@ -8,7 +8,7 @@ import {
   signedLinesWithoutPack,
   buildFrozenStatePack,
   formatAgeingCopy,
-} from "./crsaAttestation.ts";
+} from "./crsaAttestation";
 
 const AML_05_02_LINE = {
   id: "LINE-CYC-Q2-2026-AML-05-02",
