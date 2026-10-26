@@ -36,7 +36,9 @@ $BackendDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 $ImageTag = "${Region}-docker.pkg.dev/$ProjectId/$Repository/$ImageName"
 $FullImage = "${ImageTag}:latest"
-if (-not $BucketName) { $BucketName = "${ProjectId}-compliance-uploads" }
+# Live bucket holding evidence uploads and demo/ autofill files. Must match the service's GCS_BUCKET_NAME,
+# because $BaseEnv below overwrites that var on every deploy.
+if (-not $BucketName) { $BucketName = "compliance_audit01" }
 
 Write-Host "=== SWIFT Compliance API - Cloud Run Deploy ===" -ForegroundColor Cyan
 Write-Host "Project: $ProjectId | Region: $Region | Service: $ServiceName"
