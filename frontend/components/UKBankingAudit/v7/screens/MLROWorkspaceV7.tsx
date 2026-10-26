@@ -33,8 +33,9 @@ const MLRO_WALKTHROUGH_LINE =
   'Walk-through line: alert backlog rising → capacity stress is the why → AML.01.05.02 evidence completeness degrading is the consequence on the CRSA.';
 
 /**
- * v7 MLRO Workspace — two tabs (Operational Dashboard, Client Risk View).
+ * v7 Financial Crime Workspace — Operational Dashboard (assurance / exposure lenses).
  * FraudLossPanel is a widget on the Operational Dashboard, not a third tab.
+ * Router id remains mlroWorkspace; persona id remains smf17.
  *
  * Operational Dashboard layout (12-col zones):
  *   A — full-width posture strip

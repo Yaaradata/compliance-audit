@@ -2,8 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { getDomainNarrative } from "@/lib/ukbankingaudit/riskDomainsV4";
+import { getOwnershipState } from "@/lib/ukbankingaudit/v7/ownershipData";
 import { matchPrecedents } from "@/lib/ukbankingaudit/v7/precedentCorpus";
-import { CRSA_DATA, CRSA_MECHANISM_TAGS } from "@/lib/ukbankingaudit/v7/riskDomainsV7";
+import {
+  CRSA_DATA,
+  CRSA_MECHANISM_TAGS,
+  DOMAIN_ACCOUNTABILITY,
+} from "@/lib/ukbankingaudit/v7/riskDomainsV7";
 import type { Precedent } from "@/lib/ukbankingaudit/v7/types";
 import { CrsaTable } from "./CrsaTable";
 import { KriBar } from "./KriBar";
@@ -15,7 +20,7 @@ import type { RiskDomainV4 } from "./types";
 import { DefensibilityLens } from "./DefensibilityLens";
 import { ExposureLens } from "./ExposureLens";
 import { MomentumLens } from "./MomentumLens";
-import { OwnershipLens } from "./OwnershipLens";
+import { OwnerChip } from "./OwnerChip";
 import { PathToGreenStrip } from "./PathToGreenStrip";
 import { LensToggle } from "./LensToggle";
 
@@ -23,6 +28,83 @@ type Props = {
   domain: RiskDomainV4;
   onClose: () => void;
 };
+
+type DrillLens = "assurance" | "exposure" | "momentum" | "defensibility";
+type DrillTier = "strategic" | "operational" | "both";
+
+const TIER_OPTIONS: { id: DrillTier; label: string }[] = [
+  { id: "strategic", label: "Strategic" },
+  { id: "operational", label: "Operational" },
+  { id: "both", label: "Both" },
+];
+
+/** Lenses visible for each tier — order is display order. */
+const LENSES_BY_TIER: Record<DrillTier, readonly DrillLens[]> = {
+  strategic: ["exposure"],
+  operational: ["assurance", "momentum", "defensibility"],
+  both: ["exposure", "assurance", "momentum", "defensibility"],
+};
+
+const LENS_LABELS: Record<DrillLens, string> = {
+  assurance: "Assurance",
+  exposure: "Exposure",
+  momentum: "Momentum",
+  defensibility: "Defensibility",
+};
+
+function lensOptionsForTier(tier: DrillTier): { id: DrillLens; label: string }[] {
+  return LENSES_BY_TIER[tier].map((id) => ({ id, label: LENS_LABELS[id] }));
+}
+
+function firstLensForTier(tier: DrillTier): DrillLens {
+  return LENSES_BY_TIER[tier][0];
+}
+
+/** Plain header fact — ownership state for the open domain (not a lens). */
+function DomainOwnershipHeaderLine({ domainId }: { domainId: string }) {
+  const own = getOwnershipState(domainId);
+  const acc = DOMAIN_ACCOUNTABILITY[domainId];
+
+  switch (own.state) {
+    case "UNALLOCATED":
+      return (
+        <p className="mt-2 text-[11.5px] leading-snug text-slate-600">
+          Owner:{" "}
+          <span className="font-semibold text-red-600">unallocated</span>
+          {" — SYSC 26 requires an allocated holder"}
+        </p>
+      );
+    case "OWNED_STALE":
+    case "OWNED_CURRENT":
+      return (
+        <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11.5px] leading-snug text-slate-600">
+          <span>Owner:</span>
+          {acc ? <OwnerChip accountability={acc} /> : null}
+          {own.trailAgeDays !== null ? (
+            <>
+              <span className="text-slate-400" aria-hidden>
+                ·
+              </span>
+              <span>
+                last step{" "}
+                <span
+                  className={
+                    own.state === "OWNED_STALE" ? "font-semibold text-amber-600" : undefined
+                  }
+                >
+                  {own.trailAgeDays} days ago
+                </span>
+              </span>
+            </>
+          ) : null}
+        </p>
+      );
+    default: {
+      const _exhaustive: never = own.state;
+      return _exhaustive;
+    }
+  }
+}
 
 /** For a CRSA area, the precedents matched by any control's mechanism tags (deduped by precedent). */
 function crsaPrecedentMatches(
@@ -46,16 +128,26 @@ function crsaPrecedentMatches(
 
 /** Inline domain drill attached below expanded tile (v4 mockup). */
 export function DomainDrillPanel({ domain, onClose }: Props) {
-  const [lens, setLens] = useState<'assurance' | 'exposure' | 'ownership' | 'momentum' | 'defensibility'>('assurance');
+  const [tier, setTier] = useState<DrillTier>("both");
+  const [lens, setLens] = useState<DrillLens>("assurance");
   const [expandedSub, setExpandedSub] = useState<number | null>(null);
   const [showRemediation, setShowRemediation] = useState(false);
   const [showCrsa, setShowCrsa] = useState(false);
   const band = domain.status === "RED" ? "red" : domain.status === "AMBER" ? "amber" : "green";
   const rag = RAG_STYLES[band];
+  const lensOptions = useMemo(() => lensOptionsForTier(tier), [tier]);
+  const activeLens = LENSES_BY_TIER[tier].includes(lens) ? lens : firstLensForTier(tier);
   const precedentMatches = useMemo(
     () => (domain.crsa ? crsaPrecedentMatches(domain.crsa, domain.id) : []),
     [domain.crsa, domain.id],
   );
+
+  const selectTier = (next: DrillTier) => {
+    setTier(next);
+    if (!LENSES_BY_TIER[next].includes(lens)) {
+      setLens(firstLensForTier(next));
+    }
+  };
 
   const toggleSub = (idx: number) => {
     setExpandedSub(expandedSub === idx ? null : idx);
@@ -67,38 +159,42 @@ export function DomainDrillPanel({ domain, onClose }: Props) {
     <div
       className={`uk-v4-slide-down overflow-hidden rounded-b-[10px] border-[1.5px] border-t-0 bg-white ${rag.border}`}
     >
-      <div className="flex items-center gap-1.5 border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="text-[11.5px] text-slate-400 hover:text-slate-600"
-        >
-          Enterprise Risk Profile
-        </button>
-        <span className="text-[11px] text-slate-300">›</span>
-        <span className="text-[11.5px] font-semibold text-slate-700">{domain.name}</span>
-        <div className="ml-auto flex items-center gap-3">
-          <LensToggle
-            options={[
-              { id: "assurance", label: "Assurance" },
-              { id: "exposure", label: "Exposure" },
-              { id: "momentum", label: "Momentum" },
-              { id: "ownership", label: "Ownership" },
-              { id: "defensibility", label: "Defensibility" },
-            ]}
-            value={lens}
-            onChange={setLens}
-          />
-          <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
+      <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="text-[11.5px] text-slate-400 hover:text-slate-600"
+          >
+            Enterprise Risk Profile
+          </button>
+          <span className="text-[11px] text-slate-300">›</span>
+          <span className="text-[11.5px] font-semibold text-slate-700">{domain.name}</span>
+          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-slate-500">
             Overall Residual: <RagBadge status={domain.status} />
           </span>
         </div>
+        <div className="mt-2.5 flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-10 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Tier
+            </span>
+            <LensToggle options={TIER_OPTIONS} value={tier} onChange={selectTier} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-10 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Lens
+            </span>
+            <LensToggle options={lensOptions} value={activeLens} onChange={setLens} />
+          </div>
+        </div>
+        <DomainOwnershipHeaderLine domainId={domain.id} />
       </div>
 
-      {lens === 'assurance' ? (
+      {activeLens === "assurance" ? (
         <div className="p-[18px]">
         <h3 className="mb-2.5 text-[13px] font-bold uppercase tracking-wide text-slate-600">
           Risk Decomposition
@@ -203,12 +299,10 @@ export function DomainDrillPanel({ domain, onClose }: Props) {
           <p className="text-xs italic leading-relaxed text-slate-600">{getDomainNarrative(domain)}</p>
         </div>
         </div>
-      ) : lens === 'exposure' ? (
+      ) : activeLens === "exposure" ? (
         <ExposureLens domain={domain} />
-      ) : lens === 'momentum' ? (
+      ) : activeLens === "momentum" ? (
         <MomentumLens domain={domain} />
-      ) : lens === 'ownership' ? (
-        <OwnershipLens domain={domain} />
       ) : (
         <DefensibilityLens domain={domain} />
       )}

@@ -6,8 +6,8 @@ import {
   personaRelevanceForDomain,
   buildExplorerInsights,
   findExplorerInsight,
-} from "./aiContract.ts";
-import { runBoardDetectors } from "./detectors/index.ts";
+} from "./aiContract";
+import { runBoardDetectors } from "./detectors/index";
 
 describe("aiContract", () => {
   it("parses detectionVersion into modelId and modelVersion", () => {

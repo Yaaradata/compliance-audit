@@ -1,8 +1,8 @@
 /**
- * Guardrail: v6 performs NO outbound network I/O — least of all a POST to a regulator.
+ * Guardrail: v7 performs NO outbound network I/O — least of all a POST to a regulator.
  * There is no integration to fca.org.uk, occ.gov or nca.gov.uk. Not disabled — ABSENT.
  *
- * This test greps the whole v6 surface (components + lib) for any network sink. If a
+ * This test greps the whole v7 surface (components + lib) for any network sink. If a
  * sink ever appears, a POST to a regulator becomes possible, and this test fails the
  * build. Regulator hostnames may appear only as inert precedent sourceUrl strings /
  * anchor hrefs, never as a call target — which the "no sink" assertion guarantees.
@@ -17,8 +17,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const FRONTEND_ROOT = join(HERE, "..", "..", "..");
 
 const SCAN_DIRS = [
-  join(FRONTEND_ROOT, "components", "UKBankingAudit", "v6"),
-  join(FRONTEND_ROOT, "lib", "ukbankingaudit", "v6"),
+  join(FRONTEND_ROOT, "components", "UKBankingAudit", "v7"),
+  join(FRONTEND_ROOT, "lib", "ukbankingaudit", "v7"),
 ];
 
 const NETWORK_SINKS: { name: string; re: RegExp }[] = [
@@ -49,7 +49,7 @@ function sourceFiles(dir: string): string[] {
 
 const FILES = SCAN_DIRS.flatMap(sourceFiles);
 
-test("v6 contains no outbound network sinks", () => {
+test("v7 contains no outbound network sinks", () => {
   const offenders: string[] = [];
   for (const file of FILES) {
     const text = readFileSync(file, "utf8");
@@ -57,7 +57,7 @@ test("v6 contains no outbound network sinks", () => {
       if (sink.re.test(text)) offenders.push(`${file} → ${sink.name}`);
     }
   }
-  assert.deepEqual(offenders, [], `v6 must have no network sinks; found: ${offenders.join(", ")}`);
+  assert.deepEqual(offenders, [], `v7 must have no network sinks; found: ${offenders.join(", ")}`);
 });
 
 test("no regulator hostname sits on a line with a network sink", () => {

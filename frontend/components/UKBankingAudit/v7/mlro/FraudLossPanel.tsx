@@ -2,7 +2,10 @@
 
 import { useId, useState } from "react";
 import { getFraudPosture } from "@/lib/ukbankingaudit/v7/fraudData";
-import type { FraudLossRow } from "@/lib/ukbankingaudit/v7/fraudData";
+import type {
+  FraudGeographicConcentrationRow,
+  FraudLossRow,
+} from "@/lib/ukbankingaudit/v7/fraudData";
 import { ClaimLine } from "../ClaimLine";
 import { PathToGreenStrip } from "../PathToGreenStrip";
 import { StatTile } from "../StatTile";
@@ -16,6 +19,27 @@ function formatGBP(value: number): string {
 
 function claimRef(row: FraudLossRow, suffix: string): string {
   return `FRAUD-${row.id.toUpperCase()}-${suffix}`;
+}
+
+function geoClaimRef(row: FraudGeographicConcentrationRow): string {
+  return `FRAUD-GEO-${row.id.toUpperCase()}`;
+}
+
+function AppetiteReadChip({ read }: { read: FraudGeographicConcentrationRow["appetiteRead"] }) {
+  switch (read) {
+    case "OVER":
+      return (
+        <span className="text-[9px] font-bold uppercase tracking-wider text-rose-600">OVER</span>
+      );
+    case "WITHIN":
+      return (
+        <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600">WITHIN</span>
+      );
+    default: {
+      const _exhaustive: never = read;
+      return _exhaustive;
+    }
+  }
 }
 
 function TrendBadge({ trendWoW }: { trendWoW: number }) {
@@ -202,6 +226,83 @@ export function FraudLossPanel() {
                 APP reimbursement mandatory under PSR rules since Oct 2024; the reimbursement share is a
                 direct board-level exposure.
               </p>
+
+              {/* Geographic concentration — inherent-exposure framing; temporary home here */}
+              <div className="overflow-x-auto rounded-lg border border-dashed border-slate-300 bg-slate-50/60 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h4 className="text-[12px] font-bold uppercase tracking-wide text-slate-600">
+                      Geographic concentration
+                    </h4>
+                    <p className="mt-0.5 text-[10.5px] leading-snug text-slate-500">
+                      Jurisdiction × product line vs portfolio share. Not a real firm position.
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600">
+                    Placeholder
+                  </span>
+                </div>
+                <p className="mt-2 text-[10px] leading-snug text-slate-500">
+                  {posture.geographicConcentrationSourceLabel}
+                </p>
+
+                <table className="mt-3 w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                      <th scope="col" className="pb-2 pr-3 font-semibold">
+                        Jurisdiction
+                      </th>
+                      <th scope="col" className="pb-2 pr-3 font-semibold">
+                        Product line
+                      </th>
+                      <th scope="col" className="pb-2 pr-3 text-right font-semibold">
+                        Exposure
+                      </th>
+                      <th scope="col" className="pb-2 pr-3 text-right font-semibold">
+                        Portfolio share
+                      </th>
+                      <th scope="col" className="pb-2 text-right font-semibold">
+                        Appetite
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {posture.geographicConcentration.map((row) => {
+                      const ref = geoClaimRef(row);
+                      return (
+                        <tr key={row.id} className="border-b border-slate-100 last:border-b-0">
+                          <td className="py-2.5 pr-3 align-middle">
+                            <div className="text-[12px] font-medium leading-snug text-slate-900">
+                              {row.jurisdiction}
+                            </div>
+                            <div
+                              className="mt-0.5 truncate font-mono text-[9.5px] text-slate-400"
+                              title={ref}
+                            >
+                              {ref}
+                            </div>
+                          </td>
+                          <td className="py-2.5 pr-3 align-middle text-[12px] text-slate-700">
+                            {row.productLine}
+                          </td>
+                          <td className="py-2.5 pr-3 align-middle text-right text-[12px] font-semibold tabular-nums text-slate-900">
+                            {formatGBP(row.exposureGBP)}
+                          </td>
+                          <td className="py-2.5 pr-3 align-middle text-right text-[12px] tabular-nums text-slate-700">
+                            {row.concentrationPctOfPortfolio}%
+                            <span className="ml-1 text-[10px] text-slate-400">
+                              vs {row.appetitePct}%
+                            </span>
+                          </td>
+                          <td className="py-2.5 align-middle text-right">
+                            <AppetiteReadChip read={row.appetiteRead} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
         </div>

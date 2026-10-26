@@ -7,7 +7,7 @@ import { runBoardDetectors } from "@/lib/ukbankingaudit/v7/detectors";
 import { WHAT_CHANGED_V6 } from "@/lib/ukbankingaudit/v7/whatChangedV7";
 import { personas } from "@/components/UKBankingAudit/ukTraceRuntime";
 import { BoardRoleContext } from "./boardRoleContext";
-import { BoardSignalsStrip } from "./BoardSignalsStrip";
+import { RegulatoryLandscapePanel } from "./RegulatoryLandscapePanel";
 import { FirmRiskPosturePanel } from "./cro/FirmRiskPosturePanel";
 import { RiskCategoriesPanel } from "./cro/RiskCategoriesPanel";
 import { JurisdictionContext } from "./jurisdictionContext";
@@ -66,7 +66,11 @@ export function CROBoardViewV7({ openDrawer }: Props) {
         </div>
         <div className="min-w-0 xl:relative xl:col-span-4">
           <div className="xl:absolute xl:inset-0">
-            <BoardSignalsStrip signals={signals} />
+            <RegulatoryLandscapePanel
+              signals={signals}
+              expandedId={expandedId}
+              onClearDomain={() => setExpandedId(null)}
+            />
           </div>
         </div>
       </div>

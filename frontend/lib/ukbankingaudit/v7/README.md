@@ -65,56 +65,69 @@ Also: mock selector (~line 676) chooses `mockDataV7` first; `singleParagraph` OR
 includes `v7`; `ukTraceRuntime.bindUkTraceMock` maps v7 → v3 UI tokens (one-line
 companion outside the v7 tree — required for byte-identical chrome).
 
-## Open questions — recorded, not built
+## Saurabh-driven changes → where they landed
 
-### a) TM tuning / false-positive metric
+| Saurabh comment / ask | v7 change |
+| --- | --- |
+| Ownership is a fact, not a lens | Ownership lens removed; `DomainOwnershipHeaderLine` on every domain drill header (`DomainDrillPanel`) |
+| Tier the lenses (strategic / operational) | Tier selector on `DomainDrillPanel`: Strategic = Exposure; Operational = Assurance / Momentum / Defensibility; Both = all four |
+| “Board challenge” is the wrong label | Renamed to **Regulatory Landscape** (`RegulatoryLandscapePanel` / `RegulatoryLandscapeCard`); two headings + “Not yet assessed”; muted RAG; filters to the open domain |
+| SMF17 label for demo credibility | Persona: **Head of Financial Crime (SMF17)**; nav: **Financial Crime Workspace** (`mockDataV7` overlay; ids stay `smf17` / `mlroWorkspace`) |
+| Exit candidates must be division-tagged | `ExitCandidateCluster.division`; Saurabh fincrime tags; legacy-pre-2022-kyc **deleted** (contribs renormalised to 100); division filter on Exposure lens |
+| Geographic concentration (Malaysia / cards) | Seeded placeholder on `FraudLossPanel` expanded state; `(source to confirm)` honesty label |
+| Outbound network must be impossible | `noOutbound.test.ts` repointed to scan **v7** dirs (was wrongly still scanning v6) |
 
-Saurabh flagged research; no data in the graph. **Proposal:** measure scenario tuning
-currency and threshold change history (live scenarios, last calibration, threshold
-changes with approver) rather than false-positive count alone — closer to the NatWest
-failure (rule switched off for generating too many alerts) already in the precedent
-corpus. Note: dormant `components/UKBankingAudit/v7/mlro/SuppressionLedger.tsx` is
-essentially this idea, already built and still unwired.
+## Open items — recorded, **not** to be built
 
-### b) Alert-to-SAR conversion expected range
+### a) Renaming Exposure / Momentum / Defensibility
 
-Shown as informational **3.2%** from one source. Without a benchmark, too low may mean
-noise and too high may mean thresholds so tight only obvious cases surface. Left INFO
-until he gives a range.
+Blocked on terminology research; Saurabh is sending reference material. Names must be
+tested against all nine domains, not just financial crime.
 
-### c) Fraud as filter vs fraud as widget
+### b) Fraud geography placement — Operational Dashboard or Client Risk View
 
-July review described two tiers × two filters; the spreadsheet reads as fraud being one
-widget among six. **Built the widget way.** Flag for confirmation.
+Saurabh framed jurisdiction × product as inherent exposure. Temporary home:
+`FraudLossPanel` expanded. Decide with him before Client Risk View work.
 
-### d) Systems health — scattered vs consolidated
+### c) Client Risk View internals
 
-**Built (default):** TM health inside Widget 2; transaction screening and name screening
-(kept separate) inside Widget 4. **Not built:** one consolidated “Systems & Data Health”
-widget. Sheet2’s “Financial Crime Analytics/Technology” line to the MLRO argues for
-consolidation — revisit before promoting a peer widget.
+Saurabh has sequenced this next. Do not restructure that tab until he does.
 
-### e) “Client Risk View” on the CRO board
+### d) KRI strip EDD past due **11** vs EDD widget **5**
 
-MLRO Exposure tab was renamed Client Risk View. Whether that label should also replace
-the Exposure lens name on the CRO board needs testing against Credit, Cyber and Climate
-before adopting firm-wide.
+`KRI-FC-017` current = 11 (shared `mockDataV2` kris). EDD pipeline widget counts
+`eddPipelineItems` with `status === "past_due"` = **5**. Two sources for one metric
+on one screen. Reconcile before this goes in front of a bank. **Do not silently
+change either number in this pass.**
 
-### KRI ribbon retain/remove
+### e) Five `v7/mlro/` components built and wired to nothing
 
-See above — keep until Saurabh answers.
+`SuppressionLedger`, `DispositionDispersion`, `ScreeningDenominator`,
+`CadenceFeasibility`, `OperationalAssuranceVerdict` — exported from `mlro/index.ts`,
+not mounted in `MLROWorkspaceV7`.
+
+### Earlier open items (still parked)
+
+- TM tuning / false-positive metric (research); SuppressionLedger is the dormant seed
+- Alert-to-SAR conversion expected range (3.2% INFO until benchmark)
+- Fraud as filter vs widget — built as widget; confirm
+- Systems health scattered vs consolidated
+- Whether “Client Risk View” should also rename the CRO Exposure lens firm-wide
+- KRI ribbon retain/remove — keep until he answers
 
 ## Guardrails (inherited / enforced)
 
 Same structural bans as v6 where applicable: `copy.ts`, ESLint overstated prose,
-`typeContracts.test-d.ts`, `noOutbound.test.ts`, dispositions actorId rules, Path-to-Green
-provenance (`system` = STATED / `email` = INFERRED) via one `PathToGreenStrip`.
+`typeContracts.test-d.ts`, `noOutbound.test.ts` (**scans v7 components + lib**),
+dispositions actorId rules, Path-to-Green provenance (`system` = STATED / `email` =
+INFERRED) via one `PathToGreenStrip`.
 
 ## Tests
 
 `lib/ukbankingaudit/v7/*.test.ts` plus `mlroOperational.test.ts` for overlay contracts
 (two tabs, tier sums, face sources, appetites, multi-action / risk-accept PTG, 98.4%
-training lock to the pack narrative).
+training lock to the pack narrative). Exposure tests also lock division tags, five
+fincrime clusters, no legacy id, contributions sum 100.
 
 ## MLRO Operational Dashboard — layout (final)
 

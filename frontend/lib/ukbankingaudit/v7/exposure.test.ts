@@ -1,5 +1,5 @@
 /**
- * Exposure lens + Path-to-Green regression tests (v6 only).
+ * Exposure lens + Path-to-Green regression tests (v7).
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -134,6 +134,34 @@ test("path-to-green surfaces both system and email provenance", () => {
   const sources = refs.map((ref) => getPathToGreen(ref)?.lastUpdate?.source);
   assert.ok(sources.includes("system"));
   assert.ok(sources.includes("email"));
+});
+
+test("fincrime exit candidates: five clusters, all tagged, no legacy, contributions sum 100", () => {
+  const exposure = getDomainExposure("fincrime");
+  assert.ok(exposure && exposure.dataAvailable);
+  assert.equal(exposure.exitCandidates.length, 5);
+  assert.ok(!exposure.exitCandidates.some((c) => c.id === "legacy-pre-2022-kyc"));
+  for (const cluster of exposure.exitCandidates) {
+    assert.ok(
+      ["corporate", "sme", "private", "cross-division"].includes(cluster.division),
+      `${cluster.id} missing division`,
+    );
+  }
+  const sum = exposure.exitCandidates.reduce((n, c) => n + c.contributionToBreachPct, 0);
+  assert.equal(sum, 100);
+});
+
+test("every live exit candidate cluster carries a division tag", () => {
+  for (const domainId of CONNECTED) {
+    const exposure = getDomainExposure(domainId);
+    assert.ok(exposure && exposure.dataAvailable, domainId);
+    for (const cluster of exposure.exitCandidates) {
+      assert.ok(
+        ["corporate", "sme", "private", "cross-division"].includes(cluster.division),
+        `${domainId}/${cluster.id}`,
+      );
+    }
+  }
 });
 
 test("unknown domain id returns null", () => {

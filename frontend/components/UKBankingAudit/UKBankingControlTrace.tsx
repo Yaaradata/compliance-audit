@@ -910,6 +910,7 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
             setActiveScreen={setActiveScreen}
             previousScreen={previousScreen}
             expandSample={expandSample}
+            variant={variant}
           />
         )}
 
@@ -1272,10 +1273,10 @@ const ExpandSampleButton = ({ lineId, currentMode, onExpand }) => (
   </button>
 );
 
-function screenBackLabel(screen) {
+function screenBackLabel(screen, variant) {
   switch (screen) {
     case "mlroWorkspace":
-      return "MLRO Workspace";
+      return variant === "v7" ? "Financial Crime Workspace" : "MLRO Workspace";
     case "crsaCycleCockpit":
       return "CRSA Cycle Cockpit";
     case "controlUniverse":
@@ -1289,7 +1290,7 @@ function screenBackLabel(screen) {
   }
 }
 
-function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveScreen, previousScreen, expandSample }) {
+function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveScreen, previousScreen, expandSample, variant }) {
   const gsr = (groupSetRequirements || []).find(g => g.id === gsrId);
   const cycle = (crsaAttestationCycles || []).find(c => c.id === cycleId);
   const co = gsr ? (controlObjectives || []).find(c => c.id === gsr.controlObjectiveId) : null;
@@ -1308,7 +1309,7 @@ function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveSc
           onClick={goBack}
           className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm hover:border-indigo-300 hover:bg-indigo-50"
         >
-          ← Back to {screenBackLabel(backTarget)}
+          ← Back to {screenBackLabel(backTarget, variant)}
         </button>
         <EmptyState message="No attestation line found for this requirement / cycle pair." />
       </div>
@@ -1329,7 +1330,7 @@ function PerRequirementAttestationView({ gsrId, cycleId, openDrawer, setActiveSc
           type="button"
           onClick={goBack}
           className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm hover:border-indigo-300 hover:bg-indigo-50"
-          aria-label={`Back to ${screenBackLabel(backTarget)}`}
+          aria-label={`Back to ${screenBackLabel(backTarget, variant)}`}
         >
           ← Back
         </button>

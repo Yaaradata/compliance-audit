@@ -1,15 +1,38 @@
 "use client";
 
+import { useState } from "react";
 import { getDomainExposure } from "@/lib/ukbankingaudit/v7/exposureData";
 import { getExposurePreview } from "@/lib/ukbankingaudit/v7/exposurePreview";
-import type { ExposureCount } from "@/lib/ukbankingaudit/v7/exposureTypes";
+import type {
+  ExitCandidateCluster,
+  ExitCandidateDivision,
+  ExposureCount,
+} from "@/lib/ukbankingaudit/v7/exposureTypes";
 import { ClaimLine } from "./ClaimLine";
+import { LensToggle } from "./LensToggle";
 import { PathToGreenStrip } from "./PathToGreenStrip";
 import type { RiskDomainV4 } from "./types";
 
 type Props = {
   domain: RiskDomainV4;
 };
+
+type DivisionFilter = "all" | "corporate" | "sme" | "private";
+
+const DIVISION_FILTER_OPTIONS: { id: DivisionFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "corporate", label: "Corporate" },
+  { id: "sme", label: "SME" },
+  { id: "private", label: "Private" },
+];
+
+function clusterMatchesDivision(
+  cluster: ExitCandidateCluster,
+  filter: DivisionFilter,
+): boolean {
+  if (filter === "all") return true;
+  return cluster.division === filter || cluster.division === "cross-division";
+}
 
 const BAND_COLOR: Record<string, string> = {
   high: "bg-rose-400",
@@ -32,6 +55,23 @@ const GHOST_BANDS = [
 
 function claimRef(domainId: string, suffix: string) {
   return `EXP-${domainId.toUpperCase()}-${suffix}`;
+}
+
+function divisionLabel(division: ExitCandidateDivision): string {
+  switch (division) {
+    case "corporate":
+      return "Corporate";
+    case "sme":
+      return "SME";
+    case "private":
+      return "Private";
+    case "cross-division":
+      return "Cross-division";
+    default: {
+      const _exhaustive: never = division;
+      return _exhaustive;
+    }
+  }
 }
 
 /** Thin under-bar for a stat tile with an appetite tick (only when appetite is set). */
@@ -252,6 +292,7 @@ export function ExposureConcentrationCard({ domain }: Props) {
 
 export function ExposureLens({ domain }: Props) {
   const exposure = getDomainExposure(domain.id);
+  const [divisionFilter, setDivisionFilter] = useState<DivisionFilter>("all");
 
   if (!exposure || !exposure.dataAvailable) {
     return (
@@ -261,7 +302,10 @@ export function ExposureLens({ domain }: Props) {
     );
   }
 
-  const { counts, exitCandidates } = exposure;
+  const { counts } = exposure;
+  const filteredExitCandidates = exposure.exitCandidates.filter((c) =>
+    clusterMatchesDivision(c, divisionFilter),
+  );
 
   return (
     <div className="space-y-5 p-[18px]">
@@ -282,11 +326,23 @@ export function ExposureLens({ domain }: Props) {
           Ranked by contribution to appetite breach. The firm decides any action.
         </p>
 
+        <div className="mt-3 flex flex-wrap items-center gap-2.5">
+          <span className="text-[11px] font-semibold text-slate-600">Division:</span>
+          <LensToggle
+            options={DIVISION_FILTER_OPTIONS}
+            value={divisionFilter}
+            onChange={setDivisionFilter}
+          />
+        </div>
+
         <table className="mt-3 w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-              <th scope="col" className="w-[30%] pb-2 pr-6 font-semibold">
+              <th scope="col" className="w-[28%] pb-2 pr-6 font-semibold">
                 Cluster
+              </th>
+              <th scope="col" className="whitespace-nowrap pb-2 pr-5 font-semibold">
+                Division
               </th>
               <th scope="col" className="whitespace-nowrap pb-2 pr-5 text-right font-semibold">
                 High-risk wt.
@@ -303,42 +359,53 @@ export function ExposureLens({ domain }: Props) {
             </tr>
           </thead>
           <tbody>
-            {exitCandidates.map((cluster) => {
-              const ref = claimRef(domain.id, cluster.id.toUpperCase());
-              return (
-                <tr key={cluster.id} className="border-b border-slate-100 last:border-b-0">
-                  <td className="py-3 pr-6 align-middle">
-                    <div className="flex items-start gap-2.5">
-                      <span
-                        className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-700"
-                        title="RULE · matched deterministically"
-                        aria-label="RULE"
-                      />
-                      <div className="min-w-0">
-                        <div className="text-[12px] font-medium leading-snug text-slate-900">
-                          {cluster.label}
-                        </div>
-                        <div className="mt-0.5 font-mono text-[9.5px] text-slate-400" title={ref}>
-                          {ref}
+            {filteredExitCandidates.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-4 text-[12px] text-slate-500">
+                  No exit candidate clusters for this division filter.
+                </td>
+              </tr>
+            ) : (
+              filteredExitCandidates.map((cluster) => {
+                const ref = claimRef(domain.id, cluster.id.toUpperCase());
+                return (
+                  <tr key={cluster.id} className="border-b border-slate-100 last:border-b-0">
+                    <td className="py-3 pr-6 align-middle">
+                      <div className="flex items-start gap-2.5">
+                        <span
+                          className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-700"
+                          title="RULE · matched deterministically"
+                          aria-label="RULE"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-[12px] font-medium leading-snug text-slate-900">
+                            {cluster.label}
+                          </div>
+                          <div className="mt-0.5 font-mono text-[9.5px] text-slate-400" title={ref}>
+                            {ref}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap py-3 pr-5 align-middle text-right text-[12px] tabular-nums text-slate-700">
-                    {cluster.highRiskWeightPct}%
-                  </td>
-                  <td className="whitespace-nowrap py-3 pr-5 align-middle text-right text-[12px] font-semibold tabular-nums text-slate-900">
-                    {cluster.contributionToBreachPct}%
-                  </td>
-                  <td className="whitespace-nowrap py-3 pr-8 align-middle text-right text-[12px] tabular-nums text-slate-700">
-                    {cluster.clientCount}
-                  </td>
-                  <td className="py-3 pl-2 align-middle text-[12px] leading-snug text-slate-500">
-                    {cluster.note}
-                  </td>
-                </tr>
-              );
-            })}
+                    </td>
+                    <td className="whitespace-nowrap py-3 pr-5 align-middle text-[12px] text-slate-600">
+                      {divisionLabel(cluster.division)}
+                    </td>
+                    <td className="whitespace-nowrap py-3 pr-5 align-middle text-right text-[12px] tabular-nums text-slate-700">
+                      {cluster.highRiskWeightPct}%
+                    </td>
+                    <td className="whitespace-nowrap py-3 pr-5 align-middle text-right text-[12px] font-semibold tabular-nums text-slate-900">
+                      {cluster.contributionToBreachPct}%
+                    </td>
+                    <td className="whitespace-nowrap py-3 pr-8 align-middle text-right text-[12px] tabular-nums text-slate-700">
+                      {cluster.clientCount}
+                    </td>
+                    <td className="py-3 pl-2 align-middle text-[12px] leading-snug text-slate-500">
+                      {cluster.note}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

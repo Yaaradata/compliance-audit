@@ -15,6 +15,41 @@ import {
 } from "@/lib/ukbankingaudit/v7/mlroOperationalData";
 import { TM_INVESTIGATIONS_SAR_CONVERSION } from "@/lib/ukbankingaudit/v7/exposureData";
 
+type PersonaDisplay = {
+  label: string;
+  smfDesignation: string;
+};
+
+/**
+ * v7-only persona label overlay. Ids stay smf17 / mlroWorkspace (router keys).
+ * v6 keeps "MLRO (SMF17)" via mockDataV6.
+ */
+const PERSONA_DISPLAY: Record<string, PersonaDisplay> = {
+  smf17: {
+    label: "Head of Financial Crime (SMF17)",
+    smfDesignation: "SMF17",
+  },
+};
+
+const personas = (mockDataV6.personas || []).map(
+  (p: { id: string; label?: string; smfDesignation?: string | null }) => {
+    const display = PERSONA_DISPLAY[p.id];
+    if (!display) return p;
+    return {
+      ...p,
+      label: display.label,
+      smfDesignation: display.smfDesignation,
+    };
+  },
+);
+
+const navigationItems = (mockDataV6.navigationItems || []).map(
+  (n: { id: string; label: string; screen: string; visibleForPersonas: string[] }) => {
+    if (n.screen !== "mlroWorkspace") return n;
+    return { ...n, label: "Financial Crime Workspace" };
+  },
+);
+
 const amlAlertTiersByWeek = buildAmlAlertTiersByWeek(mockDataV6.amlAlertsByWeek);
 const sanctionsScreeningMetrics = buildSanctionsScreeningMetricsV7(
   mockDataV6.sanctionsScreeningMetrics,
@@ -22,6 +57,8 @@ const sanctionsScreeningMetrics = buildSanctionsScreeningMetricsV7(
 
 export default {
   ...mockDataV6,
+  personas,
+  navigationItems,
   /** v7-only: EDD past-due appetite / source for Operational Dashboard. */
   eddPastDueAppetite: EDD_PAST_DUE_APPETITE,
   /** v7-only: L1/L2/L3 split of amlAlertsByWeek (tier backlogs sum to openBacklog). */
