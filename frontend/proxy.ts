@@ -67,6 +67,7 @@ export const config = {
   matcher: [
     "/access",
     "/UKBankingAudit/:path*",
+    "/UKBoard/:path*",
     "/UK_Process_Audit/:path*",
     "/USBankingAudit/:path*",
     "/IndianBankingAudit/:path*",
