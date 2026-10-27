@@ -34,12 +34,12 @@ type DrillView = Extract<ViewState, { screen: "drill" }>;
 
 function Frame({ kicker, headline, status, badge, children }: { kicker: string; headline: string; status?: ReactNode; badge?: ReactNode; children: ReactNode }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <BackToOrigin />
-      <div className={`${ui.card} p-4`}>
-        <p className="text-[11px] uppercase tracking-wide text-[var(--ukb-subtle)]">{kicker}</p>
+      <div className={`${ui.card} p-5 shadow-sm`}>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ukb-subtle)]">{kicker}</p>
         <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
-          <h1 className="text-lg font-bold text-[var(--ukb-text)]">{headline}</h1>
+          <h1 className="text-xl font-bold leading-snug text-[var(--ukb-text)]">{headline}</h1>
           {status}
         </div>
         {badge ? <div className="mt-2">{badge}</div> : null}
@@ -51,7 +51,7 @@ function Frame({ kicker, headline, status, badge, children }: { kicker: string; 
 
 function Block({ title, spine, children }: { title: string; spine: string; children: ReactNode }) {
   return (
-    <section className={`${ui.card} space-y-2 p-4`}>
+    <section className={`${ui.card} space-y-3 p-5 shadow-sm`}>
       <SectionHeader title={title} spineSegment={spine} />
       {children}
     </section>

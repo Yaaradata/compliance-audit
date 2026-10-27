@@ -10,14 +10,27 @@ import { DRAFTS, EVENTS, PEOPLE, RESTRICTION, ROUTES, UNITS } from "@/lib/ukboar
 import { isVisible, routesDecided } from "@/lib/ukboard/v1/selectors";
 import type { ReportRoute } from "@/lib/ukboard/v1/types";
 import { AiExecutiveBand } from "../ai";
-import { BoardLayoutGrid, CardShell, DeltaValue, IntegrityBadge, PracticeLabel, PrecedentLine, RuleLine, StatusToken } from "../primitives";
+import {
+  BoardLayoutGrid,
+  CardShell,
+  DeltaValue,
+  Details,
+  IntegrityBadge,
+  MutedLine,
+  PageTitle,
+  PracticeLabel,
+  PrecedentLine,
+  RuleLine,
+  SoWhat,
+  StatusToken,
+} from "../primitives";
 import { useBoard } from "../state/boardStore";
 import { ui } from "../theme";
-import { ActionList, SoWhat, unitStatus, useNav } from "./shared";
+import { ActionList, unitStatus, useNav } from "./shared";
 
 const VERDICT = {
   supported: { status: "within_appetite" as const, label: "Supported" },
-  partly: { status: "amber" as const, label: "Partly supported" },
+  partly: { status: "amber" as const, label: "Partly" },
   not_supported: { status: "red" as const, label: "Not supported" },
 };
 
@@ -30,50 +43,53 @@ function PopulationTestCard() {
   const nav = useNav();
   const u = UNITS["u-restriction"];
   const r = RESTRICTION;
-  const manual = r.byRoute.filter((b) => b.lane === "manual");
+  const open = () => nav.drill({ screen: "drill", kind: "clause", restrictionId: r.restrictionId, focus: "population" }, u.unitId);
   return (
-    <CardShell id="s3-z1" title={u.title} status={unitStatus(u.unitId)} statusLabel="Red · breach" integration={u.integration} highlight={nav.highlightRef === u.unitId}>
-      <button
-        type="button"
-        onClick={() => nav.drill({ screen: "drill", kind: "clause", restrictionId: r.restrictionId, focus: "population" }, u.unitId)}
-        className={`block rounded text-left ${ui.focus}`}
-      >
-        <p className="text-base font-bold text-[var(--ukb-text)]">
-          No: {r.breachesAccounts} accounts for {r.breachesCustomers} customers in breach, in {r.tested.toLocaleString("en-GB")} tested in the latest monthly run.
-        </p>
+    <CardShell
+      id="s3-z1"
+      title={u.title}
+      status={unitStatus(u.unitId)}
+      statusLabel="Breach"
+      integration={u.integration}
+      highlight={nav.highlightRef === u.unitId}
+      footer={
+        <div className="flex flex-col gap-3">
+          <IntegrityBadge badgeRef="s3-z1" snapshot={u.integrity} owner="Head of Financial Crime" />
+          <ActionList draftIds={u.draftIds} canGate={nav.canGate} />
+        </div>
+      }
+    >
+      <button type="button" onClick={open} className={`block rounded text-left ${ui.focus}`}>
+        <DeltaValue value={`${r.breachesAccounts} of ${r.tested.toLocaleString("en-GB")}`} denominator="tested accounts in breach" delta={`+${r.breachesAccounts - r.previousRun.breachesAccounts} vs previous run`} size="xl" />
       </button>
-      <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1">
-        <DeltaValue value={`${r.breachesAccounts} of ${r.tested.toLocaleString("en-GB")}`} denominator="tested in breach" delta={`+${r.breachesAccounts - r.previousRun.breachesAccounts} vs previous run`} size="lg" />
-        <DeltaValue value={`${r.tested.toLocaleString("en-GB")} of ${r.inScope.toLocaleString("en-GB")}`} denominator="in scope tested (account openings)" />
+      <MutedLine>
+        {r.breachesCustomers} customers · {r.tested.toLocaleString("en-GB")} of {r.inScope.toLocaleString("en-GB")} openings in scope tested · {r.untested[0].count.toLocaleString("en-GB")} partner-channel
+        openings untested
+      </MutedLine>
+
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {r.byRoute.map((b) => (
+          <div key={b.route} className="rounded-lg bg-[var(--ukb-surface-2)] px-3 py-2">
+            <p className="text-lg font-bold tabular-nums text-[var(--ukb-text)]">{b.accounts}</p>
+            <p className="text-[11px] leading-snug text-[var(--ukb-muted)]">
+              {b.route}
+              {b.lane === "manual" ? " (manual lane)" : ""}
+            </p>
+          </div>
+        ))}
       </div>
-      <p className="mt-1 text-xs text-[var(--ukb-muted)]">
-        {r.untested[0].count.toLocaleString("en-GB")} {r.untested[0].route.toLowerCase()} untested, shown as untested, not compliant. Months since the last zero-breach month: {r.monthsSinceZero}{" "}
-        <PracticeLabel kind="illustrative" />
+
+      <p className="mt-3 rounded-md border border-dashed border-[var(--ukb-track)] px-3 py-1.5 text-xs text-[var(--ukb-muted)]">
+        <span className="font-semibold text-[var(--ukb-text)]">Contrast, not status:</span> flag fired 1,208 times, 100% blocked. A flag firing is not evidence of adherence.
       </p>
-      <p className="mt-1 text-xs text-[var(--ukb-muted)]">
-        Breach routes: {r.byRoute.filter((b) => b.lane !== "manual").map((b) => `${b.route} ${b.accounts}`).join(" · ")}
-      </p>
-      <p className="text-xs text-[var(--ukb-muted)]">Manual-route lane: {manual.map((b) => `${b.route} ${b.accounts}`).join(" · ")}</p>
-      <p className="mt-2 rounded-md border border-dashed border-[var(--ukb-track)] px-2 py-1 text-xs text-[var(--ukb-muted)]">
-        <span className="font-semibold">Contrast, not status: </span>
-        {r.flagContrast}
-      </p>
-      <div className="mt-1">
-        <IntegrityBadge badgeRef="s3-z1" snapshot={u.integrity} />
-      </div>
       <SoWhat>Contain today, and fix test coverage for the partner channel.</SoWhat>
-      <div className="mt-2 space-y-1">
+      <Details>
         <RuleLine>{u.ruleLine}</RuleLine>
-        <p className="text-xs text-[var(--ukb-muted)]">Owner: {u.ownerRole} (containment) · test run {r.runDate}</p>
+        <MutedLine>
+          Latest run {r.runDate}. Months since the last zero-breach month: {r.monthsSinceZero} <PracticeLabel kind="illustrative" />. Ledger entry already open, logged 26 October 2026.
+        </MutedLine>
         <PrecedentLine id="uk-starling-2024" />
-        <p className="text-xs text-[var(--ukb-muted)]">
-          Ledger entry already open: logged 26 October 2026 by CRO office{" "}
-          <button type="button" onClick={() => scrollTo("s3-z3")} className={`${ui.link} ${ui.focus}`}>
-            see the ledger
-          </button>
-        </p>
-      </div>
-      <ActionList draftIds={u.draftIds} canGate={nav.canGate} />
+      </Details>
     </CardShell>
   );
 }
@@ -84,31 +100,34 @@ function ClauseEvidenceList() {
   const r = RESTRICTION;
   const notSupported = r.clauses.filter((c) => c.verdict !== "supported").length;
   return (
-    <CardShell id="s3-z2" title="Does the attestation we are about to give match the test?" status="red" statusLabel={`${notSupported} of ${r.clauses.length} clauses not supported`}>
+    <CardShell
+      id="s3-z2"
+      title="Does the attestation we are about to give match the test?"
+      footer={<ActionList draftIds={["d-t228-summary", "d-t228-facts"]} canGate={nav.canGate} />}
+    >
       <button
         type="button"
         onClick={() => nav.drill({ screen: "drill", kind: "clause", restrictionId: r.restrictionId, focus: "attestation" }, "s3-z2")}
         className={`block rounded text-left ${ui.focus}`}
       >
-        <p className="text-sm font-bold text-[var(--ukb-text)]">
-          Q3 2026 attestation due in {r.attestationDaysLeft} days ({r.attestationDue}). {notSupported} of {r.clauses.length} clauses not supported by the evidence.
-        </p>
+        <DeltaValue value={`${notSupported} of ${r.clauses.length}`} denominator="clauses not supported" size="lg" />
       </button>
-      <ul className="mt-2 space-y-1">
+      <MutedLine>Q3 2026 attestation due in {r.attestationDaysLeft} days ({r.attestationDue})</MutedLine>
+      <ul className="mt-3 divide-y divide-[var(--ukb-border)] rounded-lg border border-[var(--ukb-border)]">
         {r.clauses.map((c) => (
-          <li key={c.clauseId} className="flex items-start justify-between gap-2 text-xs">
-            <span className="text-[var(--ukb-muted)]">{c.text}</span>
+          <li key={c.clauseId} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
+            <span className="text-[var(--ukb-text)]" title={c.text}>
+              {c.ref}
+            </span>
             <StatusToken status={VERDICT[c.verdict].status} label={VERDICT[c.verdict].label} />
           </li>
         ))}
       </ul>
-      <p className="mt-1 text-xs text-[var(--ukb-muted)]">Test runs present: 3 of 3 months in the period</p>
       <SoWhat>The attesting SMF needs the evidence summary before signing.</SoWhat>
-      <div className="mt-2">
-        <RuleLine>For Q3 2026 the test runs and milestones support 3 of 4 clauses; one is not supported because the test found breaches.</RuleLine>
-        <p className="mt-1 text-xs text-[var(--ukb-muted)]">Owner: attesting SMF (Head of Financial Crime). The SMF writes and signs; the product never drafts a compliance claim.</p>
-      </div>
-      <ActionList draftIds={["d-t228-summary", "d-t228-facts"]} canGate={nav.canGate} />
+      <Details>
+        <RuleLine>For Q3 2026 the test runs support 3 of 4 clauses; one is not supported because the test found breaches.</RuleLine>
+        <MutedLine>Test runs present for 3 of 3 months. The SMF writes and signs; the product never drafts a compliance claim.</MutedLine>
+      </Details>
     </CardShell>
   );
 }
@@ -130,20 +149,24 @@ function ReportabilityLedger() {
   const { state } = useBoard();
   return (
     <CardShell id="s3-z3" title="What may be reportable, on which clock, and who is deciding?">
+      <div className="hidden grid-cols-[1fr_200px_1fr] gap-3 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--ukb-subtle)] md:grid">
+        <span>Route</span>
+        <span>Clock</span>
+        <span>Decision</span>
+      </div>
       <div className="max-h-[300px] overflow-y-auto rounded-lg border border-[var(--ukb-border)]" role="list" aria-label="Reportability ledger">
         {EVENTS.map((e) => {
           const { decided, total } = routesDecided(e.eventId, ROUTES);
           return (
             <div key={e.eventId}>
-              <div className="sticky top-0 z-[1] border-b border-[var(--ukb-border)] bg-[var(--ukb-surface-2)] px-3 py-1.5">
+              <div className="sticky top-0 z-[1] flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--ukb-border)] bg-[var(--ukb-surface-2)] px-3 py-2">
                 <p className="text-xs font-bold text-[var(--ukb-text)]">{e.title}</p>
                 <p className="text-[11px] text-[var(--ukb-muted)]">
-                  Logged awareness {e.loggedAwareness} · day {e.dayN} · {decided} of {total} routes decided
+                  Day {e.dayN} · {decided} of {total} routes decided
                 </p>
                 {e.awarenessGap && isVisible("cro_and_deciding_smf", state.viewer) ? (
-                  <p className="mt-0.5 text-[11px] text-[var(--ukb-muted)]">
-                    <span className="font-semibold">Awareness date check: </span>A linked issue was raised 21 August and a control test failed 02 September, {e.awarenessGap.gapDays} days before the logged
-                    awareness date. The deciding SMF decides whether the date stands.
+                  <p className="w-full text-[11px] text-[var(--ukb-muted)]">
+                    Awareness date check: earlier linked records {e.awarenessGap.gapDays} days before the logged date. The deciding SMF decides whether it stands.
                   </p>
                 ) : null}
               </div>
@@ -153,20 +176,14 @@ function ReportabilityLedger() {
                   type="button"
                   role="listitem"
                   onClick={() => nav.drill({ screen: "drill", kind: "route", eventId: e.eventId, routeId: r.routeId }, r.routeId)}
-                  className={`flex min-h-[52px] w-full flex-col gap-0.5 border-b border-[var(--ukb-border)] px-3 py-1.5 text-left text-xs hover:bg-[var(--ukb-surface-2)] sm:flex-row sm:items-center sm:justify-between ${ui.focus} ${
+                  className={`grid w-full grid-cols-1 gap-1 border-b border-[var(--ukb-border)] px-3 py-2.5 text-left text-xs last:border-b-0 hover:bg-[var(--ukb-surface-2)] md:grid-cols-[1fr_200px_1fr] md:items-center md:gap-3 ${ui.focus} ${
                     nav.highlightRef === r.routeId ? "bg-[var(--ukb-highlight)]" : ""
                   }`}
                 >
                   <span className="font-semibold text-[var(--ukb-text)]">{r.name}</span>
                   <span className="text-[var(--ukb-muted)]">
-                    {r.isSar ? "" : `Clock: ${r.clock} · day ${e.dayN}`}
-                    {!r.isSar && r.clockHours === 24 && r.status !== "decided" ? (
-                      <>
-                        {" · 24-hour triage target passed"}
-                        <PracticeLabel kind="practice_not_rule" />
-                      </>
-                    ) : null}
-                    {r.isSar ? null : <PracticeLabel kind="unverified_clock" />}
+                    {r.isSar ? "—" : r.clock}
+                    {!r.isSar && r.clockHours === 24 && r.status !== "decided" ? " · past 24-hour triage" : ""}
                   </span>
                   <span className="font-semibold text-[var(--ukb-text)]">{routeFace(r, state.session.drafts)}</span>
                 </button>
@@ -175,19 +192,17 @@ function ReportabilityLedger() {
           );
         })}
         {state.session.ledgerDrafts.map((l) => (
-          <div key={l.draftId} className="border-b border-[var(--ukb-border)] bg-[var(--ukb-surface-2)] px-3 py-1.5">
+          <div key={l.draftId} className="border-b border-[var(--ukb-border)] bg-[var(--ukb-surface-2)] px-3 py-2 last:border-b-0">
             <p className="text-xs font-bold text-[var(--ukb-text)]">{l.label}</p>
             <p className="text-[11px] text-[var(--ukb-muted)]">Opened {l.on} by CRO office · case not prepared</p>
           </div>
         ))}
       </div>
       <SoWhat>Every engaged route needs a named SMF decision; the product prepares the case.</SoWhat>
-      <div className="mt-2">
-        <RuleLine>
-          Event 2 may engage 4 routes; 1 has a recorded decision. Clocks run from the logged awareness date. Clock values unverified.
-        </RuleLine>
-        <p className="mt-1 text-xs text-[var(--ukb-muted)]">Engagement is the deciding SMF&apos;s legal judgement. The product never files or notifies.</p>
-      </div>
+      <Details>
+        <RuleLine>Clocks run from the logged awareness date. Clock values are unverified; the 24-hour triage target is firm practice.</RuleLine>
+        <MutedLine>Engagement is the deciding SMF&apos;s legal judgement. The product never files or notifies.</MutedLine>
+      </Details>
     </CardShell>
   );
 }
@@ -197,15 +212,18 @@ export default function RestrictionsReportabilityScreen() {
   return (
     <BoardLayoutGrid
       band={
-        <AiExecutiveBand
-          critical={{
-            text: `Restriction on new high-risk customers breached: ${r.breachesAccounts} of ${r.tested.toLocaleString("en-GB")} tested; ${r.untested[0].count.toLocaleString("en-GB")} partner-channel openings untested`,
-            onClick: () => scrollTo("s3-z1"),
-          }}
-          due={{ text: `Q3 2026 attestation due in ${r.attestationDaysLeft} days`, onClick: () => scrollTo("s3-z2") }}
-          steady={{ text: "3 of 4 clauses supported by the evidence", onClick: () => scrollTo("s3-z2") }}
-          aiLine="Summarised from the population test run and the clause evidence for Q3 2026. It adds no figures of its own."
-        />
+        <>
+          <PageTitle title="Restrictions and reportability" subtitle="Is the restriction obeyed across the whole population, and who is deciding what may be reportable." />
+          <AiExecutiveBand
+            critical={{
+              text: `Restriction breached: ${r.breachesAccounts} of ${r.tested.toLocaleString("en-GB")} tested; ${r.untested[0].count.toLocaleString("en-GB")} openings untested`,
+              onClick: () => scrollTo("s3-z1"),
+            }}
+            due={{ text: `Q3 2026 attestation due in ${r.attestationDaysLeft} days`, onClick: () => scrollTo("s3-z2") }}
+            steady={{ text: "3 of 4 clauses supported by the evidence", onClick: () => scrollTo("s3-z2") }}
+            aiLine="Summarised from the population test run and the clause evidence for Q3 2026. It adds no figures of its own."
+          />
+        </>
       }
       rows={[
         { key: "r1", left: <PopulationTestCard />, rightStack: [<ClauseEvidenceList key="z2" />] },

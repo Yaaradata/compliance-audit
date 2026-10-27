@@ -31,7 +31,7 @@ import {
   WAIVER,
 } from "@/lib/ukboard/v1/data";
 import { getPrecedent } from "@/lib/ukboard/v1/precedents";
-import { failedChecks, leastSquares, MIN_TRAJECTORY_POINTS, projectedCrossing } from "@/lib/ukboard/v1/selectors";
+import { leastSquares, MIN_TRAJECTORY_POINTS, projectedCrossing } from "@/lib/ukboard/v1/selectors";
 import type { PrincipalRiskId, Unit } from "@/lib/ukboard/v1/types";
 import { AuditTrailInline, CanTellCannotTell, DraftActionCard, ProcessGapBlock } from "../ai";
 import { HeadroomGauge, SeriesChart } from "../cards/charts";
@@ -392,27 +392,19 @@ export default function PrincipalRiskDrillScreen({ principalRiskId, focusUnitId 
   const detail = (DOMAIN_DETAIL[principalRiskId] ?? []).filter((d) => !state.fraudFilter || d.fraud);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <BackToOrigin />
-      <div className={`${ui.card} p-4`}>
-        <p className="text-[11px] uppercase tracking-wide text-[var(--ukb-subtle)]">Principal-risk drill · {risk.name}</p>
+      <div className={`${ui.card} p-5 shadow-sm`}>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--ukb-subtle)]">Principal-risk drill · {risk.name}</p>
         <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
-          <h1 className="text-lg font-bold text-[var(--ukb-text)]">{focus.stateSentence}</h1>
+          <h1 className="text-xl font-bold leading-snug text-[var(--ukb-text)]">{focus.stateSentence}</h1>
           <StatusToken status={status} reason={focus.notAssessedReason} />
         </div>
         <p className="mt-0.5 text-xs text-[var(--ukb-muted)]">{focus.title}</p>
         <div className="mt-2">
-          <IntegrityBadge badgeRef={`s2-${focus.unitId}`} snapshot={focus.integrity} />
+          <IntegrityBadge badgeRef={`s2-${focus.unitId}`} snapshot={focus.integrity} owner={focus.ownerRole} />
         </div>
-        {failedChecks(focus.integrity).length ? (
-          <ul className="mt-1 list-disc pl-4 text-xs text-[var(--ukb-muted)]">
-            {failedChecks(focus.integrity).map((c) => (
-              <li key={c.label}>
-                <span className="font-semibold">{c.label}:</span> {c.evidence}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+
       </div>
 
       <Section id="a" open={open.includes("a")} onToggle={() => toggle("a")}>

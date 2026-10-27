@@ -28,47 +28,42 @@ function BoardHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const active = state.view.screen === "risk" || state.view.screen === "drill" ? state.origin?.screen : state.view.screen;
 
+  const viewers: { id: Viewer; label: string }[] = [
+    { id: "cro", label: "Chief Risk Officer (SMF4)" },
+    { id: "brc_chair_preview", label: "BRC chair (preview)" },
+  ];
   return (
-    <header className="border-b border-[var(--ukb-border)] bg-[var(--ukb-surface)]">
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-2 px-4 py-2 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <Link href="/select_region" className={`text-xs ${ui.link} ${ui.focus}`}>
-            All dashboards
+    <header className="sticky top-0 z-30 border-b border-[var(--ukb-border)] bg-[var(--ukb-surface)]">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+        <div className="flex items-center gap-3">
+          <Link href="/select_region" aria-label="All dashboards" className={`flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--ukb-accent)] text-xs font-bold text-[var(--ukb-surface)] ${ui.focus}`}>
+            UB
           </Link>
-          <p className="text-sm font-bold text-[var(--ukb-text)]">
-            {FIRM.name} <span className="text-xs font-normal text-[var(--ukb-subtle)]">[illustrative]</span>
-          </p>
-          <nav aria-label="Screens" className="flex flex-wrap gap-1">
-            {NAV.map((n) => (
-              <button
-                key={n.screen}
-                type="button"
-                aria-current={active === n.screen ? "page" : undefined}
-                onClick={() => dispatch({ type: "SET_VIEW", view: { screen: n.screen }, origin: null })}
-                className={`rounded-md px-2 py-1 text-xs font-semibold ${ui.focus} ${
-                  active === n.screen
-                    ? "bg-[var(--ukb-accent)] text-[var(--ukb-surface)]"
-                    : "text-[var(--ukb-muted)] hover:bg-[var(--ukb-surface-2)]"
-                }`}
-              >
-                {n.label}
-              </button>
-            ))}
-          </nav>
+          <div className="leading-tight">
+            <p className="text-sm font-bold text-[var(--ukb-text)]">UK Board</p>
+            <p className="text-[11px] text-[var(--ukb-subtle)]">
+              {FIRM.name} · illustrative
+            </p>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="inline-flex items-center gap-1 text-xs text-[var(--ukb-muted)]">
-            Viewer
-            <select
-              value={state.viewer}
-              onChange={(e) => dispatch({ type: "SET_VIEWER", viewer: e.target.value as Viewer })}
-              className={`rounded-md border border-[var(--ukb-track)] bg-[var(--ukb-surface)] px-1.5 py-1 text-xs font-semibold text-[var(--ukb-text)] ${ui.focus}`}
+        <div role="radiogroup" aria-label="Viewer" className="inline-flex w-fit rounded-lg bg-[var(--ukb-surface-2)] p-1">
+          {viewers.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              role="radio"
+              aria-checked={state.viewer === v.id}
+              onClick={() => state.viewer !== v.id && dispatch({ type: "SET_VIEWER", viewer: v.id })}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold ${ui.focus} ${
+                state.viewer === v.id ? "bg-[var(--ukb-surface)] text-[var(--ukb-text)] shadow-sm" : "text-[var(--ukb-muted)] hover:text-[var(--ukb-text)]"
+              }`}
             >
-              <option value="cro">Chief Risk Officer</option>
-              <option value="brc_chair_preview">Viewing as BRC chair (preview)</option>
-            </select>
-          </label>
-          <span className="rounded border border-[var(--ukb-track)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ukb-muted)]">
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-md border border-[var(--ukb-track)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--ukb-muted)]">
             Illustrative data
           </span>
           <button
@@ -106,13 +101,27 @@ function BoardHeader() {
           </div>
         </div>
       </div>
-      <div className="mx-auto flex max-w-[1440px] flex-wrap gap-x-4 gap-y-0.5 px-4 pb-2 text-[11px] text-[var(--ukb-subtle)]">
-        <span>{FIRM.periodLabel}</span>
-        <span>{FIRM.evidenceDate}</span>
-        <span>
-          Next BRC: {FIRM.nextBrc} <span className="uppercase">[illustrative]</span>
-        </span>
-        <span>{state.viewer === "cro" ? "Chief Risk Officer" : "Viewing as BRC chair (preview)"}</span>
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-0 px-4 xl:flex-row xl:items-end xl:justify-between lg:px-6">
+        <nav aria-label="Screens" className="-mb-px flex gap-5 overflow-x-auto">
+          {NAV.map((n) => (
+            <button
+              key={n.screen}
+              type="button"
+              aria-current={active === n.screen ? "page" : undefined}
+              onClick={() => dispatch({ type: "SET_VIEW", view: { screen: n.screen }, origin: null })}
+              className={`whitespace-nowrap border-b-2 pb-2 pt-1 text-sm font-semibold ${ui.focus} ${
+                active === n.screen
+                  ? "border-[var(--ukb-accent)] text-[var(--ukb-accent)]"
+                  : "border-transparent text-[var(--ukb-muted)] hover:text-[var(--ukb-text)]"
+              }`}
+            >
+              {n.label}
+            </button>
+          ))}
+        </nav>
+        <p className="pb-2 pt-1 text-[11px] text-[var(--ukb-subtle)] xl:pt-0">
+          {FIRM.periodLabel} · {FIRM.evidenceDate} · Next BRC {FIRM.nextBrc}
+        </p>
       </div>
     </header>
   );
@@ -143,7 +152,7 @@ function Shell() {
     <div style={themeVars(state.theme)} className="min-h-screen bg-[var(--ukb-canvas)] text-[var(--ukb-text)]">
       <BoardHeader />
       {/* Viewer and reset epoch key the subtree so local state remounts cleanly (TK-6). */}
-      <main key={`${state.viewer}-${state.epoch}`} className="mx-auto max-w-[1440px] px-4 py-4">
+      <main key={`${state.viewer}-${state.epoch}`} className="mx-auto max-w-[1440px] px-4 py-6 lg:px-6">
         <ViewRouter />
       </main>
     </div>

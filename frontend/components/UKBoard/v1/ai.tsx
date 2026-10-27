@@ -63,7 +63,7 @@ export function DraftActionCard({
   const lastAudit = [...state.session.audit].reverse().find((a) => a.objectRef === draft.unitId && a.action === "send_to_owner");
 
   return (
-    <div className="rounded-lg border border-[var(--ukb-border)] bg-[var(--ukb-surface-2)] p-3">
+    <div className="rounded-lg border border-[var(--ukb-border)] bg-[var(--ukb-surface-2)] p-3 text-left">
       <p className="text-xs font-bold text-[var(--ukb-text)]">
         {VERB_LABEL[draft.verb]} · {draft.title.replace(/^(Propose|Prepare|Draft|Send to owner):?\s*/i, "")}
       </p>
@@ -82,7 +82,9 @@ export function DraftActionCard({
               className={`mt-2 w-full rounded-md border border-[var(--ukb-track)] bg-[var(--ukb-surface)] p-2 text-xs text-[var(--ukb-text)] ${ui.focus}`}
             />
           ) : (
-            <p className="mt-2 text-xs text-[var(--ukb-muted)]">{ds.text}</p>
+            <p className="mt-2 line-clamp-3 text-xs text-[var(--ukb-muted)]" title={ds.text}>
+              {ds.text}
+            </p>
           )}
           {draft.options ? (
             <fieldset className="mt-2">
@@ -299,31 +301,28 @@ export function AiExecutiveBand({
   steady: BandSection;
   aiLine: string;
 }) {
-  const seg = (label: string, s: BandSection): ReactNode => (
-    <span className="flex min-w-0 items-baseline gap-1 xl:flex-1" title={`${label}: ${s.text}`}>
-      <span className="shrink-0 font-semibold text-[var(--ukb-text)]">{label}:</span>
+  const cell = (label: string, s: BandSection, tone: string): ReactNode => (
+    <div className={`min-w-0 border-l-2 pl-3 ${tone}`} title={s.text}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-subtle)]">{label}</p>
       {s.onClick ? (
-        <button type="button" onClick={s.onClick} className={`${ui.link} ${ui.focus} min-w-0 text-left font-normal xl:truncate`}>
+        <button type="button" onClick={s.onClick} className={`${ui.focus} block w-full truncate rounded text-left text-[13px] font-semibold text-[var(--ukb-text)] hover:underline`}>
           {s.text}
         </button>
       ) : (
-        <span className="min-w-0 text-[var(--ukb-muted)] xl:truncate">{s.text}</span>
+        <p className="truncate text-[13px] font-semibold text-[var(--ukb-text)]">{s.text}</p>
       )}
-    </span>
+    </div>
   );
   return (
-    <div role="region" aria-label="AI executive summary" className={`${ui.card} flex flex-col gap-1 px-3 py-2 text-xs xl:flex-row xl:items-baseline xl:gap-4 xl:whitespace-nowrap`}>
-      <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-[var(--ukb-ai-text)]" title={aiLine}>
-        <Sparkles className="h-3.5 w-3.5 text-[var(--ukb-ai)]" aria-hidden />
+    <div role="region" aria-label="AI executive summary" className={`${ui.card} grid grid-cols-1 gap-3 px-4 py-3 shadow-sm md:grid-cols-[auto_1fr_1fr_1fr] md:items-center`}>
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--ukb-ai-text)]" title={aiLine}>
+        <Sparkles className="h-4 w-4 text-[var(--ukb-ai)]" aria-hidden />
         AI summary
       </span>
-      <span className="contents xl:flex xl:min-w-0 xl:flex-[2.2]">{seg("What's critical", critical)}</span>
-      <span className="contents xl:flex xl:min-w-0 xl:flex-[1.6]">{seg("What's due before the BRC", due)}</span>
-      <span className="contents xl:flex xl:min-w-0 xl:flex-[0.9]">{seg("What's holding steady", steady)}</span>
-      <span className="sr-only">{aiLine}</span>
-      <span className="hidden text-[var(--ukb-subtle)] 2xl:inline" aria-hidden>
-        {aiLine}
-      </span>
+      {cell("What's critical", critical, "border-[var(--ukb-red)]")}
+      {cell("What's due before the BRC", due, "border-[var(--ukb-amber)]")}
+      {cell("What's holding steady", steady, "border-[var(--ukb-green)]")}
+      <p className="text-[11px] text-[var(--ukb-subtle)] md:col-span-4">{aiLine}</p>
     </div>
   );
 }
