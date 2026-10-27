@@ -302,7 +302,7 @@ export function AiExecutiveBand({
   aiLine: string;
 }) {
   const cell = (label: string, s: BandSection, tone: string): ReactNode => (
-    <div className={`min-w-0 border-l-2 pl-3 ${tone}`} title={s.text}>
+    <div className={`min-w-0 rounded-lg border-l-4 bg-[var(--ukb-surface)] px-3 py-1.5 ${tone}`} title={s.text}>
       <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-subtle)]">{label}</p>
       {s.onClick ? (
         <button type="button" onClick={s.onClick} className={`${ui.focus} block w-full truncate rounded text-left text-[13px] font-semibold text-[var(--ukb-text)] hover:underline`}>
@@ -314,14 +314,14 @@ export function AiExecutiveBand({
     </div>
   );
   return (
-    <div role="region" aria-label="AI executive summary" className={`${ui.card} grid grid-cols-1 gap-3 px-4 py-3 shadow-sm md:grid-cols-[auto_1fr_1fr_1fr] md:items-center`}>
+    <div role="region" aria-label="AI executive summary" className="grid grid-cols-1 gap-3 rounded-xl border border-[var(--ukb-ai)]/40 bg-[var(--ukb-ai-bg)] px-4 py-3 shadow-sm md:grid-cols-[auto_1fr_1fr_1fr] md:items-center">
       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--ukb-ai-text)]" title={aiLine}>
         <Sparkles className="h-4 w-4 text-[var(--ukb-ai)]" aria-hidden />
         AI summary
       </span>
-      {cell("What's critical", critical, "border-[var(--ukb-red)]")}
-      {cell("What's due before the BRC", due, "border-[var(--ukb-amber)]")}
-      {cell("What's holding steady", steady, "border-[var(--ukb-green)]")}
+      {cell("What's critical", critical, "border-l-[var(--ukb-red-solid)]")}
+      {cell("What's due before the BRC", due, "border-l-[var(--ukb-amber-solid)]")}
+      {cell("What's holding steady", steady, "border-l-[var(--ukb-green-solid)]")}
       <p className="text-[11px] text-[var(--ukb-subtle)] md:col-span-4">{aiLine}</p>
     </div>
   );

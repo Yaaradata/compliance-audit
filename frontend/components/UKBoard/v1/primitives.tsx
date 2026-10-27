@@ -6,7 +6,7 @@
  * never by colour alone. Unverified has its own token: grey outline, word, broken-link glyph.
  * Card faces stay minimal: title, status, one number, one line. Explanations sit in Details.
  */
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, CircleDashed, OctagonAlert, Star, Unlink, X } from "lucide-react";
 import { getPrecedent } from "@/lib/ukboard/v1/precedents";
 import { CHECK_ORDER, failedChecks, integrityPasses } from "@/lib/ukboard/v1/selectors";
@@ -50,39 +50,75 @@ export function PageTitle({ title, subtitle }: { title: string; subtitle: string
 }
 
 /* CMP-5 */
-const STATUS_META: Record<Status, { word: string; cls: string; Icon: typeof Check }> = {
-  within_appetite: { word: "Within appetite", cls: "bg-[var(--ukb-green-bg)] text-[var(--ukb-green)]", Icon: Check },
-  amber: { word: "Amber", cls: "bg-[var(--ukb-amber-bg)] text-[var(--ukb-amber)]", Icon: AlertTriangle },
-  red: { word: "Red", cls: "bg-[var(--ukb-red-bg)] text-[var(--ukb-red)]", Icon: OctagonAlert },
-  unverified: {
-    word: "Unverified",
-    cls: "border border-[var(--ukb-grey)] bg-transparent text-[var(--ukb-grey)]",
-    Icon: Unlink,
+/** Colour per status. Unverified and not assessed use neutral greys only (never RAG). */
+export const TONE: Record<Status, { edge: string; tint: string; line: string; pill: string; number: string }> = {
+  within_appetite: {
+    edge: "border-l-[var(--ukb-green-solid)]",
+    tint: "bg-[var(--ukb-green-tint)]",
+    line: "border-[var(--ukb-green-line)]",
+    pill: "bg-[var(--ukb-green-solid)] text-white",
+    number: "text-[var(--ukb-text)]",
   },
-  not_assessed: { word: "Not assessed", cls: "border border-dashed border-[var(--ukb-grey)] text-[var(--ukb-grey)]", Icon: CircleDashed },
+  amber: {
+    edge: "border-l-[var(--ukb-amber-solid)]",
+    tint: "bg-[var(--ukb-amber-tint)]",
+    line: "border-[var(--ukb-amber-line)]",
+    pill: "bg-[var(--ukb-amber-solid)] text-white",
+    number: "text-[var(--ukb-amber)]",
+  },
+  red: {
+    edge: "border-l-[var(--ukb-red-solid)]",
+    tint: "bg-[var(--ukb-red-tint)]",
+    line: "border-[var(--ukb-red-line)]",
+    pill: "bg-[var(--ukb-red-solid)] text-white",
+    number: "text-[var(--ukb-red)]",
+  },
+  unverified: {
+    edge: "border-l-[var(--ukb-grey-line)]",
+    tint: "bg-[var(--ukb-grey-tint)]",
+    line: "border-dashed border-[var(--ukb-grey-line)]",
+    pill: "border border-[var(--ukb-grey)] bg-[var(--ukb-surface)] text-[var(--ukb-grey)]",
+    number: "text-[var(--ukb-grey)]",
+  },
+  not_assessed: {
+    edge: "border-l-[var(--ukb-track)]",
+    tint: "bg-[var(--ukb-surface)]",
+    line: "border-dashed border-[var(--ukb-track)]",
+    pill: "border border-dashed border-[var(--ukb-grey)] bg-[var(--ukb-surface)] text-[var(--ukb-grey)]",
+    number: "text-[var(--ukb-text)]",
+  },
+};
+
+const STATUS_META: Record<Status, { word: string; Icon: typeof Check }> = {
+  within_appetite: { word: "Within appetite", Icon: Check },
+  amber: { word: "Amber", Icon: AlertTriangle },
+  red: { word: "Red", Icon: OctagonAlert },
+  unverified: { word: "Unverified", Icon: Unlink },
+  not_assessed: { word: "Not assessed", Icon: CircleDashed },
 };
 
 export function StatusToken({ status, label, reason }: { status: Status; label?: string; reason?: string }) {
   const m = STATUS_META[status];
   const word = status === "not_assessed" && reason ? `Not assessed: ${reason}` : (label ?? m.word);
   return (
-    <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${m.cls}`}
-    >
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${TONE[status].pill}`}>
       <m.Icon className="h-3 w-3" aria-hidden />
       {word}
     </span>
   );
 }
 
-/** Subtle tint for tiles, by status. Unverified and not assessed stay neutral (never RAG). */
+/** Tile tint and border by status. Unverified stays neutral grey with a dashed edge. */
 export const TILE_TINT: Record<Status, string> = {
-  within_appetite: "bg-[var(--ukb-green-bg)]/40",
-  amber: "bg-[var(--ukb-amber-bg)]/60",
-  red: "bg-[var(--ukb-red-bg)]/60",
-  unverified: "bg-[var(--ukb-surface)]",
-  not_assessed: "bg-[var(--ukb-surface)]",
+  within_appetite: `${TONE.within_appetite.tint} ${TONE.within_appetite.line}`,
+  amber: `${TONE.amber.tint} ${TONE.amber.line}`,
+  red: `${TONE.red.tint} ${TONE.red.line}`,
+  unverified: `${TONE.unverified.tint} ${TONE.unverified.line}`,
+  not_assessed: `${TONE.not_assessed.tint} ${TONE.not_assessed.line}`,
 };
+
+/** Card status, so large numbers inside take the status colour. */
+const ToneContext = createContext<Status | undefined>(undefined);
 
 /* CMP-6 */
 export function DeltaValue({
@@ -96,10 +132,12 @@ export function DeltaValue({
   delta?: string;
   size?: "md" | "lg" | "xl";
 }) {
+  const tone = useContext(ToneContext);
   const vcls = size === "xl" ? "text-4xl" : size === "lg" ? "text-2xl" : "text-sm";
+  const colour = size !== "md" && tone ? TONE[tone].number : "text-[var(--ukb-text)]";
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-      <span className={`${vcls} font-bold tabular-nums tracking-tight text-[var(--ukb-text)]`}>{value}</span>
+      <span className={`${vcls} font-bold tabular-nums tracking-tight ${colour}`}>{value}</span>
       <span className={`${size === "md" ? "text-xs" : "text-sm"} text-[var(--ukb-muted)]`}>{denominator}</span>
       {delta ? <span className="text-xs font-semibold tabular-nums text-[var(--ukb-subtle)]">{delta}</span> : null}
     </span>
@@ -204,7 +242,9 @@ export function CardShell({
     <section
       id={id}
       aria-label={title}
-      className={`${ui.card} flex flex-col p-5 shadow-sm ${highlight ? "ring-2 ring-[var(--ukb-focus)]" : ""} ${className}`}
+      className={`${ui.card} flex flex-col p-5 shadow-sm ${status ? `border-l-4 ${TONE[status].edge}` : ""} ${
+        highlight ? "ring-2 ring-[var(--ukb-focus)]" : ""
+      } ${className}`}
     >
       <header className="mb-3 flex items-start justify-between gap-3">
         <h2 className="flex items-center gap-1.5 text-[15px] font-bold leading-snug text-[var(--ukb-text)]">
@@ -216,7 +256,9 @@ export function CardShell({
           {status ? <StatusToken status={status} label={statusLabel} reason={notAssessedReason} /> : null}
         </div>
       </header>
-      <div className="flex-1">{children}</div>
+      <ToneContext.Provider value={status}>
+        <div className="flex-1">{children}</div>
+      </ToneContext.Provider>
       {footer ? <div className="mt-4 border-t border-[var(--ukb-border)] pt-3">{footer}</div> : null}
     </section>
   );

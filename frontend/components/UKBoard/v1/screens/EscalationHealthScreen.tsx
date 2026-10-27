@@ -10,7 +10,7 @@ import { EVENTS, KRI_TILES, MANIFEST_ID, PACK_ITEMS, ROUTES, SERIES, UNITS } fro
 import { projectedCrossing } from "@/lib/ukboard/v1/selectors";
 import type { KriTile } from "@/lib/ukboard/v1/types";
 import { AiExecutiveBand, DraftActionCard, GatedFaceLine } from "../ai";
-import { BoardLayoutGrid, CardShell, DeltaValue, Details, IntegrityBadge, MutedLine, PageTitle, PracticeLabel, RuleLine, SoWhat } from "../primitives";
+import { BoardLayoutGrid, CardShell, DeltaValue, Details, IntegrityBadge, MutedLine, PageTitle, PracticeLabel, RuleLine, SoWhat, StatusToken, TILE_TINT, TONE } from "../primitives";
 import { agendaProposalCount, useBoard } from "../state/boardStore";
 import { ui } from "../theme";
 import { unitStatus, useNav } from "./shared";
@@ -58,8 +58,8 @@ function EscalationHeadline() {
       <MutedLine>Vulnerable-customer exceptions · amber for 3 quarters · no action, decision or escalation recorded</MutedLine>
       <div className="mt-4 grid grid-cols-3 gap-2">
         {QUARTERS.map((q) => (
-          <div key={q.label} className="rounded-lg bg-[var(--ukb-amber-bg)] px-3 py-2">
-            <p className="text-lg font-bold tabular-nums text-[var(--ukb-text)]">{q.value}</p>
+          <div key={q.label} className={`rounded-lg border px-3 py-2 ${TILE_TINT.amber}`}>
+            <p className="text-lg font-bold tabular-nums text-[var(--ukb-amber)]">{q.value}</p>
             <p className="text-[11px] text-[var(--ukb-muted)]">{q.label} · per 10,000</p>
           </div>
         ))}
@@ -101,9 +101,9 @@ function ExceptionFeed() {
               role="listitem"
               title={`Routing rule: ${i.routingRule}`}
               onClick={() => nav.drill({ screen: "drill", kind: "manifest", manifestId: MANIFEST_ID, itemId: i.itemId }, i.itemId)}
-              className={`flex w-full items-start justify-between gap-2 border-b border-[var(--ukb-border)] px-3 py-2 text-left text-xs last:border-b-0 hover:bg-[var(--ukb-surface-2)] ${ui.focus} ${
-                nav.highlightRef === i.itemId ? "bg-[var(--ukb-highlight)]" : ""
-              }`}
+              className={`flex w-full items-start justify-between gap-2 border-b border-l-4 border-b-[var(--ukb-border)] px-3 py-2 text-left text-xs last:border-b-0 ${ui.focus} ${
+                i.removal && removedNow ? `${TONE.red.edge} ${TONE.red.tint}` : i.removal ? `${TONE.amber.edge} ${TONE.amber.tint}` : `${TONE.within_appetite.edge} hover:bg-[var(--ukb-surface-2)]`
+              } ${nav.highlightRef === i.itemId ? "ring-2 ring-inset ring-[var(--ukb-focus)]" : ""}`}
             >
               <span className="min-w-0">
                 <span className="block font-semibold text-[var(--ukb-text)]">{i.label}</span>
@@ -113,9 +113,10 @@ function ExceptionFeed() {
                   </span>
                 ) : null}
               </span>
-              <span className="shrink-0 text-[11px] font-semibold text-[var(--ukb-muted)]">
-                {i.removal ? (removedNow ? "Removed at ERC" : "Restored") : "In pack"}
-              </span>
+              <StatusToken
+                status={i.removal ? (removedNow ? "red" : "amber") : "within_appetite"}
+                label={i.removal ? (removedNow ? "Removed" : "Restored · draft") : "In pack"}
+              />
             </button>
           );
         })}
@@ -148,7 +149,7 @@ function GovernanceKriTile({ tile }: { tile: KriTile }) {
       }
     >
       <button type="button" onClick={() => nav.drill({ screen: "drill", kind: "kri", unitId: tile.unitId }, tile.unitId)} className={`block rounded text-left ${ui.focus}`}>
-        <p className="text-xl font-bold leading-snug text-[var(--ukb-text)]">{tile.primary}</p>
+        <p className={`text-xl font-bold leading-snug ${TONE[unitStatus(u.unitId)].number}`}>{tile.primary}</p>
       </button>
       <MutedLine>{tile.secondary}</MutedLine>
       <Details>
@@ -161,7 +162,7 @@ function GovernanceKriTile({ tile }: { tile: KriTile }) {
 /* Separate labelled strip for CRO actions on the chair preview (9C-OD-4) */
 function CroPreviewStrip() {
   return (
-    <section aria-label="CRO preview actions" className="rounded-xl border border-dashed border-[var(--ukb-track)] p-5">
+    <section aria-label="CRO preview actions" className="rounded-xl border border-[var(--ukb-brand)]/30 bg-[var(--ukb-brand-soft)] p-5">
       <h2 className="text-sm font-bold text-[var(--ukb-text)]">CRO preview actions</h2>
       <MutedLine>For the CRO as pack owner. Not part of the chair&apos;s view; the chair decides.</MutedLine>
       <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">

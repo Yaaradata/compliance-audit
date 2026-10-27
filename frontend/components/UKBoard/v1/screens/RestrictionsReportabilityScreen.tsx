@@ -23,6 +23,8 @@ import {
   RuleLine,
   SoWhat,
   StatusToken,
+  TILE_TINT,
+  TONE,
 } from "../primitives";
 import { useBoard } from "../state/boardStore";
 import { ui } from "../theme";
@@ -69,8 +71,8 @@ function PopulationTestCard() {
 
       <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
         {r.byRoute.map((b) => (
-          <div key={b.route} className="rounded-lg bg-[var(--ukb-surface-2)] px-3 py-2">
-            <p className="text-lg font-bold tabular-nums text-[var(--ukb-text)]">{b.accounts}</p>
+          <div key={b.route} className={`rounded-lg border px-3 py-2 ${TILE_TINT.red}`}>
+            <p className="text-lg font-bold tabular-nums text-[var(--ukb-red)]">{b.accounts}</p>
             <p className="text-[11px] leading-snug text-[var(--ukb-muted)]">
               {b.route}
               {b.lane === "manual" ? " (manual lane)" : ""}
@@ -115,9 +117,9 @@ function ClauseEvidenceList() {
       <MutedLine>Q3 2026 attestation due in {r.attestationDaysLeft} days ({r.attestationDue})</MutedLine>
       <ul className="mt-3 divide-y divide-[var(--ukb-border)] rounded-lg border border-[var(--ukb-border)]">
         {r.clauses.map((c) => (
-          <li key={c.clauseId} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
-            <span className="text-[var(--ukb-text)]" title={c.text}>
-              {c.ref}
+          <li key={c.clauseId} className={`flex items-center justify-between gap-2 border-l-4 px-3 py-2 text-xs ${TONE[VERDICT[c.verdict].status].edge}`}>
+            <span className="min-w-0 text-[var(--ukb-text)]" title={c.text}>
+              <span className="font-semibold">{c.ref}</span> <span className="text-[var(--ukb-muted)]">{c.text}</span>
             </span>
             <StatusToken status={VERDICT[c.verdict].status} label={VERDICT[c.verdict].label} />
           </li>
@@ -143,6 +145,14 @@ export function routeFace(route: ReportRoute, drafts: Record<string, { status: s
   return route.status === "not_assessed" ? "Not assessed · case not prepared" : "Decision pending · case not prepared";
 }
 
+/** Pill for a route row: decided (green), case sent (neutral), pending (amber), SAR status (neutral). */
+function routeTone(route: ReportRoute, drafts: Record<string, { status: string }>): { status: "within_appetite" | "amber" | "not_assessed"; label: string } {
+  if (route.isSar) return { status: "not_assessed", label: route.status === "not_engaged" ? "Closed" : "Open" };
+  if (route.status === "decided") return { status: "within_appetite", label: "Decided" };
+  if (route.caseDraftId && drafts[route.caseDraftId]?.status === "sent_to_owner") return { status: "not_assessed", label: "With SMF" };
+  return { status: "amber", label: "Pending" };
+}
+
 /* Z3 reportability ledger (CMP-23), boxed; route rows on the face (V-9) */
 function ReportabilityLedger() {
   const nav = useNav();
@@ -159,7 +169,7 @@ function ReportabilityLedger() {
           const { decided, total } = routesDecided(e.eventId, ROUTES);
           return (
             <div key={e.eventId}>
-              <div className="sticky top-0 z-[1] flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--ukb-border)] bg-[var(--ukb-surface-2)] px-3 py-2">
+              <div className="sticky top-0 z-[1] flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--ukb-border)] bg-[var(--ukb-brand-soft)] px-3 py-2">
                 <p className="text-xs font-bold text-[var(--ukb-text)]">{e.title}</p>
                 <p className="text-[11px] text-[var(--ukb-muted)]">
                   Day {e.dayN} · {decided} of {total} routes decided
@@ -185,14 +195,17 @@ function ReportabilityLedger() {
                     {r.isSar ? "—" : r.clock}
                     {!r.isSar && r.clockHours === 24 && r.status !== "decided" ? " · past 24-hour triage" : ""}
                   </span>
-                  <span className="font-semibold text-[var(--ukb-text)]">{routeFace(r, state.session.drafts)}</span>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <StatusToken status={routeTone(r, state.session.drafts).status} label={routeTone(r, state.session.drafts).label} />
+                    <span className="text-[var(--ukb-muted)]">{routeFace(r, state.session.drafts)}</span>
+                  </span>
                 </button>
               ))}
             </div>
           );
         })}
         {state.session.ledgerDrafts.map((l) => (
-          <div key={l.draftId} className="border-b border-[var(--ukb-border)] bg-[var(--ukb-surface-2)] px-3 py-2 last:border-b-0">
+          <div key={l.draftId} className="border-b border-l-4 border-b-[var(--ukb-border)] border-l-[var(--ukb-amber-solid)] bg-[var(--ukb-amber-tint)] px-3 py-2 last:border-b-0">
             <p className="text-xs font-bold text-[var(--ukb-text)]">{l.label}</p>
             <p className="text-[11px] text-[var(--ukb-muted)]">Opened {l.on} by CRO office · case not prepared</p>
           </div>

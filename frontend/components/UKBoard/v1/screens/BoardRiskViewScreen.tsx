@@ -26,6 +26,7 @@ import {
   SoWhat,
   StatusToken,
   TILE_TINT,
+  TONE,
 } from "../primitives";
 import { useBoard } from "../state/boardStore";
 import { ui } from "../theme";
@@ -75,7 +76,7 @@ function HeadlineAndStrip() {
             £96m headroom on a £4.0bn new-lending plan · amber projected Q2 2027 (early warning, not a prediction) <PracticeLabel kind="illustrative" />
           </MutedLine>
         </div>
-        <span className="inline-flex items-center gap-1 self-start rounded-md bg-[var(--ukb-surface-2)] px-2 py-1 text-xs font-semibold text-[var(--ukb-text)] md:self-end">
+        <span className="inline-flex items-center gap-1 self-start rounded-md border border-dashed border-[var(--ukb-grey-line)] bg-[var(--ukb-grey-tint)] px-2 py-1 text-xs font-semibold text-[var(--ukb-text)] md:self-end">
           {verified} of {SCORECARD.length} headlines verified · {counts.unverified} unverified
         </span>
       </div>
@@ -112,9 +113,7 @@ function ObjectiveTile({ tile }: { tile: ObjectiveTileVM }) {
   const highlighted = nav.highlightRef === tile.drill.focusUnitId;
   return (
     <div
-      className={`flex min-h-[112px] flex-col rounded-lg border p-3 ${TILE_TINT[status]} ${
-        status === "unverified" ? "border-[var(--ukb-grey)]" : "border-[var(--ukb-border)]"
-      } ${highlighted ? "ring-2 ring-[var(--ukb-focus)]" : ""}`}
+      className={`flex min-h-[112px] flex-col rounded-lg border p-3 ${TILE_TINT[status]} ${highlighted ? "ring-2 ring-[var(--ukb-focus)]" : ""}`}
     >
       <div className="flex items-start justify-between gap-2">
         <button
@@ -246,7 +245,7 @@ function RasScorecard() {
         {counts.within_appetite} of {SCORECARD.length} within appetite · {FIRM.headlineCap} of {FIRM.level1Count} Level 1 metrics
         <PracticeLabel kind="practice_not_rule" />
       </p>
-      <div className="mt-4 flex flex-col gap-3 rounded-lg border border-dashed border-[var(--ukb-track)] p-3 md:flex-row md:items-center md:justify-between">
+      <div className="mt-4 flex flex-col gap-3 rounded-lg border border-[var(--ukb-brand)]/30 bg-[var(--ukb-brand-soft)] p-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs font-bold text-[var(--ukb-text)]">
             {state.session.promoted ? "Promoted to the board view: NSFR" : "Proposed for the board view: NSFR"}
@@ -271,8 +270,8 @@ function ScorecardRow({ row, rank, highlighted }: { row: ScorecardRowVM; rank: n
     <div
       role="listitem"
       title={u.ruleLine}
-      className={`grid min-h-[58px] grid-cols-[28px_1fr] items-center gap-x-3 gap-y-1 border-b border-[var(--ukb-border)] px-3 py-2 last:border-b-0 md:grid-cols-[28px_1fr_240px_150px_64px] ${
-        highlighted ? "bg-[var(--ukb-highlight)]" : "hover:bg-[var(--ukb-surface-2)]"
+      className={`grid min-h-[58px] grid-cols-[28px_1fr] items-center gap-x-3 gap-y-1 border-b border-l-4 border-b-[var(--ukb-border)] px-3 py-2 last:border-b-0 md:grid-cols-[28px_1fr_240px_150px_64px] ${TONE[status].edge} ${
+        highlighted ? "bg-[var(--ukb-highlight)]" : status === "red" || status === "amber" ? `${TONE[status].tint}` : "hover:bg-[var(--ukb-surface-2)]"
       }`}
     >
       <span className="text-xs tabular-nums text-[var(--ukb-subtle)]">{rank}</span>
@@ -298,7 +297,7 @@ function ScorecardRow({ row, rank, highlighted }: { row: ScorecardRowVM; rank: n
           </button>
         ) : u.position ? (
           <span className="block truncate" title={`${u.position.value} ${u.position.denominator} ${u.position.delta ?? ""}`}>
-            <span className="font-bold tabular-nums text-[var(--ukb-text)]">{u.position.value}</span>{" "}
+            <span className={`font-bold tabular-nums ${TONE[status].number}`}>{u.position.value}</span>{" "}
             <span className="text-[var(--ukb-muted)]">{u.position.denominator}</span>
           </span>
         ) : null}
