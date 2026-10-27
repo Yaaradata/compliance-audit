@@ -266,6 +266,20 @@ const UKPA_MOMENTUM_BANNED_PROSE = [
   },
 ];
 
+/**
+ * UK Board v1 — banned face wording (Stage 6 X-4, X-9; Stage 9C V-7, V-10; HF-8).
+ * The product drafts and proposes; it never files, notifies or submits, and a projection
+ * is never a "forecast".
+ */
+const UKBOARD_BANNED_PATTERN =
+  "forecast|cannot defend|attested without evidence|suppress|submit|complete now|approve and send|notify now|file now|has breached|is non-compliant|illegal|violation|at risk|watch closely|critical exposure";
+
+const UKBOARD_BANNED_PROSE = ["Literal[value=/%s/i]", "TemplateElement[value.raw=/%s/i]", "JSXText[value=/%s/i]"].map((sel) => ({
+  selector: sel.replace("%s", UKBOARD_BANNED_PATTERN),
+  message:
+    "UK Board: banned face wording. Use prepare / propose / draft / send to owner; say \"projection\" not \"forecast\"; neutral labels only.",
+}));
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -341,6 +355,14 @@ const eslintConfig = defineConfig([
         ...UKPA_MOMENTUM_BANNED_PROSE,
         ...UKPA_DEFENSIBILITY_BANNED_PROSE,
       ],
+    },
+  },
+  {
+    // UK Board v1 — separate product; its own banned face wording.
+    files: ["components/UKBoard/**/*.{js,jsx,ts,tsx}", "lib/ukboard/**/*.{js,jsx,ts,tsx}"],
+    ignores: ["**/*.test.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", ...UKBOARD_BANNED_PROSE],
     },
   },
 ]);
