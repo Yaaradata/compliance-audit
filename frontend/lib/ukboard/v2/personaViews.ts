@@ -49,7 +49,7 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         id: "strategy",
         label: "Strategy & appetite",
         title: "Strategy and risk appetite",
-        layout: [full("B_STRATEGY"), full("MEASURES_FULL_BAR"), row([6, "TRADEOFFS"], [6, "B_TENSIONS"])],
+        layout: [full("S_CASCADE"), row([6, "S_TENSIONS"], [6, "S_POLICY", "S_BANDS"])],
       },
       {
         id: "top",
@@ -80,7 +80,7 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         id: "decisions",
         label: "Decisions",
         title: "Board decisions",
-        layout: [full("B_DECISION_PANEL"), full("DECISION_LOG")],
+        layout: [full("D_CALLS"), full("DECISION_LOG")],
       },
       {
         id: "ai",

@@ -45,11 +45,12 @@ function OverviewPosture() {
 
 function BoardCalls() {
   const go = useGo();
+  const { dispatch } = useStore();
   useFigures(BOARD_CALLS.map((c) => `call:${c.id}`));
   return (
     <Card title="Board calls" right={<LinkMore onClick={() => go("decisions")} label="Decisions" />}>
       {BOARD_CALLS.map((c) => (
-        <LineItem key={c.id} text={`${c.verb} ${c.title}`} detail={`${c.decider} · ${c.due}`} onClick={() => go("decisions")} right={<span className="text-indigo-700">›</span>} />
+        <LineItem key={c.id} text={`${c.verb} ${c.title}`} detail={`${c.decider} · ${c.due}`} onClick={() => dispatch({ type: "SELECT_CALL", id: c.id })} right={<span className="text-indigo-700">›</span>} />
       ))}
     </Card>
   );

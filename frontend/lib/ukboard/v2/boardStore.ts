@@ -621,6 +621,7 @@ export const BOARD_CALLS = [
       { option: "Pace growth", growth: "−£300m inflow vs plan", risk: "Queue below amber", cost: "None", time: "about 6 weeks" },
     ],
     effects: ["Restore → capacity lands after the campaign starts", "Pace → savings plan missed by about £300m"],
+    questions: ["Restoring capacity lands after the campaign starts. Then what?", "Why no resourcing decision since August?", "What would pacing growth cost in members?"],
   },
   {
     id: "D2",
@@ -635,6 +636,7 @@ export const BOARD_CALLS = [
       { option: `Tighten to ${FTB.tightenTo}%`, growth: "Plan gap −£0.5bn", risk: `£${ftbHeadroomM(FTB.tightenTo)}m headroom`, cost: "Cost of risk −1 bp", time: "Immediate" },
     ],
     effects: ["Loosen → arrears +0.03 pts projection", "Loosen → capital −0.1 pts projection"],
+    questions: ["How do the income cap and the higher limit interact?", "What would make us tighten again, and who watches it?", "Does the projection hold if house prices fall?"],
   },
   {
     id: "D3",
@@ -649,6 +651,7 @@ export const BOARD_CALLS = [
       { option: "Recalibrate threshold", growth: "None", risk: "No customer change", cost: "Review", time: "Q1 2027" },
     ],
     effects: ["Waiver → item stays off the agenda until review"],
+    questions: ["Who removed this item, and on what authority?", "Why no action while it stayed amber?", "What stops an item being dropped silently?"],
   },
 ];
 

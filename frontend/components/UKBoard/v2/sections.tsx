@@ -41,6 +41,7 @@ import { useDrawer } from "./drawerContext";
 import LineChart from "./LineChart";
 import { BarRows, Card, OWNER_SHORT, ChartCard, Chip, EventList, FlowPill, KpiTile, LimitPill, LineItem, LinkMore, MeasureTable, OwnerTable, PostureStrip, StatList, StatRow, StatusPill, Table, useFigures, VerdictPill, type Workflow } from "./present";
 import { OVERVIEW_SECTIONS } from "./overview";
+import { STRATEGY_SECTIONS } from "./strategy";
 import { useStore } from "./store";
 import { AiTag, btn, btnPrimary, focus, Pill } from "./ui";
 
@@ -434,18 +435,21 @@ function DecisionLog() {
   return (
     <Table
       title="Decision log"
-      cols="grid-cols-[96px_minmax(140px,0.8fr)_minmax(220px,2fr)_100px]"
-      head={["Date", "Forum", "Decision", "Status"]}
-      rightCols={[3]}
+      cols="grid-cols-[96px_minmax(140px,0.8fr)_minmax(220px,2fr)_80px_100px]"
+      head={["Date", "Forum", "Decision", "Stance", "Status"]}
+      rightCols={[4]}
       rows={DECISION_HISTORY.map((h, i) => ({
         key: h.decision,
         rail: flow(i) === "overdue" ? "amber" : undefined,
         cells: [
           <b key="d" className="font-semibold tabular-nums text-slate-900">
-            {h.date.replace(/^0/, "")}
+            {h.date.replace(/^0/, "").replace(/ 2026$/, "")}
           </b>,
           h.forum,
           h.decision,
+          <span key="t" className="text-xs">
+            {h.stance}
+          </span>,
           <FlowPill key="s" w={flow(i)} />,
         ],
       }))}
@@ -1326,6 +1330,7 @@ const SECTIONS: Record<string, () => ReactNode> = {
   R_CLOCKS_DUE: ClocksDue,
   R_PACK: PackChecklist,
   ...OVERVIEW_SECTIONS,
+  ...STRATEGY_SECTIONS,
 };
 
 export function renderSection(id: SectionId): ReactNode {

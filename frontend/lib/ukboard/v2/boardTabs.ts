@@ -121,12 +121,12 @@ export const indicatorWord = (m: MetricMeta) => (m.indicatorType === "leading" ?
 /* ── Decision history (existing records only) ─────────────────────── */
 
 export const DECISION_HISTORY = [
-  { date: "23 Oct 2026", forum: "Head of Compliance", decision: "Mortgage rate error reportable to the FCA", outcome: "Decided", tone: "green" as const },
-  { date: "22 Apr 2026", forum: "Board", decision: "Capital plan approved (CET1 limit 13.5%)", outcome: "Within: 16.8%", tone: "green" as const },
-  { date: "14 Apr 2026", forum: "Risk Committee", decision: "Savings onboarding tension agreed", outcome: "Outside terms: 2 of 3 limits broken", tone: "red" as const },
-  { date: "06 Apr 2026", forum: "Risk Committee", decision: "Temporary 25% high-LTV limit for 6 months", outcome: "Expired 06 Oct; register not updated", tone: "amber" as const },
-  { date: "11 Mar 2026", forum: "Board", decision: "Wholesale funding ceiling approved (40%)", outcome: "Within: 34%", tone: "green" as const },
-  { date: "11 Mar 2026", forum: "Risk Committee", decision: "High-LTV appetite thresholds approved", outcome: "Within; amber by Q2 2027", tone: "green" as const },
+  { date: "23 Oct 2026", forum: "Head of Compliance", decision: "Mortgage rate error reportable to the FCA", outcome: "Decided", tone: "green" as const, stance: "—" },
+  { date: "22 Apr 2026", forum: "Board", decision: "Capital plan approved (CET1 limit 13.5%)", outcome: "Within: 16.8%", tone: "green" as const, stance: "Hold" },
+  { date: "14 Apr 2026", forum: "Risk Committee", decision: "Savings onboarding tension agreed", outcome: "Outside terms: 2 of 3 limits broken", tone: "red" as const, stance: "Hold" },
+  { date: "06 Apr 2026", forum: "Risk Committee", decision: "Temporary 25% high-LTV limit for 6 months", outcome: "Expired 06 Oct; register not updated", tone: "amber" as const, stance: "Loosen" },
+  { date: "11 Mar 2026", forum: "Board", decision: "Wholesale funding ceiling approved (40%)", outcome: "Within: 34%", tone: "green" as const, stance: "Hold" },
+  { date: "11 Mar 2026", forum: "Risk Committee", decision: "High-LTV appetite thresholds approved", outcome: "Within; amber by Q2 2027", tone: "green" as const, stance: "Tighten" },
 ];
 
 /* ── Owners (Accountability) ──────────────────────────────────────── */

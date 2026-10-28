@@ -39,6 +39,8 @@ export interface State {
   tab: TabId;
   /** Strategy-strip filter: show only measures linked to this objective. */
   filter: string | null;
+  /** Board call open on the Decisions tab. */
+  call: string;
   epoch: number;
   session: Session;
 }
@@ -56,6 +58,7 @@ export type Action =
   | { type: "PROPOSE_TUNING"; optionId: string }
   | { type: "REQUEST_DEEP_DIVE"; topic: string }
   | { type: "SET_FILTER"; objective: string | null }
+  | { type: "SELECT_CALL"; id: string }
   | { type: "ADD_TO_PAPER"; item: string }
   | { type: "INVITE_OWNER"; role: string }
   | { type: "ESCALATE_EVENT"; eventId: string; decider: string }
@@ -84,7 +87,7 @@ function seed(): Session {
 }
 
 export function initial(persona: Persona = "board"): State {
-  return { persona, tab: PERSONA_VIEWS[persona].defaultTab, filter: null, epoch: 0, session: seed() };
+  return { persona, tab: PERSONA_VIEWS[persona].defaultTab, filter: null, call: "D1", epoch: 0, session: seed() };
 }
 
 const person = (p: Persona) => PERSONA_VIEWS[p];
@@ -181,6 +184,8 @@ function reducer(state: State, a: Action): State {
       // Board members request; the CRO prepares. Logged against the board member.
       if (state.persona !== "board" || s0.deepDives.includes(a.topic)) return state;
       return write({ deepDives: [...s.deepDives, a.topic] }, entry(state, s, "deep dive requested from the CRO", a.topic, "deep-dive"));
+    case "SELECT_CALL":
+      return { ...state, call: a.id, tab: "decisions" };
     case "SET_FILTER":
       return { ...state, filter: a.objective };
     case "ADD_TO_PAPER":
