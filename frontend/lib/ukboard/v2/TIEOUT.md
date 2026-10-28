@@ -54,7 +54,7 @@ New values for the Board member tabs live in `boardMemberData.ts`; agent additio
 | CET1 16.8% vs 13.5% limit | Financial strength; board agent | Existing (u-cet1) |
 | Consumer Duty 9 of 12 outcome measures in tolerance (3 outside) | Scorecard; Growth table | Seed; 3 = 12 − 9 |
 | Credit: above 4.5× income 9.2% (limit 15%); cost of risk 6 bps (Q2 5 bps); arrears Q2 0.38% | Credit quality | Seed. Arrears now 0.42% is existing (6,100 of 1,452,000), not 0.41% |
-| Consumer Duty outcomes (14 of 14 reviews; fair-value review; letters 71% vs 80%; call wait 6m 40s vs 5m) | Customers | Seed |
+| Consumer Duty outcomes: all 4 within tolerance (14 of 14 reviews; fair-value review; letters 71% vs 80% and vulnerable exceptions 16.9 vs amber 14 shown as amber key measures; call wait 6m 40s vs 5m) | Customers | 4 of 4 within is existing (u-cd headline, kept); key measures seed |
 | Vulnerable-customer exceptions 14.2 → 15.8 → 16.9, amber 14, red 18 | Customers; Briefing pulse | Existing (u-vuln, VULN_HISTORY); amber 14 not 15 |
 | Complaints 1.6 → 1.7 → 1.8 → 2.1 per 1,000; themes 34% / 21% / 14% | Customers; Briefing pulse | Seed |
 | Ombudsman upholds 31% (118 of 381); Q2 27% | Customers; Briefing pulse | 31% existing; Q2 27% seed |

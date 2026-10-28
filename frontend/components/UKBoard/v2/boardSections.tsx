@@ -477,20 +477,20 @@ export function DutyOutcomes() {
   return (
     <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {DUTY_OUTCOMES.map((o) => (
-        <div key={o.outcome} className={`rounded-xl border-[1.5px] px-3 py-2.5 ${o.tone === "green" ? "border-emerald-200 bg-white" : `${TONE[o.tone].bg} ${TONE[o.tone].border}`}`}>
+        <div key={o.outcome} className="rounded-xl border-[1.5px] border-emerald-200 bg-white px-3 py-2.5">
           <div className="flex items-start justify-between gap-2">
             <span className="text-[13px] font-bold text-slate-900">{o.outcome}</span>
             <Pill tone={o.tone} label={o.status} />
           </div>
-          <p className={`mt-1 text-2xl font-bold leading-tight tabular-nums ${o.tone === "green" ? "text-slate-900" : TONE[o.tone].text}`}>{o.measure}</p>
+          <p className={`mt-1 text-2xl font-bold leading-tight tabular-nums ${o.measureTone === "green" ? "text-slate-900" : TONE[o.measureTone].text}`}>{o.measure}</p>
           <p className="text-xs text-slate-600">{o.against}</p>
           {o.outcome === "Consumer support" ? (
             <p className="text-xs text-slate-600">
               Call wait {CALL_WAIT.value} · target {CALL_WAIT.target}
             </p>
           ) : null}
-          <p className="mt-1 flex justify-between gap-2 text-[11px] text-slate-500">
-            <span>{o.trend}</span>
+          <p className="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+            {o.measureTone === "green" ? <span>{o.trend}</span> : <Tag tone={o.measureTone}>{o.trend}</Tag>}
             <span>{o.owner}</span>
           </p>
         </div>

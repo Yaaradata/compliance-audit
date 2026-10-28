@@ -145,11 +145,12 @@ export const RISK_TIERS: { tier: "Top" | "Emerging" | "Obligatory"; items: { nam
 
 /* ── 5.3 Customers ──────────────────────────────────────────────────── */
 
-export const DUTY_OUTCOMES: { outcome: string; tone: Tone; status: string; measure: string; against: string; trend: string; owner: string }[] = [
-  { outcome: "Products & services", tone: "green", status: "Within", measure: "14 of 14", against: "product reviews done", trend: "No change", owner: "Chief Customer Officer" },
-  { outcome: "Price & value", tone: "green", status: "Within", measure: "Reviewed", against: "savings rates vs fair value", trend: "No change", owner: "Head of Savings" },
-  { outcome: "Consumer understanding", tone: "amber", status: "Amber", measure: "71%", against: "letters understood · target 80%", trend: "Below target", owner: "Chief Customer Officer" },
-  { outcome: "Consumer support", tone: "amber", status: "Amber", measure: "16.9", against: "vulnerable exceptions per 10,000 · amber 14", trend: "Up 3 quarters", owner: "Chief Customer Officer" },
+/** All four outcomes are within tolerance (existing headline u-cd: 4 of 4); two key measures are amber. */
+export const DUTY_OUTCOMES: { outcome: string; tone: Tone; status: string; measure: string; measureTone: Tone; against: string; trend: string; owner: string }[] = [
+  { outcome: "Products & services", tone: "green", status: "Within", measure: "14 of 14", measureTone: "green", against: "product reviews done", trend: "No change", owner: "Chief Customer Officer" },
+  { outcome: "Price & value", tone: "green", status: "Within", measure: "Reviewed", measureTone: "green", against: "savings rates vs fair value", trend: "No change", owner: "Head of Savings" },
+  { outcome: "Consumer understanding", tone: "green", status: "Within", measure: "71%", measureTone: "amber", against: "letters understood · target 80%", trend: "Measure below target", owner: "Chief Customer Officer" },
+  { outcome: "Consumer support", tone: "green", status: "Within", measure: "16.9", measureTone: "amber", against: "vulnerable exceptions per 10,000 · amber 14", trend: "Measure amber 3 quarters", owner: "Chief Customer Officer" },
 ];
 
 export const CALL_WAIT = { value: "6m 40s", target: "5m" };
