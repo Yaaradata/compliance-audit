@@ -322,6 +322,12 @@ export function measuresByTier() {
   }));
 }
 
+/** Emerging risks in the register with no measure yet (not among the 12). */
+export const EMERGING_UNMEASURED: { name: string; owner: string | null; note: string }[] = [
+  { name: "AI impersonation fraud", owner: "Head of Financial Crime", note: "within 12 months" },
+  { name: "Agent-initiated payments", owner: null, note: "watching" },
+];
+
 /* ── Other canonical figures ─────────────────────────────────────────── */
 
 const MEMBERS = CAPACITY.membersM[CAPACITY.membersM.length - 1] * 1_000_000;
