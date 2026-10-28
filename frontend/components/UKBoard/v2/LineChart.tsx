@@ -55,8 +55,8 @@ export default function LineChart({
       <svg width="100%" height={height} role="img" aria-label={`${title}. ${desc}`}>
         {threshold ? (
           <>
-            <line x1={`${x0}%`} x2={`${x1}%`} y1={y(threshold.value)} y2={y(threshold.value)} stroke="var(--ukb-amber-solid)" strokeDasharray="4 3" />
-            <text x={`${x1}%`} y={y(threshold.value) - 4} fontSize={11} textAnchor="end" fill="var(--ukb-amber)">
+            <line x1={`${x0}%`} x2={`${x1}%`} y1={y(threshold.value)} y2={y(threshold.value)} stroke="#d97706" strokeDasharray="4 3" />
+            <text x={`${x1}%`} y={y(threshold.value) - 4} fontSize={11} textAnchor="end" fill="#b45309">
               {threshold.label}
             </text>
           </>
@@ -69,27 +69,27 @@ export default function LineChart({
               x2={x(i + 1)}
               y1={y(s.points[i].value)}
               y2={y(p.value)}
-              stroke={si === 0 ? "var(--ukb-text)" : "var(--ukb-accent)"}
+              stroke={si === 0 ? "#0f172a" : "#4f46e5"}
               strokeWidth={2}
               strokeDasharray={s.dashed ? "5 3" : undefined}
             />
           )),
         )}
         {series.map((s, si) =>
-          s.points.map((p, i) => <circle key={`${si}-p${i}`} cx={x(i)} cy={y(p.value)} r={2.5} fill={si === 0 ? "var(--ukb-text)" : "var(--ukb-accent)"} />),
+          s.points.map((p, i) => <circle key={`${si}-p${i}`} cx={x(i)} cy={y(p.value)} r={2.5} fill={si === 0 ? "#0f172a" : "#4f46e5"} />),
         )}
         {axes ? (
           <>
-            <text x="0" y={y(hi) + 4} fontSize={11} fill="var(--ukb-subtle)">
+            <text x="0" y={y(hi) + 4} fontSize={11} fill="#64748b">
               {hi}
               {suffix}
             </text>
-            <text x="0" y={y(lo) + 4} fontSize={11} fill="var(--ukb-subtle)">
+            <text x="0" y={y(lo) + 4} fontSize={11} fill="#64748b">
               {lo}
               {suffix}
             </text>
             {series[0].points.map((p, i) => (
-              <text key={p.label} x={x(i)} y={height - 4} fontSize={11} fill="var(--ukb-subtle)" textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"}>
+              <text key={p.label} x={x(i)} y={height - 4} fontSize={11} fill="#64748b" textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"}>
                 {shortLabel(p.label)}
               </text>
             ))}
@@ -97,12 +97,12 @@ export default function LineChart({
         ) : null}
       </svg>
       {series.length > 1 || axes ? (
-        <figcaption className="mt-1 flex flex-wrap gap-3 text-[11px] text-[var(--ukb-subtle)]">
+        <figcaption className="mt-1 flex flex-wrap gap-3 text-[11px] text-[#64748b]">
           {series.map((s, si) => (
             <span key={s.name} className="inline-flex items-center gap-1">
               <span
                 className={`inline-block h-0 w-4 border-t-2 ${s.dashed ? "border-dashed" : ""}`}
-                style={{ borderColor: si === 0 ? "var(--ukb-text)" : "var(--ukb-accent)" }}
+                style={{ borderColor: si === 0 ? "#0f172a" : "#4f46e5" }}
                 aria-hidden
               />
               {s.name}

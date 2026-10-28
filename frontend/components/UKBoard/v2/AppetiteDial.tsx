@@ -25,11 +25,11 @@ export default function AppetiteDial({
   const { min, max, amber, red, actual, projection } = dial;
   const zones: { from: number; to: number; cls: string }[] = [];
   if (direction === "higherIsWorse") {
-    if (amber !== undefined && red !== undefined) zones.push({ from: amber, to: red, cls: "bg-[var(--ukb-amber-line)]" });
-    if (red !== undefined) zones.push({ from: red, to: max, cls: "bg-[var(--ukb-red-line)]" });
+    if (amber !== undefined && red !== undefined) zones.push({ from: amber, to: red, cls: "bg-[#fcd34d]" });
+    if (red !== undefined) zones.push({ from: red, to: max, cls: "bg-[#fca5a5]" });
   } else {
-    if (red !== undefined) zones.push({ from: min, to: red, cls: "bg-[var(--ukb-red-line)]" });
-    if (amber !== undefined && red !== undefined) zones.push({ from: red, to: amber, cls: "bg-[var(--ukb-amber-line)]" });
+    if (red !== undefined) zones.push({ from: min, to: red, cls: "bg-[#fca5a5]" });
+    if (amber !== undefined && red !== undefined) zones.push({ from: red, to: amber, cls: "bg-[#fcd34d]" });
   }
   const label = `Now ${actual}${dial.unit}${amber !== undefined ? `, amber ${amber}${dial.unit}` : ""}${red !== undefined ? `, red ${red}${dial.unit}` : ""}${
     projection !== undefined ? ", projection reaches amber" : ""
@@ -37,19 +37,19 @@ export default function AppetiteDial({
   return (
     <div className={`w-full ${className}`} role="img" aria-label={label} title={label}>
       <div className="relative h-3.5">
-        <div className="absolute inset-x-0 top-[3px] h-2 rounded-full bg-[var(--ukb-surface-2)]" />
+        <div className="absolute inset-x-0 top-[3px] h-2 rounded-full bg-[#f1f5f9]" />
         {zones.map((z, i) => (
           <div key={i} className={`absolute top-[3px] h-2 ${z.cls}`} style={{ left: span(dial, z.from, z.to), width: width(dial, z.from, z.to) }} />
         ))}
         {projection !== undefined ? (
-          <div className="absolute top-0 h-3.5 w-[6px] -translate-x-1/2 rounded-sm border-2 border-[var(--ukb-text)] bg-[var(--ukb-surface)]" style={{ left: pct(dial, projection) }} />
+          <div className="absolute top-0 h-3.5 w-[6px] -translate-x-1/2 rounded-sm border-2 border-[#0f172a] bg-[#ffffff]" style={{ left: pct(dial, projection) }} />
         ) : null}
-        <div className="absolute top-0 h-3.5 w-[2px] -translate-x-1/2 bg-[var(--ukb-text)]" style={{ left: pct(dial, actual) }} />
+        <div className="absolute top-0 h-3.5 w-[2px] -translate-x-1/2 bg-[#0f172a]" style={{ left: pct(dial, actual) }} />
       </div>
       {labels ? (
-        <div className="mt-1 flex justify-between text-[11px] text-[var(--ukb-subtle)]">
+        <div className="mt-1 flex justify-between text-[11px] text-[#64748b]">
           <span>
-            now <span className="font-semibold tabular-nums text-[var(--ukb-text)]">{actual}{dial.unit}</span>
+            now <span className="font-semibold tabular-nums text-[#0f172a]">{actual}{dial.unit}</span>
           </span>
           {red !== undefined ? (
             <span>

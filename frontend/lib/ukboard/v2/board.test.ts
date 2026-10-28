@@ -39,3 +39,35 @@ test("headline sentence is rule-built and short", () => {
   assert.ok(s.split(" ").length <= 22);
   assert.equal(daysToBrc(), 49);
 });
+
+import { CHANGES, FRANCHISES, owners, signOffBuckets, plain } from "./boardTabs";
+import { AGENTS, QUEUE, totalChecks, TUNING } from "./agentsData";
+
+test("franchise verdicts and posture inputs", () => {
+  assert.deepEqual(FRANCHISES.map((f) => f.verdict), ["room_to_grow", "fix_first", "hold", "unverified"]);
+  assert.equal(CHANGES.length, 6);
+});
+
+test("sign-off buckets add up to 12: 10 signed, 1 due, 1 unconfirmed", () => {
+  const b = signOffBuckets();
+  assert.deepEqual([b.signed.length, b.due.length, b.unconfirmed.length], [10, 1, 1]);
+});
+
+test("owner cards use completed sign-offs only", () => {
+  const o = owners({});
+  assert.equal(o.find((x) => x.role === "Head of Financial Crime")?.lastSignOff, "26 October 2026");
+  assert.equal(o.find((x) => x.role === "Data owner (payments)")?.lastSignOff, "Unconfirmed");
+});
+
+test("agent data ties out", () => {
+  assert.equal(AGENTS.length, 6);
+  assert.equal(totalChecks(), 41);
+  assert.equal(QUEUE.length, 5);
+  assert.equal(((2100 / TUNING.alertsPerMonth) * 100).toFixed(1), "5.4");
+  assert.equal(((900 / TUNING.alertsPerMonth) * 100).toFixed(1), "2.3");
+  assert.ok(TUNING.options.every((o) => o.caught <= TUNING.breaches));
+});
+
+test("plain words replace board jargon", () => {
+  assert.equal(plain("BRC and ERC review CDD attestation"), "Risk Committee and Executive Risk Committee review customer checks sign-off");
+});

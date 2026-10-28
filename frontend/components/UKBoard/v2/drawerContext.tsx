@@ -2,7 +2,7 @@
 
 /** UK Board v2 — which detail drawer is open. UI state only; nothing persists. */
 import { createContext, useContext } from "react";
-import type { DrawerKey } from "@/lib/ukboard/v2/board";
+import type { DrawerKey } from "./drawerKeys";
 
 export interface DrawerApi {
   openKey: DrawerKey | null;
