@@ -27,8 +27,8 @@ const OWNER_SHORT: Record<string, string> = {
   "Chief Operating Officer": "Operations",
 };
 
-/** Owner column shows from 1280px; below that the drawer carries it. */
-const COLS = "grid min-h-9 grid-cols-[minmax(120px,1.1fr)_minmax(90px,1fr)_minmax(150px,1.7fr)_64px_112px] items-center gap-3 px-2 xl:grid-cols-[minmax(150px,1.1fr)_minmax(120px,1.1fr)_minmax(200px,1.8fr)_64px_92px_128px]";
+/** Owner column shows from 1400px; below that the drawer carries it. */
+const COLS = "grid min-h-9 grid-cols-[minmax(120px,1.1fr)_minmax(90px,1fr)_minmax(150px,1.7fr)_64px_112px] items-center gap-3 px-2 min-[1400px]:grid-cols-[minmax(150px,1.1fr)_minmax(120px,1.1fr)_minmax(200px,1.8fr)_64px_92px_128px]";
 
 function Bar({ m }: { m: Measure }) {
   const p = position(m);
@@ -59,7 +59,7 @@ export default function AppetitePositionChart({ onEmerging }: { onEmerging: () =
         <span>% of appetite used</span>
         <span>Value</span>
         <span className="text-right">vs Q2</span>
-        <span className="hidden xl:block">Owner</span>
+        <span className="hidden min-[1400px]:block">Owner</span>
         <span className="text-right">Status</span>
       </div>
       {groups.map((g) => (
@@ -79,7 +79,7 @@ export default function AppetitePositionChart({ onEmerging }: { onEmerging: () =
                   <span className="text-right">
                     <DeltaMark d={m.delta} />
                   </span>
-                  <span className="hidden truncate text-xs text-slate-500 xl:block">{OWNER_SHORT[m.owner] ?? m.owner}</span>
+                  <span className="hidden truncate text-xs text-slate-500 min-[1400px]:block">{OWNER_SHORT[m.owner] ?? m.owner}</span>
                   <span className="justify-self-end">
                     <StatusPill status={m.status} />
                   </span>

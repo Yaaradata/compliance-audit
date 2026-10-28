@@ -11,7 +11,9 @@ import { deltaText, STATUS_WORD, type Delta, type MeasureStatus } from "@/lib/uk
 import { focus, Pill, type Tone } from "./ui";
 
 export const STATUS_TONE: Record<MeasureStatus, Tone> = { red: "red", amber: "amber", projected: "amber", within: "green", unconfirmed: "grey" };
-const RAIL: Record<Tone, string> = { red: "border-l-red-500", amber: "border-l-amber-500", green: "border-l-slate-200", grey: "border-l-slate-300" };
+const RAIL: Record<Tone, string> = { red: "border-l-red-500", amber: "border-l-amber-500", green: "border-l-transparent", grey: "border-l-transparent" };
+/** Every list row reserves the 3px rail so rows with and without status line up. */
+const rowRail = (rail?: Tone) => `border-l-[3px] pl-2.5 ${rail ? RAIL[rail] : "border-l-transparent"}`;
 
 /* ── Figure registry ─────────────────────────────────────────────────── */
 
@@ -89,7 +91,7 @@ export function StatusPill({ status, label }: { status: MeasureStatus; label?: s
 
 /** Label left · value right (dark, tabular) · comparator muted in a fixed column. */
 export function StatRow({ label, value, comparator, rail, right, onClick }: { label: string; value: string; comparator?: string; rail?: Tone; right?: ReactNode; onClick?: (el: HTMLElement) => void }) {
-  const railCls = rail === "red" || rail === "amber" ? `border-l-[3px] pl-2.5 ${RAIL[rail]}` : "pl-0";
+  const railCls = rowRail(rail);
   const body = (
     <span className={`grid min-h-10 grid-cols-[minmax(0,1fr)_auto_minmax(72px,0.9fr)] items-center gap-3 border-t border-slate-100 py-1 text-[13px] leading-snug ${railCls}`}>
       <span className="text-slate-700">{label}</span>
@@ -111,7 +113,7 @@ export function StatRow({ label, value, comparator, rail, right, onClick }: { la
 
 /** One-line item with an optional left rail and a right slot (no figures implied). */
 export function LineItem({ text, detail, rail, right, onClick }: { text: string; detail?: string; rail?: Tone; right?: ReactNode; onClick?: (el: HTMLElement) => void }) {
-  const railCls = rail === "red" || rail === "amber" ? `border-l-[3px] pl-2.5 ${RAIL[rail]}` : "";
+  const railCls = rowRail(rail);
   const body = (
     <span className={`flex min-h-10 items-center justify-between gap-3 border-t border-slate-100 py-1 text-[13px] leading-snug ${railCls}`}>
       <span className="min-w-0 text-slate-800">

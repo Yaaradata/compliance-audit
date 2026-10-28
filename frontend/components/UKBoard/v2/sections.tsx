@@ -7,7 +7,7 @@
  * Board member reads and challenges; the Chair records and governs; the CRO prepares and approves.
  */
 import { useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Check, Lock, Sparkles } from "lucide-react";
+import { Check, Lock, Sparkles } from "lucide-react";
 import { CAPACITY, DRAFTS, EVENTS, HORIZON, PACK_ITEMS, PEOPLE, ROUTES } from "@/lib/ukboard/v1/data";
 import { getPrecedent } from "@/lib/ukboard/v1/precedents";
 import { headlineCounts, METRICS, rowState, type MetricMeta } from "@/lib/ukboard/v2/board";
@@ -150,10 +150,7 @@ function MeasureRow({ m }: { m: MetricMeta }) {
         </span>
         <span className={`inline-flex items-center gap-0.5 text-xs tabular-nums ${m.delta?.worse ? "text-red-600" : "text-slate-400"}`}>
           {m.delta ? (
-            <>
-              {m.delta.text.startsWith("+") ? <ArrowUp className="h-3 w-3" aria-hidden /> : <ArrowDown className="h-3 w-3" aria-hidden />}
-              {m.delta.text.replace(/^[+−-]/, "")}
-            </>
+            <span className="whitespace-nowrap">{m.delta.text}</span>
           ) : (
             "no change"
           )}

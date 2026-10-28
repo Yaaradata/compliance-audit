@@ -155,7 +155,7 @@ export function SinceLastBoard() {
     <BoardCard title="What happened since last board?">
       {SINCE_LAST_BOARD.map((e) => (
         <button key={e.text} type="button" onClick={(ev) => open(e.drawer, ev.currentTarget)} className={`block w-full text-left hover:bg-slate-50 ${focus}`}>
-          <span className={`grid min-h-9 grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 py-0.5 text-[13px] leading-snug ${e.rail !== "grey" ? `pl-2.5 ${railCls(e.rail)}` : ""}`}>
+          <span className={`grid min-h-9 grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 py-0.5 text-[13px] leading-snug border-l-[3px] pl-2.5 ${e.rail !== "grey" ? railCls(e.rail) : "border-l-transparent"}`}>
             <b className="font-semibold tabular-nums text-slate-900">{e.date}</b>
             <span className="text-slate-800">{e.text}</span>
             <span className="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{e.tag}</span>
@@ -396,7 +396,7 @@ export function PolicyTensions() {
   return (
     <BoardCard title="Where do our policies conflict?" right={<AiTag label="AI agent found" />}>
       {TENSIONS.map((t) => (
-        <button key={t.a} type="button" onClick={(e) => open(t.drawer, e.currentTarget)} className={`block w-full border-t border-slate-100 py-2 text-left hover:bg-slate-50 ${focus} ${t.tone !== "green" ? `pl-2.5 ${railCls(t.tone)}` : ""}`}>
+        <button key={t.a} type="button" onClick={(e) => open(t.drawer, e.currentTarget)} className={`block w-full border-t border-slate-100 py-2 text-left hover:bg-slate-50 ${focus} border-l-[3px] pl-2.5 ${t.tone !== "green" ? railCls(t.tone) : "border-l-transparent"}`}>
           <span className="flex items-start justify-between gap-3">
             <span className="text-[13px] font-semibold text-slate-900">
               {t.a} <span className="font-normal text-slate-400">vs</span> {t.b}
@@ -904,7 +904,7 @@ export function RiskVsControlOwner() {
         <span className="text-right">Complaints this quarter</span>
       </div>
       {JOURNEYS.map((x) => (
-        <div key={x.journey} className={`${JCOLS} border-t border-slate-100 ${x.aligned ? "" : railCls("red")}`}>
+        <div key={x.journey} className={`${JCOLS} border-l-[3px] border-t border-slate-100 ${x.aligned ? "border-l-transparent" : "border-l-red-500"}`}>
           <b className="text-slate-900">{x.journey}</b>
           <span className="text-slate-700">{x.riskOwner ?? "Not named"}</span>
           <span className="text-slate-700">{x.controlOwner}</span>
@@ -945,8 +945,8 @@ export function DataQuality() {
   const ibs = measure("u-ibs");
   useFigures(["m:u-tm", "m:u-ibs"]);
   return (
-    <BoardCard title="Can we trust the data?">
-      <StatRow label="Monitoring coverage" value={tm.value.split(" ")[0]} comparator={tm.value.split(" ").slice(1).join(" ")} right={<StatusPill status={tm.status} />} onClick={(el) => open("metric:u-tm", el)} />
+    <BoardCard title="Can we trust the data?" right={<StatusPill status={tm.status} />}>
+      <StatRow label="Monitoring coverage" value={tm.value.split(" ")[0]} comparator={tm.value.split(" ").slice(1).join(" ")} onClick={(el) => open("metric:u-tm", el)} />
       <StatRow label="Monitoring sign-off" value="Early" comparator="signed before the data check finished" />
       <StatRow label="Service disruption" value={ibs.value.split(" ")[0]} comparator="of impact tolerance used" right={<DeltaMark d={ibs.delta} />} onClick={(el) => open("metric:u-ibs", el)} />
     </BoardCard>
@@ -1000,7 +1000,7 @@ export function AgentFindings() {
     <BoardCard title="What did the agents find?" right={<AiTag label="AI agent findings" />}>
       {FINDINGS.map((f) => (
         <button key={f.finding} type="button" onClick={(e) => open(f.drawer, e.currentTarget)} className={`block w-full text-left hover:bg-slate-50 ${focus}`}>
-          <span className={`grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 py-1 text-[13px] leading-snug ${f.tone !== "green" && f.tone !== "grey" ? `pl-2.5 ${railCls(f.tone)}` : ""}`}>
+          <span className={`grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 py-1 text-[13px] leading-snug border-l-[3px] pl-2.5 ${f.tone !== "green" && f.tone !== "grey" ? railCls(f.tone) : "border-l-transparent"}`}>
             <span>
               <span className="text-slate-900">{f.finding}</span>
               <span className="block text-[11px] text-slate-500">

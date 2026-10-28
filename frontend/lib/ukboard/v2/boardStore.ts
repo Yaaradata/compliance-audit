@@ -291,7 +291,7 @@ export function deltaText(d?: Delta): string {
   if (!d) return "no change";
   const arrow = d.value > 0 ? "▲" : "▼";
   const v = Math.abs(d.value);
-  if (d.unit === "pts") return `${arrow} ${v.toFixed(d.dp ?? 1)} pts`;
+  if (d.unit === "pts") return `${arrow} ${v.toFixed(d.dp ?? 1)} ${v === 1 ? "pt" : "pts"}`;
   if (d.unit === "days") return `${arrow} ${v} days`;
   return `${arrow} ${v}`;
 }
@@ -414,6 +414,8 @@ export function consumerDuty() {
 measure("u-cd").value = consumerDuty().text;
 measure("u-cd").short = `${consumerDuty().amber} of ${consumerDuty().outcomes} outcomes amber`;
 measure("u-tm").short = "94.0% of records";
+measure("u-hltv").short = `${hltvNow}%`;
+measure("u-ibs").short = "58% used";
 
 export function reportingEvents() {
   return EVENTS.map((e) => {
