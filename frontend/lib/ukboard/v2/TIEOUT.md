@@ -29,7 +29,7 @@ All figures come from the UK Board data module (`lib/ukboard/v1/data.ts`, read o
 
 | Value | Ties to |
 |---|---|
-| 6 agents; 41 checks this week (12 + 6 + 7 + 7 + 3 + 6) | Computed by `totalChecks()` |
+| 8 agents; 46 checks this week (41 + 5 from the Fraud Watch agent) | Computed by `totalChecks()` |
 | 5 drafts waiting | The 5 queued drafts still at "AI draft" (computed) |
 | 0 actions without approval | Product rule: no agent action without a named person |
 | Model risk review 30 Sep 2026; 2 of 9 models past validation | "2 of 9" is existing data; the review date is new |
@@ -91,7 +91,7 @@ Every board figure is now held once in `boardStore.ts` (reading `v1/data.ts`, `b
 | Low-EPC lending | Emerging tier | Moved from Top |
 | Owners | Monitoring: Data owner (payments) · Consumer Duty: Chief Customer Officer · CET1: Chief Financial Officer · service disruption: Chief Operating Officer · low-EPC: Chief Credit Officer | Head of Compliance now holds no board measure |
 | Sign-off | 60 owner-months: 54 on time · 3 late · 2 missing · 1 early | Computed from the strip |
-| Agents | 7 · 41 checks this week · 6 findings this quarter · 5 drafts with the CRO · 0 without approval | Computed |
+| Agents | 8 · 46 checks this week · 6 findings this quarter · 5 drafts with the CRO · 0 without approval | Computed |
 
 ## C-suite redesign (one component library, roles only)
 
@@ -127,4 +127,6 @@ Seeds added in `boardStore.ts` for this rebuild. Everything else is computed by 
 | Policy linkage | 41 of 46 policies linked to a board measure; 5 untracked | Seed (`POLICIES`) |
 | Not yet measured | Agent-initiated payments (Head of Payments (proposed)); synthetic-voice impersonation (Head of Fraud) | Seed (`EMERGING_UNMEASURED`) |
 | Next SMF certification | 31 Jan 2027; 6 of 9 SMFs with evidence | Seed (`SMF_CERT`) |
+| AI agents | 8 agents (Fraud Watch agent added: tests detection rules on parallel cohorts, Head of Fraud, Propose); 46 checks this week (5 from Fraud Watch) | `agentsData.ts` |
+| Detection model tuning | Current rules 12 min median vs challenger 40 sec; challenger false alerts +6% on the parallel cohort | `ATTACK_SIGNALS`, `measure("u-detect")` |
 | Decision log stance | Hold · Hold · Loosen · Hold · Tighten (rate-error record has no stance) | Seed (`DECISION_HISTORY`) |

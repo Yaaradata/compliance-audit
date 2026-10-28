@@ -31,6 +31,8 @@ interface Session {
   escalated: string[];
   /** Measures attested by their risk owner this session. */
   attested: string[];
+  /** Proposals sent to a risk owner (the owner decides). */
+  proposals: string[];
   clock: number;
 }
 
@@ -63,6 +65,7 @@ export type Action =
   | { type: "INVITE_OWNER"; role: string }
   | { type: "ESCALATE_EVENT"; eventId: string; decider: string }
   | { type: "ATTEST"; measureId: string }
+  | { type: "PROPOSE_TO_OWNER"; item: string; owner: string }
   | { type: "RESET" };
 
 function seed(): Session {
@@ -82,6 +85,7 @@ function seed(): Session {
     invited: [],
     escalated: [],
     attested: [],
+    proposals: [],
     clock: 0,
   };
 }
@@ -198,6 +202,9 @@ function reducer(state: State, a: Action): State {
       // Drafts a note to the named decider; nothing is sent to a regulator.
       if (s0.escalated.includes(a.eventId) || state.persona === "board") return state;
       return write({ escalated: [...s.escalated, a.eventId] }, entry(state, s, `escalation note drafted for ${a.decider}`, a.eventId, a.eventId));
+    case "PROPOSE_TO_OWNER":
+      if (s0.proposals.includes(a.item) || state.persona !== "cro") return state;
+      return write({ proposals: [...s.proposals, a.item] }, entry(state, s, `proposal sent to ${a.owner}`, a.item, a.item));
     case "ATTEST":
       if (s0.attested.includes(a.measureId)) return state;
       return write({ attested: [...s.attested, a.measureId] }, entry(state, s, "attestation recorded", a.measureId, `metric:${a.measureId}`));

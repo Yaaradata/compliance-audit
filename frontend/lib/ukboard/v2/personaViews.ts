@@ -85,7 +85,7 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         id: "ai",
         label: "AI agents",
         title: "AI agents",
-        layout: [full("B_AGENT_TILES"), row([8, "B_FINDINGS"], [4, "AUTONOMY"]), row([8, "ROSTER"], [4, "RULES"]), full("TUNING")],
+        layout: [full("A_TILES"), row([8, "A_FINDINGS"], [4, "A_AUTONOMY"]), row([8, "A_ROSTER"], [4, "A_RULES"]), full("A_TUNING")],
       },
     ],
   },

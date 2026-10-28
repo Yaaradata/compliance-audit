@@ -41,6 +41,7 @@ import { useDrawer } from "./drawerContext";
 import LineChart from "./LineChart";
 import { BarRows, Card, OWNER_SHORT, ChartCard, Chip, EventList, FlowPill, KpiTile, LimitPill, LineItem, LinkMore, MeasureTable, OwnerTable, PostureStrip, StatList, StatRow, StatusPill, Table, useFigures, VerdictPill, type Workflow } from "./present";
 import { OVERVIEW_SECTIONS } from "./overview";
+import { AGENT_SECTIONS } from "./agents";
 import { OBLIGATORY_SECTIONS } from "./obligatory";
 import { RISK_SECTIONS } from "./risks";
 import { STRATEGY_SECTIONS } from "./strategy";
@@ -1335,6 +1336,7 @@ const SECTIONS: Record<string, () => ReactNode> = {
   ...STRATEGY_SECTIONS,
   ...RISK_SECTIONS,
   ...OBLIGATORY_SECTIONS,
+  ...AGENT_SECTIONS,
 };
 
 export function renderSection(id: SectionId): ReactNode {

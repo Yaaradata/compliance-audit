@@ -108,6 +108,18 @@ export const AGENTS: Agent[] = [
     autonomy: "watch",
     draftIds: [],
   },
+  {
+    id: "fraudwatch",
+    name: "Fraud Watch agent",
+    does: "Tests detection rules on parallel cohorts",
+    status: "running",
+    checksThisWeek: 5,
+    quarterCount: "1 challenger model, 1 parallel cohort",
+    finding: "Challenger model detects in 40 sec vs 12 min today",
+    accountable: "Head of Fraud",
+    autonomy: "propose",
+    draftIds: [],
+  },
 ];
 
 /** Board member view: what the agents saved (boardMemberData seed, see TIEOUT.md). */
@@ -167,6 +179,7 @@ export const TUNING = {
 
 export const ACTIVITY: { type: "CHECK" | "FLAG" | "DRAFT" | "APPROVED" | "REJECTED"; date: string; agentId: string; line: string }[] = [
   { type: "CHECK", date: "27 Oct 2026", agentId: "appetite", line: "NSFR projected to reach amber" },
+  { type: "CHECK", date: "27 Oct 2026", agentId: "fraudwatch", line: "Challenger detection model run on the parallel cohort" },
   { type: "FLAG", date: "26 Oct 2026", agentId: "clock", line: "Restriction breach logged; FCA and PRA opened" },
   { type: "DRAFT", date: "26 Oct 2026", agentId: "clock", line: "Report-or-not cases prepared" },
   { type: "FLAG", date: "25 Oct 2026", agentId: "tuning", line: "97 of 112 breaches via the savings pot" },

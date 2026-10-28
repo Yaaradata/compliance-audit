@@ -22,8 +22,8 @@ import { plain } from "./boardTabs";
 import { AGENTS, QUEUE, totalChecks, TUNING } from "./agentsData";
 
 test("agent data ties out", () => {
-  assert.equal(AGENTS.length, 7);
-  assert.equal(totalChecks(), 41);
+  assert.equal(AGENTS.length, 8);
+  assert.equal(totalChecks(), 46);
   assert.equal(QUEUE.length, 5);
   assert.equal(((2100 / TUNING.alertsPerMonth) * 100).toFixed(1), "5.4");
   assert.equal(((900 / TUNING.alertsPerMonth) * 100).toFixed(1), "2.3");

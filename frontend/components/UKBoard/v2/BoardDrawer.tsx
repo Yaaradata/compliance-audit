@@ -1,9 +1,13 @@
 "use client";
 
 /**
- * UK Board v2 — DetailDrawer: one template for every drawer, following the cascade.
- * Header (name · owner role · status) → Position (stat list + at most one trend chart) →
- * Drivers (level 2) → Controls (level 3) → Attestation → Options · Evidence · History (collapsed).
+ * UK Board v2 — DetailDrawer.
+ * Board measure (metric:<id>): header (name · risk owner · status · attestation) → risk appetite
+ * statement → band dial with value, amber trigger, appetite limit and time to threshold → stance
+ * (Tighten · Hold · Loosen) → Level 2 metrics and Level 3 controls (exception tree, with linkage) →
+ * one trend chart → Evidence (collapsed) → History (collapsed).
+ * Every other drawer: header → Position (stat list + at most one trend chart) → Level 2 metrics →
+ * Level 3 controls → Attestation → Options · Evidence (collapsed) → History.
  * Roles only; no firm names. CRO drafts are not shown to the board member or the chair.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -14,6 +18,7 @@ import { AGENTS, QUEUE, TUNING } from "@/lib/ukboard/v2/agentsData";
 import {
   APPETITE_STATEMENTS,
   attestationOf,
+  DETECTION_SERIES,
   FIG,
   fmt,
   measure,
@@ -27,6 +32,7 @@ import {
 } from "@/lib/ukboard/v2/boardStore";
 import { EVENT_PLAIN, FRANCHISES, plain, ROUTE_PLAIN } from "@/lib/ukboard/v2/boardTabs";
 import LineChart from "./LineChart";
+import { AttestationButton, BandDial, ExceptionTree, StanceControl } from "./appetite";
 import { AttestPill, DeltaMark, StatRow, StatusPill, VerdictPill } from "./present";
 import { useStore } from "./store";
 import { AuditList, btnPrimary, DraftCard, focus } from "./ui";
@@ -94,6 +100,7 @@ function driversFor(id: string): Row[] | undefined {
 function trendFor(id: string): Chart | undefined {
   const m = MEASURES.find((x) => x.id === id);
   if (id === "u-capacity") return { title: "Alert queue age (days)", points: CAPACITY.queueAge, threshold: { value: CAPACITY.queueAmber, label: `amber ${CAPACITY.queueAmber}` } };
+  if (id === "u-detect") return { title: `${m?.name ?? id} · 6 months`, points: DETECTION_SERIES, threshold: m?.amber !== undefined ? { value: m.amber, label: `amber ${m.amber}${m.unit ?? ""}` } : undefined };
   if (id === "u-screening") return { title: "Records reaching monitoring by run", points: TM_RUNS.map((r) => ({ label: r.runDate.split(" ")[1], value: Number(r.pct.replace(/[^\d.]/g, "")) })), suffix: "%" };
   const s = SERIES[id];
   if (!s) return undefined;
@@ -103,7 +110,7 @@ function trendFor(id: string): Chart | undefined {
 function positionFor(m: Measure): Row[] {
   const t = thresholdCells(m);
   return [
-    { label: "Value", value: m.short ?? m.value, comparator: m.comparator },
+    { label: "Value", value: m.short ?? m.value },
     { label: "Amber trigger", value: t.amber },
     { label: "Appetite limit", value: t.limit },
     { label: "Time to threshold", value: timeToThreshold(m) },
@@ -112,18 +119,16 @@ function positionFor(m: Measure): Row[] {
 
 function content(key: DrawerKey, persona: string, session: ReturnType<typeof useStore>["state"]["session"]): Content | null {
   if (key.startsWith("metric:")) {
+    // Board measures render MetricBody; this covers other units opened as metric:<id>.
     const id = key.slice(7);
     const u = UNITS[id];
-    const m = MEASURES.find((x) => x.id === id);
     if (!u) return null;
     return {
-      title: m?.name ?? plain(u.title),
-      ownerRole: m?.owner ?? plain(u.ownerRole),
-      pill: m ? <StatusPill status={m.status} /> : undefined,
-      position: m ? positionFor(m) : [{ label: "Position", value: plain(u.stateSentence) }],
+      title: plain(u.title),
+      ownerRole: plain(u.ownerRole),
+      position: [{ label: "Position", value: plain(u.stateSentence) }],
       chart: trendFor(id),
       drivers: driversFor(id),
-      controls: m ? controlsFor(m) : undefined,
       attestation: attestationFor(id),
       drafts: u.draftIds,
       evidenceUnitId: id,
@@ -310,6 +315,67 @@ function content(key: DrawerKey, persona: string, session: ReturnType<typeof use
   return null;
 }
 
+function EvidenceRows({ unitId }: { unitId?: string }) {
+  const ev = unitId ? UNITS[unitId] : undefined;
+  if (!ev) return <p className="text-xs text-slate-500">No evidence record linked to this measure yet.</p>;
+  return (
+    <>
+      {CHECK_ORDER.map((k) => (
+        <StatRow key={k} label={CHECK_NAME[k]} value={ev.integrity[k].pass ? "Pass" : "Unconfirmed"} comparator={plain(ev.integrity[k].evidence)} />
+      ))}
+    </>
+  );
+}
+
+function TrendChart({ chart }: { chart: Chart }) {
+  return (
+    <div data-chart="drawer-trend">
+      <LineChart title={chart.title} height={140} series={[{ name: chart.title, points: chart.points }]} threshold={chart.threshold} suffix={chart.suffix} />
+    </div>
+  );
+}
+
+const SUB = "text-[11px] font-semibold uppercase tracking-wide text-slate-500";
+
+/** Board measure drawer body: statement → dial → stance → exception tree → trend → evidence → history. */
+function MetricBody({ m }: { m: Measure }) {
+  const chart = trendFor(m.id);
+  return (
+    <>
+      <section className="border-b border-slate-100 py-3">
+        <p className={SUB}>Risk appetite statement</p>
+        <p className="mt-1 text-sm text-slate-900">{m.statement}</p>
+      </section>
+      <section className="flex items-center gap-4 border-b border-slate-100 py-3">
+        <BandDial m={m} chart />
+        <div className="min-w-0 flex-1">
+          {positionFor(m).map((r) => (
+            <StatRow key={r.label} label={r.label} value={r.value} comparator={r.comparator} right={r.label === "Value" ? <DeltaMark d={m.delta} /> : undefined} />
+          ))}
+        </div>
+      </section>
+      <section className="border-b border-slate-100 py-3">
+        <p className={`pb-2 ${SUB}`}>Appetite stance</p>
+        <StanceControl m={m} />
+      </section>
+      <section className="border-b border-slate-100 py-3">
+        <ExceptionTree m={m} />
+      </section>
+      {chart ? (
+        <section className="border-b border-slate-100 py-3">
+          <TrendChart chart={chart} />
+        </section>
+      ) : null}
+      <Section title="Evidence">
+        <EvidenceRows unitId={m.id} />
+      </Section>
+      <Section title="History">
+        <AuditList refs={[m.id, `metric:${m.id}`]} />
+      </Section>
+    </>
+  );
+}
+
 function NotesBody() {
   const { state, dispatch } = useStore();
   const [text, setText] = useState("");
@@ -346,11 +412,65 @@ function ReasonableSteps({ role }: { role: string }) {
   );
 }
 
+function GenericBody({ c, drafts }: { c: Content; drafts: string[] }) {
+  return (
+    <>
+      {c.position.length || c.chart || c.body ? (
+        <Section title="Position" open>
+          {c.position.map((r) => (
+            <StatRow key={r.label} label={r.label} value={r.value} comparator={r.comparator} />
+          ))}
+          {c.chart ? (
+            <div className="mt-2">
+              <TrendChart chart={c.chart} />
+            </div>
+          ) : null}
+          {c.body}
+        </Section>
+      ) : null}
+      {c.drivers?.length ? (
+        <Section title="Level 2 metrics" open>
+          {c.drivers.map((r) => (
+            <StatRow key={r.label} label={r.label} value={r.value} comparator={r.comparator} />
+          ))}
+        </Section>
+      ) : null}
+      {c.controls?.length ? (
+        <Section title="Level 3 controls" open>
+          {c.controls.map((x) => (
+            <StatRow key={x.control} label={x.control} value={x.tested} comparator={`${x.owner} · ${x.result}`} />
+          ))}
+        </Section>
+      ) : null}
+      {c.attestation ? (
+        <Section title="Attestation" open>
+          <StatRow label="Last attestation" value={c.attestation.date} right={<AttestPill a={c.attestation.state} />} />
+        </Section>
+      ) : null}
+      {c.drafts.length || c.actions ? (
+        <Section title="Options">
+          {c.actions}
+          {drafts.length ? drafts.map((id) => <DraftCard key={id} draftId={id} />) : c.drafts.length ? <p className="text-xs text-slate-500">With the CRO · proposal pending</p> : null}
+        </Section>
+      ) : null}
+      {c.evidenceUnitId && UNITS[c.evidenceUnitId] ? (
+        <Section title="Evidence">
+          <EvidenceRows unitId={c.evidenceUnitId} />
+        </Section>
+      ) : null}
+      <div className="py-3">
+        <AuditList refs={c.refs} />
+      </div>
+    </>
+  );
+}
+
 export default function BoardDrawer({ drawerKey, onClose }: { drawerKey: DrawerKey; onClose: () => void }) {
   const { state } = useStore();
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const c = content(drawerKey, state.persona, state.session);
+  const m = drawerKey.startsWith("metric:") ? MEASURES.find((x) => x.id === drawerKey.slice(7)) : undefined;
+  const c = m ? null : content(drawerKey, state.persona, state.session);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -371,10 +491,10 @@ export default function BoardDrawer({ drawerKey, onClose }: { drawerKey: DrawerK
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose, drawerKey]);
 
-  if (!c) return null;
-  const drafts = c.drafts.filter((id) => DRAFTS[id] && (state.persona === "cro" ? DRAFTS[id].gateHolder === "cro" : state.persona === "chair" ? DRAFTS[id].gateHolder === "brc_chair" : false));
-  const ev = c.evidenceUnitId ? UNITS[c.evidenceUnitId] : undefined;
-  const m = MEASURES.find((x) => `metric:${x.id}` === drawerKey);
+  if (!m && !c) return null;
+  const drafts = c ? c.drafts.filter((id) => DRAFTS[id] && (state.persona === "cro" ? DRAFTS[id].gateHolder === "cro" : state.persona === "chair" ? DRAFTS[id].gateHolder === "brc_chair" : false)) : [];
+  const title = m ? m.name : c!.title;
+  const ownerRole = m ? `Risk owner: ${m.owner}` : c!.ownerRole;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -383,66 +503,24 @@ export default function BoardDrawer({ drawerKey, onClose }: { drawerKey: DrawerK
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <div>
             <h2 id="ukb2-drawer-title" className="text-base font-semibold text-slate-900">
-              {c.title}
+              {title}
             </h2>
-            {c.ownerRole ? <p className="mt-0.5 text-xs text-slate-500">{c.ownerRole}</p> : null}
+            {ownerRole ? <p className="mt-0.5 text-xs text-slate-500">{ownerRole}</p> : null}
+            {m ? (
+              <div className="mt-1.5">
+                <AttestationButton measureId={m.id} />
+              </div>
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
-            {c.pill}
+            {m ? <StatusPill status={m.status} /> : c!.pill}
             <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className={`rounded-lg border border-slate-300 p-1.5 hover:bg-slate-50 ${focus}`}>
               <X className="h-4 w-4" aria-hidden />
             </button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-5">
-          {c.position.length || c.chart || c.body ? (
-            <Section title="Position" open>
-              {c.position.map((r) => (
-                <StatRow key={r.label} label={r.label} value={r.value} comparator={r.comparator} right={m && r.label === "Value" ? <DeltaMark d={m.delta} /> : undefined} />
-              ))}
-              {c.chart ? (
-                <div data-chart="drawer-trend" className="mt-2">
-                  <LineChart title={c.chart.title} height={140} series={[{ name: c.chart.title, points: c.chart.points }]} threshold={c.chart.threshold} suffix={c.chart.suffix} />
-                </div>
-              ) : null}
-              {c.body}
-            </Section>
-          ) : null}
-          {c.drivers?.length ? (
-            <Section title="Level 2 metrics" open>
-              {c.drivers.map((r) => (
-                <StatRow key={r.label} label={r.label} value={r.value} comparator={r.comparator} />
-              ))}
-            </Section>
-          ) : null}
-          {c.controls?.length ? (
-            <Section title="Level 3 controls" open>
-              {c.controls.map((x) => (
-                <StatRow key={x.control} label={x.control} value={x.tested} comparator={`${x.owner} · ${x.result}`} />
-              ))}
-            </Section>
-          ) : null}
-          {c.attestation ? (
-            <Section title="Attestation" open>
-              <StatRow label="Last attestation" value={c.attestation.date} right={<AttestPill a={c.attestation.state} />} />
-            </Section>
-          ) : null}
-          {c.drafts.length || c.actions ? (
-            <Section title="Options">
-              {c.actions}
-              {drafts.length ? drafts.map((id) => <DraftCard key={id} draftId={id} />) : c.drafts.length ? <p className="text-xs text-slate-500">With the CRO · proposal pending</p> : null}
-            </Section>
-          ) : null}
-          {ev ? (
-            <Section title="Evidence">
-              {CHECK_ORDER.map((k) => (
-                <StatRow key={k} label={CHECK_NAME[k]} value={ev.integrity[k].pass ? "Pass" : "Unconfirmed"} comparator={plain(ev.integrity[k].evidence)} />
-              ))}
-            </Section>
-          ) : null}
-          <div className="py-3">
-            <AuditList refs={c.refs} />
-          </div>
+          {m ? <MetricBody m={m} /> : c ? <GenericBody c={c} drafts={drafts} /> : null}
         </div>
       </div>
     </div>
