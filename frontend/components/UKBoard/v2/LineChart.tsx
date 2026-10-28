@@ -3,7 +3,8 @@
 /**
  * UK Board v2 — fixed-height line chart (160px drawer, 64px panel). Coordinates use
  * percentages for x and pixels for y, so 11px labels never scale or truncate.
- * At most 2 series; threshold as a dashed line with an 11px label.
+ * At most 2 series; threshold as a dashed line with an 11px label. `thresholds` (optional) draws
+ * several dashed lines, e.g. an amber trigger and an appetite limit; `threshold` still works alone.
  */
 import type { SeriesPoint } from "@/lib/ukboard/v1/types";
 
@@ -24,10 +25,22 @@ export interface ChartSeries {
   dashed?: boolean;
 }
 
+export type ThresholdTone = "amber" | "red";
+export interface ChartThreshold {
+  value: number;
+  label: string;
+  tone?: ThresholdTone;
+}
+const THRESHOLD_INK: Record<ThresholdTone, { stroke: string; text: string }> = {
+  amber: { stroke: "#d97706", text: "#b45309" },
+  red: { stroke: "#dc2626", text: "#b91c1c" },
+};
+
 export default function LineChart({
   series,
   height = 160,
   threshold,
+  thresholds,
   suffix = "",
   axes = true,
   title,
@@ -35,11 +48,13 @@ export default function LineChart({
   series: ChartSeries[];
   height?: number;
   threshold?: { value: number; label: string };
+  thresholds?: ChartThreshold[];
   suffix?: string;
   axes?: boolean;
   title: string;
 }) {
-  const all = series.flatMap((s) => s.points.map((p) => p.value)).concat(threshold ? [threshold.value] : []);
+  const lines: ChartThreshold[] = [...(threshold ? [{ ...threshold, tone: "amber" as const }] : []), ...(thresholds ?? [])];
+  const all = series.flatMap((s) => s.points.map((p) => p.value)).concat(lines.map((t) => t.value));
   const lo = Math.min(...all);
   const hi = Math.max(...all);
   const top = 8;
@@ -53,14 +68,17 @@ export default function LineChart({
   return (
     <figure className="w-full">
       <svg className="w-full" height={height} role="img" aria-label={`${title}. ${desc}`}>
-        {threshold ? (
-          <>
-            <line x1={`${x0}%`} x2={`${x1}%`} y1={y(threshold.value)} y2={y(threshold.value)} stroke="#d97706" strokeDasharray="4 3" />
-            <text x={`${x1}%`} y={y(threshold.value) - 4} fontSize={11} textAnchor="end" fill="#b45309">
-              {threshold.label}
-            </text>
-          </>
-        ) : null}
+        {lines.map((t) => {
+          const ink = THRESHOLD_INK[t.tone ?? "amber"];
+          return (
+            <g key={`${t.label}-${t.value}`}>
+              <line x1={`${x0}%`} x2={`${x1}%`} y1={y(t.value)} y2={y(t.value)} stroke={ink.stroke} strokeDasharray="4 3" />
+              <text x={`${x1}%`} y={y(t.value) - 4} fontSize={11} textAnchor="end" fill={ink.text}>
+                {t.label}
+              </text>
+            </g>
+          );
+        })}
         {series.map((s, si) =>
           s.points.slice(1).map((p, i) => (
             <line
