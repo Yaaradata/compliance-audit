@@ -7,7 +7,8 @@
  */
 import { useState } from "react";
 import { X } from "lucide-react";
-import { D1_OPTIONS, HARM_EVENT, JOURNEYS } from "@/lib/ukboard/v2/boardMemberData";
+import { D1_OPTIONS, JOURNEYS } from "@/lib/ukboard/v2/boardMemberData";
+import { FIG, fmt, measure } from "@/lib/ukboard/v2/boardStore";
 import { useDrawer } from "./drawerContext";
 import { useStore } from "./store";
 import { AiTag, btn, btnPrimary, focus, Label } from "./ui";
@@ -28,9 +29,9 @@ export const ANSWERS: Answer[] = [
     q: "Can we afford to restore capacity?",
     keywords: ["afford", "capacity", "handler", "restore", "cost"],
     lines: [
-      `Restoring capacity costs ${restore.cost.replace("+13 handlers · ", "")} for 13 more handlers.`,
-      "It keeps the 8 Dec campaign and about £300m of inflow.",
-      "Capital is 16.8% against a 13.5% limit.",
+      `Restoring capacity costs about ${fmt.gbpM(FIG.capacity.restoreCostM)} a year for ${FIG.capacity.restoreNeeded} more handlers.`,
+      `It keeps the ${FIG.dates.campaign} campaign: ${restore.growth.toLowerCase()}.`,
+      `Capital is ${measure("u-cet1").value} against a ${measure("u-cet1").comparator}.`,
       `The queue reaches green in ${restore.toGreen.replace("~", "about ")}, after the campaign starts.`,
     ],
     cites: [
@@ -44,9 +45,9 @@ export const ANSWERS: Answer[] = [
     keywords: ["pace", "slow", "delay", "campaign"],
     lines: [
       "The campaign moves back one quarter.",
-      "Savings inflow is about £300m below plan.",
+      `Growth impact: ${pace.growth.toLowerCase()}.`,
       `No extra cost; the queue reaches green in ${pace.toGreen.replace("~", "about ")}.`,
-      "Savings balances are ahead of plan today (+£1.1bn vs +£0.8bn).",
+      `Savings balances are ahead of plan today (+${fmt.gbpBn(FIG.savings.balancesBn)} vs +${fmt.gbpBn(FIG.savings.planBn)}).`,
     ],
     cites: [
       { label: "Decision 1", drawer: "decision:1" },
@@ -57,7 +58,7 @@ export const ANSWERS: Answer[] = [
     q: "Why is monitoring coverage unconfirmed?",
     keywords: ["monitoring", "unconfirmed", "coverage", "data"],
     lines: [
-      "Monitoring covers 94.0% of records, down 3.1 points.",
+      `Monitoring covers ${fmt.pct(FIG.monitoring.coverage, 1)} of records, down ${fmt.pts(Math.abs(measure("u-tm").delta!.value))}.`,
       "The owner signed off 3 hours before the data check finished.",
       "Same-day transactions are not yet checked.",
       "Until the check is re-run, the figure stays unconfirmed.",
@@ -68,9 +69,9 @@ export const ANSWERS: Answer[] = [
     q: "Which measures will turn amber before March?",
     keywords: ["amber", "march", "turn", "early warning", "projection"],
     lines: [
-      "Liquidity (LCR): amber in about 9 weeks on the projection.",
-      "Stable funding (NSFR): amber next quarter.",
-      "High-LTV share reaches amber later, by Q2 2027.",
+      `Liquidity (LCR): ${measure("u-lcr").projection} on the projection.`,
+      `Stable funding (NSFR): ${measure("u-nsfr").projection}.`,
+      `High-LTV share reaches amber later, ${measure("u-hltv").projection?.replace("amber ", "")}.`,
       "These are straight-line projections, not certainties.",
     ],
     cites: [
@@ -115,7 +116,7 @@ function match(text: string): Answer | null {
     return {
       q: text,
       keywords: [],
-      lines: [`${HARM_EVENT.name}: ${HARM_EVENT.contacted.toLocaleString("en-GB")} of ${HARM_EVENT.customers.toLocaleString("en-GB")} customers contacted.`, `Redress about ${HARM_EVENT.redress}; target ${HARM_EVENT.target}.`],
+      lines: [`Mortgage rate error: ${fmt.nOfM(FIG.rateError.contacted, FIG.rateError.customers)} customers contacted.`, `Redress about ${fmt.gbpK(FIG.rateError.redressK)}; complete by ${FIG.rateError.due}.`],
       cites: [{ label: "Mortgage rate error", drawer: "event:e-117" }],
     };
   }

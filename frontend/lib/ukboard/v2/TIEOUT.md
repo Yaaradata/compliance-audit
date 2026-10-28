@@ -74,3 +74,21 @@ New values for the Board member tabs live in `boardMemberData.ts`; agent additio
 | Customer Signals agent: 63 complaints mention "account frozen"; 0 checks this week | AI oversight (all personas see 7 agents) | Seed; 0 checks keeps the 41-check total |
 | Agent value: pack prep 41 → 9 hours; 3 found before people; 1 day median; 0 without approval | AI oversight | Seed |
 | 6 findings | AI oversight; Briefing panel | 5 existing activity items + the Customer Signals finding |
+
+## One source of truth (`boardStore.ts`)
+
+Every board figure is now held once in `boardStore.ts` (reading `v1/data.ts`, `boardMemberData.ts` and `agentsData.ts`); counts, percentages, headroom, posture and every "n of m" are computed by selectors and checked by `validateBoardStore()` (`boardStore.test.ts`). All three personas read the store. Each figure has one home tab; on any Board member tab a figure renders at most once (dev-only figure registry).
+
+| Figure | Canonical value | Note |
+|---|---|---|
+| Posture | 5 within · 2 heading for amber · 2 amber · 1 red · 2 unconfirmed | Computed from the 12 measure statuses (replaces "8 within") |
+| Consumer Duty (measure #4) | Amber: 2 of 4 outcomes amber · 9 of 12 measures in tolerance | Outcomes 3/3, 3/3, 2/3, 1/3; replaces the earlier "4 of 4 within" |
+| High-LTV vs Q2 | ▲ 0.3 pts (17.3% → 17.6%) | The 1.5 pts is Q2 2025 → Q3 2026, not vs Q2 |
+| Mortgage headroom | £96m before the appetite limit (20%) | (20% − 17.6%) × £4.0bn; before amber would be £36m |
+| Arrears 3m+ | 0.42% | Existing data (6,100 of 1,452,000) |
+| Dates | Measures as at 30 Sep 2026 · evidence to 26 Oct 2026 · pack v2 locked 15 Oct | Briefing meta reads "evidence to 26 Oct" |
+| vs Q2 for wholesale, CET1, service disruption, low-EPC | +1 pt · −0.2 pts · +4 pts · +0.2 pts | Existing deltas kept; "measures moved" computes to 10 |
+| Low-EPC lending | Emerging tier | Moved from Top |
+| Owners | Monitoring: Data owner (payments) · Consumer Duty: Chief Customer Officer · CET1: Chief Financial Officer · service disruption: Chief Operating Officer · low-EPC: Chief Credit Officer | Head of Compliance now holds no board measure |
+| Sign-off | 60 owner-months: 54 on time · 3 late · 2 missing · 1 early | Computed from the strip |
+| Agents | 7 · 41 checks this week · 6 findings this quarter · 5 drafts with the CRO · 0 without approval | Computed |

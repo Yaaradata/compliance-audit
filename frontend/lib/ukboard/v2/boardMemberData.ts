@@ -194,19 +194,19 @@ export const TENSIONS: { a: string; b: string; aWants: string; bWants: string; e
   },
   {
     a: "Savings campaign, 8 Dec",
-    b: "Alert queue appetite, 14 days",
+    b: "Alert queue appetite",
     aWants: "More new members this winter",
     bWants: "Alerts cleared within 14 days",
-    effect: "Campaign adds load to a 19-day queue",
+    effect: "Campaign adds load to a queue already past amber",
     status: "Not agreed",
     tone: "amber",
     drawer: "decision:1",
   },
   {
     a: "High-LTV first-time buyer target",
-    b: "High-LTV appetite, 20%",
+    b: "High-LTV appetite limit",
     aWants: "More first-time buyer lending",
-    bWants: "High-LTV below 20% of new lending",
+    bWants: "High-LTV inside the appetite limit",
     effect: "Headroom runs out by Q2 2027 at this pace",
     status: "Board-agreed trade-off",
     tone: "green",
@@ -240,7 +240,7 @@ export const D3_OPTIONS: { option: string; impact: string }[] = [
 export const D2_BOARD_ASKS = ["Who decides each route, and by when?", "Why are 24,000 openings still not checked?", "What do we tell the 104 customers?"];
 
 export const DUE_FOR_REVIEW: { item: string; detail: string; tone: Tone; drawer: string }[] = [
-  { item: "Temporary 25% high-LTV limit", detail: "expired 06 Oct · register not updated", tone: "red", drawer: "metric:u-hltv" },
+  { item: "Temporary high-LTV limit", detail: "expired 06 Oct · register not updated", tone: "red", drawer: "metric:u-hltv" },
   { item: "Savings onboarding trade-off", detail: "review 27 days overdue", tone: "red", drawer: "franchise:O2" },
 ];
 

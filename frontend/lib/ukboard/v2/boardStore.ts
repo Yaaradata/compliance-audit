@@ -63,6 +63,10 @@ export interface Measure {
   home: HomeTab;
   /** Objective (business line) the measure belongs to. */
   objectiveId?: "O1" | "O2" | "O3" | "O4";
+  /** Unit for amber and limit columns. */
+  unit?: string;
+  /** Short value for the one-line appetite chart row (full value lives on the home tab). */
+  short?: string;
 }
 
 const t = THRESHOLDS;
@@ -79,6 +83,7 @@ export const MEASURES: Measure[] = [
     type: "outcome",
     direction: "status",
     value: `${RESTRICTION.breachesAccounts} breaches · ${fmt.n(RESTRICTION.tested)} tested`,
+    short: `${RESTRICTION.breachesAccounts} of ${fmt.n(RESTRICTION.tested)} tested`,
     comparator: "appetite 0",
     status: "red",
     delta: { value: RESTRICTION.breachesAccounts - RESTRICTION.previousRun.breachesAccounts, unit: "", worse: true },
@@ -128,6 +133,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-capacity",
+    unit: " days",
     name: "Alert queue age",
     tier: "top",
     type: "early_warning",
@@ -145,6 +151,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-lcr",
+    unit: "%",
     name: "Liquidity (LCR)",
     tier: "top",
     type: "early_warning",
@@ -164,6 +171,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-nsfr",
+    unit: "%",
     name: "Stable funding (NSFR)",
     tier: "top",
     type: "early_warning",
@@ -183,6 +191,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-hltv",
+    unit: "%",
     name: "High-LTV lending",
     tier: "top",
     type: "early_warning",
@@ -201,6 +210,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-wholesale",
+    unit: "%",
     name: "Wholesale funding",
     tier: "top",
     type: "outcome",
@@ -218,6 +228,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-cet1",
+    unit: "%",
     name: "Capital (CET1)",
     tier: "top",
     type: "outcome",
@@ -234,6 +245,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-ibs",
+    unit: "%",
     name: "Service disruption",
     tier: "top",
     type: "outcome",
@@ -251,6 +263,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-climate",
+    unit: "%",
     name: "Low-EPC lending",
     tier: "emerging",
     type: "outcome",
@@ -357,7 +370,7 @@ export const FIG = {
   callWait: { value: "6m 40s", target: "5m" },
   letters: { pct: 71, target: 80 },
   vuln: { series: SERIES["u-vuln"].map((p) => p.value), labels: SERIES["u-vuln"].map((p) => p.label), amber: 14, red: 18, quartersAmber: 3, basis: "per 10,000 contacts" },
-  complaints: { quarters: ["Q4 25", "Q1 26", "Q2 26", "Q3 26"], perThousand: [1.6, 1.7, 1.8, 2.1], uphold: 31, upholdQ2: 27, upheld: 118, referred: 381, themes: [{ theme: "Savings account access", share: 34 }, { theme: "Mortgage rate-change letters", share: 21 }, { theme: "App login", share: 14 }] },
+  complaints: { basis: "per 1,000 accounts", quarters: ["Q4 25", "Q1 26", "Q2 26", "Q3 26"], perThousand: [1.6, 1.7, 1.8, 2.1], uphold: 31, upholdQ2: 27, upheld: 118, referred: 381, themes: [{ theme: "Savings account access", share: 34 }, { theme: "Mortgage rate-change letters", share: 21 }, { theme: "App login", share: 14 }] },
   rateError: { customers: 2300, contacted: 1720, redressK: 410, due: "31 Dec" },
   restriction: {
     breaches: RESTRICTION.breachesAccounts,
@@ -399,6 +412,8 @@ export function consumerDuty() {
   return { amber, outcomes: o.length, inTol, total, text: `${amber} of ${o.length} outcomes amber · ${inTol} of ${total} measures in tolerance` };
 }
 measure("u-cd").value = consumerDuty().text;
+measure("u-cd").short = `${consumerDuty().amber} of ${consumerDuty().outcomes} outcomes amber`;
+measure("u-tm").short = "94.0% of records";
 
 export function reportingEvents() {
   return EVENTS.map((e) => {
@@ -456,4 +471,60 @@ export function validateBoardStore(): string[] {
 if (process.env.NODE_ENV === "development") {
   const errs = validateBoardStore();
   if (errs.length) throw new Error(`boardStore validation failed:\n- ${errs.join("\n- ")}`);
+}
+
+
+/* ── Board member Briefing content (built from the figures above) ────── */
+
+export function businessLines() {
+  const unconfirmed = MEASURES.filter((m) => m.objectiveId === "O4" && m.status === "unconfirmed").length;
+  return [
+    {
+      id: "O1" as const,
+      growth: `${fmt.gbpBn(FIG.mortgages.lentBn)} of ${fmt.gbpBn(FIG.mortgages.planBn)} plan · ${mortgagePaceGapPts()} pts behind pace`,
+      headroom: `£${mortgageHeadroomM()}m more high-LTV lending before the appetite limit`,
+      next: "Keep pace; review limit in Q1",
+    },
+    {
+      id: "O2" as const,
+      growth: `+${fmt.gbpBn(FIG.savings.balancesBn)} vs +${fmt.gbpBn(FIG.savings.planBn)} plan`,
+      headroom: `${FIG.savings.limitsBroken} of ${FIG.savings.limits} trade-off limits broken`,
+      next: "Restore crime-check capacity",
+    },
+    { id: "O3" as const, growth: "Wholesale funding inside its ceiling", headroom: "Reaches amber next quarter", next: "Reprice fixed-term savings before Q1" },
+    { id: "O4" as const, growth: null, headroom: `${unconfirmed} board figures unconfirmed`, next: `Re-run data checks before ${FIG.dates.brc}` },
+  ];
+}
+
+export const SINCE_LAST_BOARD: { date: string; text: string; tag: string; rail: "red" | "amber" | "grey"; drawer: string }[] = [
+  { date: "26 Oct", text: "Restriction breach logged; FCA and PRA clocks started", tag: "Regulator", rail: "red", drawer: "event:e-r03" },
+  { date: "23 Oct", text: "Rate-error reporting decision made", tag: "Regulator", rail: "grey", drawer: "event:e-117" },
+  { date: "15 Oct", text: "Agent flagged an item missing from the pack", tag: "AI agent", rail: "amber", drawer: "removed" },
+  { date: "14 Oct", text: "Vulnerable-customer item removed at the Executive Risk Committee, no reason recorded", tag: "Pack", rail: "red", drawer: "removed" },
+  { date: "6 Oct", text: "Temporary high-LTV limit expired; register not updated", tag: "Mortgages", rail: "amber", drawer: "metric:u-hltv" },
+  { date: "Aug", text: "Alert queue passed amber", tag: "Savings", rail: "amber", drawer: "metric:u-capacity" },
+];
+
+export function stillUnresolved() {
+  return [
+    { text: "Vulnerable-customer exceptions at amber", duration: `${FIG.vuln.quartersAmber} quarters`, drawer: "removed" },
+    { text: "Customer-check backlog", duration: `${FIG.escalation.backlogMonths} months to clear vs ${FIG.escalation.backlogCommitted} committed`, drawer: "badnews" },
+    { text: `${FIG.escalation.notEscalated} issues not escalated`, duration: "12+ months", drawer: "badnews" },
+    { text: "Savings trade-off review", duration: `${FIG.tradeoff.overdueDays} days overdue`, drawer: "franchise:O2" },
+  ];
+}
+
+/** Amber and limit cells for the measures table, with units. */
+export function thresholdCells(m: Measure) {
+  const u = m.unit ?? "";
+  if (m.id === "u-restriction") return { amber: "—", limit: "0 breaches" };
+  if (m.id === "u-cd") return { amber: "1 outcome", limit: "—" };
+  return { amber: m.amber !== undefined ? `${m.amber}${u}` : "—", limit: m.limit !== undefined ? `${m.limit}${u}` : "—" };
+}
+
+export function timeToThreshold(m: Measure): string {
+  if (m.status === "red") return "Past limit";
+  if (m.status === "amber") return "Past amber";
+  if (m.status === "unconfirmed") return "Not known";
+  return m.projection ? m.projection.replace(/^amber /, "Amber ") : "Not in view";
 }

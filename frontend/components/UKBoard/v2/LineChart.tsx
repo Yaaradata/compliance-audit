@@ -52,7 +52,7 @@ export default function LineChart({
   const desc = series.map((s) => `${s.name}: ${s.points.map((p) => `${p.label} ${p.value}${suffix}`).join(", ")}`).join("; ");
   return (
     <figure className="w-full">
-      <svg width="100%" height={height} role="img" aria-label={`${title}. ${desc}`}>
+      <svg className="w-full" height={height} role="img" aria-label={`${title}. ${desc}`}>
         {threshold ? (
           <>
             <line x1={`${x0}%`} x2={`${x1}%`} y1={y(threshold.value)} y2={y(threshold.value)} stroke="#d97706" strokeDasharray="4 3" />

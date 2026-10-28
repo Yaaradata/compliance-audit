@@ -2,7 +2,7 @@
 
 /**
  * UK Board v2 — Appetite position: the one appetite visual on the Board member Briefing.
- * All 12 measures on one scale ("% of appetite used", 0–120%; further right = worse for every
+ * All 12 measures on one scale (share of appetite used, 0 to 120 per cent; further right = worse for every
  * row: lower-is-worse measures are normalised as limit ÷ value). Amber trigger and limit are thin
  * lines; actual is a solid marker, projection a hollow one. Within rows are muted; unconfirmed
  * rows show a grey dashed bar with no marker. Rows open the measure drawer.
@@ -13,6 +13,7 @@ import { DeltaMark, StatusPill, useFigures } from "./present";
 import { focus } from "./ui";
 
 const SCALE_MAX = 120;
+const LIMIT_PCT = 100;
 const at = (v: number) => `${(Math.min(v, SCALE_MAX) / SCALE_MAX) * 100}%`;
 const TIER_LABEL = { obligatory: "Obligatory", top: "Top", emerging: "Emerging" } as const;
 
@@ -26,7 +27,8 @@ const OWNER_SHORT: Record<string, string> = {
   "Chief Operating Officer": "Operations",
 };
 
-const COLS = "grid h-9 grid-cols-[minmax(150px,1.15fr)_minmax(150px,1.5fr)_minmax(150px,1.35fr)_70px_100px_128px] items-center gap-3 px-2";
+/** Owner column shows from 1280px; below that the drawer carries it. */
+const COLS = "grid min-h-9 grid-cols-[minmax(120px,1.1fr)_minmax(90px,1fr)_minmax(150px,1.7fr)_64px_112px] items-center gap-3 px-2 xl:grid-cols-[minmax(150px,1.1fr)_minmax(120px,1.1fr)_minmax(200px,1.8fr)_64px_92px_128px]";
 
 function Bar({ m }: { m: Measure }) {
   const p = position(m);
@@ -52,12 +54,12 @@ export default function AppetitePositionChart({ onEmerging }: { onEmerging: () =
   useFigures(groups.flatMap((g) => g.rows.map((m) => `m:${m.id}`)));
   return (
     <div data-chart="appetite-position">
-      <div className={`${COLS} h-7 text-[10px] font-bold uppercase tracking-wider text-slate-500`}>
+      <div className={`${COLS} !min-h-7 text-[10px] font-bold uppercase tracking-wider text-slate-500`}>
         <span>Measure</span>
         <span>% of appetite used</span>
         <span>Value</span>
         <span className="text-right">vs Q2</span>
-        <span>Owner</span>
+        <span className="hidden xl:block">Owner</span>
         <span className="text-right">Status</span>
       </div>
       {groups.map((g) => (
@@ -71,13 +73,13 @@ export default function AppetitePositionChart({ onEmerging }: { onEmerging: () =
                   <span className={muted ? "" : "font-semibold"}>{m.name}</span>
                   <Bar m={m} />
                   <span className="tabular-nums leading-tight">
-                    {m.value}
-                    {m.comparator ? <span className="text-xs text-slate-500"> · {m.comparator}</span> : null}
+                    {m.short ?? m.value}
+                    {m.comparator && m.id !== "u-cd" ? <span className="text-xs text-slate-500"> · {m.comparator}</span> : null}
                   </span>
                   <span className="text-right">
                     <DeltaMark d={m.delta} />
                   </span>
-                  <span className="truncate text-xs text-slate-500">{OWNER_SHORT[m.owner] ?? m.owner}</span>
+                  <span className="hidden truncate text-xs text-slate-500 xl:block">{OWNER_SHORT[m.owner] ?? m.owner}</span>
                   <span className="justify-self-end">
                     <StatusPill status={m.status} />
                   </span>
@@ -103,7 +105,7 @@ export default function AppetitePositionChart({ onEmerging }: { onEmerging: () =
           <span className="h-3 w-px bg-amber-500" /> Amber trigger
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-px bg-red-500" /> Limit (100%)
+          <span className="h-3 w-px bg-red-500" /> Limit ({LIMIT_PCT} per cent)
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-4 rounded-full border border-dashed border-slate-400" /> Unconfirmed: no position

@@ -6,7 +6,7 @@
  * chart zones; numbers in dark ink, right-aligned, tabular; comparators muted in a fixed column.
  * The figure registry warns (development only) when one figure id renders twice on a tab.
  */
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { deltaText, STATUS_WORD, type Delta, type MeasureStatus } from "@/lib/ukboard/v2/boardStore";
 import { focus, Pill, type Tone } from "./ui";
 
@@ -18,13 +18,13 @@ const RAIL: Record<Tone, string> = { red: "border-l-red-500", amber: "border-l-a
 const Registry = createContext<Map<string, number> | null>(null);
 
 export function FigureRegistry({ tab, children }: { tab: string; children: ReactNode }) {
-  const map = useRef(new Map<string, number>());
-  const last = useRef(tab);
-  if (last.current !== tab) {
-    map.current = new Map();
-    last.current = tab;
-  }
-  return <Registry.Provider value={map.current}>{children}</Registry.Provider>;
+  // The tab body remounts per persona and tab (keyed main), so one map per mount is per tab.
+  const [map] = useState(() => new Map<string, number>());
+  return (
+    <Registry.Provider value={map} key={tab}>
+      {children}
+    </Registry.Provider>
+  );
 }
 
 /** Register the figures a section renders; warns in development if a figure repeats on the tab. */
@@ -91,10 +91,10 @@ export function StatusPill({ status, label }: { status: MeasureStatus; label?: s
 export function StatRow({ label, value, comparator, rail, right, onClick }: { label: string; value: string; comparator?: string; rail?: Tone; right?: ReactNode; onClick?: (el: HTMLElement) => void }) {
   const railCls = rail === "red" || rail === "amber" ? `border-l-[3px] pl-2.5 ${RAIL[rail]}` : "pl-0";
   const body = (
-    <span className={`grid min-h-10 grid-cols-[minmax(0,1fr)_auto_minmax(96px,0.9fr)] items-center gap-3 border-t border-slate-100 py-1 text-[13px] leading-snug ${railCls}`}>
+    <span className={`grid min-h-10 grid-cols-[minmax(0,1fr)_auto_minmax(72px,0.9fr)] items-center gap-3 border-t border-slate-100 py-1 text-[13px] leading-snug ${railCls}`}>
       <span className="text-slate-700">{label}</span>
       <b className="text-right font-semibold tabular-nums text-slate-900">{value}</b>
-      <span className="flex items-center justify-between gap-2 text-xs text-slate-500">
+      <span className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-xs text-slate-500">
         <span>{comparator}</span>
         {right}
       </span>

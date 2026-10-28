@@ -1,636 +1,543 @@
 "use client";
 
 /**
- * UK Board v2 — Board member sections (non-executive director view). Commercial framing first,
- * risk second; numbers always against plan, appetite, target or last quarter. The board member
- * reads, challenges, notes and requests deep dives; he never approves or prepares.
- * New values come from lib/ukboard/v2/boardMemberData.ts (see TIEOUT.md).
+ * UK Board v2 — Board member sections. Every figure comes from lib/ukboard/v2/boardStore.ts;
+ * each figure has one home tab and appears at most once per tab (useFigures warns in development).
+ * Calm colour: white cards, status on pills and a 3px rail only, numbers in dark ink.
+ * Charts only where they show a trend, a comparison on one scale, or a composition.
+ * The board member reads, challenges, notes and requests deep dives; he never approves or prepares.
  */
-import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowRight, ArrowUp, Check, Minus } from "lucide-react";
-import { METRICS, rowState, type MetricMeta } from "@/lib/ukboard/v2/board";
-import { CHANGES, FRANCHISES, UNCHANGED } from "@/lib/ukboard/v2/boardTabs";
-import { AGENT_VALUE, AGENTS, agentName, FINDINGS, QUEUE, totalChecks, TUNING } from "@/lib/ukboard/v2/agentsData";
+import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
+import { CAPACITY, DRAFTS, RESTRICTION } from "@/lib/ukboard/v1/data";
+import { AGENT_VALUE, AGENTS, agentName, FINDINGS, QUEUE, TUNING } from "@/lib/ukboard/v2/agentsData";
+import { CULTURE, D1_OPTIONS, D2_BOARD_ASKS, D3_OPTIONS, DUE_FOR_REVIEW, ISSUES_FOUND, JOURNEYS, REG_CALENDAR, REGULATOR_RELATIONSHIP, SIGNOFF_HISTORY, SIGNOFF_MONTHS, TENSIONS, type SignOffMark } from "@/lib/ukboard/v2/boardMemberData";
 import {
-  COMPLAINT_THEMES,
-  COMPLAINTS,
-  CREDIT_QUALITY,
-  CULTURE,
-  D1_OPTIONS,
-  D2_BOARD_ASKS,
-  D3_OPTIONS,
-  DUE_FOR_REVIEW,
-  DUTY_OUTCOMES,
-  EARLY_WARNINGS,
-  FINANCIAL_STRENGTH,
-  HARM_EVENT,
-  ISSUES_FOUND,
-  JOURNEYS,
-  LINE_GROWTH,
-  MORTGAGE_BOOK,
-  REG_CALENDAR,
-  REGULATOR_RELATIONSHIP,
-  RISK_TIERS,
-  SIGNOFF_HISTORY,
-  SIGNOFF_MONTHS,
+  agentFigures,
+  businessLines,
+  consumerDuty,
+  EMERGING_UNMEASURED,
+  FIG,
+  fmt,
+  issuesFound,
+  journeysWithoutOwner,
+  measure,
+  MEASURES,
+  measuresByTier,
+  mortgageHeadroomM,
+  mortgagePlanPct,
+  postureText,
+  rateErrorPct,
+  routesDecided,
   SINCE_LAST_BOARD,
-  TENSIONS,
-  VULN,
-  CALL_WAIT,
-  type SignOffMark,
-} from "@/lib/ukboard/v2/boardMemberData";
-import AppetiteDial from "./AppetiteDial";
+  signOffTotals,
+  stillUnresolved,
+  thresholdCells,
+  timeToThreshold,
+} from "@/lib/ukboard/v2/boardStore";
+import { FRANCHISES, owners } from "@/lib/ukboard/v2/boardTabs";
+import AppetitePositionChart from "./AppetitePositionChart";
 import { useDrawer } from "./drawerContext";
-import { Card, Row, Tag, useGo } from "./sections";
+import LineChart from "./LineChart";
+import { BoardCard, DeltaMark, LineItem, LinkMore, StatRow, StatusPill, useFigures } from "./present";
+import { useGo } from "./sections";
 import { useStore } from "./store";
-import { AiTag, btn, focus, Label, Opener, Pill, Sparkline, TONE, toneOf, type Tone } from "./ui";
+import { AiTag, btn, focus, Label, Pill, toneOf, type Tone } from "./ui";
 
 const VERDICT_WORD = { room_to_grow: "Room to grow", hold: "Hold", fix_first: "Fix first", unverified: "Unconfirmed" } as const;
-const metric = (id: string) => METRICS.find((m) => m.unitId === id)!;
+/** Full bar length in small bar sets (layout constant). */
+const FULL = 100;
+const railCls = (t: Tone) => (t === "red" ? "border-l-[3px] border-l-red-500" : t === "amber" ? "border-l-[3px] border-l-amber-500" : "");
 
-function More({ tab, label }: { tab: string; label: string }) {
-  const go = useGo();
-  return (
-    <button type="button" onClick={() => go(tab)} className={`rounded text-xs font-semibold text-indigo-700 hover:underline ${focus}`}>
-      {label} ›
-    </button>
-  );
-}
-
-function Trend({ dir }: { dir: "up" | "down" | "flat" | "none" }) {
-  if (dir === "up") return <ArrowUp className="h-3.5 w-3.5 text-slate-500" aria-label="rising" />;
-  if (dir === "down") return <ArrowDown className="h-3.5 w-3.5 text-slate-500" aria-label="falling" />;
-  if (dir === "flat") return <Minus className="h-3.5 w-3.5 text-slate-400" aria-label="no change" />;
-  return <span className="w-3.5" />;
-}
-
-/** Compact stat panel: 4 numbers, each against a comparison. */
-function StatPanel({ title, stats, more }: { title: string; stats: { label: string; value: string; against: string; tone: Tone; drawer?: string }[]; more?: ReactNode }) {
-  return (
-    <Card title={title} right={more}>
-      <div className="grid grid-cols-2 gap-2">
-        {stats.map((s) => {
-          const body = (
-            <div className={`h-full rounded-lg border px-2.5 py-1.5 ${s.tone === "green" ? "border-slate-200 bg-slate-50" : `${TONE[s.tone].bg} ${TONE[s.tone].border}`}`}>
-              <Label className="block leading-tight">{s.label}</Label>
-              <p className={`text-lg font-bold leading-tight tabular-nums ${s.tone === "green" ? "text-slate-800" : TONE[s.tone].text}`}>{s.value}</p>
-              <p className="text-[11px] leading-snug text-slate-500">{s.against}</p>
-            </div>
-          );
-          return s.drawer ? (
-            <Opener key={s.label} drawer={s.drawer} label={s.label} className="rounded-lg">
-              {body}
-            </Opener>
-          ) : (
-            <div key={s.label}>{body}</div>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
-
-/* ── Briefing ────────────────────────────────────────────────────────── */
+/* ══ Briefing ═══════════════════════════════════════════════════════════ */
 
 export function BmPosture() {
-  const heading = METRICS.filter((m) => rowState(m) === "projected").length;
-  const count = (s: string) => METRICS.filter((m) => rowState(m) === s).length;
-  const chips: [string, Tone][] = [
-    [`${count("within_appetite")} within`, "green"],
-    [`${heading} heading for amber`, "amber"],
-    [`${count("amber")} amber`, "amber"],
-    [`${count("red")} red`, "red"],
-    [`${count("unverified")} unconfirmed`, "grey"],
-    ["3 decisions", "amber"],
-  ];
+  useFigures(["f:posture"]);
+  const moved = MEASURES.filter((m) => m.delta && m.delta.value !== 0).length;
   return (
-    <section className={`rounded-xl border-[1.5px] px-4 py-2.5 ${TONE.amber.bg} ${TONE.amber.border}`}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className={`h-3 w-3 rounded-full ${TONE.amber.dot}`} />
-        <span className={`text-[11px] font-bold uppercase tracking-widest ${TONE.amber.text}`}>Board risk posture</span>
+    <section className="flex min-h-[48px] flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2">
+      <span className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+        <span className="text-[11px] font-bold uppercase tracking-widest text-amber-800">Board risk posture</span>
         <Pill tone="amber" label="AMBER" />
-        <span className="text-[13px] text-slate-700">Mortgages can grow; savings growth is outrunning crime checks.</span>
-      </div>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        {chips.map(([l, tone]) => (
-          <Tag key={l} tone={tone}>
-            {l}
-          </Tag>
-        ))}
-        <span className="ml-auto text-[11px] font-semibold text-slate-600">{SINCE_LAST_BOARD}</span>
-      </div>
+      </span>
+      <span className="text-[13px] text-slate-800">Mortgages can grow; savings growth is outrunning crime checks.</span>
+      <span className="text-xs font-semibold tabular-nums text-slate-700">{postureText()}</span>
+      <span className="ml-auto text-xs text-slate-600">Since last board: {moved} measures moved</span>
     </section>
   );
 }
 
-function GrowthBar({ actual, plan, pace, tone }: { actual: number; plan: number; pace?: number; tone: Tone }) {
-  const pct = Math.min(100, (actual / plan) * 100);
-  return (
-    <div className="relative h-2 w-full rounded-full bg-slate-200" aria-hidden>
-      <div className={`h-2 rounded-full ${tone === "green" ? "bg-emerald-500" : tone === "amber" ? "bg-amber-500" : "bg-slate-400"}`} style={{ width: `${pct}%` }} />
-      {pace ? <span className="absolute -top-0.5 h-3 w-0.5 bg-slate-700" style={{ left: `${pace * 100}%` }} title="Plan pace" /> : null}
-    </div>
-  );
-}
-
-/** 4.1 Business line card: growth vs plan, risk headroom, verdict, what unlocks growth. */
-export function BusinessLineScorecard() {
+/** 4.3 Business-line cards: numbers only, identical structure so heights match. */
+export function BusinessLineCards() {
+  useFigures(["f:mortgage-growth", "f:mortgage-headroom", "f:savings-growth", "f:savings-limits"]);
+  const { open } = useDrawer();
+  const lines = businessLines();
   return (
     <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {FRANCHISES.map((f) => {
-        const g = LINE_GROWTH.find((x) => x.id === f.id)!;
+        const l = lines.find((x) => x.id === f.id)!;
         const tone = toneOf(f.verdict);
-        const dialMetric = f.id === "O1" ? metric("u-hltv") : f.id === "O3" ? metric("u-nsfr") : f.id === "O2" ? metric("u-capacity") : undefined;
+        const row = (label: string, text: string | null) => (
+          <span className="grid h-11 grid-cols-[72px_minmax(0,1fr)] items-center gap-2 border-t border-slate-100 text-[13px] leading-tight">
+            {text ? (
+              <>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
+                <span className="text-slate-900">{text}</span>
+              </>
+            ) : null}
+          </span>
+        );
         return (
-          <Opener key={f.id} drawer={`franchise:${f.id}`} label={f.name} className="rounded-[10px]">
-            <div className={`flex min-h-[150px] flex-col gap-1.5 rounded-[10px] border-[1.5px] px-3 py-2.5 hover:shadow-md ${TONE[tone].bg} ${TONE[tone].border}`}>
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-[13px] font-bold text-slate-900">{f.name}</span>
-                <Pill tone={tone} label={VERDICT_WORD[f.verdict]} />
-              </div>
-              <div>
-                <p className="flex items-baseline justify-between gap-2 text-[11px]">
-                  <span className="font-bold uppercase tracking-wider text-slate-500">Growth</span>
-                  <span className={`font-semibold ${g.growthTone === "green" ? "text-emerald-700" : TONE[g.growthTone].text}`}>{g.growthStatus}</span>
-                </p>
-                <GrowthBar actual={g.actual} plan={g.plan} pace={g.pace} tone={g.growthTone} />
-                <p className="mt-0.5 text-xs text-slate-700">{g.growthLabel}</p>
-              </div>
-              <div>
-                <p className="flex items-baseline justify-between gap-2 text-[11px]">
-                  <span className="font-bold uppercase tracking-wider text-slate-500">Risk</span>
-                  <span className="font-semibold text-slate-700">{g.riskLabel}</span>
-                </p>
-                {dialMetric?.dial ? <AppetiteDial dial={dialMetric.dial} direction={dialMetric.direction} /> : <div className="h-3.5 rounded-full border border-dashed border-slate-400" aria-hidden />}
-              </div>
-              <p className="border-t border-black/5 pt-1 text-xs text-slate-800">
-                <b className="text-slate-900">Unlock:</b> {g.unlock}
-              </p>
-            </div>
-          </Opener>
+          <button key={f.id} type="button" onClick={(e) => open(`franchise:${f.id}`, e.currentTarget)} className={`block w-full rounded-xl border border-slate-200 bg-white px-3 pb-1 text-left hover:border-slate-300 ${focus} ${railCls(tone)}`}>
+            <span className="flex h-10 items-center justify-between gap-2">
+              <span className="text-sm font-bold text-slate-900">{f.name}</span>
+              <Pill tone={tone} label={VERDICT_WORD[f.verdict]} />
+            </span>
+            {row("Growth", l.growth)}
+            {row("Headroom", l.headroom)}
+            {row("Next step", l.next)}
+          </button>
         );
       })}
     </div>
   );
 }
 
-function DialTile({ m }: { m: MetricMeta }) {
-  const s = rowState(m);
-  const tone: Tone = s === "projected" ? "amber" : toneOf(s);
-  const muted = s === "within_appetite";
-  const cls = muted ? "border-emerald-100 bg-emerald-50/40" : s === "unverified" ? "border-dashed border-slate-400 bg-slate-50" : `${TONE[tone].bg} ${TONE[tone].border}`;
-  return (
-    <Opener drawer={`metric:${m.unitId}`} label={`${m.name}: ${m.value}`} className="rounded-lg">
-      <div className={`flex min-h-[72px] flex-col justify-between gap-1 rounded-lg border px-2.5 py-2 hover:shadow-sm ${cls}`}>
-        <span className="flex items-center justify-between gap-1.5">
-          <span className={`text-[11px] font-semibold leading-tight ${muted ? "text-slate-500" : "text-slate-900"}`}>{m.name}</span>
-          <span className={`h-2 w-2 shrink-0 rounded-full ${s === "projected" ? "border-2 border-amber-500" : TONE[tone].dot}`} title={s === "projected" ? "Heading for amber" : undefined} />
-        </span>
-        {m.dial ? (
-          <AppetiteDial dial={m.dial} direction={m.direction} />
-        ) : (
-          <span className={`h-2 rounded-full ${s === "red" ? "bg-red-300" : s === "unverified" ? "border border-dashed border-slate-400" : "bg-emerald-200"}`} aria-hidden />
-        )}
-        <span className={`text-[11px] tabular-nums ${muted ? "text-slate-500" : "text-slate-800"}`}>
-          <b>{m.value}</b> {m.denominator}
-        </span>
-      </div>
-    </Opener>
-  );
-}
-
-/** 12 mini appetite dials: appetite set against where we operate. */
-export function DialGrid() {
-  return (
-    <Card title="Can we grow within appetite?" right={<span className="text-[11px] text-slate-500">12 board measures · greens muted</span>}>
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
-        {METRICS.map((m) => (
-          <DialTile key={m.unitId} m={m} />
-        ))}
-      </div>
-      <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-4 rounded-sm bg-[#fcd34d]" /> Amber zone
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-4 rounded-sm bg-[#fca5a5]" /> Red zone
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-0.5 bg-slate-800" /> Where we are
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-1 border border-slate-700" /> Projection
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full border border-dashed border-slate-500" /> Unconfirmed: grey, not a colour
-        </span>
-      </p>
-    </Card>
-  );
-}
-
-const KEY_DATES: [string, string, Tone][] = [
-  ["8 Nov", "Restriction sign-off", "red"],
-  ["8 Dec", "Savings campaign starts", "amber"],
-  ["15 Dec", "Board Risk Committee", "amber"],
-  ["18 Mar 2027", "New incident-reporting rules", "grey"],
-];
-
-/** For your decision (3) with key dates filling the column. */
-export function DecideAndDates() {
+export function PositionChart() {
   const go = useGo();
   return (
-    <Card title="What do you need from us?" right={<More tab="decisions" label="Decisions" />}>
+    <BoardCard title="Where are we against appetite?" right={<span className="text-[11px] text-slate-500">{MEASURES.length} board measures</span>}>
+      <AppetitePositionChart onEmerging={() => go("growth")} />
+    </BoardCard>
+  );
+}
+
+const DECISIONS = [
+  { n: 1, title: "Savings growth vs crime checks", decider: "Board", by: `before ${FIG.dates.campaign}`, rail: "amber" as Tone },
+  { n: 2, title: "Restriction breach: report or not?", decider: "Head of Compliance", by: "immediate", rail: "red" as Tone },
+  { n: 3, title: "Issue removed from board pack", decider: "Risk Committee Chair", by: FIG.dates.brc, rail: "amber" as Tone },
+];
+
+const KEY_DATES: [string, string][] = [
+  [FIG.dates.restrictionSignOff, "Restriction sign-off"],
+  [FIG.dates.campaign, "Savings campaign starts"],
+  [FIG.dates.brc, "Board Risk Committee"],
+  [FIG.dates.incidentRules, "New incident-reporting rules"],
+];
+
+/** 4.5 Decisions without numbers, then key dates. */
+export function DecideAndDates() {
+  const go = useGo();
+  useFigures(["f:key-dates"]);
+  return (
+    <BoardCard title="What do you need from us?" right={<LinkMore onClick={() => go("decisions")} label="Decisions" />}>
       {DECISIONS.map((d) => (
-        <button key={d.n} type="button" onClick={() => go("decisions")} className={`flex min-h-9 w-full items-center justify-between gap-2 border-l-[3px] py-1 pl-3 pr-1 text-left text-[13px] leading-snug hover:bg-slate-50 ${focus} ${TONE[d.tone].rail}`}>
-          <span className="text-slate-800">
-            {d.n}. {d.title}
-          </span>
-          <b className={`shrink-0 tabular-nums ${TONE[d.tone].text}`}>{d.key}</b>
-        </button>
+        <LineItem key={d.n} rail={d.rail} text={`${d.n}. ${d.title}`} detail={`${d.decider} · ${d.by}`} onClick={() => go("decisions")} right={<span className="text-indigo-700">›</span>} />
       ))}
-      <p className="mb-0.5 mt-1.5">
+      <p className="pb-1 pt-3">
         <Label>Key dates</Label>
       </p>
-      {KEY_DATES.map(([d, t, tone]) => (
-        <span key={d} className={`flex h-8 items-center gap-3 border-l-[3px] pl-3 text-[13px] ${TONE[tone].rail}`}>
-          <span className="w-20 shrink-0 text-[11px] font-bold uppercase tracking-wider text-indigo-700">{d}</span>
-          <span className="text-slate-800">{t}</span>
+      {KEY_DATES.map(([d, t]) => (
+        <span key={t} className="grid h-9 grid-cols-[96px_minmax(0,1fr)] items-center gap-3 border-t border-slate-100 text-[13px]">
+          <b className="font-semibold tabular-nums text-slate-900">{d}</b>
+          <span className="text-slate-700">{t}</span>
         </span>
       ))}
-    </Card>
+    </BoardCard>
   );
 }
 
-export function RiskTiers() {
+/** 4.6 Dated events since the last board (no measure values). */
+export function SinceLastBoard() {
+  const { open } = useDrawer();
   return (
-    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
-      {RISK_TIERS.map((t) => (
-        <Card key={t.tier} title={`${t.tier} risks`} right={t.tier === "Obligatory" ? <span className="text-[11px] text-slate-500">Level zero</span> : undefined}>
-          {t.items.map((i) => (
-            <Opener key={i.name} drawer={i.drawer} label={i.name} className="rounded-r hover:bg-slate-50">
-              <span className={`flex min-h-10 items-center justify-between gap-2 border-l-[3px] py-1 pl-3 pr-1 text-[13px] leading-snug ${TONE[i.tone].rail}`}>
-                <span className="min-w-0">
-                  <span className="text-slate-800">{i.name}</span>
-                  <span className="block text-[11px] text-slate-500">{i.owner}</span>
-                </span>
-                <span className="flex shrink-0 items-center gap-1.5">
-                  <Trend dir={i.trend} />
-                  <Pill tone={i.tone} label={i.status} />
-                </span>
-              </span>
-            </Opener>
-          ))}
-        </Card>
+    <BoardCard title="What happened since last board?">
+      {SINCE_LAST_BOARD.map((e) => (
+        <button key={e.text} type="button" onClick={(ev) => open(e.drawer, ev.currentTarget)} className={`block w-full text-left hover:bg-slate-50 ${focus}`}>
+          <span className={`grid min-h-9 grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 py-0.5 text-[13px] leading-snug ${e.rail !== "grey" ? `pl-2.5 ${railCls(e.rail)}` : ""}`}>
+            <b className="font-semibold tabular-nums text-slate-900">{e.date}</b>
+            <span className="text-slate-800">{e.text}</span>
+            <span className="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{e.tag}</span>
+          </span>
+        </button>
       ))}
-    </div>
+    </BoardCard>
   );
 }
 
-export function BmChanged() {
+/** 4.7 Standing items, duration only. */
+export function StillUnresolved() {
+  const { open } = useDrawer();
+  useFigures(["f:vuln-quarters", "f:backlog", "f:not-escalated", "f:tradeoff-overdue"]);
   return (
-    <Card title="What changed since last board?">
-      {CHANGES.map((c) => (
-        <Row key={c.text} tone={c.tone} text={c.text} drawer={c.drawer} right={<Tag tone={c.tone}>{c.tag}</Tag>} />
-      ))}
-    </Card>
+    <BoardCard title="What is still unresolved?">
+      {stillUnresolved().map((u) => {
+        const [a, b, ...rest] = u.duration.split(" ");
+        return <StatRow key={u.text} rail="amber" label={u.text} value={`${a} ${b}`} comparator={rest.join(" ")} onClick={(el) => open(u.drawer, el)} />;
+      })}
+    </BoardCard>
   );
 }
 
-export function BmUnchanged() {
+export function PanelCustomers() {
+  const go = useGo();
+  const c = FIG.complaints;
+  const last = c.perThousand.length - 1;
+  useFigures(["f:complaints", "f:ombudsman", "f:vuln-exceptions", "f:rate-error"]);
   return (
-    <Card title="What has not changed?">
-      {UNCHANGED.map((c) => (
-        <Row key={c.text} tone={c.tone} text={c.text} drawer={c.drawer} right={<Tag tone={c.tone}>{c.standing ? c.standing.replace("Standing ", "") : c.tag}</Tag>} />
-      ))}
-      {DUE_FOR_REVIEW.map((d) => (
-        <Row key={d.item} tone={d.tone} text={d.item} detail={d.detail} drawer={d.drawer} right={<Tag tone={d.tone}>Overdue</Tag>} />
-      ))}
-    </Card>
+    <BoardCard title="What are customers telling us?" right={<LinkMore onClick={() => go("customers")} label="Customers" />}>
+      <StatRow label={`Complaints ${FIG.complaints.basis}`} value={String(c.perThousand[last])} comparator={`Q2 ${c.perThousand[last - 1]}`} />
+      <StatRow label="Ombudsman upholds" value={fmt.pct(c.uphold)} comparator={`Q2 ${fmt.pct(c.upholdQ2)}`} />
+      <StatRow label="Vulnerable exceptions" value={String(FIG.vuln.series[FIG.vuln.series.length - 1])} comparator={`amber at ${FIG.vuln.amber}`} />
+      <StatRow label="Rate-error customers contacted" value={`${rateErrorPct()}%`} comparator={fmt.nOfM(FIG.rateError.contacted, FIG.rateError.customers)} />
+    </BoardCard>
   );
 }
 
-export function CustomerPulse() {
-  const last = COMPLAINTS.perThousand.length - 1;
+export function PanelOwners() {
+  const go = useGo();
+  const s = signOffTotals();
+  const j = journeysWithoutOwner();
+  useFigures(["f:signoff-ontime", "f:first-line", "f:journeys-no-owner", "f:escalation-median"]);
   return (
-    <StatPanel
-      title="What are customers telling us?"
-      more={<More tab="customers" label="Customers" />}
-      stats={[
-        { label: "Complaints", value: `${COMPLAINTS.perThousand[last]}`, against: `per 1,000 accounts · Q2 ${COMPLAINTS.perThousand[last - 1]}`, tone: "amber" },
-        { label: "Ombudsman upholds", value: COMPLAINTS.ombudsmanUphold.now, against: `Q2 ${COMPLAINTS.ombudsmanUphold.q2}`, tone: "amber" },
-        { label: "Vulnerable exceptions", value: `${VULN.series[VULN.series.length - 1]}`, against: `per 10,000 · amber ${VULN.amber}`, tone: "amber", drawer: "removed" },
-        { label: "Rate-error customers", value: HARM_EVENT.contacted.toLocaleString("en-GB"), against: `of ${HARM_EVENT.customers.toLocaleString("en-GB")} contacted`, tone: "amber" },
-      ]}
-    />
+    <BoardCard title="Who owns it?" right={<LinkMore onClick={() => go("ownership")} label="Ownership" />}>
+      <StatRow label="Sign-offs on time" value={`${s.onTime} of ${s.cells}`} comparator="owner-months" />
+      <StatRow label="First line found" value={`${issuesFound().firstPct}%`} comparator="of issues" />
+      <StatRow label="Journeys without a risk owner" value={`${j.n} of ${j.of}`} comparator="journeys" />
+      <StatRow label="Median time to escalate" value={`${FIG.escalation.medianMonths} months`} comparator={`${FIG.escalation.issues} issues`} />
+    </BoardCard>
   );
 }
 
-export function FinancialStrengthPanel() {
-  return <StatPanel title="Are we financially strong?" more={<More tab="growth" label="Growth" />} stats={FINANCIAL_STRENGTH.map((f) => ({ ...f, drawer: `metric:${f.unitId}` }))} />;
-}
-
-export function AgentPanel() {
+export function PanelAgents() {
+  const go = useGo();
   const { state } = useStore();
-  const waiting = QUEUE.filter((q) => state.session.drafts[q.draftId]?.status === "ai_draft").length;
+  const a = agentFigures(QUEUE.filter((q) => state.session.drafts[q.draftId]?.status === "ai_draft").length);
+  useFigures(["f:agent-findings", "f:agent-drafts", "f:agent-unapproved", "f:pack-hours"]);
   return (
-    <StatPanel
-      title="Are the AI agents helping?"
-      more={<More tab="ai" label="AI oversight" />}
-      stats={[
-        { label: "Agents", value: String(AGENTS.length), against: `${totalChecks()} checks this week`, tone: "green" },
-        { label: "Findings", value: String(FINDINGS.length), against: "this quarter", tone: "amber" },
-        { label: "Drafts with CRO", value: String(waiting), against: "waiting for a person", tone: "amber" },
-        { label: "Without approval", value: "0", against: "actions taken", tone: "green" },
-      ]}
-    />
+    <BoardCard title="Are the AI agents helping?" right={<LinkMore onClick={() => go("ai")} label="AI oversight" />}>
+      <StatRow label="Findings" value={String(a.findings)} comparator="this quarter" />
+      <StatRow label="Drafts with the CRO" value={String(a.drafts)} comparator="waiting for a person" />
+      <StatRow label="Actions without approval" value={String(a.withoutApproval)} comparator="this quarter" />
+      <StatRow label="Pack preparation" value={`${a.packHours} hours`} comparator={`was ${a.packHoursWas}`} />
+    </BoardCard>
   );
 }
 
-/* ── Growth & Appetite ───────────────────────────────────────────────── */
+/* ══ Growth & Appetite ══════════════════════════════════════════════════ */
 
-/** 4.2 One row per business line: growth vs plan, appetite used, headroom, what unlocks growth. */
-export function GrowthAppetiteTable() {
-  const cols = "grid min-h-11 grid-cols-[minmax(130px,1fr)_minmax(150px,1.3fr)_minmax(110px,0.9fr)_90px_110px_minmax(0,1.5fr)] items-center gap-3 px-2 py-1.5 text-[13px] leading-snug";
+const GROWTH_COLS = "grid min-h-11 grid-cols-[minmax(150px,1fr)_minmax(220px,1.7fr)_minmax(180px,1.3fr)_110px_minmax(180px,1.2fr)] items-center gap-4 px-1 py-1.5 text-[13px] leading-snug";
+
+export function GrowthTable() {
+  const { open } = useDrawer();
+  const go = useGo();
+  useFigures(["f:mortgage-growth", "f:mortgage-headroom", "f:savings-growth", "f:savings-limits", "f:members"]);
+  const lines = businessLines();
+  const growth: Record<string, string> = {
+    O1: `${fmt.gbpBn(FIG.mortgages.lentBn)} of ${fmt.gbpBn(FIG.mortgages.planBn)} plan · ${mortgagePlanPct()}% · pace ${Math.round(FIG.mortgages.pace * 100)}% · book ${fmt.gbpBn(FIG.mortgages.bookBn)}`,
+    O2: `+${fmt.gbpBn(FIG.savings.balancesBn)} vs +${fmt.gbpBn(FIG.savings.planBn)} plan · members ${FIG.savings.membersM.toFixed(2)}m, ▲ ${FIG.savings.membersGrowthPct}%`,
+    O3: "Wholesale funding inside its ceiling",
+    O4: "Consumer Duty detail on Customers ›",
+  };
+  const headroom: Record<string, string> = {
+    O1: `£${mortgageHeadroomM()}m before the appetite limit`,
+    O2: lines[1].headroom,
+    O3: "Funding headroom narrowing",
+    O4: lines[3].headroom,
+  };
   return (
-    <Card title="Where can we grow?">
-      <div className={`${cols} !min-h-0 pb-1`}>
-        {["Business line", "Growth vs plan", "Appetite used", "Headroom", "Verdict", "What unlocks more growth"].map((h) => (
+    <BoardCard title="Where can we grow?">
+      <div className={`${GROWTH_COLS} !min-h-0`}>
+        {["Business line", "Growth vs plan", "Headroom", "Verdict", "Next step"].map((h) => (
           <Label key={h}>{h}</Label>
         ))}
       </div>
       {FRANCHISES.map((f) => {
-        const g = LINE_GROWTH.find((x) => x.id === f.id)!;
-        const tone = toneOf(f.verdict);
-        const dm = f.id === "O1" ? metric("u-hltv") : f.id === "O3" ? metric("u-nsfr") : f.id === "O2" ? metric("u-capacity") : undefined;
+        const l = lines.find((x) => x.id === f.id)!;
         return (
-          <Opener key={f.id} drawer={`franchise:${f.id}`} label={f.name} className="border-t border-slate-100 hover:bg-slate-50">
-            <div className={cols}>
+          <button key={f.id} type="button" onClick={(e) => (f.id === "O4" ? go("customers") : open(`franchise:${f.id}`, e.currentTarget))} className={`block w-full border-t border-slate-100 text-left hover:bg-slate-50 ${focus}`}>
+            <span className={GROWTH_COLS}>
+              <b className="text-slate-900">{f.name}</b>
+              <span className="tabular-nums text-slate-900">{growth[f.id]}</span>
+              <span className="text-slate-700">{headroom[f.id]}</span>
               <span>
-                <b className="text-slate-900">{f.name}</b>
-                {f.id === "O1" ? <span className="block text-[11px] text-slate-500">Book {MORTGAGE_BOOK}</span> : null}
+                <Pill tone={toneOf(f.verdict)} label={VERDICT_WORD[f.verdict]} />
               </span>
-              <span>
-                <GrowthBar actual={g.actual} plan={g.plan} pace={g.pace} tone={g.growthTone} />
-                <span className="mt-0.5 block text-xs text-slate-600">
-                  {g.growthLabel} · <b>{Math.round((g.actual / g.plan) * 100)}%</b>
-                </span>
-              </span>
-              <span>
-                {dm?.dial ? <AppetiteDial dial={dm.dial} direction={dm.direction} /> : <span className="block h-3.5 rounded-full border border-dashed border-slate-400" />}
-                <span className="mt-0.5 block text-xs text-slate-600">{g.riskLabel}</span>
-              </span>
-              <b className="tabular-nums text-slate-900">{g.headroom}</b>
-              <span>
-                <Pill tone={tone} label={VERDICT_WORD[f.verdict]} />
-              </span>
-              <span className="text-slate-800">{g.unlock}</span>
-            </div>
-          </Opener>
+              <span className="text-slate-700">{l.next}</span>
+            </span>
+          </button>
         );
       })}
-    </Card>
+    </BoardCard>
   );
 }
 
-export function EarlyWarnings() {
+/** Type and owner columns show from 1280px. */
+const MCOLS = "grid min-h-10 grid-cols-[minmax(130px,1.2fr)_minmax(150px,1.6fr)_70px_84px_minmax(110px,1fr)_70px_120px] items-center gap-3 px-1 py-1 text-[13px] leading-snug xl:grid-cols-[minmax(150px,1.3fr)_minmax(170px,1.6fr)_76px_84px_minmax(120px,1fr)_76px_96px_minmax(120px,1fr)_128px]";
+
+/** All 12 measures with numbers only; includes financial strength and time to threshold. */
+export function MeasuresDetail() {
+  const { open } = useDrawer();
+  useFigures(MEASURES.map((m) => `m:${m.id}`));
   return (
-    <Card title="Which early warnings are moving?">
-      {EARLY_WARNINGS.map((w) => (
-        <Row key={w.name} tone={w.tone} text={w.name} detail={w.when} drawer={`metric:${w.unitId}`} />
+    <BoardCard title="How is each measure moving?" right={<span className="text-[11px] text-slate-500">as at {FIG.dates.asAt}</span>}>
+      <div className={`${MCOLS} !min-h-0 text-[10px] font-bold uppercase tracking-wider text-slate-500`}>
+        <span>Measure</span>
+        <span>Value</span>
+        <span className="text-right">Amber</span>
+        <span className="text-right">Limit</span>
+        <span>Time to threshold</span>
+        <span className="text-right">vs Q2</span>
+        <span className="hidden xl:block">Type</span>
+        <span className="hidden xl:block">Owner</span>
+        <span className="text-right">Status</span>
+      </div>
+      {measuresByTier().map((g) => (
+        <div key={g.tier}>
+          <p className="border-t border-slate-200 px-1 pt-1.5">
+            <Label>{g.tier === "obligatory" ? "Obligatory" : g.tier === "top" ? "Top risks" : "Emerging"}</Label>
+          </p>
+          {g.rows.map((m) => {
+            const t = thresholdCells(m);
+            const muted = m.status === "within";
+            return (
+              <button key={m.id} type="button" onClick={(e) => open(`metric:${m.id}`, e.currentTarget)} className={`block w-full border-t border-slate-100 text-left hover:bg-slate-50 ${focus}`}>
+                <span className={`${MCOLS} ${muted ? "text-slate-500" : "text-slate-900"}`}>
+                  <span className={muted ? "" : "font-semibold"}>{m.name}</span>
+                  <span className="tabular-nums">{m.value}</span>
+                  <span className="text-right tabular-nums">{t.amber}</span>
+                  <span className="text-right tabular-nums">{t.limit}</span>
+                  <span className="text-xs">{timeToThreshold(m)}</span>
+                  <span className="text-right">
+                    <DeltaMark d={m.delta} />
+                  </span>
+                  <span className="hidden text-xs xl:block">{m.type === "early_warning" ? "Early warning" : "Outcome"}</span>
+                  <span className="hidden text-xs xl:block">{m.owner}</span>
+                  <span className="justify-self-end">
+                    <StatusPill status={m.status} />
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
       ))}
-      <p className="mt-1.5 text-[11px] text-slate-500">Straight-line projections, sorted by time to threshold.</p>
-    </Card>
+    </BoardCard>
   );
 }
 
 export function CreditQuality() {
+  const c = FIG.credit;
+  useFigures(["f:credit"]);
   return (
-    <Card title="Is credit quality holding?">
-      {CREDIT_QUALITY.map((c) => (
-        <Row key={c.label} tone={c.tone} text={`${c.label} ${c.value}`} detail={c.against} drawer={c.label === "High-LTV share" ? "metric:u-hltv" : undefined} />
+    <BoardCard title="Is credit quality holding?">
+      <StatRow label="Loans above 4.5× income" value={fmt.pct(c.above45, 1)} comparator={`limit ${c.above45Limit}%`} />
+      <StatRow label="Arrears 3 months+" value={fmt.pct(c.arrears, 2)} comparator={`appetite ${fmt.pct(c.arrearsAppetite, 1)} · Q2 ${fmt.pct(c.arrearsQ2, 2)}`} />
+      <StatRow label="Cost of risk" value={`${c.costOfRiskBps} bps`} comparator={`Q2 ${c.costOfRiskQ2Bps} bps`} />
+    </BoardCard>
+  );
+}
+
+export function EmergingList() {
+  return (
+    <BoardCard title="Which risks are not yet measured?">
+      {EMERGING_UNMEASURED.map((e) => (
+        <LineItem key={e.name} text={e.name} detail={`${e.owner ?? "Owner not named"} · ${e.note}`} right={<Pill tone="grey" label="Not measured" />} />
       ))}
-      <p className="mt-1.5 text-[11px] text-slate-500">Mortgage book {MORTGAGE_BOOK} · all four within appetite</p>
-    </Card>
+    </BoardCard>
   );
 }
 
-export function FinancialStrengthDetail() {
+/** Crime-check capacity: stat rows plus the one trend chart on this tab. */
+export function Capacity() {
+  const c = FIG.capacity;
+  useFigures(["f:handlers", "f:per-handler", "f:restore", "f:cleared"]);
+  const base = (arr: number[]) => arr.map((v) => Math.round((v / arr[0]) * 1000) / 10);
   return (
-    <Card title="Capital and liquidity headroom">
-      {FINANCIAL_STRENGTH.map((f) => {
-        const m = metric(f.unitId);
-        return (
-          <Opener key={f.unitId} drawer={`metric:${f.unitId}`} label={f.label} className="rounded hover:bg-slate-50">
-            <span className="block border-b border-slate-100 px-1 py-1.5 last:border-b-0">
-              <span className="flex items-baseline justify-between text-xs">
-                <span className="font-semibold text-slate-800">{f.label}</span>
-                <span className="tabular-nums">
-                  <b>{f.value}</b> <span className="text-slate-500">{f.against}</span>
-                </span>
-              </span>
-              {m.dial ? <AppetiteDial dial={m.dial} direction={m.direction} /> : null}
-            </span>
-          </Opener>
-        );
-      })}
-    </Card>
+    <BoardCard title="Do we have the crime-check capacity?">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <div>
+          <StatRow label="Qualified handlers" value={String(c.handlers)} comparator="today" />
+          <StatRow label="Members per handler" value={fmt.n(c.perHandler)} comparator={`was ${fmt.n(c.perHandlerWas)}`} />
+          <StatRow label="To restore the ratio" value={`+${c.restoreNeeded} handlers`} comparator={`about ${fmt.gbpM(c.restoreCostM)} a year`} />
+          <StatRow label="Alerts cleared in target" value={fmt.share(c.cleared, c.alerts)} comparator={fmt.nOfM(c.cleared, c.alerts)} />
+        </div>
+        <div data-chart="capacity-trend">
+          <LineChart
+            title="Members and handlers, indexed to Q2 2025"
+            height={140}
+            series={[
+              { name: "Members", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: base(CAPACITY.membersM)[i] })) },
+              { name: "Handlers", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: base(CAPACITY.handlers)[i] })), dashed: true },
+            ]}
+          />
+        </div>
+      </div>
+    </BoardCard>
   );
 }
 
-/** 4.4 AI-found tensions between two policies or measures. */
+export function BmTradeoffs() {
+  const tr = FIG.tradeoff;
+  useFigures(["f:tradeoff", "f:tradeoff-overdue"]);
+  return (
+    <BoardCard title="Which trade-offs did we agree?" right={<span className="text-[11px] text-slate-500">Agreed {tr.agreed} · review {tr.overdueDays} days overdue</span>}>
+      <StatRow rail="red" label="Onboarding uplift" value={`+${tr.uplift} pts`} comparator={`limit +${tr.upliftLimit}`} right={<Pill tone="red" label="Broken" />} />
+      <StatRow rail="red" label="High-risk acceptance" value={fmt.pct(tr.acceptance, 1)} comparator={`limit ${fmt.pct(tr.acceptanceLimit, 1)}`} right={<Pill tone="red" label="Broken" />} />
+      <StatRow label="Onboarding fraud losses" value={`${tr.fraudBp} bp`} comparator={`limit ${tr.fraudLimitBp} bp`} right={<Pill tone="green" label="Within" />} />
+      <StatRow rail="red" label="Checks before transacting" value="Floor" comparator="regulatory floor" right={<Pill tone="red" label="Not tradeable" />} />
+    </BoardCard>
+  );
+}
+
 export function PolicyTensions() {
+  const { open } = useDrawer();
   return (
-    <Card title="Where do our policies conflict?" right={<AiTag label="AI agent found" />}>
-      <div className="space-y-2">
-        {TENSIONS.map((t) => (
-          <Opener key={t.a} drawer={t.drawer} label={`${t.a} versus ${t.b}`} className="rounded-lg">
-            <div className={`rounded-lg border px-3 py-2 hover:shadow-sm ${TONE[t.tone].border} ${t.tone === "green" ? "bg-white" : TONE[t.tone].bg}`}>
-              <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-semibold text-slate-900">
-                {t.a} <ArrowRight className="h-3 w-3 text-slate-400" aria-label="versus" /> {t.b}
-              </p>
-              <p className="text-xs text-slate-600">
-                {t.aWants} · {t.bWants}
-              </p>
-              <p className="mt-0.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="text-slate-800">{t.effect}</span>
-                <span className="flex items-center gap-1.5">
-                  {t.note ? <span className="text-[11px] text-slate-500">{t.note}</span> : null}
-                  <Pill tone={t.tone} outline label={t.status} />
-                </span>
-              </p>
-            </div>
-          </Opener>
+    <BoardCard title="Where do our policies conflict?" right={<AiTag label="AI agent found" />}>
+      {TENSIONS.map((t) => (
+        <button key={t.a} type="button" onClick={(e) => open(t.drawer, e.currentTarget)} className={`block w-full border-t border-slate-100 py-2 text-left hover:bg-slate-50 ${focus} ${t.tone !== "green" ? `pl-2.5 ${railCls(t.tone)}` : ""}`}>
+          <span className="flex items-start justify-between gap-3">
+            <span className="text-[13px] font-semibold text-slate-900">
+              {t.a} <span className="font-normal text-slate-400">vs</span> {t.b}
+            </span>
+            <Pill tone={t.tone} outline label={t.status} />
+          </span>
+          <span className="block text-xs text-slate-600">
+            {t.effect}
+            {t.note ? ` · ${t.note}` : ""}
+          </span>
+        </button>
+      ))}
+    </BoardCard>
+  );
+}
+
+/* ══ Customers ══════════════════════════════════════════════════════════ */
+
+/** Key line per outcome; support shows call wait so vulnerable exceptions keep their own home row. */
+const outcomeKey = (o: (typeof FIG.outcomes)[number]) =>
+  o.name === "Consumer understanding" ? `Letters understood ${fmt.pct(FIG.letters.pct)} · target ${fmt.pct(FIG.letters.target)}` : o.name === "Consumer support" ? `Median call wait ${FIG.callWait.value} · target ${FIG.callWait.target}` : o.key;
+
+export function DutyOutcomes() {
+  const cd = consumerDuty();
+  useFigures(["m:u-cd", "f:letters", "f:call-wait"]);
+  return (
+    <BoardCard title="Are we meeting the Consumer Duty?" right={<span className="text-xs font-semibold tabular-nums text-slate-700">{cd.text}</span>}>
+      <div className="grid grid-cols-1 items-start gap-3 pb-1 sm:grid-cols-2 xl:grid-cols-4">
+        {FIG.outcomes.map((o) => (
+          <div key={o.name} className={`rounded-lg border border-slate-200 px-3 ${railCls(o.status === "amber" ? "amber" : "green")}`}>
+            <span className="flex h-10 items-center justify-between gap-2">
+              <span className="text-[13px] font-bold text-slate-900">{o.name}</span>
+              <Pill tone={o.status === "amber" ? "amber" : "green"} label={o.status === "amber" ? "Amber" : "Within"} />
+            </span>
+            <span className="flex min-h-10 items-center border-t border-slate-100 py-1 text-[13px] leading-snug text-slate-900">{outcomeKey(o)}</span>
+            <span className="flex min-h-9 flex-wrap items-center justify-between gap-x-2 border-t border-slate-100 py-1 text-xs text-slate-500">
+              <span className="tabular-nums">
+                {o.inTolerance} of {o.measures} measures in tolerance
+              </span>
+              <span>{o.owner}</span>
+            </span>
+          </div>
         ))}
       </div>
-      <p className="mt-2 text-[11px] text-slate-500">
-        {TENSIONS.length} tensions found · {TENSIONS.filter((t) => t.status === "Regulatory floor, not tradeable").length} is a regulatory floor · {TENSIONS.filter((t) => t.status === "Not agreed").length} not yet agreed by the board
-      </p>
-    </Card>
-  );
-}
-
-/* ── Customers ───────────────────────────────────────────────────────── */
-
-/** 4.9 Consumer Duty outcome cards. */
-export function DutyOutcomes() {
-  return (
-    <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {DUTY_OUTCOMES.map((o) => (
-        <div key={o.outcome} className="rounded-xl border-[1.5px] border-emerald-200 bg-white px-3 py-2.5">
-          <div className="flex items-start justify-between gap-2">
-            <span className="text-[13px] font-bold text-slate-900">{o.outcome}</span>
-            <Pill tone={o.tone} label={o.status} />
-          </div>
-          <p className={`mt-1 text-2xl font-bold leading-tight tabular-nums ${o.measureTone === "green" ? "text-slate-900" : TONE[o.measureTone].text}`}>{o.measure}</p>
-          <p className="text-xs text-slate-600">{o.against}</p>
-          {o.outcome === "Consumer support" ? (
-            <p className="text-xs text-slate-600">
-              Call wait {CALL_WAIT.value} · target {CALL_WAIT.target}
-            </p>
-          ) : null}
-          <p className="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-500">
-            {o.measureTone === "green" ? <span>{o.trend}</span> : <Tag tone={o.measureTone}>{o.trend}</Tag>}
-            <span>{o.owner}</span>
-          </p>
-        </div>
-      ))}
-    </div>
+    </BoardCard>
   );
 }
 
 export function ComplaintsTrend() {
-  const n = COMPLAINTS.perThousand.length - 1;
+  const c = FIG.complaints;
+  const last = c.perThousand.length - 1;
+  useFigures(["f:complaints", "f:ombudsman"]);
   return (
-    <Card title="Are complaints rising?">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-3xl font-bold tabular-nums text-amber-700">{COMPLAINTS.perThousand[n]}</p>
-          <p className="text-xs text-slate-600">per 1,000 accounts · Q2 {COMPLAINTS.perThousand[n - 1]}</p>
-        </div>
-        <div className="text-right">
-          <Sparkline values={COMPLAINTS.perThousand} tone="amber" />
-          <p className="text-[11px] text-slate-500">
-            {COMPLAINTS.quarters[0]} {COMPLAINTS.perThousand[0]} → {COMPLAINTS.quarters[n]} {COMPLAINTS.perThousand[n]}
-          </p>
-        </div>
+    <BoardCard title="Are complaints rising?">
+      <div data-chart="complaints-trend">
+        <LineChart title={`Complaints ${c.basis}`} height={200} series={[{ name: c.basis, points: c.quarters.map((q, i) => ({ label: q, value: c.perThousand[i] })) }]} />
       </div>
-      <p className="mt-2 flex gap-1.5">
-        {COMPLAINTS.quarters.map((q, i) => (
-          <span key={q} className={`flex-1 rounded-md border px-2 py-1 text-center text-[11px] ${i === n ? `${TONE.amber.bg} ${TONE.amber.border} font-semibold text-amber-800` : "border-slate-200 text-slate-600"}`}>
-            {q} · <b className="tabular-nums">{COMPLAINTS.perThousand[i]}</b>
-          </span>
-        ))}
-      </p>
-      <Row tone="amber" text={`Ombudsman upholds ${COMPLAINTS.ombudsmanUphold.now}`} detail={`${COMPLAINTS.ombudsmanUphold.detail} · Q2 ${COMPLAINTS.ombudsmanUphold.q2}`} />
-    </Card>
+      <StatRow label={`Complaints ${FIG.complaints.basis}`} value={String(c.perThousand[last])} comparator={`Q2 ${c.perThousand[last - 1]}`} />
+      <StatRow label="Ombudsman upholds" value={fmt.pct(c.uphold)} comparator={`${c.upheld} of ${c.referred} · Q2 ${fmt.pct(c.upholdQ2)}`} />
+    </BoardCard>
   );
 }
 
 export function ComplaintThemes() {
+  useFigures(["f:themes"]);
+  const max = Math.max(...FIG.complaints.themes.map((t) => t.share));
   return (
-    <Card title="What do customers complain about?">
-      {COMPLAINT_THEMES.map((t) => (
-        <div key={t.theme} className="flex h-10 items-center gap-3 text-[13px]">
-          <span className="w-52 shrink-0 text-slate-800">{t.theme}</span>
-          <span className="h-2.5 flex-1 rounded-full bg-slate-100">
-            <span className="block h-2.5 rounded-full bg-amber-400" style={{ width: `${t.share * 2}%` }} />
-          </span>
-          <b className="w-10 text-right tabular-nums">{t.share}%</b>
-        </div>
-      ))}
-      <p className="text-[11px] text-slate-500">Share of complaints this quarter.</p>
-    </Card>
+    <BoardCard title="What do customers complain about?" right={<span className="text-[11px] text-slate-500">share of complaints this quarter</span>}>
+      <div data-chart="complaint-themes">
+        {FIG.complaints.themes.map((t) => (
+          <div key={t.theme} className="grid h-10 grid-cols-[200px_minmax(0,1fr)_48px] items-center gap-3 border-t border-slate-100 text-[13px]">
+            <span className="text-slate-700">{t.theme}</span>
+            <span className="h-2 rounded-full bg-slate-100">
+              <span className="block h-2 rounded-full bg-slate-500" style={{ width: `${(t.share / max) * FULL}%` }} />
+            </span>
+            <b className="text-right font-semibold tabular-nums text-slate-900">{fmt.pct(t.share)}</b>
+          </div>
+        ))}
+      </div>
+    </BoardCard>
   );
 }
 
 export function VulnerableCustomers() {
+  const { open } = useDrawer();
+  const v = FIG.vuln;
+  useFigures(["f:vuln-exceptions", "f:vuln-quarters"]);
   return (
-    <Card title="Are vulnerable customers protected?">
-      <Opener drawer="removed" label="Vulnerable-customer exceptions" className="rounded">
-        <p className="text-2xl font-bold tabular-nums text-amber-700">
-          {VULN.series[VULN.series.length - 1]} <span className="text-xs font-normal text-slate-500">exceptions per 10,000 · amber {VULN.amber}</span>
-        </p>
-        <div className="mt-1 flex items-end gap-2">
-          {VULN.series.map((v, i) => (
-            <span key={i} className="flex flex-1 flex-col items-center gap-0.5">
-              <span className="w-full rounded-t bg-amber-300" style={{ height: `${(v / VULN.red) * 60}px` }} />
-              <span className="text-[10px] text-slate-500">
-                {VULN.labels[i]} · {v}
-              </span>
-            </span>
-          ))}
-        </div>
-        <p className="mt-1 text-xs text-slate-600">Amber 3 quarters · red at {VULN.red} · dropped from the pack 14 Oct</p>
-      </Opener>
-    </Card>
+    <BoardCard title="Are vulnerable customers protected?" rail="amber">
+      <StatRow label={`Exceptions ${v.basis}`} value={String(v.series[v.series.length - 1])} comparator={`amber at ${v.amber} · red ${v.red}`} onClick={(el) => open("removed", el)} />
+      <StatRow label="Previous quarters" value={v.series.slice(0, -1).join(" → ")} comparator={v.labels.slice(0, -1).join(", ")} />
+      <StatRow label="At amber" value={`${v.quartersAmber} quarters`} comparator="dropped from the pack 14 Oct" />
+    </BoardCard>
   );
 }
 
 export function HarmEvent() {
-  const pct = Math.round((HARM_EVENT.contacted / HARM_EVENT.customers) * 100);
+  const { open } = useDrawer();
+  const r = FIG.rateError;
+  useFigures(["f:rate-error"]);
   return (
-    <Card title="Are we putting harm right?">
-      <Opener drawer="event:e-117" label={HARM_EVENT.name} className="rounded">
-        <p className="text-[13px] font-semibold text-slate-900">{HARM_EVENT.name}</p>
-        <p className="text-2xl font-bold tabular-nums text-amber-700">
-          {HARM_EVENT.contacted.toLocaleString("en-GB")} <span className="text-xs font-normal text-slate-500">of {HARM_EVENT.customers.toLocaleString("en-GB")} customers contacted</span>
-        </p>
-        <span className="mt-1 block h-2 rounded-full bg-slate-200">
-          <span className="block h-2 rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
-        </span>
-        <p className="mt-1 text-xs text-slate-600">
-          {pct}% contacted · redress about {HARM_EVENT.redress} · target {HARM_EVENT.target}
-        </p>
-      </Opener>
-      <div className="mt-1.5">
-        <Row tone="amber" text={`${(HARM_EVENT.customers - HARM_EVENT.contacted).toLocaleString("en-GB")} customers still to contact`} detail={`by ${HARM_EVENT.target}`} />
-      </div>
-    </Card>
+    <BoardCard title="Are we putting harm right?" right={<span className="text-[11px] text-slate-500">mortgage rate error</span>}>
+      <StatRow label="Customers contacted" value={`${rateErrorPct()}%`} comparator={fmt.nOfM(r.contacted, r.customers)} onClick={(el) => open("event:e-117", el)} />
+      <StatRow label="Still to contact" value={fmt.n(r.customers - r.contacted)} comparator="customers" />
+      <StatRow label="Redress estimate" value={fmt.gbpK(r.redressK)} comparator={`complete by ${r.due}`} />
+    </BoardCard>
   );
 }
 
 export function CustomerSignals() {
+  const go = useGo();
   const f = FINDINGS.find((x) => x.agentId === "signals")!;
   return (
-    <Card title="What are the agents hearing?" right={<AiTag label="Customer Signals" />}>
-      <Row tone="amber" text={f.finding} detail={f.impact.toLowerCase()} drawer={f.drawer} />
-      <Row tone="amber" text={`Savings account access: ${COMPLAINT_THEMES[0].share}% of complaints`} detail="largest theme" />
-      <Row tone="amber" text={`Ombudsman upholds up to ${COMPLAINTS.ombudsmanUphold.now}`} detail={`from ${COMPLAINTS.ombudsmanUphold.q2}`} />
-      <p className="mt-1 text-[11px] text-slate-500">Accountable: Chief Customer Officer</p>
-    </Card>
+    <BoardCard title="What are the agents hearing?" right={<AiTag label="Customer Signals" />}>
+      <LineItem rail="amber" text={f.finding} detail={f.impact.toLowerCase()} />
+      <LineItem text="Accountable" detail="Chief Customer Officer" />
+      <LineItem text="All agent findings" right={<LinkMore onClick={() => go("ai")} label="AI oversight" />} />
+    </BoardCard>
   );
 }
 
 export function Culture() {
+  useFigures(["f:culture"]);
   return (
-    <Card title="Do staff feel safe to speak up?">
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+    <BoardCard title="Do staff feel safe to speak up?">
+      <div className="grid grid-cols-1 gap-x-8 lg:grid-cols-2">
         {CULTURE.map((c) => (
-          <div key={c.label} className={`rounded-lg border px-3 py-2 ${c.tone === "amber" ? `${TONE.amber.bg} ${TONE.amber.border}` : "border-slate-200 bg-slate-50"}`}>
-            <Label>{c.label}</Label>
-            <p className={`text-xl font-bold tabular-nums ${c.tone === "amber" ? "text-amber-700" : "text-slate-900"}`}>{c.value}</p>
-            <p className="text-[11px] text-slate-500">{c.against}</p>
-          </div>
+          <StatRow key={c.label} label={c.label} value={c.value} comparator={c.against} />
         ))}
       </div>
-    </Card>
+    </BoardCard>
   );
 }
 
-/* ── Decisions ───────────────────────────────────────────────────────── */
+/* ══ Decisions ══════════════════════════════════════════════════════════ */
 
 const CHALLENGES: Record<number, string[]> = {
-  1: ["Restoring capacity takes 10 weeks; the campaign starts in 6. Then what?", "Why no resourcing decision since August?", "What would pacing growth cost in members?"],
-  2: ["When did we first know about the savings pot?", "Who decides each reporting route, and by when?", "Why are 24,000 openings still not checked?"],
-  3: ["Who removed this item, and on what authority?", "Why no action after 3 quarters at amber?", "What stops an item being dropped silently?"],
+  1: ["Restoring capacity finishes after the campaign starts. Then what?", "Why no resourcing decision since August?", "What would pacing growth cost in members?"],
+  2: ["When did we first know about the savings pot?", "Who decides each reporting route, and by when?", "Why are the partner-channel openings still not checked?"],
+  3: ["Who removed this item, and on what authority?", "Why no action while it stayed at amber?", "What stops an item being dropped silently?"],
 };
-
-const DECISIONS = [
-  { n: 1, title: "Savings growth vs crime checks", tone: "amber" as Tone, key: "19 days", keySub: "alert queue · amber 14", why: "Next savings campaign starts in 6 weeks.", decider: "Board · before 8 Dec" },
-  { n: 2, title: "Restriction breach: report or not?", tone: "red" as Tone, key: "112 of 9,400", keySub: "accounts checked", why: "Reporting clocks are already running.", decider: "Head of Compliance · immediate" },
-  { n: 3, title: "Issue removed from board pack", tone: "amber" as Tone, key: "3 quarters", keySub: "at amber, then dropped", why: "It met a committee rule but left the pack.", decider: "Risk Committee Chair · 15 Dec" },
-];
 
 const openChallenge = (n: number) => window.dispatchEvent(new CustomEvent("ukb-challenge", { detail: n }));
 
@@ -640,7 +547,7 @@ function BoardActions({ n, title }: { n: number; title: string }) {
   const topic = `Decision ${n}: ${title}`;
   const asked = state.session.deepDives.includes(topic);
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5 border-t border-slate-100 pt-2.5">
       <button type="button" onClick={() => openChallenge(n)} className={btn}>
         Ask a challenge question
       </button>
@@ -654,49 +561,88 @@ function BoardActions({ n, title }: { n: number; title: string }) {
   );
 }
 
-function ImpactTable({ n }: { n: number }) {
-  if (n === 1) {
-    return (
-      <table className="w-full text-left text-[11px]">
-        <thead>
-          <tr className="text-slate-500">
-            {["Option", "Growth", "Risk", "Cost", "To green"].map((h) => (
-              <th key={h} className="pb-1 pr-2 font-bold uppercase tracking-wider">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {D1_OPTIONS.map((o) => (
-            <tr key={o.option} className="border-t border-slate-100 align-top">
-              <td className="py-1.5 pr-2 font-semibold text-slate-900">
-                {o.option}
-                {o.recommended ? (
-                  <span className="mt-0.5 block">
-                    <AiTag label="Recommended" />
-                  </span>
-                ) : null}
-              </td>
-              <td className="py-1.5 pr-2 text-slate-700">{o.growth}</td>
-              <td className="py-1.5 pr-2 text-slate-700">{o.risk}</td>
-              <td className="py-1.5 pr-2 text-slate-700">{o.cost}</td>
-              <td className="py-1.5 font-semibold text-slate-900">{o.toGreen}</td>
+function DecisionKey({ label, value, comparator }: { label: string; value: string; comparator: string }) {
+  return (
+    <span className="grid min-h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 text-[13px]">
+      <span className="text-slate-600">{label}</span>
+      <span className="text-right">
+        <b className="font-semibold tabular-nums text-slate-900">{value}</b> <span className="text-xs text-slate-500">{comparator}</span>
+      </span>
+    </span>
+  );
+}
+
+/** Decision cards: the home for option impacts. No charts. */
+export function DecisionCards() {
+  const { open } = useDrawer();
+  const r = routesDecided();
+  useFigures(["m:u-capacity", "m:u-restriction", "f:vuln-quarters", "f:routes-decided", "f:d1-options"]);
+  const q = measure("u-capacity");
+  return (
+    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.5fr_1fr_1fr]">
+      <BoardCard title="1. Savings growth vs crime checks" rail="amber" right={<span className="text-[11px] text-slate-500">Board · before {FIG.dates.campaign}</span>}>
+        <button type="button" onClick={(e) => open("decision:1", e.currentTarget)} className={`block w-full text-left ${focus}`}>
+          <DecisionKey label="Alert queue age" value={q.value} comparator={q.comparator} />
+        </button>
+        <table className="mt-1 w-full text-left text-xs">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-wider text-slate-500">
+              {["Option", "Growth", "Risk", "Cost", "To green"].map((h) => (
+                <th key={h} className="py-1.5 pr-2 font-bold">
+                  {h}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    );
-  }
-  if (n === 3) {
-    return (
-      <div>
+          </thead>
+          <tbody>
+            {D1_OPTIONS.map((o) => (
+              <tr key={o.option} className="border-t border-slate-100 align-top">
+                <td className="py-1.5 pr-2 font-semibold text-slate-900">
+                  {o.option}
+                  {o.recommended ? (
+                    <span className="mt-0.5 block">
+                      <AiTag label="Recommended" />
+                    </span>
+                  ) : null}
+                </td>
+                <td className="py-1.5 pr-2 text-slate-700">{o.growth}</td>
+                <td className="py-1.5 pr-2 text-slate-700">{o.risk}</td>
+                <td className="py-1.5 pr-2 tabular-nums text-slate-700">{o.cost}</td>
+                <td className="py-1.5 font-semibold tabular-nums text-slate-900">{o.toGreen}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <BoardActions n={1} title="Savings growth vs crime checks" />
+      </BoardCard>
+      <BoardCard title="2. Restriction breach: report or not?" rail="red" right={<span className="text-[11px] text-slate-500">Head of Compliance</span>}>
+        <button type="button" onClick={(e) => open("decision:2", e.currentTarget)} className={`block w-full text-left ${focus}`}>
+          <DecisionKey label="Accounts in breach" value={fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested)} comparator="checked" />
+          <DecisionKey label="Reporting routes decided" value={`${r.decided} of ${r.total}`} comparator="routes" />
+        </button>
+        <p className="border-t border-slate-100 pt-2 text-xs text-slate-700">Not a board decision: the Head of Compliance decides each reporting route.</p>
+        <p className="pt-2">
+          <Label>What the board should ask</Label>
+        </p>
+        {D2_BOARD_ASKS.filter((x) => !/\d/.test(x)).map((x) => (
+          <p key={x} className="text-xs text-slate-700">
+            · {x}
+          </p>
+        ))}
+        <div className="mt-2">
+          <BoardActions n={2} title="Restriction breach: report or not?" />
+        </div>
+      </BoardCard>
+      <BoardCard title="3. Issue removed from board pack" rail="amber" right={<span className="text-[11px] text-slate-500">Chair · {FIG.dates.brc}</span>}>
+        <button type="button" onClick={(e) => open("decision:3", e.currentTarget)} className={`block w-full text-left ${focus}`}>
+          <DecisionKey label="Vulnerable-customer exceptions at amber" value={`${FIG.vuln.quartersAmber} quarters`} comparator="then dropped" />
+        </button>
         {D3_OPTIONS.map((o, i) => (
-          <p key={o.option} className="flex items-baseline justify-between gap-2 border-t border-slate-100 py-1.5 text-xs">
+          <p key={o.option} className="grid min-h-10 grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] items-center gap-2 border-t border-slate-100 text-xs">
             <b className="text-slate-900">
               {o.option}
               {i === 0 ? (
-                <span className="ml-1.5 align-middle">
+                <span className="ml-1 align-middle">
                   <AiTag label="Recommended" />
                 </span>
               ) : null}
@@ -704,59 +650,8 @@ function ImpactTable({ n }: { n: number }) {
             <span className="text-right text-slate-600">{o.impact}</span>
           </p>
         ))}
-      </div>
-    );
-  }
-  return (
-    <div>
-      <p className="border-t border-slate-100 pt-1.5 text-xs text-slate-700">
-        Not a board decision: the Head of Compliance decides each reporting route. <b>1 of 7 routes decided.</b>
-      </p>
-      <p className="mt-1">
-        <Label>What the board should ask</Label>
-      </p>
-      {D2_BOARD_ASKS.map((q) => (
-        <p key={q} className="text-xs text-slate-700">
-          · {q}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-/** 4.3 Decision card with option impact. */
-export function BmDecisionCards() {
-  const { open } = useDrawer();
-  return (
-    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.45fr_1fr_1fr]">
-      {DECISIONS.map((d) => (
-        <div key={d.n} className={`rounded-xl border-[1.5px] bg-white p-4 shadow-sm ${TONE[d.tone].border}`}>
-          <button type="button" onClick={(e) => open(`decision:${d.n}`, e.currentTarget)} className={`block w-full text-left ${focus} rounded`}>
-            <span className="flex items-center gap-2">
-              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">{d.n}</span>
-              <span className="text-sm font-bold text-slate-900">{d.title}</span>
-            </span>
-            <span className={`mt-1.5 block text-[26px] font-bold leading-tight tabular-nums ${TONE[d.tone].text}`}>
-              {d.key} <span className="text-xs font-normal text-slate-500">{d.keySub}</span>
-            </span>
-            <span className="block text-xs text-slate-700">
-              <b>Why now:</b> {d.why}
-            </span>
-            <span className="block text-xs font-semibold text-slate-500">{d.decider}</span>
-          </button>
-          <div className="mt-2">
-            <ImpactTable n={d.n} />
-          </div>
-          {d.n === 1 ? (
-            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-violet-800">
-              <AiTag /> Recommends restoring capacity
-            </p>
-          ) : null}
-          <div className="mt-2.5">
-            <BoardActions n={d.n} title={d.title} />
-          </div>
-        </div>
-      ))}
+        <BoardActions n={3} title="Issue removed from board pack" />
+      </BoardCard>
     </div>
   );
 }
@@ -774,9 +669,9 @@ export function ChallengeQuestions() {
   }, []);
   const saved = (n: number, q: string) => state.session.notes.some((x) => x.from === `Decision ${n}` && x.text === q);
   return (
-    <Card id="bm-challenges" title="What should we ask?" right={<AiTag label="AI agent drafted" />}>
+    <BoardCard id="bm-challenges" title="What should we ask?" right={<AiTag label="AI agent drafted" />}>
       {DECISIONS.map((d) => (
-        <div key={d.n} className="border-t border-slate-100 first:border-t-0">
+        <div key={d.n} className="border-t border-slate-100">
           <button type="button" aria-expanded={openN === d.n} onClick={() => setOpenN(openN === d.n ? 0 : d.n)} className={`flex h-10 w-full items-center justify-between text-left text-[13px] font-semibold text-slate-900 ${focus}`}>
             <span>
               {d.n}. {d.title}
@@ -795,7 +690,7 @@ export function ChallengeQuestions() {
             : null}
         </div>
       ))}
-    </Card>
+    </BoardCard>
   );
 }
 
@@ -804,65 +699,140 @@ export function MyNotes() {
   const notes = state.session.notes;
   const dives = state.session.deepDives;
   return (
-    <Card title={`My notes (${notes.length})`}>
-      {notes.length ? notes.map((n) => <Row key={n.id} tone="grey" text={n.text} detail={n.from} />) : <p className="text-xs text-slate-500">Questions and items you add appear here for the meeting.</p>}
-      <p className="mb-0.5 mt-2">
+    <BoardCard title={`My notes (${notes.length})`}>
+      {notes.length ? notes.map((n) => <LineItem key={n.id} text={n.text} detail={n.from} />) : <p className="border-t border-slate-100 py-2 text-xs text-slate-500">Questions and items you add appear here for the meeting.</p>}
+      <p className="pb-0.5 pt-2">
         <Label>Deep dives requested</Label>
       </p>
-      {dives.length ? dives.map((d) => <Row key={d} tone="amber" text={d} detail="with the CRO" />) : <p className="text-xs text-slate-500">None yet.</p>}
-    </Card>
+      {dives.length ? dives.map((d) => <LineItem key={d} rail="amber" text={d} detail="with the CRO" />) : <p className="border-t border-slate-100 py-2 text-xs text-slate-500">None yet.</p>}
+    </BoardCard>
   );
 }
 
 export function DueForReview() {
+  const { open } = useDrawer();
   return (
-    <Card title="Which decisions are overdue for review?">
+    <BoardCard title="Which decisions are overdue for review?">
       {DUE_FOR_REVIEW.map((d) => (
-        <Row key={d.item} tone={d.tone} text={d.item} detail={d.detail} drawer={d.drawer} right={<Pill tone={d.tone} label="Overdue" />} />
+        <LineItem key={d.item} rail={d.tone} text={d.item} detail={d.detail} onClick={(el) => open(d.drawer, el)} right={<Pill tone={d.tone} label="Overdue" />} />
       ))}
-    </Card>
+    </BoardCard>
   );
 }
 
-/* ── Regulator view ──────────────────────────────────────────────────── */
+/* ══ Regulator view ═════════════════════════════════════════════════════ */
+
+const ROUTE_LABEL: Record<string, string> = { product: "New savings pot", migration: "Group migration", override: "Branch override" };
+
+/** Restriction health: home for the restriction detail; the one bar set on this tab. */
+export function BmRestriction() {
+  const { open } = useDrawer();
+  const r = FIG.restriction;
+  useFigures(["m:u-restriction", "f:restriction-customers", "f:restriction-untested", "f:restriction-routes"]);
+  return (
+    <BoardCard title="How healthy is the restriction?" rail="red" right={<Pill tone="red" label="Red" />}>
+      <StatRow label="Accounts in breach" value={fmt.nOfM(r.breaches, r.tested)} comparator={`appetite 0 · ▲ ${r.breaches - r.previous}`} onClick={(el) => open("restriction", el)} />
+      <StatRow label="Customers affected" value={String(r.customers)} comparator={`incl. ${r.exited} previously exited`} />
+      <StatRow label="Openings not yet checked" value={fmt.n(r.untested)} comparator="partner channel" />
+      <StatRow label="Block fired" value={`${fmt.n(r.blockFired)} times`} comparator="a firing is not adherence" />
+      <div className="border-t border-slate-100 pt-2" data-chart="restriction-routes">
+        <Label>Breaches by route</Label>
+        {RESTRICTION.byRoute.map((b) => (
+          <div key={b.route} className="grid h-8 grid-cols-[130px_minmax(0,1fr)_40px] items-center gap-3 text-xs">
+            <span className="text-slate-600">{ROUTE_LABEL[b.lane] ?? b.route}</span>
+            <span className="h-2 rounded-full bg-slate-100">
+              <span className="block h-2 rounded-full bg-slate-500" style={{ width: `${(b.accounts / r.breaches) * FULL}%` }} />
+            </span>
+            <b className="text-right font-semibold tabular-nums text-slate-900">{b.accounts}</b>
+          </div>
+        ))}
+      </div>
+    </BoardCard>
+  );
+}
+
+export function SanctionsDetail() {
+  const s = FIG.sanctions;
+  const m = measure("u-sanctions");
+  useFigures(["m:u-sanctions"]);
+  return (
+    <BoardCard title="Is sanctions screening complete?" right={<StatusPill status={m.status} />}>
+      <StatRow label="List coverage" value={m.value.split(" · ")[0]} comparator={`${s.rules} rules · ${fmt.n(s.entries)} entries`} />
+      <StatRow label="Alerts" value="None" comparator={`${s.weeksNoAlerts} weeks · about ${s.expectedPerWeek} a week expected`} />
+      <StatRow label="Owner" value="Financial crime" comparator="sign-off unconfirmed" />
+    </BoardCard>
+  );
+}
 
 export function RegulatorRelationship() {
   return (
-    <Card title="Where do we stand with regulators?">
+    <BoardCard title="Where do we stand with regulators?">
       {REGULATOR_RELATIONSHIP.map((r) => (
-        <Row key={r.label} tone={r.tone} text={r.label} right={<b className="text-[13px] tabular-nums text-slate-900">{r.value}</b>} />
+        <StatRow key={r.label} rail={r.tone === "red" || r.tone === "amber" ? r.tone : undefined} label={r.label} value={r.value} />
       ))}
-    </Card>
+    </BoardCard>
   );
 }
 
 export function RegulatoryCalendar() {
+  useFigures(["f:key-dates"]);
   return (
-    <Card title="What is coming up?">
+    <BoardCard title="What is coming up?">
       {REG_CALENDAR.map((c) => (
-        <span key={c.item} className={`flex min-h-10 items-center gap-3 border-l-[3px] py-1 pl-3 text-[13px] ${TONE[c.tone].rail}`}>
-          <span className="w-24 shrink-0 text-[11px] font-bold uppercase tracking-wider text-indigo-700">{c.date}</span>
-          <span className="text-slate-800">{c.item}</span>
+        <span key={c.item} className="grid min-h-10 grid-cols-[96px_minmax(0,1fr)] items-center gap-3 border-t border-slate-100 text-[13px]">
+          <b className="font-semibold tabular-nums text-slate-900">{c.date.replace(" 2026", "")}</b>
+          <span className="text-slate-700">{c.item}</span>
         </span>
       ))}
-    </Card>
+    </BoardCard>
   );
 }
 
-/* ── Ownership ───────────────────────────────────────────────────────── */
+/* ══ Ownership ══════════════════════════════════════════════════════════ */
+
+export function BmOwners() {
+  const { state } = useStore();
+  const { open } = useDrawer();
+  const list = owners(Object.fromEntries(Object.values(DRAFTS).map((d) => [d.draftId, d.targetRole])));
+  return (
+    <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {list.map((o) => {
+        const openN = o.draftIds.filter((id) => state.session.drafts[id]?.status === "ai_draft").length;
+        const pill = o.state === "grey" ? "Unconfirmed" : o.state === "green" ? "On track" : o.state === "red" ? "Red" : "Amber";
+        return (
+          <button key={o.role} type="button" onClick={(e) => open(`owner:${o.role}`, e.currentTarget)} className={`block w-full rounded-xl border border-slate-200 bg-white px-3 pb-1 text-left hover:border-slate-300 ${focus} ${railCls(o.state)}`}>
+            <span className="flex min-h-10 items-center justify-between gap-2 py-1">
+              <span className="text-[13px] font-bold leading-tight text-slate-900">{o.role}</span>
+              <Pill tone={o.state} label={pill} />
+            </span>
+            <span className="flex h-9 items-center justify-between border-t border-slate-100 text-[13px]">
+              <span className="text-slate-600">Measures off track</span>
+              <b className="font-semibold tabular-nums text-slate-900">{o.measures.length ? `${o.offTrack} of ${o.measures.length}` : "None held"}</b>
+            </span>
+            <span className="flex h-9 items-center justify-between border-t border-slate-100 text-[13px]">
+              <span className="text-slate-600">Actions open</span>
+              <b className="font-semibold tabular-nums text-slate-900">{openN}</b>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const MARK: Record<SignOffMark, { cls: string; word: string }> = {
-  on_time: { cls: "bg-emerald-500", word: "Signed on time" },
-  late: { cls: "bg-amber-400", word: "Late" },
+  on_time: { cls: "bg-slate-400", word: "On time" },
+  late: { cls: "bg-amber-500", word: "Late" },
   missing: { cls: "border border-dashed border-slate-400 bg-white", word: "Missing" },
   early: { cls: "bg-red-500", word: "Signed before data check finished" },
 };
 
-/** 4.5 Monthly sign-off strip, one row per owner, month of the numbers. */
 export function SignOffStrip() {
+  const t = signOffTotals();
+  useFigures(["f:signoff-ontime"]);
   return (
-    <Card title="Do owners sign off every month?">
-      <div className="grid grid-cols-[170px_repeat(12,minmax(0,1fr))] items-center gap-1 text-[10px] text-slate-500">
+    <BoardCard title="Do owners sign off every month?" right={<span className="text-xs font-semibold tabular-nums text-slate-700">{t.onTime} of {t.cells} on time · {t.late} late · {t.missing} missing · {t.early} early</span>}>
+      <div data-chart="signoff-strip" className="grid grid-cols-[170px_repeat(12,minmax(0,1fr))] items-center gap-1 text-[10px] text-slate-500">
         <span />
         {SIGNOFF_MONTHS.map((m, i) => (
           <span key={m} className={`text-center ${i === SIGNOFF_MONTHS.length - 1 ? "font-bold text-slate-900" : ""}`}>
@@ -871,144 +841,236 @@ export function SignOffStrip() {
         ))}
         {SIGNOFF_HISTORY.map((o) => (
           <div key={o.role} className="contents">
-            <span className="flex h-8 items-center text-xs font-semibold text-slate-800">{o.role}</span>
+            <span className="flex h-8 items-center text-xs text-slate-800">{o.role}</span>
             {o.marks.map((mk, i) => (
               <span key={i} title={`${SIGNOFF_MONTHS[i]}: ${MARK[mk].word}`} className={`mx-auto h-5 w-full max-w-7 rounded ${MARK[mk].cls}`} />
             ))}
           </div>
         ))}
       </div>
-      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-600">
+      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-[11px] text-slate-600">
         {(Object.keys(MARK) as SignOffMark[]).map((k) => (
           <span key={k} className="flex items-center gap-1.5">
             <span className={`h-3 w-3 rounded-sm ${MARK[k].cls}`} />
             {MARK[k].word}
           </span>
         ))}
-        <span className="text-slate-500">· Month of the numbers, Oct 2025 – Sep 2026</span>
+        <span className="text-slate-500">Month of the numbers, Oct 2025 – Sep 2026</span>
       </p>
-    </Card>
+    </BoardCard>
   );
 }
 
-/** 4.6 Lines of defence: who found this quarter's issues. */
+const DEFENCE_SHADE = ["bg-slate-700", "bg-slate-500", "bg-slate-400", "bg-slate-300"];
+
 export function LinesOfDefence() {
-  const first = ISSUES_FOUND.by[0];
+  const f = issuesFound();
+  useFigures(["f:first-line", "f:issues-found"]);
   return (
-    <Card title="Who finds our problems?">
-      <p className="text-[13px] text-slate-800">
-        <b>First line found {Math.round((first.n / ISSUES_FOUND.total) * 100)}% of issues</b> <span className="text-slate-500">· aim: most</span>
-      </p>
-      <div className="mt-1.5 flex h-3 overflow-hidden rounded-full">
-        {ISSUES_FOUND.by.map((b) => (
-          <span key={b.line} className={b.color} style={{ width: `${(b.n / ISSUES_FOUND.total) * 100}%` }} title={`${b.line}: ${b.n}`} />
+    <BoardCard title="Who finds our problems?" right={<span className="text-xs font-semibold text-slate-700">First line {f.firstPct}% · aim: most</span>}>
+      <div data-chart="lines-of-defence" className="mb-1 flex h-4 overflow-hidden rounded-full">
+        {ISSUES_FOUND.by.map((b, i) => (
+          <span key={b.line} className={DEFENCE_SHADE[i]} style={{ width: `${(b.n / f.total) * FULL}%` }} title={`${b.line}: ${b.n}`} />
         ))}
       </div>
-      <div className="mt-2 space-y-0.5">
-        {ISSUES_FOUND.by.map((b) => (
-          <p key={b.line} className="flex h-9 items-center justify-between border-b border-slate-100 text-xs last:border-b-0">
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className={`h-2.5 w-2.5 rounded-sm ${b.color}`} />
+      <div className="mt-2">
+        {ISSUES_FOUND.by.map((b, i) => (
+          <span key={b.line} className="grid h-10 grid-cols-[minmax(0,1fr)_auto_64px] items-center gap-3 border-t border-slate-100 text-[13px]">
+            <span className="flex items-center gap-2 text-slate-700">
+              <span className={`h-2.5 w-2.5 rounded-sm ${DEFENCE_SHADE[i]}`} />
               {b.line}
             </span>
-            <span className="tabular-nums">
-              <b>{b.n}</b> <span className="text-slate-500">of {ISSUES_FOUND.total} · {Math.round((b.n / ISSUES_FOUND.total) * 100)}%</span>
-            </span>
-          </p>
+            <b className="text-right font-semibold tabular-nums text-slate-900">{b.n}</b>
+            <span className="text-xs text-slate-500">of {f.total}</span>
+          </span>
         ))}
       </div>
-      <p className="mt-1.5 text-[11px] text-slate-500">{ISSUES_FOUND.total} issues found this quarter.</p>
-    </Card>
+    </BoardCard>
   );
 }
 
-/** 4.7 Risk owner (product) against control owner (operations), per customer journey. */
+const JCOLS = "grid min-h-11 grid-cols-[minmax(160px,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)_110px] items-center gap-4 px-1 py-1 text-[13px] leading-snug";
+
 export function RiskVsControlOwner() {
-  const cols = "grid min-h-11 grid-cols-[minmax(150px,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.6fr)_110px] items-center gap-3 px-2 py-1 text-[13px] leading-snug";
+  const j = journeysWithoutOwner();
+  useFigures(["f:journeys-no-owner", "f:journey-complaints"]);
   return (
-    <Card title="Is the right person accountable?">
-      <div className={`${cols} !min-h-0 pb-1`}>
-        {["Customer journey", "Risk owner (product)", "Control owner (operations)", "Aligned?", "Complaints this quarter"].map((h) => (
-          <Label key={h}>{h}</Label>
-        ))}
+    <BoardCard title="Is the right person accountable?" right={<span className="text-xs font-semibold text-slate-700">{j.n} of {j.of} journeys without a risk owner</span>}>
+      <div className={`${JCOLS} !min-h-0 text-[10px] font-bold uppercase tracking-wider text-slate-500`}>
+        <span>Customer journey</span>
+        <span>Risk owner (product)</span>
+        <span>Control owner (operations)</span>
+        <span>Aligned?</span>
+        <span className="text-right">Complaints this quarter</span>
       </div>
-      {JOURNEYS.map((j) => (
-        <div key={j.journey} className={`${cols} border-t border-slate-100`}>
-          <b className="text-slate-900">{j.journey}</b>
-          <span className={j.riskOwner ? "text-slate-700" : "font-semibold text-red-600"}>{j.riskOwner ?? "Not named"}</span>
-          <span className="text-slate-700">{j.controlOwner}</span>
+      {JOURNEYS.map((x) => (
+        <div key={x.journey} className={`${JCOLS} border-t border-slate-100 ${x.aligned ? "" : railCls("red")}`}>
+          <b className="text-slate-900">{x.journey}</b>
+          <span className="text-slate-700">{x.riskOwner ?? "Not named"}</span>
+          <span className="text-slate-700">{x.controlOwner}</span>
           <span className="flex flex-wrap items-center gap-2">
-            {j.aligned ? (
-              <Check className="h-4 w-4 text-emerald-600" aria-label="Aligned" />
+            {x.aligned ? (
+              <Check className="h-4 w-4 text-slate-500" aria-label="Aligned" />
             ) : (
               <>
                 <Pill tone="red" label="Mismatch" />
-                <span className="text-xs text-slate-600">{j.reason}</span>
+                <span className="text-xs text-slate-600">{x.reason}</span>
               </>
             )}
           </span>
-          <b className="tabular-nums text-slate-900">{j.complaints}</b>
+          <b className="text-right font-semibold tabular-nums text-slate-900">{x.complaints}</b>
         </div>
       ))}
-    </Card>
+    </BoardCard>
   );
 }
 
-/* ── AI oversight ────────────────────────────────────────────────────── */
-
-export function AgentValue() {
+export function Escalation() {
+  const { open } = useDrawer();
+  const e = FIG.escalation;
+  useFigures(["f:escalation-median", "f:not-escalated", "f:overdue-checks", "f:actions-closed"]);
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {AGENT_VALUE.map((v) => (
-        <div key={v.label} className="rounded-xl border border-violet-200 bg-white px-3 py-2">
-          <Label>{v.label}</Label>
-          <p className="text-xl font-bold tabular-nums text-violet-800">{v.value}</p>
-          <p className="text-[11px] text-slate-500">{v.against}</p>
+    <BoardCard title="Is bad news reaching us early enough?" rail="amber">
+      <StatRow label="Median time to the Risk Committee" value={`${e.medianMonths} months`} comparator={`${e.issues} serious issues`} onClick={(el) => open("badnews", el)} />
+      <StatRow label="Not escalated after 12 months" value={String(e.notEscalated)} comparator={e.unescalated.map((u) => `${u.unit.split(" ")[0]} ${u.months} months`).join(" · ")} />
+      <StatRow label="Customer checks overdue" value={fmt.n(e.overdueChecks)} comparator={`target ${fmt.n(e.overdueTarget)}`} />
+      <StatRow label="Actions closed, measure unchanged" value={String(e.actionsClosed)} comparator={`${e.downgraded} issues downgraded`} />
+    </BoardCard>
+  );
+}
+
+export function DataQuality() {
+  const { open } = useDrawer();
+  const tm = measure("u-tm");
+  const ibs = measure("u-ibs");
+  useFigures(["m:u-tm", "m:u-ibs"]);
+  return (
+    <BoardCard title="Can we trust the data?">
+      <StatRow label="Monitoring coverage" value={tm.value.split(" ")[0]} comparator={tm.value.split(" ").slice(1).join(" ")} right={<StatusPill status={tm.status} />} onClick={(el) => open("metric:u-tm", el)} />
+      <StatRow label="Monitoring sign-off" value="Early" comparator="signed before the data check finished" />
+      <StatRow label="Service disruption" value={ibs.value.split(" ")[0]} comparator="of impact tolerance used" right={<DeltaMark d={ibs.delta} />} onClick={(el) => open("metric:u-ibs", el)} />
+    </BoardCard>
+  );
+}
+
+export function BmRemoved() {
+  const { open } = useDrawer();
+  return (
+    <BoardCard title="What was removed or extended?">
+      <LineItem rail="red" text="Vulnerable-customer exceptions" detail="removed at Executive Risk Committee 14 Oct, no reason recorded" onClick={(el) => open("removed", el)} right={<Pill tone="red" label="Removed" />} />
+      <LineItem rail="amber" text={`Customer-check backlog deadline extended ${FIG.escalation.extensions} times`} detail={`limit ${FIG.escalation.extensionLimit}`} onClick={(el) => open("badnews", el)} right={<Pill tone="amber" label="Extended" />} />
+      <p className="flex items-center gap-1.5 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+        <AiTag label="Board Pack agent" /> flagged the removal on 15 Oct
+      </p>
+    </BoardCard>
+  );
+}
+
+/* ══ AI oversight ═══════════════════════════════════════════════════════ */
+
+export function AgentStats() {
+  const { state } = useStore();
+  const a = agentFigures(QUEUE.filter((q) => state.session.drafts[q.draftId]?.status === "ai_draft").length);
+  useFigures(["f:agents", "f:agent-checks", "f:agent-findings", "f:agent-drafts", "f:agent-unapproved", "f:pack-hours"]);
+  const extra = AGENT_VALUE.filter((v) => v.label === "Found before people did" || v.label === "Data to flag");
+  return (
+    <BoardCard title="What are the agents doing?" right={<AiTag label="AI agents" />}>
+      <div className="grid grid-cols-1 gap-x-8 lg:grid-cols-2">
+        <div>
+          <StatRow label="Agents" value={String(a.agents)} comparator="on the roster" />
+          <StatRow label="Checks" value={String(a.checksThisWeek)} comparator="this week" />
+          <StatRow label="Findings" value={String(a.findings)} comparator="this quarter" />
+          <StatRow label="Drafts with the CRO" value={String(a.drafts)} comparator="waiting for a person" />
         </div>
-      ))}
-    </div>
+        <div>
+          <StatRow label="Actions without approval" value={String(a.withoutApproval)} comparator="this quarter" />
+          <StatRow label="Board pack preparation" value={`${a.packHours} hours`} comparator={`was ${a.packHoursWas} hours`} />
+          {extra.map((v) => (
+            <StatRow key={v.label} label={v.label} value={v.value} comparator={v.against} />
+          ))}
+        </div>
+      </div>
+    </BoardCard>
   );
 }
 
 export function AgentFindings() {
+  const { open } = useDrawer();
   return (
-    <Card title="What did the agents find?" right={<AiTag label="AI agent findings" />}>
+    <BoardCard title="What did the agents find?" right={<AiTag label="AI agent findings" />}>
       {FINDINGS.map((f) => (
-        <Opener key={f.finding} drawer={f.drawer} label={f.finding} className="rounded-r hover:bg-slate-50">
-          <span className={`flex min-h-11 items-center justify-between gap-3 border-l-[3px] py-1 pl-3 pr-1 text-[13px] leading-snug ${TONE[f.tone].rail}`}>
-            <span className="min-w-0">
+        <button key={f.finding} type="button" onClick={(e) => open(f.drawer, e.currentTarget)} className={`block w-full text-left hover:bg-slate-50 ${focus}`}>
+          <span className={`grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 py-1 text-[13px] leading-snug ${f.tone !== "green" && f.tone !== "grey" ? `pl-2.5 ${railCls(f.tone)}` : ""}`}>
+            <span>
               <span className="text-slate-900">{f.finding}</span>
               <span className="block text-[11px] text-slate-500">
-                {f.impact} · {agentName(f.agentId)} · flagged {f.flagged}
+                {agentName(f.agentId)} · flagged {f.flagged}
               </span>
             </span>
-            <Tag tone={f.tone}>{f.status}</Tag>
+            <span className="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{f.status}</span>
           </span>
-        </Opener>
+        </button>
       ))}
-    </Card>
+    </BoardCard>
   );
 }
 
-export function TuningSummary() {
-  const { state } = useStore();
+const statusTone = { running: "green", waiting: "amber", paused: "grey" } as const;
+const statusWord = { running: "Running", waiting: "Waiting", paused: "Paused" } as const;
+
+export function AgentRosterLines() {
+  const { open } = useDrawer();
   return (
-    <Card title="Should we tighten the savings check?" right={<AiTag label="AI agent test" />}>
-      <p className="mb-1.5 text-xs text-slate-600">{TUNING.proposal}. Tested on 10,000 new accounts.</p>
-      {TUNING.options.map((o) => (
-        <Row
-          key={o.id}
-          tone={o.id === "B" ? "green" : o.id === "C" ? "red" : "amber"}
-          text={`${o.id} · ${o.label}: catches ${o.caught} of ${TUNING.breaches}`}
-          detail={`+${o.extraAlerts.toLocaleString("en-GB")} alerts a month · ${o.capacity.toLowerCase()}`}
-          right={o.id === TUNING.recommended ? <AiTag label="Recommended" /> : undefined}
-        />
+    <BoardCard title="Which agents do we run?">
+      {AGENTS.map((a) => (
+        <LineItem key={a.id} text={a.name} detail={`${a.does} · ${a.accountable}`} onClick={(el) => open(`agent:${a.id}`, el)} right={<Pill tone={statusTone[a.status]} label={statusWord[a.status]} />} />
       ))}
-      <Row tone="grey" text="How it was tested" detail={TUNING.test} />
-      <Row tone="grey" text="Who decides" detail="Risk Committee, after model-risk review" />
-      <p className="mt-2.5 text-[11px] text-slate-500">
+    </BoardCard>
+  );
+}
+
+/** Tuning lab: the one comparison chart on this tab. */
+export function TuningComparison() {
+  const { state } = useStore();
+  useFigures(["f:tuning"]);
+  const maxAlerts = Math.max(...TUNING.options.map((o) => o.extraAlerts));
+  return (
+    <BoardCard title="Should we tighten the savings check?" right={<AiTag label="AI agent test" />}>
+      <div data-chart="tuning">
+        <div className="grid h-7 grid-cols-[150px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <span>Option</span>
+          <span>Breaches caught of {TUNING.breaches}</span>
+          <span>Extra alerts a month</span>
+        </div>
+        {TUNING.options.map((o) => (
+          <div key={o.id} className="grid min-h-14 grid-cols-[150px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-3 border-t border-slate-100 py-1.5 text-[13px]">
+            <span className="font-semibold text-slate-900">
+              {o.id} · {o.label}
+              <span className="block text-[11px] font-normal text-slate-500">{o.capacity}</span>
+              {o.id === TUNING.recommended ? (
+                <span className="mt-0.5 block">
+                  <AiTag label="Recommended" />
+                </span>
+              ) : null}
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="h-2 flex-1 rounded-full bg-slate-100">
+                <span className="block h-2 rounded-full bg-slate-600" style={{ width: `${(o.caught / TUNING.breaches) * FULL}%` }} />
+              </span>
+              <b className="w-8 text-right font-semibold tabular-nums">{o.caught}</b>
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="h-2 flex-1 rounded-full bg-slate-100">
+                <span className="block h-2 rounded-full bg-slate-400" style={{ width: `${maxAlerts ? (o.extraAlerts / maxAlerts) * FULL : 0}%` }} />
+              </span>
+              <b className="w-14 text-right font-semibold tabular-nums">{fmt.n(o.extraAlerts)}</b>
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="border-t border-slate-100 pt-2 text-[11px] text-slate-500">
         {state.session.tuningProposal ? `Option ${state.session.tuningProposal} proposed to the Risk Committee.` : "Decision sits with the Risk Committee."} Nothing goes live without a named approver.
       </p>
-    </Card>
+    </BoardCard>
   );
 }
