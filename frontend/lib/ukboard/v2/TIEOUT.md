@@ -19,7 +19,7 @@ All figures come from the UK Board data module (`lib/ukboard/v1/data.ts`, read o
 | Vulnerable-customer exceptions 14.2 / 15.8 / 16.9; amber 3 quarters; removed at Executive Risk Committee 14 Oct, no reason; red projected Q1 2027 | SERIES u-vuln, PACK_ITEMS | For your decision; not-changed list | | Decision 3 | | Removed items; chair timeline | Board Pack |
 | 12 of 13 in the pack; board pack v1 → v2 (→ v3 on restore) | PACK_ITEMS, MANIFEST_VERSIONS | | | | | Drawer | Board Pack |
 | 4.6 months median (23 issues); 3 not escalated (14, 13, 12 months); 26,900 vs 10,000; 42 closed; 2 downgraded | KRI_DETAIL | Not-changed list | | | | Bad news | Queue |
-| Backlog extended 3 times; 31 vs 12 months | KRI tiles | Not-changed list | | | | Drawer | Queue |
+| Backlog 31 vs 12 months (face); extended 3 times (drawer) | KRI tiles | Not-changed list | | | | Drawer | Queue |
 | 7 emerging; 2 within 12 months; 142 days to 18 Mar 2027 | HORIZON | | Emerging row | | Horizon | | |
 | Sign-off: 10 signed off · 1 due · 1 unconfirmed | integrity sign-off checks | | | | | Sign-off status | |
 | Decision history (6 records, 11 Mar – 23 Oct 2026) | THRESHOLDS calibration, WAIVER, TENSION_PAIR, ROUTES | | | Decision history | | | |
@@ -35,3 +35,7 @@ All figures come from the UK Board data module (`lib/ukboard/v1/data.ts`, read o
 | Model risk review 30 Sep 2026; 2 of 9 models past validation | "2 of 9" is existing data; the review date is new |
 | Tuning test: 4 weeks, 2 × 5,000 accounts; A 94 of 97 / +2,100 (5.4%) / ~3 handlers; B 71 of 97 / +900 (2.3%); C 0 of 97 | 97 savings-pot breaches; 39,000 alerts a month; 63 handlers (≈ 620 alerts each) |
 | Activity timeline (8 events, 14–27 Oct 2026) | Existing events and dates |
+
+## Persona views
+
+Tabs are now built per persona from `personaViews.ts`; the columns above name the section, which appears on exactly one tab per persona (test: "no section repeats within a persona"). No figure was added or changed in the persona redesign; only display copy was shortened.

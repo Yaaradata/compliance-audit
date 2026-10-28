@@ -2,21 +2,22 @@
 
 /**
  * UK Board v2 — board product shell (header and tabs copied from the v7 brand header).
- * Persona switch changes the default tab, the actions and the visible content.
- * Six tabs with distinct content; every row and card opens the detail drawer.
+ * The tab bar and every tab layout come from PERSONA_VIEWS (lib/ukboard/v2/personaViews.ts).
+ * A persona switch replaces the tabs, opens that persona's default tab and closes the drawer;
+ * the session audit trail is kept.
  */
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { MoreHorizontal, NotebookPen } from "lucide-react";
+import { CalendarDays, ListChecks, MoreHorizontal, NotebookPen } from "lucide-react";
 import { METRICS } from "@/lib/ukboard/v2/board";
 import { AGENTS } from "@/lib/ukboard/v2/agentsData";
-import { PERSONAS, TABS } from "@/lib/ukboard/v2/boardTabs";
 import { daysToBrc } from "@/lib/ukboard/v2/board";
+import { PERSONA_VIEWS, type PersonaId, type TabView } from "@/lib/ukboard/v2/personaViews";
 import BoardDrawer from "./BoardDrawer";
 import { DrawerContext } from "./drawerContext";
 import type { DrawerKey } from "./drawerKeys";
 import { StoreProvider, useStore } from "./store";
-import { AccountabilityTab, AgentsTab, DecisionsTab, GrowthTab, OverviewTab, RegulatoryTab } from "./tabs";
+import { queueCount, renderSection } from "./sections";
 import { focus } from "./ui";
 
 const SEARCH_ITEMS: { label: string; hint: string; key: DrawerKey }[] = [
@@ -63,9 +64,10 @@ function Search({ onPick }: { onPick: (k: DrawerKey, el: HTMLElement) => void })
   );
 }
 
-function Header({ onOpen }: { onOpen: (k: DrawerKey, el?: HTMLElement | null) => void }) {
+function Header({ onOpen, onPersona }: { onOpen: (k: DrawerKey, el?: HTMLElement | null) => void; onPersona: (p: PersonaId) => void }) {
   const { state, dispatch } = useStore();
   const [menu, setMenu] = useState(false);
+  const view = PERSONA_VIEWS[state.persona];
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
@@ -79,13 +81,13 @@ function Header({ onOpen }: { onOpen: (k: DrawerKey, el?: HTMLElement | null) =>
           </span>
         </Link>
         <div role="radiogroup" aria-label="Persona" className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
-          {PERSONAS.map((p) => (
+          {(Object.keys(PERSONA_VIEWS) as PersonaId[]).map((id) => ({ id, label: PERSONA_VIEWS[id].label })).map((p) => (
             <button
               key={p.id}
               type="button"
               role="radio"
               aria-checked={state.persona === p.id}
-              onClick={() => dispatch({ type: "SET_PERSONA", persona: p.id })}
+              onClick={() => onPersona(p.id)}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${focus} ${state.persona === p.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
             >
               {p.label}
@@ -96,12 +98,23 @@ function Header({ onOpen }: { onOpen: (k: DrawerKey, el?: HTMLElement | null) =>
           <Search onPick={(k, el) => onOpen(k, el)} />
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {state.persona === "board" ? (
-            <button type="button" onClick={(e) => onOpen("notes", e.currentTarget)} className={`flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 ${focus}`}>
+          <span className="rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-800">Viewing as: {view.label}</span>
+          {view.headerAction === "notes" ? (
+            <button type="button" onClick={(e) => onOpen("notes", e.currentTarget)} className={headerBtn}>
               <NotebookPen className="h-3.5 w-3.5" aria-hidden />
               My notes ({state.session.notes.length})
             </button>
-          ) : null}
+          ) : view.headerAction === "agenda" ? (
+            <button type="button" onClick={() => dispatch({ type: "SET_TAB", tab: "agenda" })} className={headerBtn}>
+              <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+              Agenda · 15 Dec
+            </button>
+          ) : (
+            <button type="button" onClick={() => dispatch({ type: "SET_TAB", tab: "actions" })} className={headerBtn}>
+              <ListChecks className="h-3.5 w-3.5" aria-hidden />
+              My queue ({queueCount(state)})
+            </button>
+          )}
           <div className="relative">
             <button type="button" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(!menu)} className={`rounded-md border border-slate-200 p-1.5 hover:bg-slate-50 ${focus}`}>
               <MoreHorizontal className="h-4 w-4" aria-hidden />
@@ -125,7 +138,7 @@ function Header({ onOpen }: { onOpen: (k: DrawerKey, el?: HTMLElement | null) =>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-x-4 border-t border-slate-100 px-6">
       <nav aria-label="Board tabs" className="flex items-center gap-1 overflow-x-auto">
-        {TABS.map((t) => (
+        {view.tabs.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -150,14 +163,32 @@ function Header({ onOpen }: { onOpen: (k: DrawerKey, el?: HTMLElement | null) =>
   );
 }
 
-const TITLES = {
-  overview: ["Are we growing safely?", "Where we stand, what changed, and what needs the board today."],
-  growth: ["How much risk are we using to grow?", "Appetite the board set against where the business operates."],
-  decisions: ["What must we decide today?", "Three decisions, their options, and who decides."],
-  regulatory: ["Will the regulator be surprised?", "Reporting clocks, restriction health and lessons from enforcement."],
-  accountability: ["Who owns it, and is bad news reaching us?", "Named owners, sign-off, and what left the board pack."],
-  agents: ["What are our AI agents doing?", "Agents watch, draft, test and propose. People decide."],
-} as const;
+const headerBtn = `flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 ${focus}`;
+
+const SPAN = { 3: "lg:col-span-3", 4: "lg:col-span-4", 6: "lg:col-span-6", 8: "lg:col-span-8", 12: "lg:col-span-12" } as const;
+
+function TabBody({ tab }: { tab: TabView }) {
+  const [ownerPick, setOwnerPick] = useState("Head of Financial Crime");
+  const drill = tab.layout.some((r) => r.cols.some((c) => c.sections.includes("OWNER_DRILL")));
+  const ctx = { ownerPick, setOwnerPick, drill };
+  return (
+    <>
+      {tab.layout.map((row, i) => (
+        <div key={i} className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
+          {row.cols.map((c, j) => (
+            <div key={j} className={`flex min-w-0 flex-col gap-4 ${SPAN[c.span]}`}>
+              {c.sections.map((id) => (
+                <div key={id} data-section={id}>
+                  {renderSection(id, ctx)}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
 
 function Page() {
   const { state } = useStore();
@@ -172,18 +203,27 @@ function Page() {
     opener.current?.focus();
   }, []);
   const api = useMemo(() => ({ openKey: key, open, close }), [key, open, close]);
-  const [title, sub] = TITLES[state.tab];
-  const Tab = { overview: OverviewTab, growth: GrowthTab, decisions: DecisionsTab, regulatory: RegulatoryTab, accountability: AccountabilityTab, agents: AgentsTab }[state.tab];
+  const { dispatch } = useStore();
+  const view = PERSONA_VIEWS[state.persona];
+  const tab = view.tabs.find((t) => t.id === state.tab) ?? view.tabs[0];
+  const onPersona = useCallback(
+    (p: PersonaId) => {
+      setKey(null);
+      opener.current = null;
+      dispatch({ type: "SET_PERSONA", persona: p });
+    },
+    [dispatch],
+  );
   return (
     <DrawerContext.Provider value={api}>
       <div className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
-        <Header onOpen={open} />
-        <main key={`${state.persona}-${state.tab}-${state.epoch}`} className="space-y-5 px-6 py-6">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">{title}</h1>
-            <p className="mt-1 text-sm text-slate-600">{sub}</p>
+        <Header onOpen={open} onPersona={onPersona} />
+        <main key={`${state.persona}-${tab.id}-${state.epoch}`} className="space-y-4 px-6 py-4">
+          <div className="max-h-14">
+            <h1 className="text-xl font-extrabold leading-7 tracking-tight text-slate-900">{tab.question}</h1>
+            <p className="text-[13px] leading-5 text-slate-600">{tab.subtitle}</p>
           </div>
-          <Tab />
+          <TabBody tab={tab} />
         </main>
         {key ? <BoardDrawer key={`${key}-${state.persona}`} drawerKey={key} onClose={close} /> : null}
       </div>

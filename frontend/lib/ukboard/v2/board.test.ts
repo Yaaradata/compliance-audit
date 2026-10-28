@@ -71,3 +71,14 @@ test("agent data ties out", () => {
 test("plain words replace board jargon", () => {
   assert.equal(plain("BRC and ERC review CDD attestation"), "Risk Committee and Executive Risk Committee review customer checks sign-off");
 });
+
+import { PERSONA_VIEWS, sectionsOf } from "./personaViews";
+
+test("each persona has 5 tabs and no section repeats within a persona", () => {
+  for (const [id, v] of Object.entries(PERSONA_VIEWS)) {
+    assert.equal(v.tabs.length, 5, id);
+    assert.ok(v.tabs.some((t) => t.id === v.defaultTab), `${id} default tab`);
+    const all = v.tabs.flatMap(sectionsOf);
+    assert.deepEqual(all.filter((s, i) => all.indexOf(s) !== i), [], `${id} repeats`);
+  }
+});

@@ -9,7 +9,9 @@ import { createContext, useContext, useMemo, useReducer, type ReactNode } from "
 import { DRAFTS, FIRM, MANIFEST_ID, MANIFEST_VERSIONS, PACK_ITEMS, seedAudit } from "@/lib/ukboard/v1/data";
 import type { AuditEntry, DraftState, ManifestVersion } from "@/lib/ukboard/v1/types";
 import { AGENTS, type Autonomy } from "@/lib/ukboard/v2/agentsData";
-import { PERSONAS, type Persona, type TabId } from "@/lib/ukboard/v2/boardTabs";
+import { PERSONA_VIEWS, type PersonaId as Persona } from "@/lib/ukboard/v2/personaViews";
+
+type TabId = string;
 
 interface Session {
   drafts: Record<string, DraftState>;
@@ -60,10 +62,10 @@ function seed(): Session {
 }
 
 export function initial(persona: Persona = "board"): State {
-  return { persona, tab: PERSONAS.find((p) => p.id === persona)!.defaultTab, epoch: 0, session: seed() };
+  return { persona, tab: PERSONA_VIEWS[persona].defaultTab, epoch: 0, session: seed() };
 }
 
-const person = (p: Persona) => PERSONAS.find((x) => x.id === p)!;
+const person = (p: Persona) => PERSONA_VIEWS[p];
 const ROLE: Record<Persona, string> = { board: "Board member", chair: "Risk Committee Chair", cro: "Chief Risk Officer" };
 
 function stamp(clock: number) {
@@ -145,9 +147,10 @@ function reducer(state: State, a: Action): State {
       return write({ notes: [...s.notes, { id: `n-${s.notes.length + 1}`, text: a.text.trim(), from: a.from }] }, entry(state, s, "meeting note saved", a.from, "notes"));
     }
     case "SET_AUTONOMY": {
-      if (s0.autonomy[a.agentId] === a.level) return state;
+      // Only the Risk Committee Chair sets agent autonomy; the change is proposed to committee.
+      if (state.persona !== "chair" || s0.autonomy[a.agentId] === a.level) return state;
       const agent = AGENTS.find((g) => g.id === a.agentId);
-      return write({ autonomy: { ...s.autonomy, [a.agentId]: a.level } }, entry(state, s, `autonomy set to ${a.level}`, agent?.name ?? a.agentId, `agent:${a.agentId}`));
+      return write({ autonomy: { ...s.autonomy, [a.agentId]: a.level } }, entry(state, s, `autonomy ${a.level} proposed to committee`, agent?.name ?? a.agentId, `agent:${a.agentId}`));
     }
     case "PROPOSE_TUNING":
       if (s0.tuningProposal) return state;

@@ -7,22 +7,6 @@ import { CHECK_ORDER } from "../v1/selectors";
 import { headlineCounts, METRICS, objectiveMetrics, OBJECTIVES, rowState, verdict, type MetricMeta, type ObjectiveId, type Verdict } from "./board";
 
 export type Persona = "board" | "chair" | "cro";
-export type TabId = "overview" | "growth" | "decisions" | "regulatory" | "accountability" | "agents";
-
-export const TABS: { id: TabId; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "growth", label: "Growth & Appetite" },
-  { id: "decisions", label: "Board Decisions" },
-  { id: "regulatory", label: "Regulatory" },
-  { id: "accountability", label: "Accountability" },
-  { id: "agents", label: "AI Agents" },
-];
-
-export const PERSONAS: { id: Persona; label: string; defaultTab: TabId; person: string }[] = [
-  { id: "board", label: "Board member", defaultTab: "overview", person: "Board member (non-executive)" },
-  { id: "chair", label: "Risk Committee Chair", defaultTab: "accountability", person: "Graham Pryce" },
-  { id: "cro", label: "Chief Risk Officer", defaultTab: "decisions", person: "Eleanor Hartley" },
-];
 
 /* ── Plain words (face and drawer prose; codes only under Evidence) ── */
 
@@ -106,9 +90,9 @@ export const CHANGES: ChangeItem[] = [
 
 export const UNCHANGED: ChangeItem[] = [
   { text: "Vulnerable-customer exceptions amber", tag: "Member protection", tone: "amber", drawer: "removed", standing: "Standing 3 quarters" },
-  { text: "Customer-check backlog: extended 3 times; 31 months to clear vs 12", tag: "Savings", tone: "amber", drawer: "badnews", standing: "Standing 19 months" },
-  { text: "3 material issues not escalated after 12 months", tag: "Accountability", tone: "amber", drawer: "badnews", standing: "Standing 12+ months" },
-  { text: "Sanctions list coverage 1.3% (39 of 3,088), unconfirmed", tag: "Member protection", tone: "grey", drawer: "metric:u-sanctions", standing: "Standing 3 weeks of no alerts" },
+  { text: "Check backlog: 31 months to clear vs 12", tag: "Savings", tone: "amber", drawer: "badnews", standing: "Standing 19 months" },
+  { text: "3 issues not escalated after 12 months", tag: "Accountability", tone: "amber", drawer: "badnews", standing: "Standing 12+ months" },
+  { text: "Sanctions coverage 1.3% (39 of 3,088)", tag: "Member protection", tone: "grey", drawer: "metric:u-sanctions", standing: "Standing 3 weeks" },
 ];
 
 /* ── Board measures (Growth & Appetite): plain names and tags ─────── */
