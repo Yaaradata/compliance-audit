@@ -43,6 +43,7 @@ import { BarRows, Card, OWNER_SHORT, ChartCard, Chip, EventList, FlowPill, KpiTi
 import { OVERVIEW_SECTIONS } from "./overview";
 import { AGENT_SECTIONS } from "./agents";
 import { OBLIGATORY_SECTIONS } from "./obligatory";
+import { PERSONA_SECTIONS } from "./personaTabs";
 import { RISK_SECTIONS } from "./risks";
 import { STRATEGY_SECTIONS } from "./strategy";
 import { useStore } from "./store";
@@ -1050,7 +1051,7 @@ function ChairAgenda() {
         )}
       </div>
       <StatRow label="Savings growth vs crime checks" value={q.value} comparator={`${q.comparator} · for noting`} rail="amber" onClick={(el) => open("decision:1", el)} />
-      <StatRow label="Restriction breach: report or not" value={fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested)} comparator="for noting" rail="red" onClick={(el) => open("decision:2", el)} />
+      <StatRow label="Restriction breach: reportable" value={fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested)} comparator="for noting" rail="red" onClick={(el) => open("decision:2", el)} />
     </Card>
   );
 }
@@ -1337,6 +1338,7 @@ const SECTIONS: Record<string, () => ReactNode> = {
   ...RISK_SECTIONS,
   ...OBLIGATORY_SECTIONS,
   ...AGENT_SECTIONS,
+  ...PERSONA_SECTIONS,
 };
 
 export function renderSection(id: SectionId): ReactNode {

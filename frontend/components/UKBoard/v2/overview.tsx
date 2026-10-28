@@ -45,12 +45,15 @@ function OverviewPosture() {
 
 function BoardCalls() {
   const go = useGo();
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
+  const { open } = useDrawer();
+  // Only the Board member has a Decisions tab; Chair and CRO open the linked measure instead.
+  const board = state.persona === "board";
   useFigures(BOARD_CALLS.map((c) => `call:${c.id}`));
   return (
-    <Card title="Board calls" right={<LinkMore onClick={() => go("decisions")} label="Decisions" />}>
+    <Card title="Board calls" right={board ? <LinkMore onClick={() => go("decisions")} label="Decisions" /> : undefined}>
       {BOARD_CALLS.map((c) => (
-        <LineItem key={c.id} text={`${c.verb} ${c.title}`} detail={`${c.decider} · ${c.due}`} onClick={() => dispatch({ type: "SELECT_CALL", id: c.id })} right={<span className="text-indigo-700">›</span>} />
+        <LineItem key={c.id} text={`${c.verb} ${c.title}`} detail={`${c.decider} · ${c.due}`} onClick={(el) => (board ? dispatch({ type: "SELECT_CALL", id: c.id }) : open(`metric:${c.measureId}`, el))} right={<span className="text-indigo-700">›</span>} />
       ))}
     </Card>
   );
