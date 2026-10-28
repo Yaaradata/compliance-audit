@@ -18,6 +18,7 @@ import BoardDrawer from "./BoardDrawer";
 import { DrawerContext } from "./drawerContext";
 import type { DrawerKey } from "./drawerKeys";
 import { StoreProvider, useStore } from "./store";
+import { FigureRegistry } from "./present";
 import { queueCount, renderSection } from "./sections";
 import { focus } from "./ui";
 
@@ -235,7 +236,9 @@ function Page() {
             </div>
             {tab.meta ? <p className="hidden text-xs font-medium text-slate-500 md:block">{tab.meta}</p> : null}
           </div>
-          <TabBody tab={tab} />
+          <FigureRegistry tab={`${state.persona}-${tab.id}`}>
+            <TabBody tab={tab} />
+          </FigureRegistry>
         </main>
         {agent && state.persona === "board" ? <AskBoardAgent onClose={() => setAgent(false)} /> : null}
         {key ? <BoardDrawer key={`${key}-${state.persona}`} drawerKey={key} onClose={close} /> : null}
