@@ -84,10 +84,10 @@ export const ANSWERS: Answer[] = [
     q: "What did other banks get fined for that applies to us?",
     keywords: ["fine", "fined", "bank", "enforcement", "other"],
     lines: [
-      "Starling: accounts opened despite its own restriction. Touches our restriction.",
-      "Monzo: controls did not keep pace with growth. Touches our alert queue.",
-      "Metro: transactions never reached monitoring. Touches our monitoring coverage.",
-      "All settled with no admission.",
+      "A UK bank (FCA final notice, 2024): accounts opened despite its own restriction. Touches our restriction.",
+      "A UK bank (FCA final notice, 2025): controls did not keep pace with growth. Touches our alert queue.",
+      "A third case, notice unconfirmed: transactions never reached monitoring. Touches our screening coverage.",
+      "Firms are not named; the third record is not yet verified.",
     ],
     cites: [
       { label: "Customer restriction", drawer: "metric:u-restriction" },

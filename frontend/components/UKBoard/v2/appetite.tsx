@@ -321,7 +321,7 @@ export function ReportableTable() {
     <Table
       title="Reportable events"
       right={<span className="text-xs text-slate-500">Decider decides; nothing is sent from here</span>}
-      cols="grid-cols-[minmax(160px,1.4fr)_56px_120px_minmax(140px,1.2fr)_92px_minmax(120px,1fr)_92px_150px]"
+      cols="grid-cols-[minmax(140px,1.4fr)_56px_104px_minmax(120px,1.2fr)_80px_minmax(110px,1fr)_80px_140px]"
       head={["Event", "Found", "Classification", "Rule", "Clock", "Decider", "Read-across", ""]}
       rows={REPORTABLE_EVENTS.map((e) => {
         const done = state.session.escalated.includes(e.id);

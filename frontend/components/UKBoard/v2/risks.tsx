@@ -61,7 +61,7 @@ function TopRiskTable() {
       <Table
         title="Top risks"
         right={<span className="text-xs text-slate-500">{`${rows.length} board measures · tight bands`}</span>}
-        cols="grid-cols-[minmax(170px,1.5fr)_64px_minmax(96px,0.9fr)_72px_72px_minmax(110px,0.9fr)_minmax(120px,0.9fr)_minmax(130px,1fr)_124px]"
+        cols="grid-cols-[minmax(140px,1.5fr)_64px_minmax(80px,0.9fr)_64px_64px_minmax(88px,0.9fr)_124px_minmax(96px,1fr)_112px]"
         head={["Board measure", "Appetite", "Value", "Amber trigger", "Appetite limit", "To threshold", "Below", "Risk owner", "Status"]}
         rightCols={[3, 4, 8]}
         rows={rows.map((m) => {
@@ -193,7 +193,7 @@ function EmergingTable() {
     <Table
       title="Emerging risks"
       right={<span className="text-xs text-slate-500">Forward-looking, wider ranges</span>}
-      cols="grid-cols-[minmax(200px,1.7fr)_minmax(96px,0.8fr)_72px_72px_minmax(120px,0.9fr)_64px_minmax(120px,0.9fr)_minmax(120px,1fr)_124px]"
+      cols="grid-cols-[minmax(150px,1.7fr)_minmax(84px,0.8fr)_64px_64px_minmax(100px,0.9fr)_64px_minmax(96px,0.9fr)_minmax(96px,1fr)_112px]"
       head={["Board measure", "Value", "Amber trigger", "Appetite limit", "To threshold", "Type", "Stance", "Risk owner", "Status"]}
       rightCols={[2, 3, 8]}
       rows={rows.map((m) => {

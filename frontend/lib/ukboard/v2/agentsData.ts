@@ -158,7 +158,7 @@ export const FIXED_RULES = [
 
 export const MODEL_OVERSIGHT = {
   policy: "model risk policy (SS1/23)",
-  lastReview: "30 Sep 2026",
+  lastReview: "30 Sep",
   pastValidation: "2 of 9 models past validation",
 };
 

@@ -74,7 +74,7 @@ function ObligatoryBanner() {
   );
 }
 
-const OB_ROW = "grid min-h-12 grid-cols-[minmax(200px,1.8fr)_64px_minmax(110px,1fr)_minmax(110px,1fr)_minmax(150px,1.1fr)_minmax(130px,1fr)_120px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
+const OB_ROW = "grid min-h-12 grid-cols-[minmax(180px,1.8fr)_64px_minmax(100px,1fr)_minmax(100px,1fr)_minmax(140px,1.1fr)_minmax(110px,1fr)_116px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
 
 function ObligatoryMeasures() {
   const rows = OBLIGATORY();

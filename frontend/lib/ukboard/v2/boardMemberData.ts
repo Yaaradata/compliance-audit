@@ -121,7 +121,7 @@ export const RISK_TIERS: { tier: "Top" | "Emerging" | "Obligatory"; items: { nam
     tier: "Top",
     items: [
       { name: "Savings growth vs crime-check capacity", status: "Amber", tone: "amber", trend: "up", owner: "Head of Financial Crime", drawer: "metric:u-capacity" },
-      { name: "Liquidity and funding headroom narrowing", status: "Amber soon", tone: "amber", trend: "down", owner: "Treasurer", drawer: "metric:u-nsfr" },
+      { name: "Liquidity and funding headroom narrowing", status: "Amber soon", tone: "amber", trend: "down", owner: "Treasurer", drawer: "metric:u-lcr" },
       { name: "High-LTV mortgage concentration", status: "Within", tone: "green", trend: "up", owner: "Chief Credit Officer", drawer: "metric:u-hltv" },
     ],
   },
@@ -137,8 +137,8 @@ export const RISK_TIERS: { tier: "Top" | "Emerging" | "Obligatory"; items: { nam
     tier: "Obligatory",
     items: [
       { name: "Customer restriction", status: "Red", tone: "red", trend: "up", owner: "Head of Financial Crime", drawer: "metric:u-restriction" },
-      { name: "Monitoring coverage", status: "Unconfirmed", tone: "grey", trend: "down", owner: "Head of Financial Crime", drawer: "metric:u-tm" },
-      { name: "Sanctions list coverage", status: "Unconfirmed", tone: "grey", trend: "flat", owner: "Head of Financial Crime", drawer: "metric:u-sanctions" },
+      { name: "Monitoring coverage", status: "Unconfirmed", tone: "grey", trend: "down", owner: "Head of Financial Crime", drawer: "metric:u-screening" },
+      { name: "Sanctions list coverage", status: "Unconfirmed", tone: "grey", trend: "flat", owner: "Head of Financial Crime", drawer: "metric:u-screening" },
     ],
   },
 ];

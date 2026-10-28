@@ -536,7 +536,7 @@ export const OBJECTIVE_LIST: { id: ObjId; name: string; short: string }[] = [
   { id: "O4", name: "Good outcomes for every customer", short: "Good customer outcomes" },
 ];
 
-/** Worst linked measure: Red → Off track; Amber or Unconfirmed → At risk; Heading for amber and Within → On track. */
+/** Worst linked measure: Red → Off track; Amber or Unconfirmed → Under pressure; Heading for amber and Within → On track. */
 export function objectiveStatus(id: ObjId): ObjStatus {
   const s = MEASURES.filter((m) => m.objectives.includes(id)).map((m) => m.status);
   if (s.includes("red")) return "off_track";
@@ -707,7 +707,7 @@ const MEMBERS = CAPACITY.membersM[CAPACITY.membersM.length - 1] * 1_000_000;
 const PER_HANDLER_WAS = 25_000;
 
 export const FIG = {
-  dates: { asAt: "30 Sep 2026", evidenceTo: "26 Oct 2026", restrictionSignOff: "8 Nov", campaign: "8 Dec", brc: "15 Dec", incidentRules: HORIZON.incidentRulesDate.replace("March", "Mar") },
+  dates: { asAt: "30 Sep", evidenceTo: "26 Oct", restrictionSignOff: "8 Nov", campaign: "8 Dec", brc: "15 Dec", incidentRules: HORIZON.incidentRulesDate.replace("March", "Mar") },
   mortgages: { lentBn: 2.9, planBn: 4.0, pace: 0.75, bookBn: 17.9 },
   savings: { balancesBn: 1.1, planBn: 0.8, membersM: CAPACITY.membersM[CAPACITY.membersM.length - 1], membersGrowthPct: 31, limitsBroken: 2, limits: 3 },
   capacity: {
@@ -853,7 +853,7 @@ export function daysToCommittee(now: Date = new Date()): number {
   const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.max(0, Math.round((brc - today) / 86_400_000));
 }
-export const AS_AT_LABEL = "As at 30 Sep 2026";
+export const AS_AT_LABEL = "As at 30 Sep";
 
 export const SINCE_LAST_BOARD: { date: string; text: string; tag?: string; rail: "red" | "amber" | "grey"; drawer: string; ai?: boolean }[] = [
   { date: "26 Oct", text: "Restriction breach logged", rail: "red", drawer: "event:e-r03" },

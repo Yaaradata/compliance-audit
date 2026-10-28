@@ -192,7 +192,7 @@ export function headlineSentence(): string {
   return `${c.within_appetite} of ${HEADLINE_COUNT} measures within appetite.${growText} ${DECISION_COUNT} decisions due before the BRC.`;
 }
 
-/** Days from the demo's fixed "today" to the next BRC. */
+/** Days from the fixed "today" to the next BRC. */
 export function daysToBrc(): number {
   const parse = (s: string) => {
     const [d, mon, y] = s.split(" ");

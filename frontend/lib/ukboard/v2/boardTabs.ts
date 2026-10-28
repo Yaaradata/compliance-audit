@@ -218,7 +218,7 @@ export const RESTRICTION_ROUTES = RESTRICTION.byRoute.map((b) => ({
 export const ENFORCEMENT_LESSONS = [
   { id: "uk-starling-2024", what: "Opened accounts for high-risk customers despite its own restriction", touches: "Customer restriction", unitId: "u-restriction" },
   { id: "uk-monzo-2025", what: "Controls did not keep pace with rapid customer growth", touches: "Alert queue age", unitId: "u-capacity" },
-  { id: "uk-metro-2024", what: "Day-one transactions never reached monitoring", touches: "Monitoring coverage", unitId: "u-tm" },
+  { id: "uk-metro-2024", what: "Day-one transactions never reached monitoring", touches: "Screening coverage", unitId: "u-screening" },
 ];
 
 /* ── Pack items for Accountability ────────────────────────────────── */
