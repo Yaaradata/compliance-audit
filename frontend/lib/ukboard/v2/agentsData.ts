@@ -124,7 +124,7 @@ export const FINDINGS: { agentId: string; finding: string; impact: string; flagg
   { agentId: "tuning", finding: "97 of 112 breaches via the savings pot", impact: "Block does not cover the pot", flagged: "25 Oct", status: "Option B proposed", tone: "red", drawer: "tuning" },
   { agentId: "clock", finding: "Restriction breach may be reportable", impact: "FCA and PRA routes opened", flagged: "26 Oct", status: "With Head of Compliance", tone: "red", drawer: "event:e-r03" },
   { agentId: "capacity", finding: "Campaign in 6 weeks, no resourcing decision", impact: "Queue 19 days vs amber 14", flagged: "24 Oct", status: "Paper with CRO", tone: "amber", drawer: "decision:1" },
-  { agentId: "appetite", finding: "Stable funding reaches amber next quarter", impact: "NSFR 117% vs amber 115%", flagged: "27 Oct", status: "Watching", tone: "amber", drawer: "metric:u-nsfr" },
+  { agentId: "appetite", finding: "Stable funding reaches amber next quarter", impact: "NSFR 117% vs amber 115%", flagged: "27 Oct", status: "Watching", tone: "amber", drawer: "metric:u-lcr" },
   { agentId: "signals", finding: "63 complaints mention 'account frozen'", impact: "After the restriction block", flagged: "this quarter", status: "With Chief Customer Officer", tone: "amber", drawer: "metric:u-restriction" },
 ];
 

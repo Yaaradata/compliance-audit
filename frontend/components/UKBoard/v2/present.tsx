@@ -382,7 +382,7 @@ export function MeasureTable({ title, variant, inlineBar, onWithin }: { title: s
                     <span className="text-right">
                       <DeltaMark d={m.delta} />
                     </span>
-                    {full ? <span className="text-xs">{m.type === "early_warning" ? "Early warning" : "Outcome"}</span> : null}
+                    {full ? <span className="text-xs">{m.type === "leading" ? "Leading" : "Lagging"}</span> : null}
                     <span className="text-xs text-slate-500">{OWNER_SHORT[m.owner] ?? m.owner}</span>
                     <span className="justify-self-end">
                       <StatusPill status={m.status} />

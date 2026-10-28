@@ -52,7 +52,9 @@ const t = THRESHOLDS;
 const DIAL_RANGE: Record<string, { min: number; max: number; unit: string }> = {
   "u-capacity": { min: 0, max: 28, unit: " days" },
   "u-lcr": { min: 110, max: 190, unit: "%" },
-  "u-nsfr": { min: 95, max: 135, unit: "%" },
+  "u-growth": { min: 50, max: 100, unit: "%" },
+  "u-secfind": { min: 0, max: 3, unit: "" },
+  "u-detect": { min: 0, max: 40, unit: " min" },
   "u-hltv": { min: 10, max: 22, unit: "%" },
   "u-wholesale": { min: 0, max: 50, unit: "%" },
   "u-cet1": { min: 10, max: 20, unit: "%" },
@@ -70,7 +72,7 @@ const toMeta = (m: Measure): MetricMeta => {
     unitId: m.id,
     name: m.name,
     tier: m.tier,
-    indicatorType: m.type === "early_warning" ? "leading" : "lagging",
+    indicatorType: m.type,
     direction: m.direction === "lowerIsWorse" ? "lowerIsWorse" : "higherIsWorse",
     objectiveId: m.objectiveId,
     value: m.value,
@@ -147,7 +149,7 @@ export interface Objective {
 export const OBJECTIVES: Objective[] = [
   { id: "O1", name: "Mortgage growth", dialUnitId: "u-hltv", dialLabel: "88% used", line: "£96m headroom, until Q2 2027", drawer: "objective:O1" },
   { id: "O2", name: "Savings and onboarding", floorBreach: true, figure: "2 of 3 limits broken", line: "Customers transacting before checks", drawer: "objective:O2" },
-  { id: "O3", name: "Funding base", dialUnitId: "u-nsfr", dialLabel: "NSFR 117%", line: "Reaches amber next quarter", drawer: "objective:O3" },
+  { id: "O3", name: "Funding base", dialUnitId: "u-lcr", dialLabel: "LCR 162%", line: "Reaches amber next quarter", drawer: "objective:O3" },
   { id: "O4", name: "Member safety", figure: "2 figures", line: "Not yet verified", drawer: "objective:O4" },
 ];
 

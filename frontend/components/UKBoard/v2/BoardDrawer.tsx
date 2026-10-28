@@ -72,7 +72,7 @@ function Section({ title, open: init, children }: { title: string; open?: boolea
   );
 }
 
-const CONTROL_OF: Record<string, string> = { "u-tm": "Same-day account monitoring", "u-sanctions": "Sanctions screening rule set", "u-restriction": "Onboarding restriction flag" };
+const CONTROL_OF: Record<string, string> = { "u-screening": "Same-day account monitoring", "u-sanctions": "Sanctions screening rule set", "u-restriction": "Onboarding restriction flag" };
 
 function controlsFor(m: Measure) {
   const c = ASSURANCE_VERDICTS.find((x) => x.control === CONTROL_OF[m.id]);
@@ -94,7 +94,7 @@ function driversFor(id: string): Row[] | undefined {
 function trendFor(id: string): Chart | undefined {
   const m = MEASURES.find((x) => x.id === id);
   if (id === "u-capacity") return { title: "Alert queue age (days)", points: CAPACITY.queueAge, threshold: { value: CAPACITY.queueAmber, label: `amber ${CAPACITY.queueAmber}` } };
-  if (id === "u-tm") return { title: "Records reaching monitoring by run", points: TM_RUNS.map((r) => ({ label: r.runDate.split(" ")[1], value: Number(r.pct.replace(/[^\d.]/g, "")) })), suffix: "%" };
+  if (id === "u-screening") return { title: "Records reaching monitoring by run", points: TM_RUNS.map((r) => ({ label: r.runDate.split(" ")[1], value: Number(r.pct.replace(/[^\d.]/g, "")) })), suffix: "%" };
   const s = SERIES[id];
   if (!s) return undefined;
   return { title: `${m?.name ?? plain(UNITS[id]?.title ?? id)} · 6 quarters`, points: s.slice(-6), threshold: m?.amber !== undefined ? { value: m.amber, label: `amber ${m.amber}${m.unit ?? ""}` } : undefined };
@@ -133,7 +133,7 @@ function content(key: DrawerKey, persona: string, session: ReturnType<typeof use
   if (key.startsWith("franchise:")) {
     const f = FRANCHISES.find((x) => `franchise:${x.id}` === key)!;
     const ms = MEASURES.filter((x) => x.objectiveId === f.id);
-    const main = f.id === "O1" ? "u-hltv" : f.id === "O2" ? "u-capacity" : f.id === "O3" ? "u-nsfr" : undefined;
+    const main = f.id === "O1" ? "u-hltv" : f.id === "O2" ? "u-capacity" : f.id === "O3" ? "u-lcr" : undefined;
     const headroom: Record<string, string> = { O1: `£${mortgageHeadroomM()}m to limit`, O2: `${FIG.savings.limitsBroken} of ${FIG.savings.limits} limits broken`, O3: "Narrowing", O4: "Not confirmed" };
     return {
       title: f.name,

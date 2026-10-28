@@ -58,25 +58,25 @@ export const ANSWERS: Answer[] = [
     q: "Why is monitoring coverage unconfirmed?",
     keywords: ["monitoring", "unconfirmed", "coverage", "data"],
     lines: [
-      `Monitoring covers ${fmt.pct(FIG.monitoring.coverage, 1)} of records, down ${fmt.pts(Math.abs(measure("u-tm").delta!.value))}.`,
+      `Monitoring covers ${fmt.pct(FIG.monitoring.coverage, 1)} of records.`,
       "The owner signed off 3 hours before the data check finished.",
       "Same-day transactions are not yet checked.",
       "Until the check is re-run, the figure stays unconfirmed.",
     ],
-    cites: [{ label: "Monitoring coverage", drawer: "metric:u-tm" }],
+    cites: [{ label: "Monitoring coverage", drawer: "metric:u-screening" }],
   },
   {
     q: "Which measures will turn amber before March?",
     keywords: ["amber", "march", "turn", "early warning", "projection"],
     lines: [
       `Liquidity (LCR): ${measure("u-lcr").projection} on the projection.`,
-      `Stable funding (NSFR): ${measure("u-nsfr").projection}.`,
+      `Stable funding (NSFR) is at ${FIG.liquidity.nsfr}% against amber ${FIG.liquidity.nsfrAmber}%.`,
       `High-LTV share reaches amber later, ${measure("u-hltv").projection?.replace("amber ", "")}.`,
       "These are straight-line projections, not certainties.",
     ],
     cites: [
       { label: "Liquidity (LCR)", drawer: "metric:u-lcr" },
-      { label: "Stable funding (NSFR)", drawer: "metric:u-nsfr" },
+      { label: "Stable funding (NSFR)", drawer: "metric:u-lcr" },
       { label: "High-LTV lending", drawer: "metric:u-hltv" },
     ],
   },
@@ -92,7 +92,7 @@ export const ANSWERS: Answer[] = [
     cites: [
       { label: "Customer restriction", drawer: "metric:u-restriction" },
       { label: "Alert queue age", drawer: "metric:u-capacity" },
-      { label: "Monitoring coverage", drawer: "metric:u-tm" },
+      { label: "Monitoring coverage", drawer: "metric:u-screening" },
     ],
   },
   {

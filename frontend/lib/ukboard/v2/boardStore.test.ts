@@ -1,55 +1,84 @@
 /**
- * UK Board v2 — one source of truth. Run: npx tsx --test lib/ukboard/v2/boardStore.test.ts
+ * UK Board v2 — one source of truth, built around the risk appetite. Run: npx tsx --test lib/ukboard/v2/boardStore.test.ts
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { KRI_DETAIL, RESTRICTION } from "../v1/data";
-import { attestationRecord, attestationThisMonth, consumerDuty, daysToCommittee, deltaText, ENFORCEMENT_THEMES, ownerRows, roleOf, statusChanges, FIG, measure, measuresMoved, MEASURES, mortgageHeadroomM, postureCounts, postureText, rateErrorPct, signOffTotals, validateBoardStore } from "./boardStore";
+import {
+  attestationThisMonth,
+  bandMedians,
+  BOARD_CALLS,
+  consumerDuty,
+  daysToCommittee,
+  deltaText,
+  ENFORCEMENT_THEMES,
+  ftbHeadroomM,
+  hltvSinceQ2_2025,
+  measure,
+  MEASURES,
+  mortgageHeadroomM,
+  newMeasures,
+  objectiveStatus,
+  ownerRows,
+  policiesTracked,
+  postureCounts,
+  roleOf,
+  rollupTotals,
+  routesDecided,
+  statusChanges,
+  validateBoardStore,
+} from "./boardStore";
 
 test("validateBoardStore passes", () => {
   assert.deepEqual(validateBoardStore(), []);
 });
 
-test("posture is computed from the 12 measures", () => {
+test("12 measures, one tier each; posture 4 / 2 / 4 / 1 / 1", () => {
   assert.equal(MEASURES.length, 12);
-  assert.deepEqual(postureCounts(), { within: 5, projected: 2, amber: 2, red: 1, unconfirmed: 2 });
-  assert.equal(postureText(), "5 within · 2 heading for amber · 2 amber · 1 red · 2 unconfirmed");
-  assert.equal(measuresMoved(), 10);
+  assert.deepEqual(postureCounts(), { within: 4, projected: 2, amber: 4, red: 1, unconfirmed: 1 });
+  assert.deepEqual(
+    ["top", "emerging", "obligatory"].map((t) => MEASURES.filter((m) => m.tier === t).length),
+    [6, 2, 4],
+  );
 });
 
-test("Consumer Duty follows its outcomes", () => {
-  const cd = consumerDuty();
-  assert.equal(cd.text, "2 of 4 outcomes amber · 9 of 12 measures in tolerance");
-  assert.equal(measure("u-cd").status, "amber");
-  assert.equal(FIG.vuln.amber, 14);
+test("roll-up below the 12: 132 · 14 off track · 3 unconfirmed", () => {
+  assert.deepEqual(rollupTotals(), { below: 132, l2: 37, l3: 95, offTrack: 14, unconfirmed: 3, l3Red: 5 });
 });
 
-test("store ties to the v1 data", () => {
-  assert.equal(FIG.restriction.breaches, RESTRICTION.breachesAccounts);
-  assert.equal(FIG.restriction.untested, 24000);
-  assert.equal(FIG.escalation.issues, KRI_DETAIL.latency.n);
-  assert.equal(FIG.escalation.medianMonths, 4.6);
-  assert.equal(mortgageHeadroomM(), 96);
-  assert.equal(rateErrorPct(), 75);
-  assert.deepEqual(signOffTotals(), { cells: 60, onTime: 54, late: 3, missing: 2, early: 1 });
+test("top-risk bands are tighter than emerging-risk bands", () => {
+  const b = bandMedians();
+  assert.ok(b.top <= b.emerging);
+  assert.equal(Math.round(b.top * 100), 12);
+  assert.equal(Math.round(b.emerging * 100), 30);
 });
 
-test("high-LTV change is the share change vs Q2 (17.3% → 17.6%)", () => {
-  assert.equal(deltaText(measure("u-hltv").delta), "▲ 0.3 pts");
-  assert.equal(deltaText(measure("u-nsfr").delta), "▼ 8 pts");
-  assert.equal(deltaText(measure("u-capacity").delta), "▲ 7 days");
+test("objectives: O1 on track, O2 at risk, O3 off track, O4 at risk", () => {
+  assert.deepEqual(["O1", "O2", "O3", "O4"].map((o) => objectiveStatus(o as "O1")), ["on_track", "at_risk", "off_track", "at_risk"]);
 });
 
-test("redesign: status changes, attestation, owners, roles, countdown", () => {
+test("attestation, routes, policies, status changes", () => {
+  assert.deepEqual(attestationThisMonth(), { attested: 8, due: 3, unconfirmed: 1, total: 12 });
+  assert.deepEqual(routesDecided(), { decided: 1, total: 7 });
+  assert.equal(policiesTracked(), 41);
   assert.equal(statusChanges().length, 4);
-  assert.deepEqual(attestationThisMonth(), { attested: 10, due: 1, unconfirmed: 1, total: 12 });
-  assert.equal(attestationRecord().onTime, 54);
-  const rows = ownerRows([], {});
-  assert.equal(rows.length, 8);
-  assert.equal(rows.reduce((a, r) => a + r.measures.length, 0), 12);
-  assert.equal(roleOf("smf16"), "Head of Compliance");
-  assert.equal(daysToCommittee(new Date(2026, 9, 27)), 49);
+  assert.equal(newMeasures()[0].id, "u-detect");
+});
+
+test("figures compute from the data", () => {
+  assert.equal(mortgageHeadroomM(), 96);
+  assert.equal(ftbHeadroomM(22), 176);
+  assert.equal(deltaText(measure("u-hltv").delta), "▲ 0.3 pts");
+  assert.equal(hltvSinceQ2_2025(), 1.5);
+  assert.equal(consumerDuty().text, "2 of 4 outcomes amber · 9 of 12 measures in tolerance");
+  assert.equal(BOARD_CALLS.length, 3);
   assert.equal(daysToCommittee(new Date(2026, 9, 28)), 48);
+});
+
+test("owners from the measure table; roles only; no firm names", () => {
+  const rows = ownerRows([], {});
+  assert.equal(rows.reduce((a, r) => a + r.measures.length, 0), 12);
+  assert.ok(rows.some((r) => r.role === "Chief Information Security Officer"));
+  assert.equal(roleOf("smf16"), "Head of Compliance");
   assert.ok(ENFORCEMENT_THEMES.every((t) => !/Starling|Monzo|Metro|Bank/.test(t.theme + t.source)));
-  assert.equal(measure("u-cd").value, "2 of 4 outcomes amber");
+  for (const m of MEASURES) assert.ok(m.statement.split(" ").length <= 12, m.id);
 });

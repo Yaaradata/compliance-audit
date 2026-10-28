@@ -158,7 +158,8 @@ export function owners(draftTargets: Record<string, string>): Owner[] {
     const states = ms.map(rowState);
     // Completed sign-offs only: skip pending or due dates and failed sign-offs.
     const dates = ms
-      .map((m) => UNITS[m.unitId].integrity.attestation)
+      .map((m) => UNITS[m.unitId]?.integrity.attestation)
+      .filter((at): at is NonNullable<typeof at> => !!at)
       .filter((at) => at.pass && !/pending|due/i.test(at.evidence))
       .map((at) => SIGNOFF_DATE.exec(at.evidence)?.[1])
       .filter(Boolean) as string[];
@@ -176,7 +177,11 @@ export function signOffBuckets() {
   const due: MetricMeta[] = [];
   const unconfirmed: MetricMeta[] = [];
   for (const m of METRICS) {
-    const a = UNITS[m.unitId].integrity.attestation;
+    const a = UNITS[m.unitId]?.integrity.attestation;
+    if (!a) {
+      unconfirmed.push(m);
+      continue;
+    }
     if (!a.pass) unconfirmed.push(m);
     else if (/pending|due/i.test(a.evidence)) due.push(m);
     else signed.push(m);
@@ -184,7 +189,7 @@ export function signOffBuckets() {
   return { signed, due, unconfirmed };
 }
 
-export const allChecksPass = (unitId: string) => CHECK_ORDER.every((k) => UNITS[unitId].integrity[k].pass);
+export const allChecksPass = (unitId: string) => CHECK_ORDER.every((k) => UNITS[unitId]?.integrity[k].pass ?? false);
 
 /* ── Regulatory ───────────────────────────────────────────────────── */
 

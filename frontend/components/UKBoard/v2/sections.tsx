@@ -39,7 +39,7 @@ import { DECISION_HISTORY, EVENT_PLAIN, FRANCHISES, plain, ROUTE_PLAIN } from "@
 import type { SectionId } from "@/lib/ukboard/v2/personaViews";
 import { useDrawer } from "./drawerContext";
 import LineChart from "./LineChart";
-import { BarRows, Card, OWNER_SHORT, ChartCard, Chip, DeltaMark, EventList, FlowPill, KpiTile, LimitPill, LineItem, LinkMore, MeasureTable, OwnerTable, PostureStrip, StatList, StatRow, StatusPill, Table, useFigures, VerdictPill, type Workflow } from "./present";
+import { BarRows, Card, OWNER_SHORT, ChartCard, Chip, EventList, FlowPill, KpiTile, LimitPill, LineItem, LinkMore, MeasureTable, OwnerTable, PostureStrip, StatList, StatRow, StatusPill, Table, useFigures, VerdictPill, type Workflow } from "./present";
 import { useStore } from "./store";
 import { AiTag, btn, btnPrimary, focus, Pill } from "./ui";
 
@@ -456,13 +456,13 @@ function DecisionLog() {
 
 function BusinessTiles() {
   const { open } = useDrawer();
-  useFigures(["f:mortgage-growth", "f:savings-growth", "m:u-wholesale"]);
+  useFigures(["f:mortgage-growth", "f:savings-growth", "f:wholesale"]);
   const v = Object.fromEntries(FRANCHISES.map((f) => [f.id, f.verdict]));
   const nUnconf = MEASURES.filter((m) => m.objectiveId === "O4" && m.status === "unconfirmed").length;
   const tiles = [
     { id: "O1", label: "Mortgages", value: fmt.gbpBn(FIG.mortgages.lentBn), comparator: `plan ${fmt.gbpBn(FIG.mortgages.planBn)} · £${mortgageHeadroomM()}m headroom` },
     { id: "O2", label: "Savings", value: `+${fmt.gbpBn(FIG.savings.balancesBn)}`, comparator: `plan +${fmt.gbpBn(FIG.savings.planBn)} · ${FIG.savings.limitsBroken}/${FIG.savings.limits} limits broken` },
-    { id: "O3", label: "Funding", value: measure("u-wholesale").value, comparator: `wholesale, ${measure("u-wholesale").comparator}` },
+    { id: "O3", label: "Funding", value: `${FIG.liquidity.wholesale}%`, comparator: `wholesale, ceiling ${FIG.liquidity.wholesaleCeiling}%` },
     { id: "O4", label: "Member protection", value: `${nUnconf} unconfirmed`, comparator: `re-check by ${FIG.dates.brc}` },
   ];
   return (
@@ -849,14 +849,14 @@ function RegulatorRelationship() {
 
 function Sanctions() {
   const s = FIG.sanctions;
-  const m = measure("u-sanctions");
+  const m = measure("u-screening");
   return (
     <StatList
       title="Sanctions screening"
       right={<StatusPill status={m.status} />}
-      figures={["m:u-sanctions"]}
+      figures={["m:u-screening"]}
       rows={[
-        { label: "List coverage", value: m.value.split(" · ")[0], comparator: `${s.rules} rules · ${fmt.n(s.entries)} entries` },
+        { label: "List coverage", value: m.l2[1].value, comparator: `${s.rules} rules · ${fmt.n(s.entries)} entries` },
         { label: "Alerts", value: "None", comparator: `${s.weeksNoAlerts} weeks · ${s.expectedPerWeek} a week expected` },
         { label: "Sign-off", value: "Unconfirmed", comparator: "Head of Financial Crime" },
       ]}
@@ -919,16 +919,16 @@ function Journeys() {
 
 function DataTrust() {
   const { open } = useDrawer();
-  const tm = measure("u-tm");
-  const ibs = measure("u-ibs");
+  const tm = measure("u-screening");
+  const ibs = measure("u-secfind");
   return (
     <StatList
       title="Data trust"
-      figures={["m:u-tm", "m:u-ibs"]}
+      figures={["m:u-screening", "f:service"]}
       rows={[
-        { label: "Monitoring coverage", value: tm.value.split(" ")[0], comparator: "of 2.4m records", right: <Pill tone="grey" label="Unconfirmed" />, onClick: (el) => open("metric:u-tm", el) },
+        { label: "Monitoring coverage", value: tm.l2[0].value, comparator: tm.l2[0].threshold, right: <Pill tone="grey" label="Unconfirmed" />, onClick: (el) => open("metric:u-screening", el) },
         { label: "Monitoring sign-off", value: "Early", comparator: "before data check" },
-        { label: "Service disruption", value: ibs.value.split(" ")[0], comparator: "tolerance used", right: <DeltaMark d={ibs.delta} />, onClick: (el) => open("metric:u-ibs", el) },
+        { label: "Service disruption", value: ibs.l2[2].value, comparator: ibs.l2[2].threshold, onClick: (el) => open("metric:u-secfind", el) },
       ]}
     />
   );
