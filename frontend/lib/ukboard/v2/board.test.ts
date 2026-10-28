@@ -36,9 +36,9 @@ test("plain words replace board jargon", () => {
 
 import { PERSONA_VIEWS, sectionsOf } from "./personaViews";
 
-test("board 7 tabs, chair 4, CRO 5; no section repeats within a persona", () => {
+test("board 8 tabs, chair 4, CRO 5; no section repeats within a persona", () => {
   for (const [id, v] of Object.entries(PERSONA_VIEWS)) {
-    assert.equal(v.tabs.length, { board: 7, chair: 4, cro: 5 }[id], id);
+    assert.equal(v.tabs.length, { board: 8, chair: 4, cro: 5 }[id], id);
     assert.ok(v.tabs.some((t) => t.id === v.defaultTab), `${id} default tab`);
     const all = v.tabs.flatMap(sectionsOf);
     assert.deepEqual(all.filter((s, i) => all.indexOf(s) !== i), [], `${id} repeats`);

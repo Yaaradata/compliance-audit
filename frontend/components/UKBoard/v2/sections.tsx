@@ -40,6 +40,7 @@ import type { SectionId } from "@/lib/ukboard/v2/personaViews";
 import { useDrawer } from "./drawerContext";
 import LineChart from "./LineChart";
 import { BarRows, Card, OWNER_SHORT, ChartCard, Chip, EventList, FlowPill, KpiTile, LimitPill, LineItem, LinkMore, MeasureTable, OwnerTable, PostureStrip, StatList, StatRow, StatusPill, Table, useFigures, VerdictPill, type Workflow } from "./present";
+import { OVERVIEW_SECTIONS } from "./overview";
 import { useStore } from "./store";
 import { AiTag, btn, btnPrimary, focus, Pill } from "./ui";
 
@@ -476,7 +477,7 @@ function BusinessTiles() {
 
 function Exceptions() {
   const go = useGo();
-  return <MeasureTable title="Appetite exceptions" variant="exceptions" onWithin={() => go("growth")} />;
+  return <MeasureTable title="Appetite exceptions" variant="exceptions" onWithin={() => go("strategy")} />;
 }
 
 const DECISIONS = [
@@ -533,7 +534,7 @@ function Assurance() {
   return (
     <StatList
       title="Assurance"
-      right={<LinkMore onClick={() => go("ownership")} label="Ownership" />}
+      right={<LinkMore onClick={() => go("accountability")} label="Accountability" />}
       figures={["f:attest-month", "f:journeys", "f:agent-unapproved"]}
       rows={[
         { label: "Attested this month", value: `${a.attested} of ${a.total}` },
@@ -1324,6 +1325,7 @@ const SECTIONS: Record<string, () => ReactNode> = {
   R_DEADLINES: Deadlines,
   R_CLOCKS_DUE: ClocksDue,
   R_PACK: PackChecklist,
+  ...OVERVIEW_SECTIONS,
 };
 
 export function renderSection(id: SectionId): ReactNode {

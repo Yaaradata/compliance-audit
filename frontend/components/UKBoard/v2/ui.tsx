@@ -6,7 +6,7 @@
  * Unconfirmed is neutral grey with a dashed border, the word and a broken-link icon.
  */
 import { useState, type ReactNode } from "react";
-import { Sparkles, Unlink } from "lucide-react";
+import { Unlink } from "lucide-react";
 import { DRAFTS } from "@/lib/ukboard/v1/data";
 import type { Status } from "@/lib/ukboard/v1/types";
 import { plain } from "@/lib/ukboard/v2/boardTabs";
@@ -88,7 +88,9 @@ export function Sparkline({ values, tone, height = 28 }: { values: number[]; ton
 export function AiTag({ label = "AI agent" }: { label?: string }) {
   return (
     <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
-      <Sparkles className="h-3 w-3 text-violet-500" aria-hidden />
+      <span className="text-violet-500" aria-hidden>
+        ✦
+      </span>
       {label}
     </span>
   );

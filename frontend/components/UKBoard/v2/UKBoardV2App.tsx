@@ -9,7 +9,7 @@
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { NotebookPen, Sparkles } from "lucide-react";
+import { NotebookPen } from "lucide-react";
 import { METRICS } from "@/lib/ukboard/v2/board";
 import { AGENTS } from "@/lib/ukboard/v2/agentsData";
 import { AS_AT_LABEL, daysToCommittee, FIG, OWNER_ROLES } from "@/lib/ukboard/v2/boardStore";
@@ -20,6 +20,7 @@ import { DrawerContext } from "./drawerContext";
 import type { DrawerKey } from "./drawerKeys";
 import { StoreProvider, useStore } from "./store";
 import { installAudit } from "./audit";
+import { StrategyStrip } from "./appetite";
 import { FigureRegistry, PageHeader } from "./present";
 import { renderSection } from "./sections";
 import { focus } from "./ui";
@@ -27,9 +28,9 @@ import { focus } from "./ui";
 const SEARCH_ITEMS: { label: string; hint: string; key: DrawerKey }[] = [
   ...METRICS.map((m) => ({ label: m.name, hint: `Measure · ${m.owner}`, key: `metric:${m.unitId}` })),
   { label: "Savings growth vs crime checks", hint: "Decision 1", key: "decision:1" },
-  { label: "Restriction breach: report or not", hint: "Decision 2", key: "decision:2" },
+  { label: "Restriction breach: reportable", hint: "Decision 2", key: "decision:2" },
   { label: "Issue removed from board pack", hint: "Decision 3", key: "decision:3" },
-  ...OWNER_ROLES.map((o) => ({ label: o.role, hint: "Owner", key: `owner:${o.role}` })),
+  ...OWNER_ROLES.map((o) => ({ label: o.role, hint: "Risk owner", key: `owner:${o.role}` })),
   ...AGENTS.map((a) => ({ label: a.name, hint: "AI agent", key: `agent:${a.id}` })),
 ];
 
@@ -109,7 +110,7 @@ function Header({ onOpen, onPersona, onAgent }: { onOpen: (k: DrawerKey, el?: HT
           {board ? (
             <>
               <button type="button" onClick={onAgent} className={`${headerBtn} text-violet-800`}>
-                <Sparkles className="h-3.5 w-3.5 text-violet-500" aria-hidden />
+                <span className="text-violet-500" aria-hidden>✦</span>
                 Ask the board agent
               </button>
               <button type="button" onClick={(e) => onOpen("notes", e.currentTarget)} className={headerBtn}>
@@ -204,6 +205,7 @@ function Page() {
         <Header onOpen={open} onPersona={onPersona} onAgent={() => setAgent(true)} />
         <main key={`${state.persona}-${tab.id}-${state.epoch}`} className="mx-auto max-w-[1440px] space-y-4 px-6 py-4">
           <PageHeader title={tab.title} meta={tab.meta} />
+          {state.persona === "board" ? <StrategyStrip /> : null}
           <FigureRegistry tab={`${state.persona}-${tab.id}`}>
             <TabBody tab={tab} />
           </FigureRegistry>

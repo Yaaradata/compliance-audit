@@ -127,7 +127,7 @@ export function Chip({ children }: { children: ReactNode }) {
 }
 
 /** The only tinted block. Five computed counts. */
-export function PostureStrip({ sentence }: { sentence: string }) {
+export function PostureStrip({ sentence, detail }: { sentence: string; detail?: string[] }) {
   const c = postureCounts();
   const chips: [string, number][] = [
     ["within", c.within],
@@ -148,6 +148,15 @@ export function PostureStrip({ sentence }: { sentence: string }) {
           </span>
         ))}
       </span>
+      {detail?.length ? (
+        <span className="flex basis-full flex-wrap gap-x-4 text-xs text-slate-700">
+          {detail.map((d) => (
+            <span key={d} className="tabular-nums">
+              {d}
+            </span>
+          ))}
+        </span>
+      ) : null}
     </section>
   );
 }
