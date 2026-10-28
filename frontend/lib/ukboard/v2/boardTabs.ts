@@ -14,9 +14,7 @@ const PLAIN: [RegExp, string][] = [
   [/\bBRC\b/g, "Risk Committee"],
   [/\bERC\b/g, "Executive Risk Committee"],
   [/\bCDD\b/g, "customer checks"],
-  [/\battestations?\b/gi, "sign-off"],
-  [/\battesting SMF\b/gi, "signing executive"],
-  [/\battest\b/gi, "sign off"],
+  [/\battesting SMF\b/gi, "attesting senior manager"],
   [/\bmanifest\b/gi, "board pack"],
   [/\bpopulation test\b/gi, "full customer check"],
   [/\bVREQ\b/g, "voluntary restriction"],
@@ -125,7 +123,7 @@ export const indicatorWord = (m: MetricMeta) => (m.indicatorType === "leading" ?
 export const DECISION_HISTORY = [
   { date: "23 Oct 2026", forum: "Head of Compliance", decision: "Mortgage rate error reportable to the FCA", outcome: "Decided", tone: "green" as const },
   { date: "22 Apr 2026", forum: "Board", decision: "Capital plan approved (CET1 limit 13.5%)", outcome: "Within: 16.8%", tone: "green" as const },
-  { date: "14 Apr 2026", forum: "Risk Committee", decision: "Savings onboarding trade-off agreed", outcome: "Outside terms: 2 of 3 limits broken", tone: "red" as const },
+  { date: "14 Apr 2026", forum: "Risk Committee", decision: "Savings onboarding tension agreed", outcome: "Outside terms: 2 of 3 limits broken", tone: "red" as const },
   { date: "06 Apr 2026", forum: "Risk Committee", decision: "Temporary 25% high-LTV limit for 6 months", outcome: "Expired 06 Oct; register not updated", tone: "amber" as const },
   { date: "11 Mar 2026", forum: "Board", decision: "Wholesale funding ceiling approved (40%)", outcome: "Within: 34%", tone: "green" as const },
   { date: "11 Mar 2026", forum: "Risk Committee", decision: "High-LTV appetite thresholds approved", outcome: "Within; amber by Q2 2027", tone: "green" as const },
@@ -171,7 +169,7 @@ export function owners(draftTargets: Record<string, string>): Owner[] {
   });
 }
 
-/** Sign-off buckets over the 12 measures (from each measure's existing sign-off check). */
+/** Attestation buckets over the 12 measures (from each measure's existing attestation check). */
 export function signOffBuckets() {
   const signed: MetricMeta[] = [];
   const due: MetricMeta[] = [];

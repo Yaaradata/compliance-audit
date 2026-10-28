@@ -32,7 +32,7 @@ import { useStore } from "./store";
 import { AuditList, btnPrimary, DraftCard, focus } from "./ui";
 import type { DrawerKey } from "./drawerKeys";
 
-const CHECK_NAME = { owner: "Owner", feed: "Data check", attestation: "Sign-off", mapping: "Linked to policy" } as const;
+const CHECK_NAME = { owner: "Risk owner", feed: "Data check", attestation: "Attestation", mapping: "Linked to policy" } as const;
 
 type Row = { label: string; value: string; comparator?: string };
 interface Chart {
@@ -104,8 +104,8 @@ function positionFor(m: Measure): Row[] {
   const t = thresholdCells(m);
   return [
     { label: "Value", value: m.short ?? m.value, comparator: m.comparator },
-    { label: "Amber", value: t.amber },
-    { label: "Limit", value: t.limit },
+    { label: "Amber trigger", value: t.amber },
+    { label: "Appetite limit", value: t.limit },
     { label: "Time to threshold", value: timeToThreshold(m) },
   ];
 }
@@ -169,14 +169,14 @@ function content(key: DrawerKey, persona: string, session: ReturnType<typeof use
     case "decision:2":
     case "restriction":
       return {
-        title: key === "restriction" ? "Restriction" : "Restriction breach: report or not",
+        title: key === "restriction" ? "Restriction" : "Restriction breach: reportable",
         ownerRole: "Head of Financial Crime",
         pill: <StatusPill status="red" />,
         position: [
           { label: "Accounts in breach", value: fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested), comparator: "appetite 0" },
           { label: "Customers affected", value: String(FIG.restriction.customers), comparator: `${FIG.restriction.exited} previously exited` },
           { label: "Openings not checked", value: fmt.n(FIG.restriction.untested) },
-          { label: "Sign-off due", value: FIG.dates.restrictionSignOff },
+          { label: "Attestation due", value: FIG.dates.restrictionSignOff },
         ],
         chart: { title: "Accounts in breach by run", points: FIG.restriction.runs },
         drivers: RESTRICTION.byRoute.map((b) => ({ label: plain(b.route), value: String(b.accounts), comparator: "accounts" })),
@@ -269,7 +269,7 @@ function content(key: DrawerKey, persona: string, session: ReturnType<typeof use
     const worst = o.measures.find((m) => m.status !== "within") ?? o.measures[0];
     return {
       title: role,
-      ownerRole: "Accountable owner",
+      ownerRole: "Risk owner",
       pill: o.status === "none" ? undefined : <StatusPill status={o.status} />,
       position: o.measures.length ? o.measures.map((m) => ({ label: m.name, value: m.short ?? m.value, comparator: m.comparator })) : [{ label: "Board measures", value: "None held" }],
       chart: worst ? trendFor(worst.id) : undefined,
@@ -409,14 +409,14 @@ export default function BoardDrawer({ drawerKey, onClose }: { drawerKey: DrawerK
             </Section>
           ) : null}
           {c.drivers?.length ? (
-            <Section title="Drivers" open>
+            <Section title="Level 2 metrics" open>
               {c.drivers.map((r) => (
                 <StatRow key={r.label} label={r.label} value={r.value} comparator={r.comparator} />
               ))}
             </Section>
           ) : null}
           {c.controls?.length ? (
-            <Section title="Controls" open>
+            <Section title="Level 3 controls" open>
               {c.controls.map((x) => (
                 <StatRow key={x.control} label={x.control} value={x.tested} comparator={`${x.owner} · ${x.result}`} />
               ))}
@@ -424,7 +424,7 @@ export default function BoardDrawer({ drawerKey, onClose }: { drawerKey: DrawerK
           ) : null}
           {c.attestation ? (
             <Section title="Attestation" open>
-              <StatRow label="Last sign-off" value={c.attestation.date} right={<AttestPill a={c.attestation.state} />} />
+              <StatRow label="Last attestation" value={c.attestation.date} right={<AttestPill a={c.attestation.state} />} />
             </Section>
           ) : null}
           {c.drafts.length || c.actions ? (

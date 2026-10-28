@@ -389,7 +389,7 @@ export const MEASURES: Measure[] = [
       { name: "Monitoring coverage", value: "94.0%", threshold: "of 2.4m records", status: "unconfirmed" },
       { name: "Sanctions list coverage", value: "1.3%", threshold: "39 of 3,088", status: "unconfirmed" },
     ],
-    l3: { count: 7, reds: [{ name: "Monitoring sign-off given before the data check finished", owner: "Data owner (payments)", lastTested: "Sep" }] },
+    l3: { count: 7, reds: [{ name: "Monitoring attestation given before the data check finished", owner: "Data owner (payments)", lastTested: "Sep" }] },
     linkage: { tested: "30 Sep", result: "gap", note: "Sanctions rule changes not linked to the coverage measure" },
     attest: { state: "unconfirmed" },
   },
@@ -864,7 +864,7 @@ export function stillUnresolved() {
     { text: "Vulnerable exceptions amber", duration: `${FIG.vuln.quartersAmber} quarters`, drawer: "removed" },
     { text: "Customer-check backlog", duration: `${FIG.escalation.backlogMonths} months vs ${FIG.escalation.backlogCommitted}`, drawer: "badnews" },
     { text: "Issues not escalated", duration: `${FIG.escalation.notEscalated} issues`, drawer: "badnews" },
-    { text: "Trade-off review", duration: `${FIG.tradeoff.overdueDays} days overdue`, drawer: "franchise:O2" },
+    { text: "Tension review", duration: `${FIG.tradeoff.overdueDays} days overdue`, drawer: "franchise:O2" },
   ];
 }
 

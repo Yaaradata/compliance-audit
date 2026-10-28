@@ -31,7 +31,7 @@ test("agent data ties out", () => {
 });
 
 test("plain words replace board jargon", () => {
-  assert.equal(plain("BRC and ERC review CDD attestation"), "Risk Committee and Executive Risk Committee review customer checks sign-off");
+  assert.equal(plain("BRC and ERC review CDD attestation"), "Risk Committee and Executive Risk Committee review customer checks attestation");
 });
 
 import { PERSONA_VIEWS, sectionsOf } from "./personaViews";

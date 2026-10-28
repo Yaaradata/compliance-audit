@@ -129,7 +129,7 @@ export const RISK_TIERS: { tier: "Top" | "Emerging" | "Obligatory"; items: { nam
     tier: "Emerging",
     items: [
       { name: "AI impersonation fraud", status: "Not measured", tone: "grey", trend: "none", owner: "Head of Financial Crime", drawer: "horizon" },
-      { name: "Agent-initiated payments", status: "Watching", tone: "grey", trend: "none", owner: "Owner not named", drawer: "horizon" },
+      { name: "Agent-initiated payments", status: "Watching", tone: "grey", trend: "none", owner: "Risk owner not named", drawer: "horizon" },
       { name: "New incident-reporting rules", status: "18 Mar 2027", tone: "grey", trend: "none", owner: "Chief Operating Officer", drawer: "horizon" },
     ],
   },
@@ -181,7 +181,7 @@ export const CULTURE: Stat[] = [
 
 /* ── 5.4 Policy tensions (AI-found) ─────────────────────────────────── */
 
-export const TENSIONS: { a: string; b: string; aWants: string; bWants: string; effect: string; status: "Regulatory floor, not tradeable" | "Not agreed" | "Board-agreed trade-off"; tone: Tone; note?: string; drawer: string }[] = [
+export const TENSIONS: { a: string; b: string; aWants: string; bWants: string; effect: string; status: "Regulatory floor, not tradeable" | "Not agreed" | "Board-agreed tension"; tone: Tone; note?: string; drawer: string }[] = [
   {
     a: "Fast onboarding",
     b: "checks before transacting",
@@ -208,7 +208,7 @@ export const TENSIONS: { a: string; b: string; aWants: string; bWants: string; e
     aWants: "More first-time buyer lending",
     bWants: "High-LTV inside the appetite limit",
     effect: "Headroom runs out by Q2 2027 at this pace",
-    status: "Board-agreed trade-off",
+    status: "Board-agreed tension",
     tone: "green",
     note: "Review due Q1",
     drawer: "metric:u-hltv",
@@ -241,7 +241,7 @@ export const D2_BOARD_ASKS = ["Who decides each route, and by when?", "Why are 2
 
 export const DUE_FOR_REVIEW: { item: string; detail: string; tone: Tone; drawer: string }[] = [
   { item: "Temporary high-LTV limit", detail: "expired 06 Oct · register not updated", tone: "red", drawer: "metric:u-hltv" },
-  { item: "Savings onboarding trade-off", detail: "review 27 days overdue", tone: "red", drawer: "franchise:O2" },
+  { item: "Savings onboarding tension", detail: "review 27 days overdue", tone: "red", drawer: "franchise:O2" },
 ];
 
 /* ── 5.6 Ownership ──────────────────────────────────────────────────── */
@@ -288,7 +288,7 @@ export const REGULATOR_RELATIONSHIP: { label: string; value: string; tone: Tone 
 ];
 
 export const REG_CALENDAR: { date: string; item: string; tone: Tone }[] = [
-  { date: "8 Nov 2026", item: "Restriction sign-off", tone: "red" },
+  { date: "8 Nov", item: "Restriction attestation", tone: "red" },
   { date: "15 Dec 2026", item: "Board Risk Committee", tone: "amber" },
   { date: "18 Mar 2027", item: "Incident and third-party reporting rules start", tone: "grey" },
   { date: "Jul 2027", item: "Consumer Duty annual board report", tone: "grey" },

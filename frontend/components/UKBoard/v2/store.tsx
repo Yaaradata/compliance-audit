@@ -23,12 +23,22 @@ interface Session {
   tuningProposal: string | null;
   returned: string[];
   deepDives: string[];
+  /** Items added to the decision paper (stance proposals); never changes a band. */
+  paper: string[];
+  /** Risk owners invited to present at committee. */
+  invited: string[];
+  /** Reportable events escalated to their decider (drafted note only). */
+  escalated: string[];
+  /** Measures attested by their risk owner this session. */
+  attested: string[];
   clock: number;
 }
 
 export interface State {
   persona: Persona;
   tab: TabId;
+  /** Strategy-strip filter: show only measures linked to this objective. */
+  filter: string | null;
   epoch: number;
   session: Session;
 }
@@ -45,6 +55,11 @@ export type Action =
   | { type: "SET_AUTONOMY"; agentId: string; level: Autonomy }
   | { type: "PROPOSE_TUNING"; optionId: string }
   | { type: "REQUEST_DEEP_DIVE"; topic: string }
+  | { type: "SET_FILTER"; objective: string | null }
+  | { type: "ADD_TO_PAPER"; item: string }
+  | { type: "INVITE_OWNER"; role: string }
+  | { type: "ESCALATE_EVENT"; eventId: string; decider: string }
+  | { type: "ATTEST"; measureId: string }
   | { type: "RESET" };
 
 function seed(): Session {
@@ -60,12 +75,16 @@ function seed(): Session {
     tuningProposal: null,
     returned: [],
     deepDives: [],
+    paper: [],
+    invited: [],
+    escalated: [],
+    attested: [],
     clock: 0,
   };
 }
 
 export function initial(persona: Persona = "board"): State {
-  return { persona, tab: PERSONA_VIEWS[persona].defaultTab, epoch: 0, session: seed() };
+  return { persona, tab: PERSONA_VIEWS[persona].defaultTab, filter: null, epoch: 0, session: seed() };
 }
 
 const person = (p: Persona) => PERSONA_VIEWS[p];
@@ -97,7 +116,7 @@ function reducer(state: State, a: Action): State {
 
   switch (a.type) {
     case "SET_PERSONA":
-      return { ...state, persona: a.persona, tab: person(a.persona).defaultTab };
+      return { ...state, persona: a.persona, tab: person(a.persona).defaultTab, filter: null };
     case "SET_TAB":
       return { ...state, tab: a.tab };
     case "ACCEPT": {
@@ -162,6 +181,21 @@ function reducer(state: State, a: Action): State {
       // Board members request; the CRO prepares. Logged against the board member.
       if (state.persona !== "board" || s0.deepDives.includes(a.topic)) return state;
       return write({ deepDives: [...s.deepDives, a.topic] }, entry(state, s, "deep dive requested from the CRO", a.topic, "deep-dive"));
+    case "SET_FILTER":
+      return { ...state, filter: a.objective };
+    case "ADD_TO_PAPER":
+      if (s0.paper.includes(a.item)) return state;
+      return write({ paper: [...s.paper, a.item] }, entry(state, s, "added to the decision paper", a.item, "paper"));
+    case "INVITE_OWNER":
+      if (s0.invited.includes(a.role)) return state;
+      return write({ invited: [...s.invited, a.role] }, entry(state, s, "risk owner invited to present", a.role, "agenda"));
+    case "ESCALATE_EVENT":
+      // Drafts a note to the named decider; nothing is sent to a regulator.
+      if (s0.escalated.includes(a.eventId) || state.persona === "board") return state;
+      return write({ escalated: [...s.escalated, a.eventId] }, entry(state, s, `escalation note drafted for ${a.decider}`, a.eventId, a.eventId));
+    case "ATTEST":
+      if (s0.attested.includes(a.measureId)) return state;
+      return write({ attested: [...s.attested, a.measureId] }, entry(state, s, "attestation recorded", a.measureId, `metric:${a.measureId}`));
     case "RESET":
       return { ...initial(state.persona), epoch: state.epoch + 1 };
     default:

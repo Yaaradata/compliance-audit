@@ -102,7 +102,7 @@ function Tradeoffs() {
   const action =
     state.persona === "cro" ? (
       <button type="button" onClick={(e) => open("franchise:O2", e.currentTarget)} className={btn}>
-        Adjust appetite (propose)
+        Propose Tighten · Hold · Loosen
       </button>
     ) : state.persona === "chair" ? (
       <button type="button" disabled={returned} onClick={() => dispatch({ type: "RETURN_TO_CRO", draftId: "d-t26-redecide" })} className={btn}>
@@ -113,7 +113,7 @@ function Tradeoffs() {
     );
   return (
     <StatList
-      title="Agreed trade-offs"
+      title="Agreed tensions"
       right={action}
       figures={["f:tradeoff"]}
       rows={[
@@ -204,7 +204,7 @@ function AttestationMonth() {
       figures={["f:attest-month"]}
       rows={[
         { label: "Attested", value: `${a.attested} of ${a.total}`, comparator: "board measures" },
-        { label: "Due", value: String(a.due), comparator: "sign-off pending", rail: "amber" },
+        { label: "Due", value: String(a.due), comparator: "attestation pending", rail: "amber" },
         { label: "Unconfirmed", value: String(a.unconfirmed), comparator: "before data check", right: <Pill tone="grey" label="Unconfirmed" /> },
       ]}
     />
@@ -513,7 +513,7 @@ function KeyDates() {
     <EventList
       title="Key dates"
       items={[
-        { date: FIG.dates.restrictionSignOff, text: "Restriction sign-off", rail: "red" },
+        { date: FIG.dates.restrictionSignOff, text: "Restriction attestation", rail: "red" },
         { date: FIG.dates.campaign, text: "Savings campaign", rail: "amber" },
         { date: FIG.dates.brc, text: "Committee meeting" },
       ]}
@@ -858,7 +858,7 @@ function Sanctions() {
       rows={[
         { label: "List coverage", value: m.l2[1].value, comparator: `${s.rules} rules · ${fmt.n(s.entries)} entries` },
         { label: "Alerts", value: "None", comparator: `${s.weeksNoAlerts} weeks · ${s.expectedPerWeek} a week expected` },
-        { label: "Sign-off", value: "Unconfirmed", comparator: "Head of Financial Crime" },
+        { label: "Attestation", value: "Unconfirmed", comparator: "Head of Financial Crime" },
       ]}
     />
   );
@@ -927,7 +927,7 @@ function DataTrust() {
       figures={["m:u-screening", "f:service"]}
       rows={[
         { label: "Monitoring coverage", value: tm.l2[0].value, comparator: tm.l2[0].threshold, right: <Pill tone="grey" label="Unconfirmed" />, onClick: (el) => open("metric:u-screening", el) },
-        { label: "Monitoring sign-off", value: "Early", comparator: "before data check" },
+        { label: "Monitoring attestation", value: "Early", comparator: "before data check" },
         { label: "Service disruption", value: ibs.l2[2].value, comparator: ibs.l2[2].threshold, onClick: (el) => open("metric:u-secfind", el) },
       ]}
     />
@@ -1124,7 +1124,7 @@ function WorkQueue() {
         </button>
       ),
     });
-  prep("Restriction sign-off evidence", FIG.dates.restrictionSignOff, 1, "Head of Financial Crime", "decision:2");
+  prep("Restriction attestation evidence", FIG.dates.restrictionSignOff, 1, "Head of Financial Crime", "decision:2");
   prep("Decision 1 paper: restore or pace", FIG.dates.campaign, 2, "Board", "decision:1");
   prep("Decision 3 paper: dropped pack item", FIG.dates.brc, 4, "Risk Committee Chair", "decision:3");
   for (const q of QUEUE) {
@@ -1199,7 +1199,7 @@ function Deadlines() {
     <EventList
       title="Deadlines"
       items={[
-        { date: FIG.dates.restrictionSignOff, text: "Restriction sign-off", rail: "red" },
+        { date: FIG.dates.restrictionSignOff, text: "Restriction attestation", rail: "red" },
         { date: FIG.dates.campaign, text: "Savings campaign starts", rail: "amber" },
         { date: FIG.dates.brc, text: "Board Risk Committee" },
         { date: "18 Mar 27", text: "Incident-reporting rules start" },

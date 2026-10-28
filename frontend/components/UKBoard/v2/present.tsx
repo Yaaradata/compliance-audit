@@ -3,7 +3,7 @@
 /**
  * UK Board v2 — component library (one set for all three personas).
  * PageHeader · PostureStrip · KpiTile · StatList/StatRow · MeasureTable · OwnerTable · EventList ·
- * ChartCard · StatusPill (+ verdict, trade-off and workflow pills) · Card.
+ * ChartCard · StatusPill (+ verdict, tension and workflow pills) · Card.
  * Rules: white cards with a 1px border and a 40px header; status colour only on pills, a 3px rail on
  * red/amber rows and chart threshold lines; numbers in dark ink, tabular, right-aligned; the posture
  * strip is the only tinted block. The figure registry warns (dev only) when a figure repeats on a tab.
@@ -303,7 +303,7 @@ export function Table({ title, right, cols, head, rows, rightCols = [] }: { titl
 
 /* ── Measure table ───────────────────────────────────────────────────── */
 
-const TIER_LABEL = { obligatory: "Obligatory", top: "Top", emerging: "Emerging" } as const;
+const TIER_LABEL = { obligatory: "Obligatory risks · Level 0", top: "Top risks", emerging: "Emerging risks" } as const;
 /** Short owner names for tables (full role in the drawer). */
 export const OWNER_SHORT: Record<string, string> = {
   "Head of Financial Crime": "Financial crime",
@@ -345,8 +345,8 @@ export function MeasureTable({ title, variant, inlineBar, onWithin }: { title: s
   const cols = full
     ? `grid min-h-9 ${inlineBar ? "grid-cols-[minmax(130px,1.3fr)_84px_minmax(110px,1.2fr)_56px_64px_minmax(100px,1fr)_64px_96px_minmax(84px,0.8fr)_110px]" : "grid-cols-[minmax(130px,1.3fr)_minmax(120px,1.3fr)_56px_64px_minmax(100px,1fr)_64px_96px_minmax(84px,0.8fr)_120px]"} items-center gap-3 px-4 py-1 text-[13px] leading-snug`
     : "grid min-h-9 grid-cols-[minmax(140px,1.3fr)_minmax(120px,1.2fr)_minmax(100px,1fr)_64px_minmax(90px,0.8fr)_120px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
-  const head = full ? ["Measure", ...(inlineBar ? ["Appetite"] : []), "Value", "Amber", "Limit", "To threshold", "vs Q2", "Type", "Owner", "Status"] : ["Measure", "Value", "Threshold", "vs Q2", "Owner", "Status"];
-  const rightHead = new Set(["Amber", "Limit", "vs Q2", "Status"]);
+  const head = full ? ["Measure", ...(inlineBar ? ["Appetite"] : []), "Value", "Amber trigger", "Appetite limit", "To threshold", "vs Q2", "Type", "Risk owner", "Status"] : ["Measure", "Value", "Threshold", "vs Q2", "Risk owner", "Status"];
+  const rightHead = new Set(["Amber trigger", "Appetite limit", "vs Q2", "Status"]);
   return (
     <Card title={title} flush right={full ? <span className="text-xs text-slate-500">{`${MEASURES.length} measures`}</span> : undefined}>
       <div {...(inlineBar ? { "data-chart": "appetite-bar" } : {})}>
@@ -410,10 +410,10 @@ export function OwnerTable({ rows }: { rows: { role: string; measures: Measure[]
   useFigures(["f:owners"]);
   return (
     <Table
-      title="Accountable owners"
+      title="Risk owners"
       right={<span className="text-xs text-slate-500">{rows.length} owners</span>}
       cols="grid-cols-[minmax(180px,1.6fr)_88px_80px_96px_minmax(140px,1fr)_130px]"
-      head={["Owner", "Measures", "Off track", "Actions open", "Attestation this month", "Status"]}
+      head={["Risk owner", "Board measures", "Off track", "Actions open", "Attestation this month", "Status"]}
       rightCols={[1, 2, 3, 5]}
       rows={rows.map((o) => ({
         key: o.role,

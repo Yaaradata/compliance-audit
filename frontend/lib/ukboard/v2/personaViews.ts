@@ -96,7 +96,7 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         layout: [full("POSTURE"), row([8, "C_AGENDA", "C_PACK"], [4, "ESCALATION", "UNCHANGED"])],
       },
       { id: "exceptions", label: "Appetite exceptions", title: "Appetite exceptions", layout: [row([8, "EXCEPTIONS"], [4, "TRADEOFFS"])] },
-      { id: "owners", label: "Owners & attestation", title: "Owners and attestation", layout: [full("OWNERS"), row([4, "ATTEST_MONTH"], [8, "HEATMAP"])] },
+      { id: "owners", label: "Accountability & attestation", title: "Accountability and attestation", layout: [full("OWNERS"), row([4, "ATTEST_MONTH"], [8, "HEATMAP"])] },
       { id: "agents", label: "Agent governance", title: "Agent governance", layout: [row([4, "AUTONOMY"], [4, "RULES"], [4, "C_WAITING"]), full("ACTIVITY")] },
     ],
   },
