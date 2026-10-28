@@ -33,12 +33,18 @@ export function HeadroomGauge({
   const x = (v: number) => (v / max) * w;
   const label = `Actual ${actual}${unit} against amber ${amber}${unit} and red ${red}${unit}`;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-auto w-full max-w-md" role="img" aria-labelledby={`${id}-t`}>
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className={mode === "compact" ? "h-7 w-full" : "h-auto w-full"}
+      preserveAspectRatio={mode === "compact" ? "none" : undefined}
+      role="img"
+      aria-labelledby={`${id}-t`}
+    >
       <title id={`${id}-t`}>{label}</title>
       <rect x={0} y={8} width={w} height={10} rx={2} fill="var(--ukb-surface-2)" stroke="var(--ukb-track)" />
       <rect x={x(amber)} y={8} width={x(red) - x(amber)} height={10} fill="var(--ukb-amber-bg)" stroke="var(--ukb-amber)" />
       <rect x={x(red)} y={8} width={w - x(red)} height={10} fill="var(--ukb-red-bg)" stroke="var(--ukb-red)" />
-      <line x1={x(actual)} x2={x(actual)} y1={3} y2={23} stroke="var(--ukb-text)" strokeWidth={2.5} />
+      <line x1={x(actual)} x2={x(actual)} y1={3} y2={23} stroke="var(--ukb-text)" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
       {mode === "full" ? (
         <>
           {operatingLimit !== undefined ? (

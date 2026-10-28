@@ -302,20 +302,20 @@ export function AiExecutiveBand({
   aiLine: string;
 }) {
   const cell = (label: string, s: BandSection, tone: string): ReactNode => (
-    <div className={`min-w-0 rounded-lg border-l-4 bg-[var(--ukb-surface)] px-3 py-1.5 ${tone}`} title={s.text}>
+    <div className={`h-full min-w-0 rounded-lg border-l-4 bg-[var(--ukb-surface)] px-3 py-2 ${tone}`} title={s.text}>
       <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-subtle)]">{label}</p>
       {s.onClick ? (
-        <button type="button" onClick={s.onClick} className={`${ui.focus} block w-full truncate rounded text-left text-[13px] font-semibold text-[var(--ukb-text)] hover:underline`}>
+        <button type="button" onClick={s.onClick} className={`${ui.focus} block w-full rounded text-left text-[13px] font-semibold leading-snug text-[var(--ukb-text)] hover:underline`}>
           {s.text}
         </button>
       ) : (
-        <p className="truncate text-[13px] font-semibold text-[var(--ukb-text)]">{s.text}</p>
+        <p className="text-[13px] font-semibold leading-snug text-[var(--ukb-text)]">{s.text}</p>
       )}
     </div>
   );
   return (
-    <div role="region" aria-label="AI executive summary" className="grid grid-cols-1 gap-3 rounded-xl border border-[var(--ukb-ai)]/40 bg-[var(--ukb-ai-bg)] px-4 py-3 shadow-sm md:grid-cols-[auto_1fr_1fr_1fr] md:items-center">
-      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--ukb-ai-text)]" title={aiLine}>
+    <div role="region" aria-label="AI executive summary" className="grid grid-cols-1 gap-3 rounded-xl border border-[var(--ukb-ai)]/40 bg-[var(--ukb-ai-bg)] px-4 py-3 shadow-sm md:grid-cols-[auto_1fr_1fr_1fr] md:items-stretch">
+      <span className="inline-flex items-center gap-1 self-center text-[11px] font-semibold text-[var(--ukb-ai-text)]" title={aiLine}>
         <Sparkles className="h-4 w-4 text-[var(--ukb-ai)]" aria-hidden />
         AI summary
       </span>

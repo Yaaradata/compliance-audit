@@ -13,7 +13,7 @@ import { AiExecutiveBand } from "../ai";
 import {
   BoardLayoutGrid,
   CardShell,
-  DeltaValue,
+  CardFooter,
   Details,
   IntegrityBadge,
   MutedLine,
@@ -22,6 +22,7 @@ import {
   PrecedentLine,
   RuleLine,
   SoWhat,
+  StatGrid,
   StatusToken,
   TILE_TINT,
   TONE,
@@ -55,21 +56,23 @@ function PopulationTestCard() {
       integration={u.integration}
       highlight={nav.highlightRef === u.unitId}
       footer={
-        <div className="flex flex-col gap-3">
-          <IntegrityBadge badgeRef="s3-z1" snapshot={u.integrity} owner="Head of Financial Crime" />
-          <ActionList draftIds={u.draftIds} canGate={nav.canGate} />
-        </div>
+        <CardFooter
+          meta={<IntegrityBadge badgeRef="s3-z1" snapshot={u.integrity} owner="Head of Financial Crime" />}
+          actions={<ActionList draftIds={u.draftIds} canGate={nav.canGate} />}
+        />
       }
     >
-      <button type="button" onClick={open} className={`block rounded text-left ${ui.focus}`}>
-        <DeltaValue value={`${r.breachesAccounts} of ${r.tested.toLocaleString("en-GB")}`} denominator="tested accounts in breach" delta={`+${r.breachesAccounts - r.previousRun.breachesAccounts} vs previous run`} size="xl" />
-      </button>
-      <MutedLine>
-        {r.breachesCustomers} customers · {r.tested.toLocaleString("en-GB")} of {r.inScope.toLocaleString("en-GB")} openings in scope tested · {r.untested[0].count.toLocaleString("en-GB")} partner-channel
-        openings untested
-      </MutedLine>
+      <StatGrid
+        items={[
+          { label: "Accounts in breach", value: `${r.breachesAccounts}`, sub: `of ${r.tested.toLocaleString("en-GB")} tested · +${r.breachesAccounts - r.previousRun.breachesAccounts} vs previous run`, status: "red", onClick: open },
+          { label: "Customers", value: `${r.breachesCustomers}`, sub: `incl. ${r.previouslyExited} previously exited`, status: "red", onClick: open },
+          { label: "Population tested", value: `${r.tested.toLocaleString("en-GB")}`, sub: `of ${r.inScope.toLocaleString("en-GB")} openings in scope`, onClick: open },
+          { label: "Untested", value: `${r.untested[0].count.toLocaleString("en-GB")}`, sub: "partner-channel openings, not compliant", status: "not_assessed", onClick: open },
+        ]}
+      />
 
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <p className="mb-1.5 mt-4 text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-subtle)]">Breaches by route</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {r.byRoute.map((b) => (
           <div key={b.route} className={`rounded-lg border px-3 py-2 ${TILE_TINT.red}`}>
             <p className="text-lg font-bold tabular-nums text-[var(--ukb-red)]">{b.accounts}</p>
@@ -107,14 +110,19 @@ function ClauseEvidenceList() {
       title="Does the attestation we are about to give match the test?"
       footer={<ActionList draftIds={["d-t228-summary", "d-t228-facts"]} canGate={nav.canGate} />}
     >
-      <button
-        type="button"
-        onClick={() => nav.drill({ screen: "drill", kind: "clause", restrictionId: r.restrictionId, focus: "attestation" }, "s3-z2")}
-        className={`block rounded text-left ${ui.focus}`}
-      >
-        <DeltaValue value={`${notSupported} of ${r.clauses.length}`} denominator="clauses not supported" size="lg" />
-      </button>
-      <MutedLine>Q3 2026 attestation due in {r.attestationDaysLeft} days ({r.attestationDue})</MutedLine>
+      <StatGrid
+        cols={2}
+        items={[
+          {
+            label: "Clauses not supported",
+            value: `${notSupported} of ${r.clauses.length}`,
+            sub: "by the test evidence",
+            status: "red",
+            onClick: () => nav.drill({ screen: "drill", kind: "clause", restrictionId: r.restrictionId, focus: "attestation" }, "s3-z2"),
+          },
+          { label: "Attestation due", value: `${r.attestationDaysLeft} days`, sub: `Q3 2026 · ${r.attestationDue}`, status: "amber" },
+        ]}
+      />
       <ul className="mt-3 divide-y divide-[var(--ukb-border)] rounded-lg border border-[var(--ukb-border)]">
         {r.clauses.map((c) => (
           <li key={c.clauseId} className={`flex items-center justify-between gap-2 border-l-4 px-3 py-2 text-xs ${TONE[VERDICT[c.verdict].status].edge}`}>

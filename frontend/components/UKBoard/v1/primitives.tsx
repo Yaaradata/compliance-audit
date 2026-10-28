@@ -29,9 +29,9 @@ export function BoardLayoutGrid({
         r.full ? (
           <div key={r.key}>{r.full}</div>
         ) : (
-          <div key={r.key} className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
-            <div className="lg:col-span-2">{r.left}</div>
-            <div className="flex flex-col gap-5">{r.rightStack}</div>
+          <div key={r.key} className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <div className="flex flex-col lg:col-span-2 [&>section]:flex-1">{r.left}</div>
+            <div className="flex flex-col gap-5 [&>section]:flex-1">{r.rightStack}</div>
           </div>
         ),
       )}
@@ -388,9 +388,64 @@ export function RuleLine({ children }: { children: ReactNode }) {
   );
 }
 
-/** One short "so what" line under the number. */
+/** "So what" as a labelled callout, so the decision reads apart from the figures. */
 export function SoWhat({ children }: { children: ReactNode }) {
-  return <p className="mt-2 text-sm leading-snug text-[var(--ukb-text)]">{children}</p>;
+  return (
+    <div className="mt-4 rounded-lg border border-[var(--ukb-brand)]/25 bg-[var(--ukb-brand-soft)] px-3 py-2.5">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-accent)]">So what</p>
+      <p className="mt-0.5 text-sm leading-snug text-[var(--ukb-text)]">{children}</p>
+    </div>
+  );
+}
+
+/* Stat boxes: every figure sits in a labelled cell (label · value · sub-line). */
+export interface StatItem {
+  label: string;
+  value: string;
+  sub?: string;
+  /** Colours the value and the cell edge. Omit for neutral. */
+  status?: Status;
+  onClick?: () => void;
+}
+
+export function StatGrid({ items, cols = 4 }: { items: StatItem[]; cols?: 2 | 3 | 4 }) {
+  const grid = cols === 2 ? "sm:grid-cols-2" : cols === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2 xl:grid-cols-4";
+  return (
+    <div className={`grid grid-cols-1 gap-2.5 ${grid}`}>
+      {items.map((it) => {
+        const tone = it.status ? TONE[it.status] : undefined;
+        const body = (
+          <>
+            <span className="block text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-subtle)]">{it.label}</span>
+            <span className={`mt-1 block text-xl font-bold leading-tight tabular-nums ${tone ? tone.number : "text-[var(--ukb-text)]"}`}>{it.value}</span>
+            {it.sub ? <span className="mt-0.5 block text-[11px] leading-snug text-[var(--ukb-muted)]">{it.sub}</span> : null}
+          </>
+        );
+        const cls = `block h-full w-full rounded-lg border border-[var(--ukb-border)] bg-[var(--ukb-surface)] px-3 py-2.5 text-left ${
+          tone ? `border-l-4 ${tone.edge}` : ""
+        }`;
+        return it.onClick ? (
+          <button key={it.label} type="button" onClick={it.onClick} className={`${cls} hover:bg-[var(--ukb-surface-2)] ${ui.focus}`}>
+            {body}
+          </button>
+        ) : (
+          <div key={it.label} className={cls}>
+            {body}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Footer: checks and owner on one line, then the actions (a draft opens full width below). */
+export function CardFooter({ meta, actions }: { meta: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="min-w-0">{meta}</div>
+      {actions}
+    </div>
+  );
 }
 
 export function MutedLine({ children }: { children: ReactNode }) {

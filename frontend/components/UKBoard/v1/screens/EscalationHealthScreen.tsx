@@ -8,9 +8,9 @@
  */
 import { EVENTS, KRI_TILES, MANIFEST_ID, PACK_ITEMS, ROUTES, SERIES, UNITS } from "@/lib/ukboard/v1/data";
 import { projectedCrossing } from "@/lib/ukboard/v1/selectors";
-import type { KriTile } from "@/lib/ukboard/v1/types";
+import type { KriTile, Status } from "@/lib/ukboard/v1/types";
 import { AiExecutiveBand, DraftActionCard, GatedFaceLine } from "../ai";
-import { BoardLayoutGrid, CardShell, DeltaValue, Details, IntegrityBadge, MutedLine, PageTitle, PracticeLabel, RuleLine, SoWhat, StatusToken, TILE_TINT, TONE } from "../primitives";
+import { BoardLayoutGrid, CardShell, Details, IntegrityBadge, MutedLine, PageTitle, PracticeLabel, RuleLine, SoWhat, StatGrid, StatusToken, TONE, type StatItem } from "../primitives";
 import { agendaProposalCount, useBoard } from "../state/boardStore";
 import { ui } from "../theme";
 import { unitStatus, useNav } from "./shared";
@@ -25,11 +25,21 @@ function useLatestManifest() {
   return versions[versions.length - 1];
 }
 
-const QUARTERS = [
-  { label: "Q1 2026", value: "14.2" },
-  { label: "Q2 2026", value: "15.8" },
-  { label: "Q3 2026", value: "16.9" },
-];
+/** Two labelled figures per governance KRI tile (DG-10 has the full detail). */
+const KRI_STATS: Record<KriTile["variant"], (status: Status) => StatItem[]> = {
+  backlog: (st) => [
+    { label: "Projected clearance", value: "31 months", sub: "against 12 committed", status: st },
+    { label: "Extensions", value: "3", sub: "against a limit of 2 · never in a BRC pack" },
+  ],
+  latency: (st) => [
+    { label: "Median to BRC", value: "4.6 months", sub: "n = 23 high-severity issues", status: st },
+    { label: "Unescalated", value: "3", sub: "material items after 12 months" },
+  ],
+  effectiveness: (st) => [
+    { label: "Overdue CDD reviews", value: "26,900", sub: "against a 10,000 target", status: st },
+    { label: "Actions closed", value: "42", sub: "this quarter; 2 issues downgraded" },
+  ],
+};
 
 /* Z1 headline: T2-34 with the T2-35 state inline */
 function EscalationHeadline() {
@@ -55,23 +65,22 @@ function EscalationHeadline() {
       <button type="button" onClick={open} className={`block rounded text-left ${ui.focus}`}>
         <p className="text-lg font-bold leading-snug text-[var(--ukb-text)]">1 qualifying item was removed at ERC on 14 October 2026 with no reason recorded</p>
       </button>
-      <MutedLine>Vulnerable-customer exceptions · amber for 3 quarters · no action, decision or escalation recorded</MutedLine>
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        {QUARTERS.map((q) => (
-          <div key={q.label} className={`rounded-lg border px-3 py-2 ${TILE_TINT.amber}`}>
-            <p className="text-lg font-bold tabular-nums text-[var(--ukb-amber)]">{q.value}</p>
-            <p className="text-[11px] text-[var(--ukb-muted)]">{q.label} · per 10,000</p>
-          </div>
-        ))}
+      <MutedLine>Vulnerable-customer exceptions per 10,000 contacts</MutedLine>
+      <div className="mt-3">
+        <StatGrid
+          items={[
+            { label: "Q3 2026", value: "16.9", sub: "Q2 15.8 · Q1 14.2", status: "amber", onClick: open },
+            { label: "At amber", value: "3 quarters", sub: "persistence rule: 2 (practice)", status: "amber", onClick: open },
+            { label: "Red projected", value: redIn ?? "—", sub: "red 18 · early warning, not a prediction", onClick: open },
+            { label: "Recorded", value: "None", sub: "no action, decision or escalation", status: "red", onClick: open },
+          ]}
+        />
       </div>
-      <MutedLine>
-        Amber 14 · red 18 · red projected {redIn ?? "—"} (early warning, not a prediction)
-      </MutedLine>
       <SoWhat>Put it on the December agenda and decide remediation, a time-limited waiver or a recalibration review.</SoWhat>
       <Details>
         <RuleLine>{u.ruleLine}</RuleLine>
         <MutedLine>
-          Persistence rule: 2 quarters at Level 2 <PracticeLabel kind="practice_not_rule" />. This proves nothing was recorded, not that nothing was discussed.
+          Persistence rule: 2 quarters at Level 2 <PracticeLabel kind="practice_not_rule" />. Amber 14, red 18. This proves nothing was recorded, not that nothing was discussed.
         </MutedLine>
       </Details>
     </CardShell>
@@ -86,10 +95,18 @@ function ExceptionFeed() {
   const inPack = latest.itemIds.length;
   return (
     <CardShell id="s4-z2" title="What qualified for this BRC?">
-      <DeltaValue value={`${inPack} of ${PACK_ITEMS.length}`} denominator={`qualifying items in the pack (v${latest.version}, ${latest.state})`} size="lg" />
-      <MutedLine>
-        {PACK_ITEMS.length - inPack ? "1 removed at ERC with no reason recorded" : `1 removed at ERC, restored in draft v${latest.version}`}
-      </MutedLine>
+      <StatGrid
+        cols={2}
+        items={[
+          { label: "In the pack", value: `${inPack} of ${PACK_ITEMS.length}`, sub: `qualifying items · v${latest.version} ${latest.state}`, status: inPack < PACK_ITEMS.length ? "amber" : "within_appetite" },
+          {
+            label: "Removed, no reason",
+            value: inPack < PACK_ITEMS.length ? "1" : "0",
+            sub: inPack < PACK_ITEMS.length ? "at ERC, 14 October 2026" : `restored in draft v${latest.version}`,
+            status: inPack < PACK_ITEMS.length ? "red" : "within_appetite",
+          },
+        ]}
+      />
       <p className="mb-1 mt-3 text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-subtle)]">Exception feed and override log</p>
       <div className="max-h-[236px] overflow-y-auto rounded-lg border border-[var(--ukb-border)]" role="list" aria-label="Exception feed">
         {ordered.map((i) => {
@@ -148,10 +165,10 @@ function GovernanceKriTile({ tile }: { tile: KriTile }) {
         </div>
       }
     >
-      <button type="button" onClick={() => nav.drill({ screen: "drill", kind: "kri", unitId: tile.unitId }, tile.unitId)} className={`block rounded text-left ${ui.focus}`}>
-        <p className={`text-xl font-bold leading-snug ${TONE[unitStatus(u.unitId)].number}`}>{tile.primary}</p>
-      </button>
-      <MutedLine>{tile.secondary}</MutedLine>
+      <StatGrid
+        cols={2}
+        items={KRI_STATS[tile.variant](unitStatus(u.unitId)).map((it) => ({ ...it, onClick: () => nav.drill({ screen: "drill", kind: "kri", unitId: tile.unitId }, tile.unitId) }))}
+      />
       <Details>
         <RuleLine>{tile.ruleLine}</RuleLine>
       </Details>

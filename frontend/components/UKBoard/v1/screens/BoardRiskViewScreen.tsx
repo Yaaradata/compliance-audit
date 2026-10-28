@@ -3,8 +3,8 @@
 /**
  * UK Board v1 — S1 Board Risk View (beats 1 and 2). Post-9C layout:
  * row 0 AI band · row 1 headline + strip | Z2 above Z5 · row 2 boxed scorecard · row 3 horizon.
- * Each value renders once on S1 (V-5). Faces carry one number and one line; the rule line,
- * owner detail and precedents sit under Details.
+ * Each value renders once on S1 (V-5). Every figure sits in a labelled stat box; the rule
+ * line, owner detail and precedents sit under Details.
  */
 import { CAPACITY, FIRM, HORIZON, OBJECTIVES, PEOPLE, PROMOTION, SCORECARD, THRESHOLDS, UNITS } from "@/lib/ukboard/v1/data";
 import { rankScorecard, statusCounts, verifiedCount } from "@/lib/ukboard/v1/selectors";
@@ -14,8 +14,8 @@ import { AiExecutiveBand } from "../ai";
 import { HeadroomGauge } from "../cards/charts";
 import {
   BoardLayoutGrid,
+  CardFooter,
   CardShell,
-  DeltaValue,
   Details,
   IntegrityBadge,
   MutedLine,
@@ -24,6 +24,7 @@ import {
   PrecedentLine,
   RuleLine,
   SoWhat,
+  StatGrid,
   StatusToken,
   TILE_TINT,
   TONE,
@@ -53,6 +54,7 @@ function HeadlineAndStrip() {
   const t = THRESHOLDS["u-hltv"];
   const counts = statusCounts(SCORECARD, UNITS);
   const verified = verifiedCount(SCORECARD, UNITS);
+  const open = () => nav.toRisk("credit", u.unitId);
   return (
     <CardShell
       id="zone-z1"
@@ -61,28 +63,40 @@ function HeadlineAndStrip() {
       statusLabel="Within appetite · amber projected"
       highlight={nav.highlightRef === u.unitId}
       footer={
-        <div className="flex flex-col gap-3">
-          <IntegrityBadge badgeRef="z1" snapshot={u.integrity} owner={u.ownerRole} onOpenEvidence={() => nav.toRisk("credit", u.unitId)} />
-          <ActionList draftIds={u.draftIds} canGate={nav.canGate} />
-        </div>
+        <CardFooter
+          meta={<IntegrityBadge badgeRef="z1" snapshot={u.integrity} owner={u.ownerRole} onOpenEvidence={open} />}
+          actions={<ActionList draftIds={u.draftIds} canGate={nav.canGate} />}
+        />
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
-        <div>
-          <button type="button" onClick={() => nav.toRisk("credit", u.unitId)} className={`block rounded text-left ${ui.focus}`}>
-            <DeltaValue value="88%" denominator="of high-LTV appetite used" delta="+1.5 pts vs Q2 2026" size="xl" />
-          </button>
-          <MutedLine>
-            £96m headroom on a £4.0bn new-lending plan · amber projected Q2 2027 (early warning, not a prediction) <PracticeLabel kind="illustrative" />
-          </MutedLine>
+      <StatGrid
+        items={[
+          { label: "Appetite used", value: "88%", sub: "17.6% of 20% · +1.5 pts vs Q2", status: "within_appetite", onClick: open },
+          { label: "Headroom", value: "£96m", sub: "on a £4.0bn new-lending plan", onClick: open },
+          { label: "Amber projected", value: "Q2 2027", sub: "Early warning, not a prediction", status: "amber", onClick: open },
+          { label: "Headlines verified", value: `${verified} of ${SCORECARD.length}`, sub: `${counts.unverified} unverified`, status: "unverified", onClick: () => scrollToZone("Z5") },
+        ]}
+      />
+
+      <div className="mt-4 rounded-lg border border-[var(--ukb-border)] px-3 py-3">
+        <div className="mb-1 flex items-baseline justify-between text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-subtle)]">
+          <span>High-LTV share of new lending</span>
+          <PracticeLabel kind="illustrative" />
         </div>
-        <span className="inline-flex items-center gap-1 self-start rounded-md border border-dashed border-[var(--ukb-grey-line)] bg-[var(--ukb-grey-tint)] px-2 py-1 text-xs font-semibold text-[var(--ukb-text)] md:self-end">
-          {verified} of {SCORECARD.length} headlines verified · {counts.unverified} unverified
-        </span>
-      </div>
-      <div className="mt-3">
         <HeadroomGauge actual={17.6} amber={t.amber} red={t.red} max={t.capacity ?? 24} unit="%" mode="compact" />
+        <div className="mt-1 grid grid-cols-3 text-[11px] text-[var(--ukb-muted)]">
+          <span>
+            Actual <span className="font-bold text-[var(--ukb-text)]">17.6%</span>
+          </span>
+          <span className="text-center">
+            Amber <span className="font-bold text-[var(--ukb-amber)]">{t.amber}%</span>
+          </span>
+          <span className="text-right">
+            Red (appetite) <span className="font-bold text-[var(--ukb-red)]">{t.red}%</span>
+          </span>
+        </div>
       </div>
+
       <SoWhat>Room to grow in mortgages to Q2 2027. Savings growth is outside its controls: decide pace or capacity, and caveat two figures before the pack locks.</SoWhat>
       <Details>
         <RuleLine>{u.ruleLine}</RuleLine>
@@ -112,9 +126,7 @@ function ObjectiveTile({ tile }: { tile: ObjectiveTileVM }) {
   const status = unitStatus(u.unitId);
   const highlighted = nav.highlightRef === tile.drill.focusUnitId;
   return (
-    <div
-      className={`flex min-h-[112px] flex-col rounded-lg border p-3 ${TILE_TINT[status]} ${highlighted ? "ring-2 ring-[var(--ukb-focus)]" : ""}`}
-    >
+    <div className={`flex min-h-[116px] flex-col rounded-lg border p-3 ${TILE_TINT[status]} ${highlighted ? "ring-2 ring-[var(--ukb-focus)]" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <button
           type="button"
@@ -130,7 +142,7 @@ function ObjectiveTile({ tile }: { tile: ObjectiveTileVM }) {
       <span id={`tip-${tile.objectiveId}`} className="sr-only">
         {tile.tooltip.join(". ")}
       </span>
-      <p className="mt-1.5 text-xs leading-snug text-[var(--ukb-muted)]">{TILE_LINE[tile.objectiveId]}</p>
+      <p className="mt-2 text-xs leading-snug text-[var(--ukb-muted)]">{TILE_LINE[tile.objectiveId]}</p>
       {tile.floorRow ? (
         <p className="mt-1 text-xs font-semibold leading-snug text-[var(--ukb-red)]">Floor breach: pre-CDD transacting (not a trade-off)</p>
       ) : null}
@@ -145,6 +157,7 @@ function ObjectiveTile({ tile }: { tile: ObjectiveTileVM }) {
 function CapacityCard() {
   const nav = useNav();
   const u = UNITS["u-capacity"];
+  const open = () => nav.toRisk("fincrime", u.unitId);
   return (
     <CardShell
       id="zone-z2"
@@ -153,18 +166,21 @@ function CapacityCard() {
       integration={u.integration}
       highlight={nav.highlightRef === u.unitId}
       footer={
-        <div className="flex flex-col gap-3">
-          <IntegrityBadge badgeRef="z2" snapshot={u.integrity} owner="Head of Financial Crime" onOpenEvidence={() => nav.toRisk("fincrime", u.unitId)} />
-          <ActionList draftIds={["d-t25-choice", "d-t25-paper"]} canGate={nav.canGate} />
-        </div>
+        <CardFooter
+          meta={<IntegrityBadge badgeRef="z2" snapshot={u.integrity} owner="Head of Financial Crime" onOpenEvidence={open} />}
+          actions={<ActionList draftIds={["d-t25-choice", "d-t25-paper"]} canGate={nav.canGate} />}
+        />
       }
     >
-      <button type="button" onClick={() => nav.toRisk("fincrime", u.unitId)} className={`block rounded text-left ${ui.focus}`}>
-        <DeltaValue value="19 days" denominator="queue age · amber 14" delta="+7 vs Q2" size="lg" />
-      </button>
-      <MutedLine>
-        Members +31% · qualified handlers +9% · {CAPACITY.membersPerHandler.to.toLocaleString("en-GB")} members per handler
-      </MutedLine>
+      <StatGrid
+        cols={2}
+        items={[
+          { label: "Queue median age", value: "19 days", sub: "Amber 14 · +7 vs Q2", status: "amber", onClick: open },
+          { label: "Members per handler", value: CAPACITY.membersPerHandler.to.toLocaleString("en-GB"), sub: `Was ${CAPACITY.membersPerHandler.from.toLocaleString("en-GB")}`, onClick: open },
+          { label: "Members", value: "+31%", sub: "1.45m → 1.90m", onClick: open },
+          { label: "Qualified handlers", value: "+9%", sub: "58 → 63", onClick: open },
+        ]}
+      />
       <SoWhat>Next savings campaign in 6 weeks; no resourcing decision recorded.</SoWhat>
       <Details>
         <RuleLine>{u.ruleLine}</RuleLine>
@@ -185,36 +201,41 @@ function DefensibilityCard() {
   const { state } = useBoard();
   const u = UNITS["u-tm"];
   const caveat = state.session.caveats[u.unitId];
+  const open = () => nav.toRisk("fincrime", u.unitId);
   return (
     <CardShell
       id="zone-z5"
-      title={u.title}
+      title="Can I defend this figure? Transaction monitoring coverage"
       status={unitStatus(u.unitId)}
       integration={u.integration}
       highlight={nav.highlightRef === u.unitId}
       footer={
-        <div className="flex flex-col gap-3">
-          <IntegrityBadge badgeRef="z5" snapshot={u.integrity} owner="Feed owner" onOpenEvidence={() => nav.toRisk("fincrime", u.unitId)} />
-          <ActionList draftIds={["d-t214-caveat", "d-t214-remed", "d-t217-challenge", "d-t214-triage"]} canGate={nav.canGate} />
-        </div>
+        <CardFooter
+          meta={<IntegrityBadge badgeRef="z5" snapshot={u.integrity} owner="Feed owner" onOpenEvidence={open} />}
+          actions={<ActionList draftIds={["d-t214-caveat", "d-t214-remed", "d-t217-challenge", "d-t214-triage"]} canGate={nav.canGate} />}
+        />
       }
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ukb-subtle)]">Transaction monitoring coverage</p>
-      <button type="button" onClick={() => nav.toRisk("fincrime", u.unitId)} className={`mt-1 block rounded text-left ${ui.focus}`}>
-        <DeltaValue value="94.0%" denominator="records reconciled (2,256,000 of 2,400,000)" size="lg" />
-      </button>
-      <MutedLine>Same-day accounts 0% monitored · attestation signed 3 hours before the run finished</MutedLine>
+      <StatGrid
+        cols={2}
+        items={[
+          { label: "Records reconciled", value: "94.0%", sub: "2,256,000 of 2,400,000", status: "unverified", onClick: open },
+          { label: "Same-day accounts", value: "0%", sub: "monitored in the 26 October run", status: "unverified", onClick: open },
+          { label: "Other cohorts", value: "99.97%", sub: "2,256,677 records", onClick: open },
+          { label: "Attestation", value: "3 hours", sub: "signed before the run finished", status: "unverified", onClick: open },
+        ]}
+      />
       {caveat ? (
-        <p className="mt-2 rounded-md bg-[var(--ukb-surface-2)] px-2 py-1 text-xs font-semibold text-[var(--ukb-text)]">
-          Caveat accepted by {PEOPLE[caveat.byPersonId].name} on {caveat.on}; in pack with caveat
+        <p className="mt-3 rounded-md border border-dashed border-[var(--ukb-grey-line)] bg-[var(--ukb-grey-tint)] px-3 py-2 text-xs font-semibold text-[var(--ukb-text)]">
+          Still Unverified · caveat accepted by {PEOPLE[caveat.byPersonId].name} on {caveat.on}; in pack with caveat
         </p>
       ) : null}
       <SoWhat>Caveat or withhold before the pack locks, and ask the feed owner to re-attest.</SoWhat>
       <Details>
         <RuleLine>{u.ruleLine}</RuleLine>
         <RuleLine>The attestation must reference a finished run. The month 2 signature preceded the run by 3 hours.</RuleLine>
-        <MutedLine>Last run 26 October 2026; other cohorts 99.97%. Proves records were not monitored, not that suspicion was missed.</MutedLine>
-        <PrecedentLine id="uk-metro-2024" onOpen={() => nav.toRisk("fincrime", u.unitId)} />
+        <MutedLine>Proves records were not monitored, not that suspicious activity was missed.</MutedLine>
+        <PrecedentLine id="uk-metro-2024" onOpen={open} />
       </Details>
     </CardShell>
   );
@@ -229,29 +250,36 @@ function RasScorecard() {
   const nsfr = UNITS[PROMOTION.unitId];
   return (
     <CardShell id="zone-z4" title="Which board headlines need attention?">
-      <div className="hidden grid-cols-[28px_1fr_240px_150px_64px] gap-3 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--ukb-subtle)] md:grid">
+      <div className="mb-3 flex flex-wrap gap-2">
+        <StatusToken status="red" label={`${counts.red} red`} />
+        <StatusToken status="unverified" label={`${counts.unverified} unverified`} />
+        <StatusToken status="amber" label={`${counts.amber} amber`} />
+        <StatusToken status="within_appetite" label={`${counts.within_appetite} within appetite`} />
+      </div>
+      <div className="hidden grid-cols-[28px_1fr_260px_150px_64px] gap-3 px-4 pb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--ukb-subtle)] md:grid">
         <span>#</span>
         <span>Headline</span>
         <span>Position</span>
         <span>Status</span>
         <span>Checks</span>
       </div>
-      <div className="max-h-[232px] overflow-y-auto rounded-lg border border-[var(--ukb-border)]" role="list" aria-label="Board headlines">
+      <div className="max-h-[236px] overflow-y-auto rounded-lg border border-[var(--ukb-border)]" role="list" aria-label="Board headlines">
         {ranked.map((r, i) => (
           <ScorecardRow key={r.unitId} row={r} rank={i + 1} highlighted={nav.highlightRef === r.unitId} />
         ))}
       </div>
       <p className="mt-2 text-xs font-semibold text-[var(--ukb-muted)]">
-        {counts.within_appetite} of {SCORECARD.length} within appetite · {FIRM.headlineCap} of {FIRM.level1Count} Level 1 metrics
+        {FIRM.headlineCap} of {FIRM.level1Count} Level 1 metrics shown as board headlines
         <PracticeLabel kind="practice_not_rule" />
       </p>
-      <div className="mt-4 flex flex-col gap-3 rounded-lg border border-[var(--ukb-brand)]/30 bg-[var(--ukb-brand-soft)] p-3 md:flex-row md:items-center md:justify-between">
+      <div className="mt-4 grid grid-cols-1 items-center gap-3 rounded-lg border border-[var(--ukb-brand)]/30 bg-[var(--ukb-brand-soft)] p-3 md:grid-cols-[1fr_auto]">
         <div>
-          <p className="text-xs font-bold text-[var(--ukb-text)]">
-            {state.session.promoted ? "Promoted to the board view: NSFR" : "Proposed for the board view: NSFR"}
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-accent)]">
+            {state.session.promoted ? "Promoted to the board view" : "Proposed for the board view"}
           </p>
-          <button type="button" onClick={() => nav.toRisk("liquidity", nsfr.unitId)} className={`rounded text-left ${ui.focus}`} title={nsfr.ruleLine}>
-            <DeltaValue value={nsfr.position!.value} denominator="against amber 115% · 10 → 2 pts above amber in one quarter" />
+          <button type="button" onClick={() => nav.toRisk("liquidity", nsfr.unitId)} className={`mt-0.5 block rounded text-left ${ui.focus}`} title={nsfr.ruleLine}>
+            <span className="text-sm font-bold text-[var(--ukb-text)]">NSFR {nsfr.position!.value}</span>{" "}
+            <span className="text-xs text-[var(--ukb-muted)]">against amber 115% · from 10 to 2 points above amber in one quarter</span>
           </button>
         </div>
         <ActionList draftIds={nsfr.draftIds} canGate={nav.canGate} />
@@ -270,8 +298,8 @@ function ScorecardRow({ row, rank, highlighted }: { row: ScorecardRowVM; rank: n
     <div
       role="listitem"
       title={u.ruleLine}
-      className={`grid min-h-[58px] grid-cols-[28px_1fr] items-center gap-x-3 gap-y-1 border-b border-l-4 border-b-[var(--ukb-border)] px-3 py-2 last:border-b-0 md:grid-cols-[28px_1fr_240px_150px_64px] ${TONE[status].edge} ${
-        highlighted ? "bg-[var(--ukb-highlight)]" : status === "red" || status === "amber" ? `${TONE[status].tint}` : "hover:bg-[var(--ukb-surface-2)]"
+      className={`grid min-h-[58px] grid-cols-[28px_1fr] items-center gap-x-3 gap-y-1 border-b border-l-4 border-b-[var(--ukb-border)] px-3 py-2 last:border-b-0 md:grid-cols-[28px_1fr_260px_150px_64px] ${TONE[status].edge} ${
+        highlighted ? "bg-[var(--ukb-highlight)]" : status === "red" || status === "amber" ? TONE[status].tint : "hover:bg-[var(--ukb-surface-2)]"
       }`}
     >
       <span className="text-xs tabular-nums text-[var(--ukb-subtle)]">{rank}</span>
@@ -316,23 +344,28 @@ function ScorecardRow({ row, rank, highlighted }: { row: ScorecardRowVM; rank: n
 function HorizonLine() {
   const nav = useNav();
   const u = UNITS["u-horizon"];
+  const open = () => nav.toRisk("fincrime", u.unitId);
   return (
-    <CardShell id="zone-z6" title={u.title} status={unitStatus(u.unitId)} notAssessedReason="1 risk unmeasured">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <button type="button" onClick={() => nav.toRisk("fincrime", u.unitId)} className={`rounded text-left text-sm text-[var(--ukb-text)] hover:underline ${ui.focus}`}>
-            {u.stateSentence}
-          </button>
-          <MutedLine>
-            {HORIZON.daysToIncidentRules} days to the new incident reporting rules ({HORIZON.incidentRulesDate}) · {HORIZON.disclosureHold} disclosure figure under hold review
-          </MutedLine>
-        </div>
-        <ActionList draftIds={u.draftIds} canGate={nav.canGate} />
-      </div>
+    <CardShell
+      id="zone-z6"
+      title={u.title}
+      status={unitStatus(u.unitId)}
+      notAssessedReason="1 risk unmeasured"
+      footer={<CardFooter meta={<IntegrityBadge badgeRef="z6" snapshot={u.integrity} owner="Head of Financial Crime" compact />} actions={<ActionList draftIds={u.draftIds} canGate={nav.canGate} />} />}
+    >
+      <StatGrid
+        items={[
+          { label: "Emerging risks", value: String(HORIZON.emergingRisks), sub: "in the register", onClick: open },
+          { label: "Within 12 months", value: String(HORIZON.withinTwelveMonths), sub: "expected to crystallise", onClick: open },
+          { label: "With no metric", value: "1", sub: HORIZON.unmapped, status: "amber", onClick: open },
+          { label: "Days to new rules", value: String(HORIZON.daysToIncidentRules), sub: `Incident reporting from ${HORIZON.incidentRulesDate}` },
+        ]}
+      />
       <Details>
         <RuleLine>{u.ruleLine}</RuleLine>
         <MutedLine>
-          {HORIZON.trialClassified.classified} of {HORIZON.trialClassified.total} incidents this year classified under the new rules in a trial run.
+          {HORIZON.trialClassified.classified} of {HORIZON.trialClassified.total} incidents this year classified under the new rules in a trial run · {HORIZON.disclosureHold} disclosure figure under
+          hold review.
         </MutedLine>
       </Details>
     </CardShell>
