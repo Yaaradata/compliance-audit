@@ -78,7 +78,7 @@ function HeadlineAndStrip() {
         ]}
       />
 
-      <div className="mt-4 rounded-lg border border-[var(--ukb-border)] px-3 py-3">
+      <div className="mt-3 rounded-lg border border-[var(--ukb-border)] px-3 py-2">
         <div className="mb-1 flex items-baseline justify-between text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-subtle)]">
           <span>High-LTV share of new lending</span>
           <PracticeLabel kind="illustrative" />
@@ -103,14 +103,14 @@ function HeadlineAndStrip() {
         <MutedLine>Owner: {u.ownerRole}. Projection assumes plan volumes and the current mix.</MutedLine>
       </Details>
 
-      <div className="mt-5 border-t border-[var(--ukb-border)] pt-4">
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+      <div className="mt-3 border-t border-[var(--ukb-border)] pt-3">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-xs font-bold uppercase tracking-wide text-[var(--ukb-subtle)]">Strategy strip</h3>
           <button type="button" onClick={() => nav.toRisk("fincrime", "u-unmapped")} className={`text-xs ${ui.link} ${ui.focus}`}>
             1 plan initiative has no appetite statement
           </button>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {OBJECTIVES.filter((o) => !(o.statutoryLine && FIRM.firmType !== "building_society")).map((o) => (
             <ObjectiveTile key={o.objectiveId} tile={o} />
           ))}
@@ -126,7 +126,7 @@ function ObjectiveTile({ tile }: { tile: ObjectiveTileVM }) {
   const status = unitStatus(u.unitId);
   const highlighted = nav.highlightRef === tile.drill.focusUnitId;
   return (
-    <div className={`flex min-h-[132px] flex-col rounded-lg border p-3 ${TILE_TINT[status]} ${highlighted ? "ring-2 ring-[var(--ukb-focus)]" : ""}`}>
+    <div className={`flex flex-col gap-1.5 rounded-lg border px-3 py-2.5 ${TILE_TINT[status]} ${highlighted ? "ring-2 ring-[var(--ukb-focus)]" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <button
           type="button"
@@ -142,11 +142,11 @@ function ObjectiveTile({ tile }: { tile: ObjectiveTileVM }) {
       <span id={`tip-${tile.objectiveId}`} className="sr-only">
         {tile.tooltip.join(". ")}
       </span>
-      <p className="mt-2 text-xs leading-snug text-[var(--ukb-muted)]">{TILE_LINE[tile.objectiveId]}</p>
+      <p className="text-xs leading-snug text-[var(--ukb-muted)]">{TILE_LINE[tile.objectiveId]}</p>
       {tile.floorRow ? (
-        <p className="mt-1 text-xs font-semibold leading-snug text-[var(--ukb-red)]">Floor breach: pre-CDD transacting (not a trade-off)</p>
+        <p className="text-xs font-semibold leading-snug text-[var(--ukb-red)]">Floor breach: pre-CDD transacting (not a trade-off)</p>
       ) : null}
-      <div className="mt-auto pt-2">
+      <div className="mt-auto">
         <IntegrityBadge badgeRef={`tile-${tile.objectiveId}`} snapshot={u.integrity} compact onOpenEvidence={() => nav.toRisk(tile.drill.principalRiskId, tile.drill.focusUnitId)} />
       </div>
     </div>
@@ -256,7 +256,7 @@ function RasScorecard() {
         <StatusToken status="amber" label={`${counts.amber} amber`} />
         <StatusToken status="within_appetite" label={`${counts.within_appetite} within appetite`} />
       </div>
-      <div className="hidden grid-cols-[28px_1fr_260px_150px_64px] gap-3 px-4 pb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--ukb-subtle)] md:grid">
+      <div className="hidden grid-cols-[28px_1fr_240px_140px_180px] gap-3 px-4 pb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--ukb-subtle)] md:grid">
         <span>#</span>
         <span>Headline</span>
         <span>Position</span>
@@ -298,7 +298,7 @@ function ScorecardRow({ row, rank, highlighted }: { row: ScorecardRowVM; rank: n
     <div
       role="listitem"
       title={u.ruleLine}
-      className={`grid min-h-[58px] grid-cols-[28px_1fr] items-center gap-x-3 gap-y-1 border-b border-l-4 border-b-[var(--ukb-border)] px-3 py-2 last:border-b-0 md:grid-cols-[28px_1fr_260px_150px_64px] ${TONE[status].edge} ${
+      className={`grid min-h-[58px] grid-cols-[28px_1fr] items-center gap-x-3 gap-y-1 border-b border-l-4 border-b-[var(--ukb-border)] px-3 py-2 last:border-b-0 md:grid-cols-[28px_1fr_240px_140px_180px] ${TONE[status].edge} ${
         highlighted ? "bg-[var(--ukb-highlight)]" : status === "red" || status === "amber" ? TONE[status].tint : "hover:bg-[var(--ukb-surface-2)]"
       }`}
     >

@@ -93,8 +93,8 @@ export const ui = {
   muted: "text-[var(--ukb-muted)]",
   subtle: "text-[var(--ukb-subtle)]",
   button:
-    "inline-flex min-h-[32px] items-center justify-center rounded-md border border-[var(--ukb-track)] bg-[var(--ukb-surface)] px-3 py-1 text-xs font-semibold text-[var(--ukb-text)] hover:bg-[var(--ukb-surface-2)] disabled:cursor-not-allowed disabled:opacity-60",
+    "inline-flex min-h-[28px] items-center justify-center rounded-md border border-[var(--ukb-track)] bg-[var(--ukb-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--ukb-text)] hover:bg-[var(--ukb-surface-2)] disabled:cursor-not-allowed disabled:opacity-60",
   primaryButton:
-    "inline-flex min-h-[32px] items-center justify-center rounded-md bg-[var(--ukb-accent)] px-3 py-1 text-xs font-semibold text-[var(--ukb-surface)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50",
+    "inline-flex min-h-[28px] items-center justify-center rounded-md bg-[var(--ukb-accent)] px-3 py-1 text-xs font-semibold text-[var(--ukb-surface)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50",
   link: "font-semibold text-[var(--ukb-accent)] underline-offset-2 hover:underline",
 };

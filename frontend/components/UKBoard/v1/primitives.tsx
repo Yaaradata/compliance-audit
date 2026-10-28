@@ -9,7 +9,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, CircleDashed, OctagonAlert, Star, Unlink, X } from "lucide-react";
 import { getPrecedent } from "@/lib/ukboard/v1/precedents";
-import { CHECK_ORDER, failedChecks, integrityPasses } from "@/lib/ukboard/v1/selectors";
+import { CHECK_ORDER, integrityPasses } from "@/lib/ukboard/v1/selectors";
 import type { IntegritySnapshot, Status } from "@/lib/ukboard/v1/types";
 import { useBoard } from "./state/boardStore";
 import { ui } from "./theme";
@@ -24,15 +24,15 @@ export function BoardLayoutGrid({
   rows: { key: string; left?: ReactNode; rightStack?: ReactNode[]; full?: ReactNode; stretch?: boolean }[];
 }) {
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {band}
       {rows.map((r) =>
         r.full ? (
           <div key={r.key}>{r.full}</div>
         ) : (
-          <div key={r.key} className={`grid grid-cols-1 gap-5 lg:grid-cols-3 ${r.stretch ? "" : "items-start"}`}>
+          <div key={r.key} className={`grid grid-cols-1 gap-4 lg:grid-cols-3 ${r.stretch ? "" : "items-start"}`}>
             <div className={`flex flex-col lg:col-span-2 ${r.stretch ? "[&>section]:flex-1" : ""}`}>{r.left}</div>
-            <div className={`flex flex-col gap-5 ${r.stretch ? "[&>section]:flex-1" : ""}`}>{r.rightStack}</div>
+            <div className={`flex flex-col gap-4 ${r.stretch ? "[&>section]:flex-1" : ""}`}>{r.rightStack}</div>
           </div>
         ),
       )}
@@ -45,7 +45,7 @@ export function PageTitle({ title, subtitle }: { title: string; subtitle: string
   return (
     <div className="mb-1">
       <h1 className="text-2xl font-bold tracking-tight text-[var(--ukb-text)]">{title}</h1>
-      <p className="mt-1 text-sm text-[var(--ukb-muted)]">{subtitle}</p>
+      <p className="mt-0.5 text-sm text-[var(--ukb-muted)]">{subtitle}</p>
     </div>
   );
 }
@@ -198,7 +198,7 @@ export function BackToOrigin() {
 export function Details({ children, label = "Details" }: { children: ReactNode; label?: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mt-3">
+    <div className="mt-2">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -243,11 +243,11 @@ export function CardShell({
     <section
       id={id}
       aria-label={title}
-      className={`${ui.card} flex flex-col p-5 shadow-sm ${status ? `border-l-4 ${TONE[status].edge}` : ""} ${
+      className={`${ui.card} flex flex-col p-4 shadow-sm ${status ? `border-l-4 ${TONE[status].edge}` : ""} ${
         highlight ? "ring-2 ring-[var(--ukb-focus)]" : ""
       } ${className}`}
     >
-      <header className="mb-3 flex items-start justify-between gap-3">
+      <header className="mb-2.5 flex items-start justify-between gap-3">
         <h2 className="flex items-center gap-1.5 text-[15px] font-bold leading-snug text-[var(--ukb-text)]">
           {title}
           {integration ? <IntegrationStar feed={integration.feed} /> : null}
@@ -260,7 +260,7 @@ export function CardShell({
       <ToneContext.Provider value={status}>
         <div className="flex-1">{children}</div>
       </ToneContext.Provider>
-      {footer ? <div className="mt-4 border-t border-[var(--ukb-border)] pt-3">{footer}</div> : null}
+      {footer ? <div className="mt-3 border-t border-[var(--ukb-border)] pt-2.5">{footer}</div> : null}
     </section>
   );
 }
@@ -274,7 +274,9 @@ export function IntegrationStar({ feed }: { feed: string }) {
   );
 }
 
-/* CMP-9: four dots in fixed order owner · feed · attestation · mapping. */
+/* CMP-9: four checks in fixed order owner · feed · attestation · mapping, named in plain words. */
+const CHECK_NAME = { owner: "Owner", feed: "Feed", attestation: "Attested", mapping: "Mapped" } as const;
+
 export function IntegrityBadge({
   badgeRef,
   snapshot,
@@ -287,14 +289,17 @@ export function IntegrityBadge({
   onOpenEvidence?: () => void;
   /** Owner role shown beside the badge (trust threshold: role on the face). */
   owner?: string;
-  /** Dots only (rows); the summary stays in the accessible name and tooltip. */
+  /** One summary chip (tiles, rows) instead of four named checks. */
   compact?: boolean;
 }) {
   const { state, dispatch } = useBoard();
   const expanded = state.expandedBadges.includes(badgeRef);
   const allPass = integrityPasses(snapshot);
-  const failed = failedChecks(snapshot);
-  const summary = allPass ? "Verified" : failed.map((f) => f.label).join(" · ");
+  const failed = CHECK_ORDER.filter((k) => !snapshot[k].pass);
+  const chip = (pass: boolean) =>
+    `inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+      pass ? "bg-[var(--ukb-green-tint)] text-[var(--ukb-green)]" : "border border-dashed border-[var(--ukb-grey-line)] bg-[var(--ukb-grey-tint)] text-[var(--ukb-grey)]"
+    }`;
   return (
     <div className="text-[11px]">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -302,28 +307,28 @@ export function IntegrityBadge({
           type="button"
           onClick={() => dispatch({ type: "TOGGLE_BADGE", ref: badgeRef })}
           aria-expanded={expanded}
-          className={`inline-flex items-center gap-1.5 rounded px-0.5 ${ui.focus}`}
-          aria-label={`Chain integrity, owner, feed, attestation, mapping: ${allPass ? "all 4 checks pass" : `${failed.length} of 4 checks fail`}. As at ${snapshot.asOf}`}
+          title="Data checks behind this figure: owner, feed reconciled, attested, mapped. Click for evidence."
+          className={`inline-flex flex-wrap items-center gap-1 rounded ${ui.focus}`}
+          aria-label={`Data checks: ${allPass ? "all 4 pass" : `${failed.map((k) => CHECK_NAME[k]).join(", ")} failing`}. As at ${snapshot.asOf}`}
         >
-          <span className="inline-flex gap-0.5">
-            {CHECK_ORDER.map((k) => {
-              const c = snapshot[k];
-              return (
-                <span
-                  key={k}
-                  title={`${c.label}: ${c.pass ? "pass" : "fail"}`}
-                  className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full ${
-                    c.pass ? "bg-[var(--ukb-surface-2)] text-[var(--ukb-muted)]" : "border border-[var(--ukb-grey)] text-[var(--ukb-grey)]"
-                  }`}
-                >
-                  {c.pass ? <Check className="h-2 w-2" aria-hidden /> : <X className="h-2 w-2" aria-hidden />}
+          {compact ? (
+            <span className={chip(allPass)}>
+              {allPass ? <Check className="h-3 w-3" aria-hidden /> : <X className="h-3 w-3" aria-hidden />}
+              {allPass ? "4 of 4 checks" : `${failed.map((k) => CHECK_NAME[k]).join(" · ")} failing`}
+            </span>
+          ) : (
+            <>
+              <span className="mr-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-subtle)]">Checks</span>
+              {CHECK_ORDER.map((k) => (
+                <span key={k} className={chip(snapshot[k].pass)}>
+                  {snapshot[k].pass ? <Check className="h-3 w-3" aria-hidden /> : <X className="h-3 w-3" aria-hidden />}
+                  {CHECK_NAME[k]}
                 </span>
-              );
-            })}
-          </span>
-          {compact ? null : <span className={allPass ? "text-[var(--ukb-subtle)]" : "font-semibold text-[var(--ukb-grey)]"}>{summary}</span>}
+              ))}
+            </>
+          )}
         </button>
-        {compact ? null : <span className="text-[var(--ukb-subtle)]">· as at {snapshot.asOf}</span>}
+        {compact ? null : <span className="text-[var(--ukb-subtle)]">as at {snapshot.asOf}</span>}
         {owner ? <span className="text-[var(--ukb-subtle)]">· {owner}</span> : null}
       </div>
       {expanded ? (
@@ -392,10 +397,10 @@ export function RuleLine({ children }: { children: ReactNode }) {
 /** "So what" as a labelled callout, so the decision reads apart from the figures. */
 export function SoWhat({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-3 rounded-lg border border-[var(--ukb-brand)]/25 bg-[var(--ukb-brand-soft)] px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-accent)]">So what</p>
-      <p className="mt-0.5 text-sm leading-snug text-[var(--ukb-text)]">{children}</p>
-    </div>
+    <p className="mt-2.5 flex gap-2 rounded-md border-l-4 border-[var(--ukb-accent)] bg-[var(--ukb-brand-soft)] px-3 py-1.5 text-[13px] leading-snug text-[var(--ukb-text)]">
+      <span className="shrink-0 pt-px text-[10px] font-bold uppercase tracking-wide text-[var(--ukb-accent)]">So what</span>
+      <span>{children}</span>
+    </p>
   );
 }
 
@@ -424,7 +429,7 @@ export function StatGrid({ items, cols = 4, dense = false }: { items: StatItem[]
             {it.sub ? <span className="mt-0.5 block text-[11px] leading-snug text-[var(--ukb-muted)]">{it.sub}</span> : null}
           </>
         );
-        const cls = `block h-full w-full rounded-lg border border-[var(--ukb-border)] bg-[var(--ukb-surface)] px-3 ${dense ? "py-2" : "py-2.5"} text-left ${
+        const cls = `flex h-full w-full flex-col justify-start rounded-lg border border-[var(--ukb-border)] bg-[var(--ukb-surface)] px-3 ${dense ? "py-1.5" : "py-2"} text-left ${
           tone ? `border-l-4 ${tone.edge}` : ""
         }`;
         return it.onClick ? (
