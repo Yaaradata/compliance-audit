@@ -1,40 +1,60 @@
 "use client";
 
 /**
- * UK Board v2 — right-hand detail drawer (600px). Sections in fixed order: Position ·
- * Why it matters · Options · Evidence · Precedent · History. First two open. Esc and ×
- * close; focus is trapped and returned. Plain words on the face; rule and control codes
- * appear only under Evidence. CRO drafts and the awareness date are not rendered for the
- * board member; CRO drafts are not rendered for the chair.
+ * UK Board v2 — DetailDrawer: one template for every drawer, following the cascade.
+ * Header (name · owner role · status) → Position (stat list + at most one trend chart) →
+ * Drivers (level 2) → Controls (level 3) → Attestation → Options · Evidence · History (collapsed).
+ * Roles only; no firm names. CRO drafts are not shown to the board member or the chair.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
-import { CAPACITY, DRAFTS, EVENTS, HORIZON, RESTRICTION, ROUTES, SERIES, TENSION_PAIR, TM_COHORTS, TM_RUNS, UNITS } from "@/lib/ukboard/v1/data";
-import { getPrecedent } from "@/lib/ukboard/v1/precedents";
+import { ASSURANCE_VERDICTS, CAPACITY, CONTRIBUTORS, DRAFTS, EVENTS, HORIZON, KRI_DETAIL, RESTRICTION, ROUTES, SERIES, TENSION_PAIR, TM_RUNS, UNITS } from "@/lib/ukboard/v1/data";
 import { CHECK_ORDER } from "@/lib/ukboard/v1/selectors";
-import { METRICS, objectiveMetrics } from "@/lib/ukboard/v2/board";
 import { AGENTS, QUEUE, TUNING } from "@/lib/ukboard/v2/agentsData";
-import { appetiteUsedPct, FIG, fmt, measure, mortgageHeadroomM, reportingEvents } from "@/lib/ukboard/v2/boardStore";
-import { ENFORCEMENT_LESSONS, EVENT_PLAIN, FRANCHISES, owners, plain, RESTRICTION_ROUTES, ROUTE_PLAIN, type Persona } from "@/lib/ukboard/v2/boardTabs";
-import AppetiteDial from "./AppetiteDial";
+import {
+  APPETITE_STATEMENTS,
+  attestationOf,
+  FIG,
+  fmt,
+  measure,
+  MEASURES,
+  mortgageHeadroomM,
+  ownerRows,
+  roleOf,
+  thresholdCells,
+  timeToThreshold,
+  type Measure,
+} from "@/lib/ukboard/v2/boardStore";
+import { EVENT_PLAIN, FRANCHISES, plain, ROUTE_PLAIN } from "@/lib/ukboard/v2/boardTabs";
 import LineChart from "./LineChart";
+import { AttestPill, DeltaMark, StatRow, StatusPill, VerdictPill } from "./present";
 import { useStore } from "./store";
-import { AuditList, btnPrimary, DraftCard, focus, Pill, toneOf } from "./ui";
+import { AuditList, btnPrimary, DraftCard, focus } from "./ui";
 import type { DrawerKey } from "./drawerKeys";
 
 const CHECK_NAME = { owner: "Owner", feed: "Data check", attestation: "Sign-off", mapping: "Linked to policy" } as const;
 
+type Row = { label: string; value: string; comparator?: string };
+interface Chart {
+  title: string;
+  points: { label: string; value: number }[];
+  threshold?: { value: number; label: string };
+  suffix?: string;
+}
 interface Content {
   title: string;
+  ownerRole?: string;
   pill?: ReactNode;
-  position: ReactNode;
-  why: string[];
+  position: Row[];
+  chart?: Chart;
+  drivers?: Row[];
+  controls?: { control: string; owner: string; tested: string; result: string }[];
+  attestation?: { date: string; state: ReturnType<typeof attestationOf> };
+  body?: ReactNode;
   drafts: string[];
-  evidenceUnitId?: string;
-  extraEvidence?: ReactNode;
-  precedentIds: string[];
-  refs: string[];
   actions?: ReactNode;
+  evidenceUnitId?: string;
+  refs: string[];
 }
 
 function Section({ title, open: init, children }: { title: string; open?: boolean; children: ReactNode }) {
@@ -42,258 +62,225 @@ function Section({ title, open: init, children }: { title: string; open?: boolea
   return (
     <section className="border-b border-slate-100 py-3">
       <h3>
-        <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={`flex w-full items-center gap-1.5 text-left text-[13px] font-bold text-slate-900 ${focus} rounded`}>
+        <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={`flex w-full items-center gap-1.5 rounded text-left text-sm font-semibold text-slate-900 ${focus}`}>
           {open ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronRight className="h-4 w-4" aria-hidden />}
           {title}
         </button>
       </h3>
-      {open ? <div className="mt-2 space-y-2">{children}</div> : null}
+      {open ? <div className="mt-2">{children}</div> : null}
     </section>
   );
 }
 
-function Rows({ rows }: { rows: [string, ReactNode][] }) {
-  return (
-    <dl className="divide-y divide-slate-100 rounded-lg border border-slate-200 text-xs">
-      {rows.map(([k, v]) => (
-        <div key={k} className="flex items-start justify-between gap-3 px-3 py-1.5">
-          <dt className="text-slate-500">{k}</dt>
-          <dd className="text-right font-semibold tabular-nums text-slate-900">{v}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+const CONTROL_OF: Record<string, string> = { "u-tm": "Same-day account monitoring", "u-sanctions": "Sanctions screening rule set", "u-restriction": "Onboarding restriction flag" };
+
+function controlsFor(m: Measure) {
+  const c = ASSURANCE_VERDICTS.find((x) => x.control === CONTROL_OF[m.id]);
+  return c ? [{ control: c.control, owner: m.owner, tested: c.latestTest.replace(/, \d+ \w+ 2026$/, "").replace("Not tested in", "Untested"), result: c.verdict }] : undefined;
 }
 
-const meta = (id: string) => METRICS.find((m) => m.unitId === id);
-
-function Dial({ unitId }: { unitId: string }) {
-  const m = meta(unitId);
-  if (!m) return null;
-  return (
-    <div className="rounded-lg border border-slate-200 px-3 py-2">
-      <div className="flex items-baseline justify-between text-xs">
-        <b className="text-slate-900">{m.name}</b>
-        <span className="tabular-nums text-slate-500">
-          <b className="text-slate-900">{m.value}</b> {m.denominator}
-        </span>
-      </div>
-      {m.dial ? <AppetiteDial dial={m.dial} direction={m.direction} labels className="mt-1.5" /> : null}
-      {m.projectionText ? <p className="mt-1 text-[11px] text-slate-500">Projection: {m.projectionText} · early warning, not a prediction</p> : null}
-    </div>
-  );
+function attestationFor(id: string) {
+  const ev = UNITS[id]?.integrity.attestation.evidence ?? "";
+  const date = /(\d{2} \w+ 2026)/.exec(ev)?.[1];
+  return { date: date ? date.replace(/^0/, "").replace(/ (\w{3})\w* 2026/, " $1") : "Not recorded", state: attestationOf(id) };
 }
 
-function capacityCharts() {
-  const base = (arr: number[]) => arr.map((v) => Math.round((v / arr[0]) * 1000) / 10);
-  return (
-    <>
-      <LineChart
-        title="Members against handlers (index)"
-        series={[
-          { name: "Members (1.45m → 1.90m)", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: base(CAPACITY.membersM)[i] })) },
-          { name: "Handlers (58 → 63)", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: base(CAPACITY.handlers)[i] })), dashed: true },
-        ]}
-      />
-      <LineChart title="Alert queue age" series={[{ name: "Queue age (days)", points: CAPACITY.queueAge }]} threshold={{ value: 14, label: "amber 14 days" }} suffix="d" />
-      <Rows
-        rows={[
-          ["Alerts cleared within target", `${CAPACITY.slaCleared.value} (${CAPACITY.slaCleared.denominator})`],
-          ["Next savings campaign", `${CAPACITY.campaignDate} (6 weeks)`],
-          ["Resourcing decision recorded", "None"],
-        ]}
-      />
-    </>
-  );
+function driversFor(id: string): Row[] | undefined {
+  const pr = UNITS[id]?.principalRiskId;
+  const list = pr ? CONTRIBUTORS[pr] : undefined;
+  return list?.slice(0, 4).map((c) => ({ label: plain(c.name), value: c.value.split(" ")[0], comparator: c.value.split(" ").slice(1).join(" ") }));
 }
 
-function Routes({ eventId, showGap }: { eventId: string; showGap: boolean }) {
-  const e = EVENTS.find((x) => x.eventId === eventId)!;
-  return (
-    <>
-      <Rows rows={ROUTES.filter((r) => r.eventId === eventId).map((r) => [ROUTE_PLAIN[r.routeId], r.status === "decided" ? `Decided ${r.history[0].decidedOn}` : r.isSar ? (r.status === "not_engaged" ? "Closed" : "Open") : "Decision pending"] as [string, ReactNode])} />
-      <p className="text-[11px] text-slate-500">Day {e.dayN} from the logged awareness date ({e.loggedAwareness}). Clock values to be checked against the rule text.</p>
-      {showGap && e.awarenessGap ? (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2.5 text-xs text-slate-700">
-          <b>Awareness date check (CRO only):</b> earlier linked records on {e.awarenessGap.signals[0].date} and {e.awarenessGap.signals[1].date}, {e.awarenessGap.gapDays} days before the logged date. The deciding senior manager decides whether it stands.
-        </div>
-      ) : null}
-    </>
-  );
+function trendFor(id: string): Chart | undefined {
+  const m = MEASURES.find((x) => x.id === id);
+  if (id === "u-capacity") return { title: "Alert queue age (days)", points: CAPACITY.queueAge, threshold: { value: CAPACITY.queueAmber, label: `amber ${CAPACITY.queueAmber}` } };
+  if (id === "u-tm") return { title: "Records reaching monitoring by run", points: TM_RUNS.map((r) => ({ label: r.runDate.split(" ")[1], value: Number(r.pct.replace(/[^\d.]/g, "")) })), suffix: "%" };
+  const s = SERIES[id];
+  if (!s) return undefined;
+  return { title: `${m?.name ?? plain(UNITS[id]?.title ?? id)} · 6 quarters`, points: s.slice(-6), threshold: m?.amber !== undefined ? { value: m.amber, label: `amber ${m.amber}${m.unit ?? ""}` } : undefined };
 }
 
-function content(key: DrawerKey, persona: Persona, session: ReturnType<typeof useStore>["state"]["session"]): Content | null {
-  const cro = persona === "cro";
+function positionFor(m: Measure): Row[] {
+  const t = thresholdCells(m);
+  return [
+    { label: "Value", value: m.short ?? m.value, comparator: m.comparator },
+    { label: "Amber", value: t.amber },
+    { label: "Limit", value: t.limit },
+    { label: "Time to threshold", value: timeToThreshold(m) },
+  ];
+}
+
+function content(key: DrawerKey, persona: string, session: ReturnType<typeof useStore>["state"]["session"]): Content | null {
   if (key.startsWith("metric:")) {
     const id = key.slice(7);
     const u = UNITS[id];
+    const m = MEASURES.find((x) => x.id === id);
     if (!u) return null;
-    const s = SERIES[id];
     return {
-      title: meta(id)?.name ?? plain(u.title),
-      position: (
-        <>
-          <Dial unitId={id} />
-          {id === "u-capacity" ? capacityCharts() : null}
-          {id === "u-tm" ? (
-            <>
-              <LineChart title="Records checked by run" series={[{ name: "Share checked (%)", points: TM_RUNS.map((r) => ({ label: r.runDate.split(" ")[1], value: Number(r.pct.replace("%", "")) })) }]} suffix="%" />
-              <Rows rows={TM_COHORTS.map((c) => [c.cohort, `${c.pct} of ${c.records.toLocaleString("en-GB")}`] as [string, ReactNode])} />
-            </>
-          ) : null}
-          {s && id !== "u-capacity" ? <LineChart title={plain(u.title)} series={[{ name: meta(id)?.name ?? "Measure", points: s }]} /> : null}
-        </>
-      ),
-      why: WHY[id] ?? [plain(u.ruleLine.split(". ")[0]) + "."],
+      title: m?.name ?? plain(u.title),
+      ownerRole: m?.owner ?? plain(u.ownerRole),
+      pill: m ? <StatusPill status={m.status} /> : undefined,
+      position: m ? positionFor(m) : [{ label: "Position", value: plain(u.stateSentence) }],
+      chart: trendFor(id),
+      drivers: driversFor(id),
+      controls: m ? controlsFor(m) : undefined,
+      attestation: attestationFor(id),
       drafts: u.draftIds,
       evidenceUnitId: id,
-      precedentIds: u.precedentIds,
       refs: [id],
     };
   }
   if (key.startsWith("franchise:")) {
     const f = FRANCHISES.find((x) => `franchise:${x.id}` === key)!;
+    const ms = MEASURES.filter((x) => x.objectiveId === f.id);
+    const main = f.id === "O1" ? "u-hltv" : f.id === "O2" ? "u-capacity" : f.id === "O3" ? "u-nsfr" : undefined;
+    const headroom: Record<string, string> = { O1: `£${mortgageHeadroomM()}m to limit`, O2: `${FIG.savings.limitsBroken} of ${FIG.savings.limits} limits broken`, O3: "Narrowing", O4: "Not confirmed" };
     return {
       title: f.name,
-      pill: <Pill tone={toneOf(f.verdict)} label={f.verdict.replace(/_/g, " ")} />,
-      position: (
-        <>
-          {objectiveMetrics(f.id).map((m) => (
-            <Dial key={m.unitId} unitId={m.unitId} />
-          ))}
-          {f.id === "O2" ? <Rows rows={[...TENSION_PAIR.bounds.map((b) => [b.bound, `${b.actual} vs ${b.agreed}`] as [string, ReactNode]), ["Checks before transacting", "Broken · regulatory floor"]]} /> : null}
-        </>
-      ),
-      why: [f.line, `${f.big} · ${f.trend}`],
+      ownerRole: "Business line",
+      pill: <VerdictPill v={f.verdict} />,
+      position: [{ label: "Appetite statement", value: APPETITE_STATEMENTS[f.id] }, { label: "Headroom", value: headroom[f.id] }, ...ms.map((x) => ({ label: x.name, value: x.short ?? x.value, comparator: x.comparator }))].slice(0, 6),
+      chart: main ? trendFor(main) : undefined,
+      drivers: f.id === "O2" ? TENSION_PAIR.bounds.map((b) => ({ label: b.bound, value: b.actual, comparator: `vs ${b.agreed}` })) : undefined,
       drafts: f.id === "O1" ? ["d-t21-appetite", "d-t21-para"] : f.id === "O2" ? ["d-t26-redecide", "d-t26-floor"] : f.id === "O3" ? ["d-t24-owner", "d-t212-promo"] : [],
-      evidenceUnitId: f.id === "O1" ? "u-hltv" : f.id === "O2" ? "u-tension" : f.id === "O3" ? "u-nsfr" : "u-o4",
-      precedentIds: [],
-      refs: objectiveMetrics(f.id).map((m) => m.unitId),
+      evidenceUnitId: main,
+      refs: ms.map((x) => x.id),
     };
   }
   switch (key) {
-    case "decision:1":
-      return { title: "Savings growth vs crime checks", position: capacityCharts(), why: [`Members grew ${FIG.savings.membersGrowthPct}%; qualified handlers grew ${HANDLER_GROWTH_PCT}%.`, "Queue above amber since August.", "Only two choices: restore capacity or pace growth."], drafts: ["d-t25-choice", "d-t25-paper", "d-pg4"], evidenceUnitId: "u-capacity", precedentIds: ["uk-starling-2024", "uk-monzo-2025"], refs: ["u-capacity"] };
+    case "decision:1": {
+      const q = measure("u-capacity");
+      return {
+        title: "Savings growth vs crime checks",
+        ownerRole: "Board · decision",
+        pill: <StatusPill status={q.status} />,
+        position: [
+          { label: "Alert queue age", value: q.value, comparator: q.comparator },
+          { label: "Members per handler", value: fmt.n(FIG.capacity.perHandler), comparator: `was ${fmt.n(FIG.capacity.perHandlerWas)}` },
+          { label: "Alerts cleared in target", value: fmt.share(FIG.capacity.cleared, FIG.capacity.alerts) },
+          { label: "Savings campaign", value: FIG.dates.campaign },
+        ],
+        chart: trendFor("u-capacity"),
+        drafts: ["d-t25-choice", "d-t25-paper", "d-pg4"],
+        evidenceUnitId: "u-capacity",
+        refs: ["u-capacity"],
+      };
+    }
     case "decision:2":
     case "restriction":
       return {
-        title: key === "restriction" ? "Restriction health" : "Restriction breach: report or not?",
-        position: (
-          <>
-            <Rows
-              rows={[
-                ["Accounts in breach", `${fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested)} checked`],
-                ["Customers", `${FIG.restriction.customers}, including ${FIG.restriction.exited} previously exited`],
-                ["Not yet checked", `${fmt.n(FIG.restriction.untested)} partner-channel openings`],
-                ...RESTRICTION_ROUTES.map((r) => [r.label, `${r.accounts} accounts`] as [string, ReactNode]),
-                ["Clauses supported", `${FIG.restriction.clauses - FIG.restriction.clausesUnsupported} of ${FIG.restriction.clauses}`],
-                ["Sign-off due", FIG.dates.restrictionSignOff],
-              ]}
-            />
-            <p className="text-xs text-slate-600">
-              The block fired {fmt.n(FIG.restriction.blockFired)} times, but the full check found {FIG.restriction.breaches} breaches.
-            </p>
-            <Routes eventId="e-r03" showGap={false} />
-          </>
-        ),
-        why: ["The full customer check, not the block, shows the breach.", "The Head of Compliance decides each reporting route.", "Nothing is sent to a regulator by the product."],
+        title: key === "restriction" ? "Restriction" : "Restriction breach: report or not",
+        ownerRole: "Head of Financial Crime",
+        pill: <StatusPill status="red" />,
+        position: [
+          { label: "Accounts in breach", value: fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested), comparator: "appetite 0" },
+          { label: "Customers affected", value: String(FIG.restriction.customers), comparator: `${FIG.restriction.exited} previously exited` },
+          { label: "Openings not checked", value: fmt.n(FIG.restriction.untested) },
+          { label: "Sign-off due", value: FIG.dates.restrictionSignOff },
+        ],
+        chart: { title: "Accounts in breach by run", points: FIG.restriction.runs },
+        drivers: RESTRICTION.byRoute.map((b) => ({ label: plain(b.route), value: String(b.accounts), comparator: "accounts" })),
+        controls: controlsFor(measure("u-restriction")),
+        attestation: attestationFor("u-restriction"),
         drafts: ["d-case-r03-sup153", "d-case-r03-fr7", "d-t227-contain", "d-pg1-coverage", "d-t228-summary"],
         evidenceUnitId: "u-restriction",
-        extraEvidence: <EvidenceCodes />,
-        precedentIds: ["uk-starling-2024", "uk-monzo-2025"],
         refs: ["u-restriction", "rt-r03-sup153", "rt-r03-fr7"],
       };
     case "decision:3":
     case "removed":
       return {
-        title: "Issue removed from the board pack",
-        position: (
-          <>
-            <LineChart title={`Vulnerable-customer exceptions ${FIG.vuln.basis}`} series={[{ name: FIG.vuln.basis, points: SERIES["u-vuln"] }]} threshold={{ value: FIG.vuln.amber, label: `amber at ${FIG.vuln.amber} · red ${FIG.vuln.red}` }} />
-            <Rows
-              rows={[
-                ...session.manifestVersions.map((v) => [`Board pack v${v.version} (${v.state}) · ${v.createdOn}`, v.itemIds.includes("pi-vuln") ? "Item present" : "Item absent"] as [string, ReactNode]),
-                ["Removed at", "Executive Risk Committee, 14 Oct 2026"],
-                ["Approver · reason", "None recorded"],
-              ]}
-            />
-          </>
+        title: "Issue removed from board pack",
+        ownerRole: "Risk Committee Chair · decision",
+        pill: <StatusPill status="amber" />,
+        position: [
+          { label: "Vulnerable exceptions", value: String(FIG.vuln.series[FIG.vuln.series.length - 1]), comparator: `amber ${FIG.vuln.amber} · red ${FIG.vuln.red}` },
+          { label: "At amber", value: `${FIG.vuln.quartersAmber} quarters` },
+          { label: "Removed at", value: "Executive Risk Committee", comparator: "14 Oct" },
+          { label: "Reason recorded", value: "None" },
+        ],
+        chart: trendFor("u-vuln"),
+        body: (
+          <div>
+            {session.manifestVersions.map((v) => (
+              <StatRow key={v.version} label={`Board pack v${v.version} · ${v.state}`} value={v.itemIds.includes("pi-vuln") ? "Present" : "Absent"} comparator={v.createdOn.replace(" 2026", "")} />
+            ))}
+          </div>
         ),
-        why: [`Amber for ${FIG.vuln.quartersAmber} quarters, past the 2-quarter rule (firm practice).`, "No action, decision or escalation recorded.", "Proves nothing was recorded, not that nothing was discussed."],
         drafts: ["d-t234-options", "d-t235-restore", "d-pg5"],
         evidenceUnitId: "u-vuln",
-        precedentIds: [],
         refs: ["u-vuln", "m-brc-q3-2026"],
       };
     case "badnews":
       return {
-        title: "Is bad news reaching us?",
-        position: (
-          <Rows
-            rows={[
-              ["Issue to Risk Committee (median)", `${FIG.escalation.medianMonths} months, ${FIG.escalation.issues} serious issues`],
-              ["Not escalated after 12 months", String(FIG.escalation.notEscalated)],
-              ["Customer checks overdue", `${fmt.n(FIG.escalation.overdueChecks)} vs ${fmt.n(FIG.escalation.overdueTarget)} target`],
-              ["Actions closed, measure unchanged", `${FIG.escalation.actionsClosed} · ${FIG.escalation.downgraded} issues downgraded`],
-              ["Customer-check backlog to clear", `${FIG.escalation.backlogMonths} months vs ${FIG.escalation.backlogCommitted} committed`],
-              ["Deadline extensions", `${FIG.escalation.extensions} vs a limit of ${FIG.escalation.extensionLimit}`],
-              ["Qualifying items in the pack", `${session.manifestVersions[session.manifestVersions.length - 1].itemIds.length} of ${FIG.pack.items}`],
-            ]}
-          />
-        ),
-        why: ["Serious issues take a median 4.6 months to reach us.", "Closed actions have not moved the overdue checks."],
+        title: "Escalation",
+        ownerRole: "Chief Risk Officer",
+        pill: <StatusPill status="amber" />,
+        position: [
+          { label: "Median time to committee", value: `${FIG.escalation.medianMonths} months`, comparator: `${FIG.escalation.issues} issues` },
+          { label: "Not escalated after 12 months", value: String(FIG.escalation.notEscalated) },
+          { label: "Customer checks overdue", value: fmt.n(FIG.escalation.overdueChecks), comparator: `target ${fmt.n(FIG.escalation.overdueTarget)}` },
+          { label: "Deadline extensions", value: String(FIG.escalation.extensions), comparator: `limit ${FIG.escalation.extensionLimit}` },
+        ],
+        chart: { title: "Customer-check backlog", points: KRI_DETAIL.backlogSeries.points },
+        drivers: FIG.escalation.unescalated.map((x) => ({ label: x.unit, value: `${x.months} months`, comparator: "not escalated" })),
         drafts: ["d-t236-agenda", "d-t237-review", "d-t238-reopen"],
         evidenceUnitId: "u-kri-latency",
-        precedentIds: [],
         refs: ["u-kri-backlog", "u-kri-latency", "u-kri-effect"],
       };
     case "horizon":
       return {
-        title: "What is coming?",
-        position: <Rows rows={[["Emerging risks", String(HORIZON.emergingRisks)], ["Within 12 months", String(HORIZON.withinTwelveMonths)], ["Not yet measured", "AI impersonation fraud"], ["New incident-reporting rules", `18 Mar 2027 (${HORIZON.daysToIncidentRules} days)`], ["Incidents classified in a trial", `${HORIZON.trialClassified.classified} of ${HORIZON.trialClassified.total}`]]} />,
-        why: ["1 of the 2 near-term risks has no measure or owner."],
+        title: "Regulatory horizon",
+        ownerRole: "Chief Risk Officer",
+        position: [
+          { label: "Emerging risks", value: String(HORIZON.emergingRisks) },
+          { label: "Within 12 months", value: String(HORIZON.withinTwelveMonths) },
+          { label: "Incident-reporting rules", value: FIG.dates.incidentRules, comparator: `${HORIZON.daysToIncidentRules} days` },
+          { label: "Trial incidents classified", value: `${HORIZON.trialClassified.classified} of ${HORIZON.trialClassified.total}` },
+        ],
         drafts: ["d-t213-metric"],
         evidenceUnitId: "u-horizon",
-        precedentIds: [],
         refs: ["u-horizon"],
       };
     case "tuning":
-      return { title: "Tuning lab", position: <Rows rows={TUNING.options.map((o) => [`${o.id} · ${o.label}`, `${o.caught} of 97 · +${o.extraAlerts.toLocaleString("en-GB")} alerts`] as [string, ReactNode])} />, why: ["The savings pot sits outside the restriction block."], drafts: [], precedentIds: [], refs: ["agent:tuning"] };
+      return { title: "Tuning lab", ownerRole: "Head of Financial Crime", position: TUNING.options.map((o) => ({ label: `${o.id} · ${o.label}`, value: `${o.caught} of ${TUNING.breaches}`, comparator: `+${fmt.n(o.extraAlerts)} alerts` })), drafts: [], refs: ["agent:tuning"] };
     case "notes":
-      return { title: "My meeting notes", position: <NotesBody />, why: [], drafts: [], precedentIds: [], refs: ["notes"] };
+      return { title: "My notes", ownerRole: "Board member", position: [], body: <NotesBody />, drafts: [], refs: ["notes"] };
   }
   if (key.startsWith("event:")) {
     const id = key.slice(6);
+    const e = EVENTS.find((x) => x.eventId === id)!;
     return {
-      title: EVENT_PLAIN[id],
-      position: <Routes eventId={id} showGap={cro} />,
-      why: id === "e-117" ? [`${fmt.n(FIG.rateError.customers)} customers moved to the reversion rate without notice.`, `${eventRoutes(id).decided} of ${eventRoutes(id).routes} reporting routes has a recorded decision.`] : ["No reporting route decided yet; clocks are immediate."],
-      drafts: id === "e-117" ? ["d-case-117-fr7", "d-case-117-sup1511", ...(cro ? ["d-t230-prompt"] : [])] : ["d-case-r03-sup153", "d-case-r03-fr7"],
+      title: id === "e-117" ? "Mortgage rate error" : EVENT_PLAIN[id],
+      ownerRole: "Head of Compliance · decider",
+      position: [
+        { label: "Day", value: String(e.dayN), comparator: "from logged awareness" },
+        ...ROUTES.filter((r) => r.eventId === id).map((r) => ({ label: ROUTE_PLAIN[r.routeId], value: r.status === "decided" ? "Decided" : r.status === "not_engaged" ? "Not started" : "Due", comparator: r.status === "decided" ? roleOf(r.history[0].deciderPersonId) : r.proposedDeciderRole })),
+      ],
+      drafts: id === "e-117" ? ["d-case-117-fr7", "d-case-117-sup1511", ...(persona === "cro" ? ["d-t230-prompt"] : [])] : ["d-case-r03-sup153", "d-case-r03-fr7"],
       evidenceUnitId: "u-restriction",
-      extraEvidence: <EvidenceCodes />,
-      precedentIds: [],
       refs: ROUTES.filter((r) => r.eventId === id).map((r) => r.routeId),
     };
   }
   if (key.startsWith("owner:")) {
     const role = key.slice(6);
-    const o = owners(Object.fromEntries(Object.values(DRAFTS).map((d) => [d.draftId, d.targetRole]))).find((x) => x.role === role);
+    const open = Object.keys(session.drafts).filter((d) => session.drafts[d].status === "ai_draft");
+    const o = ownerRows(open, Object.fromEntries(Object.values(DRAFTS).map((d) => [d.draftId, d.targetRole]))).find((x) => x.role === role);
     if (!o) return null;
+    const worst = o.measures.find((m) => m.status !== "within") ?? o.measures[0];
     return {
       title: role,
-      position: (
-        <>
-          {o.measures.map((m) => (
-            <Dial key={m.unitId} unitId={m.unitId} />
-          ))}
-          <Rows rows={[["Last sign-off", o.lastSignOff], ["Open actions routed here", String(o.draftIds.length)]]} />
-        </>
-      ),
-      why: [`Owns ${o.measures.length} board measures; ${o.offTrack} off track.`],
-      drafts: o.draftIds,
-      precedentIds: [],
-      refs: o.measures.map((m) => m.unitId),
+      ownerRole: "Accountable owner",
+      pill: o.status === "none" ? undefined : <StatusPill status={o.status} />,
+      position: o.measures.length ? o.measures.map((m) => ({ label: m.name, value: m.short ?? m.value, comparator: m.comparator })) : [{ label: "Board measures", value: "None held" }],
+      chart: worst ? trendFor(worst.id) : undefined,
+      drivers: [
+        { label: "Off track", value: String(o.offTrack), comparator: `of ${o.measures.length}` },
+        { label: "Actions open", value: String(o.actions) },
+      ],
+      attestation: worst ? attestationFor(worst.id) : undefined,
+      drafts: [],
       actions: <ReasonableSteps role={role} />,
+      refs: o.measures.map((m) => m.id),
     };
   }
   if (key.startsWith("agent:")) {
@@ -301,75 +288,38 @@ function content(key: DrawerKey, persona: Persona, session: ReturnType<typeof us
     if (!a) return null;
     return {
       title: a.name,
-      position: <Rows rows={[["Does", a.does], ["This week", `${a.checksThisWeek} checks`], ["Latest finding", a.finding], ["Accountable", a.accountable], ["Autonomy", session.autonomy[a.id]]]} />,
-      why: ["Agents watch, draft, test and propose; a named person decides."],
+      ownerRole: a.accountable,
+      position: [
+        { label: "Purpose", value: a.does },
+        { label: "Checks this week", value: String(a.checksThisWeek) },
+        { label: "Latest finding", value: a.finding },
+        { label: "Autonomy", value: session.autonomy[a.id] },
+      ],
       drafts: a.draftIds,
-      precedentIds: [],
       refs: [`agent:${a.id}`, ...a.draftIds.map((d) => DRAFTS[d].unitId)],
     };
   }
   if (key.startsWith("queue:")) {
     const q = QUEUE.find((x) => `queue:${x.draftId}` === key);
     if (!q) return null;
-    return { title: q.title, position: <p className="text-xs text-slate-600">{q.reason}</p>, why: [], drafts: [q.draftId], precedentIds: [], refs: [DRAFTS[q.draftId].unitId] };
-  }
-  if (key.startsWith("lesson:")) {
-    const id = key.slice(7);
-    const l = ENFORCEMENT_LESSONS.find((x) => x.id === id)!;
-    return { title: getPrecedent(id)?.respondent ?? id, position: <Dial unitId={l.unitId} />, why: [`${l.what} → ${l.touches}.`], drafts: [], precedentIds: [id], refs: [l.unitId] };
+    return { title: q.title, ownerRole: "Chief Risk Officer", position: [{ label: "Reason", value: q.reason }], drafts: [q.draftId], refs: [DRAFTS[q.draftId].unitId] };
   }
   if (key === "unmapped") {
-    return { title: "Plan item with no appetite statement", position: <Rows rows={[[FIG.unmapped.launch, `${FIG.unmapped.when} · ${fmt.n(FIG.unmapped.accounts)} accounts`], ["Appetite statement", "Missing"], ["Financial-crime measure", "Missing"]]} />, why: ["A plan item uses appetite with no board limit."], drafts: ["d-t23-ras"], evidenceUnitId: "u-unmapped", precedentIds: [], refs: ["u-unmapped"] };
+    return { title: "Plan item with no appetite statement", ownerRole: "Chief Risk Officer", position: [{ label: FIG.unmapped.launch, value: FIG.unmapped.when, comparator: `${fmt.n(FIG.unmapped.accounts)} accounts` }, { label: "Appetite statement", value: "Missing" }], drafts: ["d-t23-ras"], evidenceUnitId: "u-unmapped", refs: ["u-unmapped"] };
   }
   return null;
-}
-
-const eventRoutes = (id: string) => reportingEvents().find((e) => e.id === id)!;
-const HANDLER_GROWTH_PCT = Math.round((CAPACITY.handlers[CAPACITY.handlers.length - 1] / CAPACITY.handlers[0] - 1) * 100);
-
-const WHY: Record<string, string[]> = {
-  "u-restriction": [
-    `The full check found ${FIG.restriction.breaches} accounts in breach of ${fmt.n(FIG.restriction.tested)}.`,
-    `${RESTRICTION_ROUTES[0].accounts} came through the new savings pot, outside the block.`,
-    `${fmt.n(FIG.restriction.untested)} partner-channel openings are not yet checked.`,
-  ],
-  "u-tm": [`Only ${fmt.pct(FIG.monitoring.coverage, 1)} of payment records reached monitoring.`, "Same-day accounts were not monitored at all.", "Signed off before the data run finished."],
-  "u-sanctions": [`${FIG.sanctions.rules} rules cover ${fmt.n(FIG.sanctions.entries)} list entries.`, `No alerts in ${FIG.sanctions.weeksNoAlerts} weeks against ${FIG.sanctions.expectedPerWeek} a week expected.`],
-  "u-capacity": [`Queue ${measure("u-capacity").value} against ${measure("u-capacity").comparator}, since August.`, `Members per handler rose from ${fmt.n(FIG.capacity.perHandlerWas)} to ${fmt.n(FIG.capacity.perHandler)}.`],
-  "u-lcr": ["Reaches amber in about 9 weeks; the Risk Committee is in 7."],
-  "u-nsfr": ["Fell from 10 to 2 points above amber in one quarter."],
-  "u-hltv": [`${appetiteUsedPct()}% of high-LTV appetite used; £${mortgageHeadroomM()}m headroom to the limit on ${fmt.gbpBn(FIG.mortgages.planBn)}.`],
-};
-
-function EvidenceCodes() {
-  return (
-    <ul className="space-y-0.5 text-[11px] text-slate-500">
-      {ROUTES.filter((r) => !r.isSar).map((r) => (
-        <li key={r.routeId}>
-          {r.name}: {r.ruleText}
-        </li>
-      ))}
-      <li>Restriction reference: {RESTRICTION.ref}</li>
-    </ul>
-  );
 }
 
 function NotesBody() {
   const { state, dispatch } = useStore();
   const [text, setText] = useState("");
+  const dives = state.session.deepDives;
   return (
     <div className="space-y-2">
-      {state.session.notes.length ? (
-        <ul className="space-y-1">
-          {state.session.notes.map((n) => (
-            <li key={n.id} className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-700">
-              <b className="text-slate-500">{n.from}:</b> {n.text}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-xs text-slate-500">No notes yet.</p>
-      )}
+      {state.session.notes.length ? state.session.notes.map((n) => <StatRow key={n.id} label={n.text} value="" comparator={n.from} />) : <p className="text-xs text-slate-500">No notes yet.</p>}
+      {dives.map((d) => (
+        <StatRow key={d} label={d} value="" comparator="deep dive with the CRO" rail="amber" />
+      ))}
       <textarea aria-label="Note for the meeting" value={text} onChange={(e) => setText(e.target.value)} rows={3} className={`w-full rounded-md border border-slate-300 p-2 text-xs ${focus}`} placeholder="Note for the meeting" />
       <button
         type="button"
@@ -422,20 +372,20 @@ export default function BoardDrawer({ drawerKey, onClose }: { drawerKey: DrawerK
   }, [onClose, drawerKey]);
 
   if (!c) return null;
-  // Persona scoping: CRO drafts are not rendered for the board member or the chair.
   const drafts = c.drafts.filter((id) => DRAFTS[id] && (state.persona === "cro" ? DRAFTS[id].gateHolder === "cro" : state.persona === "chair" ? DRAFTS[id].gateHolder === "brc_chair" : false));
   const ev = c.evidenceUnitId ? UNITS[c.evidenceUnitId] : undefined;
+  const m = MEASURES.find((x) => `metric:${x.id}` === drawerKey);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <button type="button" aria-label="Close detail" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-slate-900/30" />
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="ukb2-drawer-title" className="relative flex h-full w-full max-w-[600px] flex-col bg-white shadow-xl">
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="ukb2-drawer-title" className="relative flex h-full w-full max-w-[560px] flex-col bg-white shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <div>
-            <h2 id="ukb2-drawer-title" className="text-base font-bold text-slate-900">
+            <h2 id="ukb2-drawer-title" className="text-base font-semibold text-slate-900">
               {c.title}
             </h2>
-            {ev ? <p className="mt-0.5 text-xs text-slate-500">Owner: {plain(ev.ownerRole)}</p> : null}
+            {c.ownerRole ? <p className="mt-0.5 text-xs text-slate-500">{c.ownerRole}</p> : null}
           </div>
           <div className="flex items-center gap-2">
             {c.pill}
@@ -445,52 +395,49 @@ export default function BoardDrawer({ drawerKey, onClose }: { drawerKey: DrawerK
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-5">
-          <Section title="Position" open>
-            {c.position}
-          </Section>
-          {c.why.length ? (
-            <Section title="Why it matters" open>
-              <ul className="list-disc space-y-1 pl-4 text-[13px] text-slate-800">
-                {c.why.map((w) => (
-                  <li key={w}>{plain(w)}</li>
-                ))}
-              </ul>
+          {c.position.length || c.chart || c.body ? (
+            <Section title="Position" open>
+              {c.position.map((r) => (
+                <StatRow key={r.label} label={r.label} value={r.value} comparator={r.comparator} right={m && r.label === "Value" ? <DeltaMark d={m.delta} /> : undefined} />
+              ))}
+              {c.chart ? (
+                <div data-chart="drawer-trend" className="mt-2">
+                  <LineChart title={c.chart.title} height={140} series={[{ name: c.chart.title, points: c.chart.points }]} threshold={c.chart.threshold} suffix={c.chart.suffix} />
+                </div>
+              ) : null}
+              {c.body}
+            </Section>
+          ) : null}
+          {c.drivers?.length ? (
+            <Section title="Drivers" open>
+              {c.drivers.map((r) => (
+                <StatRow key={r.label} label={r.label} value={r.value} comparator={r.comparator} />
+              ))}
+            </Section>
+          ) : null}
+          {c.controls?.length ? (
+            <Section title="Controls" open>
+              {c.controls.map((x) => (
+                <StatRow key={x.control} label={x.control} value={x.tested} comparator={`${x.owner} · ${x.result}`} />
+              ))}
+            </Section>
+          ) : null}
+          {c.attestation ? (
+            <Section title="Attestation" open>
+              <StatRow label="Last sign-off" value={c.attestation.date} right={<AttestPill a={c.attestation.state} />} />
             </Section>
           ) : null}
           {c.drafts.length || c.actions ? (
             <Section title="Options">
               {c.actions}
-              {drafts.length ? drafts.map((id) => <DraftCard key={id} draftId={id} />) : c.drafts.length ? <p className="text-xs text-slate-500">With CRO · proposal pending</p> : null}
+              {drafts.length ? drafts.map((id) => <DraftCard key={id} draftId={id} />) : c.drafts.length ? <p className="text-xs text-slate-500">With the CRO · proposal pending</p> : null}
             </Section>
           ) : null}
           {ev ? (
             <Section title="Evidence">
-              <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
-                {CHECK_ORDER.map((k) => (
-                  <div key={k} className="flex items-start gap-2 px-3 py-1.5 text-xs">
-                    <Pill tone={ev.integrity[k].pass ? "green" : "grey"} outline label={ev.integrity[k].pass ? "Pass" : "Unconfirmed"} />
-                    <span className="text-slate-600">
-                      <b className="text-slate-900">{CHECK_NAME[k]}:</b> {ev.integrity[k].evidence}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-slate-500">
-                References: {ev.spine.filter((s) => s.ref).map((s) => `${s.label} (${s.ref})`).join(" · ") || "none"} · as at {ev.integrity.asOf}
-              </p>
-              {c.extraEvidence}
-            </Section>
-          ) : null}
-          {c.precedentIds.length ? (
-            <Section title="Precedent">
-              {c.precedentIds.map((id) => {
-                const p = getPrecedent(id);
-                return p ? (
-                  <p key={id} className="text-xs text-slate-700">
-                    <b>{p.respondent}</b> ({p.regulator}{p.noticeDate ? `, ${p.noticeDate}` : ""}) · {p.posture}: {p.hook}
-                  </p>
-                ) : null;
-              })}
+              {CHECK_ORDER.map((k) => (
+                <StatRow key={k} label={CHECK_NAME[k]} value={ev.integrity[k].pass ? "Pass" : "Unconfirmed"} comparator={plain(ev.integrity[k].evidence)} />
+              ))}
             </Section>
           ) : null}
           <div className="py-3">
@@ -501,4 +448,3 @@ export default function BoardDrawer({ drawerKey, onClose }: { drawerKey: DrawerK
     </div>
   );
 }
-

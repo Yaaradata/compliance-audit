@@ -80,7 +80,7 @@ function entry(state: State, s: Session, action: string, objectLabel: string, ob
   return {
     entryId: `ae-${s.audit.length + 1}`,
     ts: stamp(s.clock),
-    actorName: person(state.persona).person,
+    actorName: ROLE[state.persona],
     actorRole: ROLE[state.persona],
     action,
     objectLabel,

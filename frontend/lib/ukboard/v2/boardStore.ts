@@ -8,7 +8,7 @@
  * headroom to the 20% appetite limit; high-LTV ▲ 0.3 pts vs Q2 (17.3% → 17.6%); arrears 0.42%;
  * evidence to 26 Oct, measures as at 30 Sep; existing vs-Q2 deltas kept; low-EPC in Emerging.
  */
-import { CAPACITY, EVENTS, HORIZON, KRI_DETAIL, PACK_ITEMS, RESTRICTION, ROUTES, SERIES, THRESHOLDS } from "../v1/data";
+import { CAPACITY, EVENTS, FIRM, HORIZON, KRI_DETAIL, PACK_ITEMS, PEOPLE, RESTRICTION, ROUTES, SERIES, THRESHOLDS, UNITS } from "../v1/data";
 import { AGENTS, FINDINGS, QUEUE, totalChecks } from "./agentsData";
 import { ISSUES_FOUND, JOURNEYS, SIGNOFF_HISTORY, type SignOffMark } from "./boardMemberData";
 
@@ -83,7 +83,7 @@ export const MEASURES: Measure[] = [
     type: "outcome",
     direction: "status",
     value: `${RESTRICTION.breachesAccounts} breaches · ${fmt.n(RESTRICTION.tested)} tested`,
-    short: `${RESTRICTION.breachesAccounts} of ${fmt.n(RESTRICTION.tested)} tested`,
+    short: `${RESTRICTION.breachesAccounts} breaches`,
     comparator: "appetite 0",
     status: "red",
     delta: { value: RESTRICTION.breachesAccounts - RESTRICTION.previousRun.breachesAccounts, unit: "", worse: true },
@@ -139,7 +139,7 @@ export const MEASURES: Measure[] = [
     type: "early_warning",
     direction: "higherIsWorse",
     value: "19 days",
-    comparator: `amber at ${t["u-capacity"].amber}`,
+    comparator: `amber ${t["u-capacity"].amber}`,
     actual: 19,
     amber: t["u-capacity"].amber,
     limit: t["u-capacity"].red,
@@ -157,7 +157,7 @@ export const MEASURES: Measure[] = [
     type: "early_warning",
     direction: "lowerIsWorse",
     value: "162%",
-    comparator: `amber at ${t["u-lcr"].amber}%`,
+    comparator: `amber ${t["u-lcr"].amber}%`,
     actual: 162,
     amber: t["u-lcr"].amber,
     limit: t["u-lcr"].red,
@@ -177,7 +177,7 @@ export const MEASURES: Measure[] = [
     type: "early_warning",
     direction: "lowerIsWorse",
     value: "117%",
-    comparator: `amber at ${t["u-nsfr"].amber}%`,
+    comparator: `amber ${t["u-nsfr"].amber}%`,
     actual: 117,
     amber: t["u-nsfr"].amber,
     limit: t["u-nsfr"].red,
@@ -380,6 +380,12 @@ export const FIG = {
     exited: RESTRICTION.previouslyExited,
     untested: RESTRICTION.untested.reduce((a, u) => a + u.count, 0),
     blockFired: 1208,
+    /** Breaching accounts by monthly run: July 38 (v1 restriction history), August, September. */
+    runs: [
+      { label: "Jul", value: 38 },
+      { label: "Aug", value: RESTRICTION.previousRun.breachesAccounts },
+      { label: "Sep", value: RESTRICTION.breachesAccounts },
+    ],
     clausesUnsupported: 1,
     clauses: 4,
   },
@@ -411,11 +417,12 @@ export function consumerDuty() {
   const total = o.reduce((a, x) => a + x.measures, 0);
   return { amber, outcomes: o.length, inTol, total, text: `${amber} of ${o.length} outcomes amber · ${inTol} of ${total} measures in tolerance` };
 }
-measure("u-cd").value = consumerDuty().text;
-measure("u-cd").short = `${consumerDuty().amber} of ${consumerDuty().outcomes} outcomes amber`;
-measure("u-tm").short = "94.0% of records";
+measure("u-cd").value = `${consumerDuty().amber} of ${consumerDuty().outcomes} outcomes amber`;
+measure("u-cd").short = `${consumerDuty().amber} of ${consumerDuty().outcomes} amber`;
+measure("u-tm").short = "94.0%";
 measure("u-hltv").short = `${hltvNow}%`;
 measure("u-ibs").short = "58% used";
+measure("u-sanctions").short = "1.3% of list";
 
 export function reportingEvents() {
   return EVENTS.map((e) => {
@@ -499,20 +506,20 @@ export function businessLines() {
 }
 
 export const SINCE_LAST_BOARD: { date: string; text: string; tag: string; rail: "red" | "amber" | "grey"; drawer: string }[] = [
-  { date: "26 Oct", text: "Restriction breach logged; FCA and PRA clocks started", tag: "Regulator", rail: "red", drawer: "event:e-r03" },
-  { date: "23 Oct", text: "Rate-error reporting decision made", tag: "Regulator", rail: "grey", drawer: "event:e-117" },
-  { date: "15 Oct", text: "Agent flagged an item missing from the pack", tag: "AI agent", rail: "amber", drawer: "removed" },
-  { date: "14 Oct", text: "Vulnerable-customer item removed at the Executive Risk Committee, no reason recorded", tag: "Pack", rail: "red", drawer: "removed" },
+  { date: "26 Oct", text: "Restriction breach logged", tag: "Regulator", rail: "red", drawer: "event:e-r03" },
+  { date: "23 Oct", text: "Rate-error reporting decided", tag: "Regulator", rail: "grey", drawer: "event:e-117" },
+  { date: "15 Oct", text: "Agent flagged missing item", tag: "AI agent", rail: "amber", drawer: "removed" },
+  { date: "14 Oct", text: "Vulnerable item removed", tag: "Pack", rail: "red", drawer: "removed" },
   { date: "6 Oct", text: "Temporary high-LTV limit expired; register not updated", tag: "Mortgages", rail: "amber", drawer: "metric:u-hltv" },
   { date: "Aug", text: "Alert queue passed amber", tag: "Savings", rail: "amber", drawer: "metric:u-capacity" },
 ];
 
 export function stillUnresolved() {
   return [
-    { text: "Vulnerable-customer exceptions at amber", duration: `${FIG.vuln.quartersAmber} quarters`, drawer: "removed" },
-    { text: "Customer-check backlog", duration: `${FIG.escalation.backlogMonths} months to clear vs ${FIG.escalation.backlogCommitted} committed`, drawer: "badnews" },
-    { text: `${FIG.escalation.notEscalated} issues not escalated`, duration: "12+ months", drawer: "badnews" },
-    { text: "Savings trade-off review", duration: `${FIG.tradeoff.overdueDays} days overdue`, drawer: "franchise:O2" },
+    { text: "Vulnerable exceptions amber", duration: `${FIG.vuln.quartersAmber} quarters`, drawer: "removed" },
+    { text: "Customer-check backlog", duration: `${FIG.escalation.backlogMonths} months vs ${FIG.escalation.backlogCommitted}`, drawer: "badnews" },
+    { text: "Issues not escalated", duration: `${FIG.escalation.notEscalated} issues`, drawer: "badnews" },
+    { text: "Trade-off review", duration: `${FIG.tradeoff.overdueDays} days overdue`, drawer: "franchise:O2" },
   ];
 }
 
@@ -527,6 +534,86 @@ export function thresholdCells(m: Measure) {
 export function timeToThreshold(m: Measure): string {
   if (m.status === "red") return "Past limit";
   if (m.status === "amber") return "Past amber";
-  if (m.status === "unconfirmed") return "Not known";
-  return m.projection ? m.projection.replace(/^amber /, "Amber ") : "Not in view";
+  if (m.status === "unconfirmed") return "—";
+  return m.projection ? m.projection.replace(/^amber /, "Amber ") : "—";
 }
+
+/* ── Redesign (C-suite board dashboard) ──────────────────────────────── */
+
+
+/** Status at the last board (board-pack seed): restriction Amber → Red, alert queue Within → Amber,
+ *  LCR and NSFR Within → Heading for amber. All other measures unchanged. */
+const STATUS_AT_LAST_BOARD: Record<string, MeasureStatus> = { "u-restriction": "amber", "u-capacity": "within", "u-lcr": "within", "u-nsfr": "within" };
+export const statusAtLastBoard = (m: Measure): MeasureStatus => STATUS_AT_LAST_BOARD[m.id] ?? m.status;
+export const statusChanges = () => MEASURES.filter((m) => statusAtLastBoard(m) !== m.status).map((m) => ({ id: m.id, name: m.name, from: statusAtLastBoard(m), to: m.status }));
+
+/** Days from today to the Board Risk Committee (live clock; measures stay as at 30 Sep). */
+export function daysToCommittee(now: Date = new Date()): number {
+  const [d, mon, y] = FIRM.nextBrc.split(" ");
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const brc = Date.UTC(Number(y), months.indexOf(mon), Number(d));
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((brc - today) / 86_400_000));
+}
+export const AS_AT_LABEL = "As at 30 Sep 2026";
+
+/** Attestation this month, per measure, from each measure's sign-off check. */
+export type AttestState = "attested" | "due" | "unconfirmed";
+export function attestationOf(id: string): AttestState {
+  const a = UNITS[id]?.integrity.attestation;
+  if (!a || !a.pass) return "unconfirmed";
+  return /pending|due/i.test(a.evidence) ? "due" : "attested";
+}
+export function attestationThisMonth() {
+  const s = MEASURES.map((m) => attestationOf(m.id));
+  return { attested: s.filter((x) => x === "attested").length, due: s.filter((x) => x === "due").length, unconfirmed: s.filter((x) => x === "unconfirmed").length, total: s.length };
+}
+export function attestationRecord() {
+  const t = signOffTotals();
+  return { onTime: t.onTime, cells: t.cells, late: t.late, missing: t.missing, early: t.early };
+}
+
+/** The 8 accountable owners: every measure owner plus the Head of Compliance (reporting decider). */
+export const OWNER_ROLES: { role: string; targets: string[] }[] = [
+  { role: "Head of Financial Crime", targets: ["Head of Financial Crime"] },
+  { role: "Treasurer", targets: ["Treasurer"] },
+  { role: "Chief Credit Officer", targets: ["Chief Credit Officer"] },
+  { role: "Chief Customer Officer", targets: ["Chief Customer Officer"] },
+  { role: "Chief Financial Officer", targets: ["CFO"] },
+  { role: "Chief Operating Officer", targets: ["COO"] },
+  { role: "Head of Compliance", targets: ["Head of Compliance"] },
+  { role: "Data owner (payments)", targets: ["Feed owner"] },
+];
+
+export function ownerRows(openDraftIds: string[], draftTargets: Record<string, string>) {
+  return OWNER_ROLES.map((o) => {
+    const ms = MEASURES.filter((m) => m.owner === o.role);
+    const offTrack = ms.filter((m) => m.status !== "within").length;
+    const actions = openDraftIds.filter((id) => o.targets.some((t) => (draftTargets[id] ?? "").startsWith(t))).length;
+    const att = ms.map((m) => attestationOf(m.id));
+    const attest: AttestState | "none" = !ms.length ? "none" : att.includes("unconfirmed") ? "unconfirmed" : att.includes("due") ? "due" : "attested";
+    const worst = ms.map((m) => m.status);
+    const status: MeasureStatus | "none" = !ms.length ? "none" : (["red", "unconfirmed", "amber", "projected", "within"] as MeasureStatus[]).find((s) => worst.includes(s))!;
+    return { role: o.role, measures: ms, offTrack, actions, attest, status };
+  });
+}
+
+/** Roles only on screen: map a person id to a plain role. */
+export function roleOf(personId: string): string {
+  const r = PEOPLE[personId]?.roleShort ?? personId;
+  return r === "BRC chair" ? "Risk Committee Chair" : r === "CRO" ? "Chief Risk Officer" : r;
+}
+
+/** Enforcement themes, without firm names. The monitoring theme's notice is unconfirmed. */
+export const ENFORCEMENT_THEMES: { theme: string; source: string; measureId: string }[] = [
+  { theme: "High-risk customers onboarded despite a restriction", source: "FCA final notice · 2024", measureId: "u-restriction" },
+  { theme: "Financial-crime controls not scaling with growth", source: "FCA final notice · 2025", measureId: "u-capacity" },
+  { theme: "Transactions not reaching monitoring", source: "Enforcement theme · notice unconfirmed", measureId: "u-tm" },
+];
+
+export const APPETITE_STATEMENTS: Record<"O1" | "O2" | "O3" | "O4", string> = {
+  O1: "Grow within high-LTV and affordability limits",
+  O2: "Grow only as fast as crime checks keep pace",
+  O3: "Fund growth without breaching liquidity triggers",
+  O4: "Zero tolerance for restriction breaches; good outcomes",
+};

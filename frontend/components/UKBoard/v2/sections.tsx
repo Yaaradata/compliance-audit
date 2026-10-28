@@ -1,810 +1,332 @@
 "use client";
 
 /**
- * UK Board v2 — reusable board sections (compact density). Tabs compose these per persona
- * (lib/ukboard/v2/personaViews.ts). One-line 40px list rows with a 3px status rail; 44px table
- * rows; cards sized to content; no stretched panels. Actions follow the persona:
- * Board member reads and challenges; the Chair records and governs; the CRO prepares and approves.
+ * UK Board v2 — every section for the three personas, built only from the component library
+ * (present.tsx). Figures come from lib/ukboard/v2/boardStore.ts; each figure has one home per
+ * persona. Board member reads, challenges, notes and requests deep dives; the Chair records and
+ * governs; the CRO prepares, proposes, sends to owner and approves.
  */
-import { useState, type ReactNode } from "react";
-import { Check, Lock, Sparkles } from "lucide-react";
-import { CAPACITY, DRAFTS, EVENTS, HORIZON, PACK_ITEMS, PEOPLE, ROUTES } from "@/lib/ukboard/v1/data";
-import { getPrecedent } from "@/lib/ukboard/v1/precedents";
-import { headlineCounts, METRICS, rowState, type MetricMeta } from "@/lib/ukboard/v2/board";
+import { useEffect, useState, type ReactNode } from "react";
+import { Lock } from "lucide-react";
+import { CAPACITY, DRAFTS, EVENTS, PACK_ITEMS, RESTRICTION, ROUTES } from "@/lib/ukboard/v1/data";
+import { ACTIVITY, AGENTS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FINDINGS, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, TUNING, type Autonomy } from "@/lib/ukboard/v2/agentsData";
+import { CULTURE, D1_OPTIONS, D2_BOARD_ASKS, D3_OPTIONS, DUE_FOR_REVIEW, ISSUES_FOUND, JOURNEYS, REGULATOR_RELATIONSHIP, SIGNOFF_HISTORY, SIGNOFF_MONTHS, TENSIONS, type SignOffMark } from "@/lib/ukboard/v2/boardMemberData";
 import {
-  DECISION_HISTORY,
-  ENFORCEMENT_LESSONS,
-  EVENT_PLAIN,
-  GROWTH_TIER_LABEL,
-  indicatorWord,
-  measuresByTier,
-  owners,
-  RESTRICTION_ROUTES,
-  ROUTE_PLAIN,
-  routesFor,
-  signOffBuckets,
-  UNCHANGED,
-} from "@/lib/ukboard/v2/boardTabs";
-import { ACTIVITY, AGENTS, FINDINGS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, totalChecks, TUNING, type Autonomy } from "@/lib/ukboard/v2/agentsData";
+  agentFigures,
+  APPETITE_STATEMENTS,
+  attestationRecord,
+  attestationThisMonth,
+  consumerDuty,
+  EMERGING_UNMEASURED,
+  ENFORCEMENT_THEMES,
+  FIG,
+  fmt,
+  issuesFound,
+  journeysWithoutOwner,
+  measure,
+  MEASURES,
+  mortgageHeadroomM,
+  mortgagePlanPct,
+  ownerRows,
+  rateErrorPct,
+  roleOf,
+  routesDecided,
+  SINCE_LAST_BOARD,
+  statusChanges,
+  stillUnresolved,
+} from "@/lib/ukboard/v2/boardStore";
+import { DECISION_HISTORY, EVENT_PLAIN, FRANCHISES, plain, ROUTE_PLAIN } from "@/lib/ukboard/v2/boardTabs";
 import type { SectionId } from "@/lib/ukboard/v2/personaViews";
-import AppetiteDial from "./AppetiteDial";
-import { fmt, FIG, measure } from "@/lib/ukboard/v2/boardStore";
-import { renderBoardMemberSection } from "./boardRegistry";
-import LineChart from "./LineChart";
 import { useDrawer } from "./drawerContext";
+import LineChart from "./LineChart";
+import { BarRows, Card, OWNER_SHORT, ChartCard, Chip, DeltaMark, EventList, FlowPill, KpiTile, LimitPill, LineItem, LinkMore, MeasureTable, OwnerTable, PostureStrip, StatList, StatRow, StatusPill, Table, useFigures, VerdictPill, type Workflow } from "./present";
 import { useStore } from "./store";
-import { AiTag, btn, btnPrimary, focus, Label, Opener, Pill, TONE, toneOf, type Tone } from "./ui";
-
-/** Longest bar in a small bar set, as a share of the row width (layout constant). */
-const BAR_MAX = 55;
-
-/* ── Building blocks ─────────────────────────────────────────────────── */
-
-const STATE_WORD = { red: "Red", amber: "Amber", unverified: "Unconfirmed", within_appetite: "Within", not_assessed: "Not measured" } as const;
-
-export function Card({ title, right, children, className = "", id }: { title?: string; right?: ReactNode; children: ReactNode; className?: string; id?: string }) {
-  return (
-    <section id={id} className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm ${className}`}>
-      {title ? (
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-bold text-slate-900">{title}</h2>
-          {right}
-        </div>
-      ) : null}
-      {children}
-    </section>
-  );
-}
-
-/** One-line 40px list row with a 3px status rail; secondary detail inline after " · ". */
-export function Row({ tone, text, detail, right, drawer }: { tone: Tone; text: string; detail?: string; right?: ReactNode; drawer?: string }) {
-  const body = (
-    <span className={`flex min-h-10 items-center justify-between gap-3 border-l-[3px] py-1 pl-3 pr-1 text-[13px] leading-snug ${TONE[tone].rail}`}>
-      <span className="min-w-0 text-slate-800">
-        {text}
-        {detail ? <span className="text-slate-500"> · {detail}</span> : null}
-      </span>
-      {right}
-    </span>
-  );
-  return drawer ? (
-    <Opener drawer={drawer} label={text} className="rounded-r hover:bg-slate-50">
-      {body}
-    </Opener>
-  ) : (
-    body
-  );
-}
-
-export function Tag({ tone, children }: { tone: Tone; children: ReactNode }) {
-  return <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${TONE[tone].bg} ${TONE[tone].text}`}>{children}</span>;
-}
-
-export function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: Tone }) {
-  return (
-    <div className={`rounded-lg border px-3 py-2 ${tone ? `${TONE[tone].bg} ${TONE[tone].border}` : "border-slate-200 bg-white"}`}>
-      <Label>{label}</Label>
-      <p className={`text-xl font-semibold leading-tight tabular-nums ${tone && tone !== "green" ? TONE[tone].text : "text-slate-900"}`}>{value}</p>
-      {sub ? <p className="text-[11px] leading-snug text-slate-500">{sub}</p> : null}
-    </div>
-  );
-}
-
-export const measurePill = (m: MetricMeta) => {
-  const s = rowState(m);
-  if (s === "projected") return <Pill tone="amber" outline label={m.projectionText === "amber in about 9 weeks" ? "Amber ~9 weeks" : "Amber next quarter"} />;
-  return <Pill tone={toneOf(s)} label={STATE_WORD[s]} />;
-};
+import { AiTag, btn, btnPrimary, focus, Pill } from "./ui";
 
 export function useGo() {
   const { dispatch } = useStore();
   return (tab: string) => dispatch({ type: "SET_TAB", tab });
 }
 
-/* ── Overview sections ───────────────────────────────────────────────── */
-
-function UnchangedList() {
-  return (
-    <Card title="What has not changed">
-      {UNCHANGED.map((c) => (
-        <Row key={c.text} tone={c.tone} text={c.text} drawer={c.drawer} right={<Tag tone={c.tone}>{c.standing ? c.standing.replace("Standing ", "") : c.tag}</Tag>} />
-      ))}
-    </Card>
-  );
-}
-
-function AppetiteSummary() {
-  const c = headlineCounts();
-  const heading = METRICS.filter((m) => rowState(m) === "projected").length;
-  const tiles: [string, string, Tone][] = [
-    ["Within appetite", `${c.within_appetite} of 12 · ${heading} heading for amber`, "green"],
-    ["Amber", `${c.amber} of 12`, "amber"],
-    ["Red", `${c.red} of 12`, "red"],
-    ["Unconfirmed", `${c.unverified} of 12`, "grey"],
-  ];
-  return (
-    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-      {tiles.map(([l, v, tone]) => (
-        <div key={l} className={`flex h-16 items-center justify-between rounded-lg border-[1.5px] px-3 ${TONE[tone].bg} ${TONE[tone].border}`}>
-          <Label>{l}</Label>
-          <span className={`text-base font-bold tabular-nums ${tone === "green" ? "text-emerald-700" : TONE[tone].text}`}>{v}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const ROW_GRID = "grid min-h-11 grid-cols-[minmax(120px,1.2fr)_minmax(70px,0.8fr)_minmax(0,1.2fr)_64px_88px_auto] items-center gap-2.5 border-b border-slate-100 px-2 py-1 text-[13px] leading-snug min-[1400px]:grid-cols-[minmax(130px,1.3fr)_minmax(70px,0.8fr)_minmax(0,1.2fr)_64px_88px_minmax(0,1.1fr)_auto]";
-
-function MeasureRow({ m }: { m: MetricMeta }) {
+const POSTURE_SENTENCE = "Mortgages can grow; savings outrun crime checks.";
+const draftTargets = () => Object.fromEntries(Object.values(DRAFTS).map((d) => [d.draftId, d.targetRole]));
+function useOpenDrafts() {
   const { state } = useStore();
-  // Board member face: plain owner wording (no "feed").
-  const owner = state.persona === "board" ? m.owner.replace(/^Feed owner$/, "Data owner") : m.owner;
-  return (
-    <Opener drawer={`metric:${m.unitId}`} label={`${m.name}: ${m.value} ${m.denominator}`} className="hover:bg-slate-50">
-      <div className={ROW_GRID}>
-        <span className="font-semibold text-slate-900">{m.name}</span>
-        <span>{m.dial ? <AppetiteDial dial={m.dial} direction={m.direction} /> : <span className="text-slate-400">no dial</span>}</span>
-        <span className="tabular-nums">
-          <b>{m.value}</b> <span className="text-xs text-slate-500">{m.denominator}</span>
-        </span>
-        <span className={`inline-flex items-center gap-0.5 text-xs tabular-nums ${m.delta?.worse ? "text-red-600" : "text-slate-400"}`}>
-          {m.delta ? (
-            <span className="whitespace-nowrap">{m.delta.text}</span>
-          ) : (
-            "no change"
-          )}
-        </span>
-        <span className={`rounded px-1.5 py-0.5 text-center text-[10px] font-semibold ${m.indicatorType === "leading" ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-600"}`}>{indicatorWord(m)}</span>
-        <span className="hidden truncate text-xs text-slate-500 min-[1400px]:block">{owner}</span>
-        <span className="justify-self-end">{measurePill(m)}</span>
-      </div>
-    </Opener>
-  );
+  return Object.keys(state.session.drafts).filter((id) => state.session.drafts[id].status === "ai_draft");
+}
+const routeDecided = (r: (typeof ROUTES)[number]) => r.status === "decided";
+
+/* ══ Shared sections ════════════════════════════════════════════════════ */
+
+function Posture() {
+  return <PostureStrip sentence={POSTURE_SENTENCE} />;
 }
 
-function Measures() {
-  const { state } = useStore();
+function Escalation() {
   const { open } = useDrawer();
-  const [greens, setGreens] = useState(state.persona === "cro");
-  const greenRows = METRICS.filter((m) => rowState(m) === "within_appetite");
+  const e = FIG.escalation;
   return (
-    <Card title="Board measures">
-      {measuresByTier(false).map((g) => (
-        <div key={g.tier}>
-          <p className="px-2 pb-0.5 pt-1.5">
-            <Label>{GROWTH_TIER_LABEL[g.tier]}</Label>
-          </p>
-          {g.rows.map((m) => (
-            <MeasureRow key={m.unitId} m={m} />
-          ))}
-          {g.tier === "emerging" && state.persona !== "chair" ? (
-            <div className="flex h-11 items-center justify-between gap-3 border-b border-slate-100 px-2 text-[13px]">
-              <span className="truncate">
-                <b>AI impersonation fraud</b> <span className="text-xs text-slate-500">· not yet measured · Head of Financial Crime</span>
-              </span>
-              {state.persona === "cro" ? (
-                <button type="button" onClick={(e) => open("horizon", e.currentTarget)} className={btn}>
-                  Propose a measure
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      ))}
-      <button type="button" aria-expanded={greens} onClick={() => setGreens(!greens)} className={`flex h-10 w-full items-center gap-2 px-2 text-left text-[13px] hover:bg-slate-50 ${focus}`}>
-        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-        {greenRows.length} more within appetite <span className="font-semibold text-indigo-700">· {greens ? "hide" : "show"}</span>
-      </button>
-      {greens ? greenRows.map((m) => <MeasureRow key={m.unitId} m={m} />) : null}
-    </Card>
+    <StatList
+      title="Escalation"
+      rail="amber"
+      figures={["f:escalation"]}
+      rows={[
+        { label: "Median time to committee", value: `${e.medianMonths} months`, comparator: `${e.issues} serious issues`, onClick: (el) => open("badnews", el) },
+        { label: "Not escalated after 12 months", value: String(e.notEscalated), comparator: "issues" },
+        { label: "Customer checks overdue", value: fmt.n(e.overdueChecks), comparator: `target ${fmt.n(e.overdueTarget)}` },
+        { label: "Actions closed, no effect", value: String(e.actionsClosed), comparator: `${e.downgraded} downgraded` },
+      ]}
+    />
   );
 }
 
-function GrowthCapacity() {
-  const base = (arr: number[]) => arr.map((v) => Math.round((v / arr[0]) * 1000) / 10);
+function StillOpen({ title = "Still open" }: { title?: string }) {
+  const { open } = useDrawer();
   return (
-    <Card title="Growth vs capacity">
-      <LineChart
-        title="Members index against handlers index"
-        height={140}
-        series={[
-          { name: "Members", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: base(CAPACITY.membersM)[i] })) },
-          { name: "Handlers", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: base(CAPACITY.handlers)[i] })), dashed: true },
-        ]}
-      />
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        <Stat label="Per handler" value={fmt.n(FIG.capacity.perHandler)} sub={`was ${fmt.n(FIG.capacity.perHandlerWas)}`} />
-        <Stat label="In target" value={fmt.share(FIG.capacity.cleared, FIG.capacity.alerts)} sub={fmt.nOfM(FIG.capacity.cleared, FIG.capacity.alerts)} />
-        <Stat label="Queue" value={measure("u-capacity").value} sub={measure("u-capacity").comparator} tone="amber" />
-      </div>
-    </Card>
+    <StatList
+      title={title}
+      figures={["f:still-open"]}
+      rows={stillUnresolved().map((u) => {
+        const [a, b, ...rest] = u.duration.split(" ");
+        return { label: u.text, value: `${a} ${b}`, comparator: rest.join(" "), rail: "amber" as const, onClick: (el: HTMLElement) => open(u.drawer, el) };
+      })}
+    />
   );
 }
 
 function Tradeoffs() {
   const { state, dispatch } = useStore();
   const { open } = useDrawer();
-  const p = state.persona;
-  const returned = state.session.returned.includes("d-t26-redecide");
   const tr = FIG.tradeoff;
-  const rows: [string, string, Tone, string][] = [
-    ["Onboarding uplift", `+${tr.uplift} pts vs limit +${tr.upliftLimit}`, "red", "Broken"],
-    ["High-risk acceptance", `${fmt.pct(tr.acceptance, 1)} vs limit ${fmt.pct(tr.acceptanceLimit, 1)}`, "red", "Broken"],
-    ["Onboarding fraud losses", `${tr.fraudBp} bp vs limit ${tr.fraudLimitBp} bp`, "green", "Within"],
-    ["Checks before transacting", "regulatory floor", "red", "Floor"],
-  ];
+  const returned = state.session.returned.includes("d-t26-redecide");
   const action =
-    p === "cro" ? (
+    state.persona === "cro" ? (
       <button type="button" onClick={(e) => open("franchise:O2", e.currentTarget)} className={btn}>
         Adjust appetite (propose)
       </button>
-    ) : p === "chair" ? (
+    ) : state.persona === "chair" ? (
       <button type="button" disabled={returned} onClick={() => dispatch({ type: "RETURN_TO_CRO", draftId: "d-t26-redecide" })} className={btn}>
         {returned ? "Returned to CRO" : "Return to CRO"}
       </button>
-    ) : null;
-  return (
-    <Card title="Agreed trade-off: savings" right={action}>
-      <p className="mb-1 text-[11px] text-slate-500">
-        Agreed {FIG.tradeoff.agreed} · <span className="font-semibold text-red-600">review {FIG.tradeoff.overdueDays} days overdue</span>
-      </p>
-      {rows.map(([t, d, tone, pill]) => (
-        <Row key={t} tone={tone} text={t} detail={d} right={<Pill tone={tone} label={pill} />} />
-      ))}
-    </Card>
-  );
-}
-
-/* ── Decision sections ───────────────────────────────────────────────── */
-
-const CHALLENGES: Record<number, string[]> = {
-  1: [`What capacity do we need before the ${FIG.dates.campaign} campaign?`, "Why no resourcing decision since August?", "What would pacing growth cost in members?"],
-  2: ["When did we first know about the savings pot?", "Who decides each reporting route, and by when?", `Why are ${fmt.n(FIG.restriction.untested)} openings still not checked?`],
-  3: ["Who removed this item, and on what authority?", "Why no action after 3 quarters at amber?", "What stops an item being dropped silently?"],
-};
-
-interface DecisionDef {
-  n: 1 | 2 | 3;
-  title: string;
-  tone: Tone;
-  key: string;
-  keySub: string;
-  support: string;
-  why: string;
-  recommend: string;
-  decider: string;
-}
-
-const DECISIONS: DecisionDef[] = [
-  {
-    n: 1,
-    title: "Savings growth vs crime checks",
-    tone: "amber",
-    key: measure("u-capacity").value,
-    keySub: `alert queue age · ${measure("u-capacity").comparator}`,
-    support: `${fmt.n(FIG.capacity.perHandler)} members per handler (was ${fmt.n(FIG.capacity.perHandlerWas)})`,
-    why: "Next savings campaign starts in 6 weeks.",
-    recommend: "Recommends restore capacity",
-    decider: `Board · before ${FIG.dates.campaign}`,
-  },
-  {
-    n: 2,
-    title: "Restriction breach: report or not?",
-    tone: "red",
-    key: fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested),
-    keySub: `accounts checked · ${fmt.n(FIG.restriction.untested)} not checked`,
-    support: `${FIG.restriction.customers} customers, including ${FIG.restriction.exited} previously exited`,
-    why: "FCA and PRA clocks are immediate.",
-    recommend: "Prepared the case; no answer recommended",
-    decider: "Head of Compliance · immediate",
-  },
-  {
-    n: 3,
-    title: "Issue removed from board pack",
-    tone: "amber",
-    key: `${FIG.vuln.quartersAmber} quarters`,
-    keySub: "vulnerable-customer exceptions at amber",
-    support: "Removed at Executive Risk Committee 14 Oct, no reason",
-    why: "It met a committee rule but left the pack.",
-    recommend: "Recommends remediation with an owner",
-    decider: `Risk Committee Chair · ${FIG.dates.brc}`,
-  },
-];
-
-function Challenge({ n }: { n: number }) {
-  const { state, dispatch } = useStore();
-  const [open, setOpen] = useState(false);
-  const saved = state.session.notes.filter((x) => x.from === `Decision ${n}`).map((x) => x.text);
-  const noted = state.session.notes.some((x) => x.from === `Decision ${n} note`);
-  return (
-    <div className="space-y-1.5">
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setOpen(!open)} className={btn}>
-          Ask a challenge question
-        </button>
-        <button type="button" disabled={noted} onClick={() => dispatch({ type: "SAVE_NOTE", text: `Raise decision ${n} at the meeting`, from: `Decision ${n} note` })} className={btn}>
-          {noted ? "In my notes" : "Add to my notes"}
-        </button>
-      </div>
-      {open ? (
-        <div className="space-y-1 rounded-lg border border-violet-200 bg-violet-50 p-2">
-          <AiTag label="AI agent drafted" />
-          {CHALLENGES[n].map((q) => (
-            <div key={q} className="flex items-start justify-between gap-2 text-xs text-slate-700">
-              <span>{q}</span>
-              <button type="button" disabled={saved.includes(q)} onClick={() => dispatch({ type: "SAVE_NOTE", text: q, from: `Decision ${n}` })} className={`shrink-0 text-[11px] font-semibold text-indigo-700 disabled:text-slate-400 ${focus} rounded`}>
-                {saved.includes(q) ? "Saved" : "Save"}
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ChairRecord() {
-  const { state, dispatch } = useStore();
-  const [opt, setOpt] = useState<string | null>(null);
-  const d = state.session.drafts["d-t234-options"];
-  if (d.status !== "ai_draft") return <p className="text-xs font-semibold text-slate-900">Recorded by {PEOPLE.chair.name}: {DRAFTS["d-t234-options"].options?.find((o) => o.id === d.chosenOptionId)?.label}</p>;
-  return (
-    <fieldset>
-      <legend className="sr-only">Your decision</legend>
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {DRAFTS["d-t234-options"].options!.map((o) => (
-          <label key={o.id} className="flex items-center gap-1.5 text-xs text-slate-700">
-            <input type="radio" name="chair-d3" checked={opt === o.id} onChange={() => setOpt(o.id)} />
-            {o.label}
-          </label>
-        ))}
-      </div>
-      <button type="button" disabled={!opt} onClick={() => opt && dispatch({ type: "CHAIR_RECORD", draftId: "d-t234-options", optionId: opt })} className={`${btnPrimary} mt-2`}>
-        Record decision
-      </button>
-    </fieldset>
-  );
-}
-
-function DecisionCard({ d, compact, children }: { d: DecisionDef; compact?: boolean; children?: ReactNode }) {
-  const { open } = useDrawer();
-  return (
-    <div className={`rounded-xl border-[1.5px] bg-white p-4 shadow-sm ${TONE[d.tone].border}`}>
-      <button type="button" onClick={(e) => open(`decision:${d.n}`, e.currentTarget)} className={`block w-full text-left ${focus} rounded`}>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">{d.n}</span>
-          <span className="text-sm font-bold text-slate-900">{d.title}</span>
-          {compact ? <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400">For noting</span> : null}
-        </div>
-        <p className={`mt-2 tabular-nums ${compact ? "text-xl font-semibold" : "text-[28px] font-bold leading-tight"} ${TONE[d.tone].text}`}>
-          {d.key} <span className="text-xs font-normal text-slate-500">{d.keySub}</span>
-        </p>
-        {compact ? (
-          <p className="text-xs text-slate-500">{d.decider}</p>
-        ) : (
-          <>
-            <p className="text-xs text-slate-600">{d.support}</p>
-            <p className="mt-1 text-xs text-slate-700">
-              <Label>Why now</Label> {d.why}
-            </p>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-violet-800">
-              <AiTag /> {d.recommend}
-            </p>
-            <p className="mt-1 text-xs font-semibold text-slate-500">{d.decider}</p>
-          </>
-        )}
-      </button>
-      {children ? <div className="mt-2.5">{children}</div> : null}
-    </div>
-  );
-}
-
-function DecisionCards() {
-  const { state } = useStore();
-  if (state.persona === "chair") {
-    return (
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-6">
-          <DecisionCard d={DECISIONS[2]}>
-            <ChairRecord />
-          </DecisionCard>
-        </div>
-        <div className="flex flex-col gap-3 lg:col-span-6">
-          <DecisionCard d={DECISIONS[0]} compact />
-          <DecisionCard d={DECISIONS[1]} compact />
-        </div>
-      </div>
+    ) : (
+      <FlowPill w="overdue" />
     );
-  }
   return (
-    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
-      {DECISIONS.map((d) => (
-        <DecisionCard key={d.n} d={d}>
-          {state.persona === "board" ? <Challenge n={d.n} /> : null}
-        </DecisionCard>
-      ))}
-    </div>
+    <StatList
+      title="Agreed trade-offs"
+      right={action}
+      figures={["f:tradeoff"]}
+      rows={[
+        { label: "Onboarding uplift", value: `+${tr.uplift} pts`, comparator: `limit +${tr.upliftLimit}`, rail: "red", right: <LimitPill l="broken" /> },
+        { label: "High-risk acceptance", value: fmt.pct(tr.acceptance, 1), comparator: `limit ${fmt.pct(tr.acceptanceLimit, 1)}`, rail: "red", right: <LimitPill l="broken" /> },
+        { label: "Onboarding fraud losses", value: `${tr.fraudBp} bp`, comparator: `limit ${tr.fraudLimitBp} bp`, right: <LimitPill l="within" /> },
+        { label: "Checks before transacting", value: "Floor", comparator: `${tr.overdueDays} days overdue`, rail: "red", right: <LimitPill l="floor" /> },
+      ]}
+    />
   );
 }
 
-function DecisionHistory() {
-  const { state } = useStore();
-  const compact = state.persona === "cro";
+function CapacityChart({ withStats }: { withStats?: boolean }) {
+  const c = FIG.capacity;
+  const base = (arr: number[]) => arr.map((v) => Math.round((v / arr[0]) * 1000) / 10);
+  useFigures(withStats ? ["f:capacity"] : []);
   return (
-    <Card title="Decision history">
-      {DECISION_HISTORY.map((h) => (
-        <Row key={h.decision} tone={h.tone} text={compact ? h.decision : `${h.date} · ${h.forum}: ${h.decision}`} detail={compact ? h.date : undefined} right={compact ? undefined : <Pill tone={h.tone} outline label={h.outcome} />} />
-      ))}
-    </Card>
-  );
-}
-
-/* ── Regulatory sections ─────────────────────────────────────────────── */
-
-function Clocks() {
-  const { state, dispatch } = useStore();
-  const cro = state.persona === "cro";
-  return (
-    <Card title={cro ? "Reporting clocks" : state.persona === "board" ? "What may be reportable?" : "Reporting status"}>
-      {EVENTS.map((e) => {
-        const rs = routesFor(e.eventId);
-        const decided = rs.filter((r) => r.status === "decided").length;
-        if (!cro) {
-          return <Row key={e.eventId} tone={decided ? "amber" : "red"} text={EVENT_PLAIN[e.eventId]} detail={`day ${e.dayN} · ${decided} of ${rs.length} decided · Head of Compliance`} drawer={`event:${e.eventId}`} />;
-        }
-        return (
-          <div key={e.eventId} className="mb-2 rounded-lg border border-slate-200">
-            <div className="flex h-10 items-center justify-between bg-slate-50 px-3 text-[13px]">
-              <b className="text-slate-900">{EVENT_PLAIN[e.eventId]}</b>
-              <span className="text-xs text-slate-600">
-                Day {e.dayN} · {decided} of {rs.length} decided
-              </span>
-            </div>
-            {rs.map((r) => {
-              const caseId = r.caseDraftId;
-              const cs = caseId ? state.session.drafts[caseId] : undefined;
-              return (
-                <div key={r.routeId} className="grid h-11 grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_auto] items-center gap-3 border-t border-slate-100 px-3 text-xs">
-                  <b className="text-slate-900">{ROUTE_PLAIN[r.routeId]}</b>
-                  <span className="truncate text-slate-600">{r.isSar ? "As soon as practicable" : r.clockHours === 24 ? (r.status === "decided" ? "Immediate" : "Immediate · triage passed") : "Reporting period"}</span>
-                  <span className="truncate text-slate-600">{r.status === "decided" ? `${PEOPLE[r.history[0].deciderPersonId].name}, ${r.history[0].decidedOn}` : r.proposedDeciderRole}</span>
-                  {cs && cs.status === "ai_draft" ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dispatch({ type: "ACCEPT", draftId: caseId! });
-                        dispatch({ type: "SEND", draftId: caseId! });
-                      }}
-                      className={btn}
-                    >
-                      Send case
-                    </button>
-                  ) : (
-                    <Pill tone={r.status === "decided" ? "green" : r.isSar ? "grey" : "amber"} label={r.status === "decided" ? "Decided" : r.isSar ? (r.status === "not_engaged" ? "Closed" : "Open") : "With SMF"} />
-                  )}
-                </div>
-              );
-            })}
-            {e.awarenessGap ? <p className="border-t border-slate-100 px-3 py-2 text-xs text-slate-600">Awareness date: earlier linked records {e.awarenessGap.gapDays} days before the logged date</p> : null}
-          </div>
-        );
-      })}
-      {state.persona === "board" ? (
+    <ChartCard id="capacity" title="Growth vs capacity">
+      <LineChart
+        title="Members and qualified handlers, indexed"
+        height={180}
+        series={[
+          { name: "Members", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: base(CAPACITY.membersM)[i] })) },
+          { name: "Handlers", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: base(CAPACITY.handlers)[i] })), dashed: true },
+        ]}
+      />
+      {withStats ? (
         <>
-          <Row tone="red" text="FCA and PRA clocks are immediate" detail="Head of Compliance decides, not the board" />
+          <StatRow label="Members per handler" value={fmt.n(c.perHandler)} comparator={`was ${fmt.n(c.perHandlerWas)}`} />
+          <StatRow label="Alerts cleared in target" value={fmt.share(c.cleared, c.alerts)} comparator={fmt.nOfM(c.cleared, c.alerts)} />
+          <StatRow label="Handlers to restore ratio" value={`+${c.restoreNeeded}`} comparator={`about ${fmt.gbpM(c.restoreCostM)} a year`} />
         </>
       ) : null}
+    </ChartCard>
+  );
+}
+
+function OwnersTable() {
+  const openIds = useOpenDrafts();
+  return <OwnerTable rows={ownerRows(openIds, draftTargets())} />;
+}
+
+const MARK: Record<SignOffMark, { cls: string; word: string }> = {
+  on_time: { cls: "bg-slate-400", word: "On time" },
+  late: { cls: "bg-amber-500", word: "Late" },
+  missing: { cls: "border border-dashed border-slate-400 bg-white", word: "Missing" },
+  early: { cls: "bg-red-500", word: "Before data check" },
+};
+
+function AttestationHeatmap() {
+  const r = attestationRecord();
+  useFigures(["f:attest-record"]);
+  return (
+    <ChartCard id="attestation-heatmap" title="Attestation record" right={<Chip>{`${r.onTime} of ${r.cells} owner-months on time`}</Chip>}>
+      <div className="grid grid-cols-[170px_repeat(12,minmax(0,1fr))] items-center gap-1 pt-1 text-[11px] text-slate-500">
+        <span />
+        {SIGNOFF_MONTHS.map((m) => (
+          <span key={m} className="text-center">
+            {m}
+          </span>
+        ))}
+        {SIGNOFF_HISTORY.map((o) => (
+          <div key={o.role} className="contents">
+            <span className="flex h-7 items-center text-xs text-slate-800">{o.role}</span>
+            {o.marks.map((mk, i) => (
+              <span key={i} title={`${SIGNOFF_MONTHS[i]}: ${MARK[mk].word}`} className={`mx-auto h-5 w-full max-w-7 rounded ${MARK[mk].cls}`} />
+            ))}
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-600">
+        {(Object.keys(MARK) as SignOffMark[]).map((k) => (
+          <span key={k} className="flex items-center gap-1.5">
+            <span className={`h-3 w-3 rounded-sm ${MARK[k].cls}`} />
+            {MARK[k].word}
+          </span>
+        ))}
+      </p>
+    </ChartCard>
+  );
+}
+
+function AttestationMonth() {
+  const a = attestationThisMonth();
+  return (
+    <StatList
+      title="Attestation this month"
+      figures={["f:attest-month"]}
+      rows={[
+        { label: "Attested", value: `${a.attested} of ${a.total}`, comparator: "board measures" },
+        { label: "Due", value: String(a.due), comparator: "sign-off pending", rail: "amber" },
+        { label: "Unconfirmed", value: String(a.unconfirmed), comparator: "before data check", right: <Pill tone="grey" label="Unconfirmed" /> },
+      ]}
+    />
+  );
+}
+
+function EnforcementThemes() {
+  const { state, dispatch } = useStore();
+  const { open } = useDrawer();
+  const done = state.session.drafts["d-t232-readacross"]?.status !== "ai_draft";
+  return (
+    <Card
+      title="Enforcement themes"
+      right={
+        state.persona === "cro" ? (
+          <button type="button" disabled={done} onClick={() => dispatch({ type: "ACCEPT", draftId: "d-t232-readacross" })} className={btn}>
+            {done ? "Read-across recorded" : "Record read-across"}
+          </button>
+        ) : undefined
+      }
+    >
+      {ENFORCEMENT_THEMES.map((t) => (
+        <LineItem key={t.theme} text={t.theme} detail={t.source} onClick={(el) => open(`metric:${t.measureId}`, el)} right={<Chip>{measure(t.measureId).name}</Chip>} />
+      ))}
     </Card>
   );
 }
 
 function Horizon() {
   return (
-    <Card title="Horizon">
-      <Row tone="grey" text={`${HORIZON.emergingRisks} emerging risks`} detail="in the register" drawer="horizon" />
-      <Row tone="amber" text={`${HORIZON.withinTwelveMonths} within 12 months`} detail="1 not yet measured" drawer="horizon" />
-      <Row tone="grey" text={`${HORIZON.daysToIncidentRules} days`} detail={`to new incident rules (${FIG.dates.incidentRules})`} drawer="horizon" />
-      <Row tone="grey" text={`${HORIZON.trialClassified.classified} of ${HORIZON.trialClassified.total} incidents`} detail="classified in a trial run" drawer="horizon" />
-    </Card>
+    <EventList
+      title="Regulatory horizon"
+      items={[
+        { date: "18 Mar 27", text: "Incident and third-party reporting rules", tag: "FCA · PRA", drawer: "horizon" },
+        { date: "Jul 27", text: "Consumer Duty annual board report", tag: "FCA" },
+      ]}
+    />
   );
 }
 
-function Restriction() {
+const ROUTE_LABEL: Record<string, string> = { product: "New savings pot", migration: "Group migration", override: "Branch override" };
+
+function RestrictionCard() {
+  const { open } = useDrawer();
+  const r = FIG.restriction;
+  useFigures(["m:u-restriction", "f:restriction"]);
   return (
-    <Card title="Restriction health" right={<Pill tone="red" label="Breach" />}>
-      <Opener drawer="restriction" label="Restriction health" className="rounded">
-        <p className="text-2xl font-bold tabular-nums text-red-600">
-          {fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested)} <span className="text-xs font-normal text-slate-500">accounts checked · {FIG.restriction.customers} customers</span>
-        </p>
-        <p className="text-xs text-slate-600">
-          The block fired {fmt.n(FIG.restriction.blockFired)} times; the full check found {FIG.restriction.breaches} breaches.
-        </p>
-        <div className="mt-1.5 space-y-1">
-            {RESTRICTION_ROUTES.map((r) => (
-              <div key={r.label} className="flex items-center gap-2 text-xs">
-                <span className="w-28 shrink-0 text-slate-600">{r.label}</span>
-                <span className="h-1.5 rounded-full bg-red-400" style={{ width: `${(r.accounts / FIG.restriction.breaches) * BAR_MAX}%` }} />
-                <b className="tabular-nums">{r.accounts}</b>
-              </div>
-            ))}
-          <p className="text-xs text-slate-500">
-            {FIG.restriction.clausesUnsupported} of {FIG.restriction.clauses} clauses not supported · sign-off due {FIG.dates.restrictionSignOff}
-          </p>
-        </div>
-      </Opener>
+    <Card title="Restriction" rail="red" right={<StatusPill status="red" />}>
+      <StatRow label="Accounts in breach" value={fmt.nOfM(r.breaches, r.tested)} comparator="appetite 0" onClick={(el) => open("restriction", el)} />
+      <StatRow label="Customers affected" value={String(r.customers)} comparator={`${r.exited} previously exited`} />
+      <StatRow label="Openings not checked" value={fmt.n(r.untested)} comparator="partner channel" />
+      <div data-chart="restriction-routes" className="pt-1">
+        <BarRows max={r.breaches} rows={RESTRICTION.byRoute.map((b) => ({ label: ROUTE_LABEL[b.lane] ?? b.route, value: b.accounts }))} />
+      </div>
     </Card>
   );
 }
 
-function Enforcement() {
+const shortDate = (s: string) => {
+  const [d, m] = s.split(" ");
+  return `${Number(d)} ${m.slice(0, 3)}`;
+};
+
+/** Reporting decisions: event · route · clock · decider · status. CRO gets the Send case action. */
+function ReportingTable() {
   const { state, dispatch } = useStore();
   const cro = state.persona === "cro";
-  const done = state.session.drafts["d-t232-readacross"]?.status !== "ai_draft";
-  return (
-    <Card
-      title="Enforcement lessons for us"
-      right={
-        cro ? (
-          <button type="button" disabled={done} onClick={() => dispatch({ type: "ACCEPT", draftId: "d-t232-readacross" })} className={btn}>
-            {done ? "Read-across recorded" : "Record read-across"}
-          </button>
-        ) : null
-      }
-    >
-      {ENFORCEMENT_LESSONS.map((l) => {
-        const p = getPrecedent(l.id)!;
-        const m = METRICS.find((x) => x.unitId === l.unitId)!;
-        const tone = toneOf(rowState(m));
-        return (
-          <Opener key={l.id} drawer={`lesson:${l.id}`} label={p.respondent} className="rounded-r hover:bg-slate-50">
-            <span className={`block border-l-[3px] py-1.5 pl-3 pr-1 ${TONE[tone].rail}`}>
-              <span className="flex items-center justify-between gap-2 text-[13px]">
-                <b className="text-slate-900">{p.respondent}</b>
-                <Tag tone={tone}>Touches {l.touches.toLowerCase()}</Tag>
-              </span>
-              <span className="block text-xs text-slate-600">{l.what} · settled, no admission</span>
-            </span>
-          </Opener>
-        );
-      })}
-    </Card>
-  );
-}
-
-/* ── Accountability sections ─────────────────────────────────────────── */
-
-function useOwners() {
-  return owners(Object.fromEntries(Object.values(DRAFTS).map((d) => [d.draftId, d.targetRole])));
-}
-
-function Owners({ onPick, picked }: { onPick?: (role: string) => void; picked?: string }) {
-  const { state } = useStore();
-  const { open } = useDrawer();
-  const list = useOwners();
-  return (
-    <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-5">
-      {list.map((o) => {
-        const openN = o.draftIds.filter((id) => state.session.drafts[id]?.status === "ai_draft").length;
-        const tone: Tone = o.state;
-        return (
+  const r = routesDecided();
+  useFigures(["f:routes"]);
+  const eventShort = (id: string) => (id === "e-117" ? "Mortgage rate error" : EVENT_PLAIN[id]);
+  const clock = (x: (typeof ROUTES)[number]) => (x.isSar ? "As soon as practicable" : x.clockHours === 24 ? "Immediate" : "Reporting period");
+  const status = (x: (typeof ROUTES)[number]): ReactNode => (routeDecided(x) ? <FlowPill w="decided" /> : x.status === "not_engaged" ? <span className="text-xs text-slate-500">Not started</span> : <FlowPill w="due" />);
+  const awareness = EVENTS.find((e) => e.awarenessGap);
+  const rows = ROUTES.map((x) => {
+    const cs = x.caseDraftId ? state.session.drafts[x.caseDraftId] : undefined;
+    const decider = routeDecided(x) ? `${roleOf(x.history[0].deciderPersonId)} · ${shortDate(x.history[0].decidedOn)}` : x.proposedDeciderRole;
+    const cells: ReactNode[] = [eventShort(x.eventId), ROUTE_PLAIN[x.routeId], clock(x), decider, status(x)];
+    if (cro)
+      cells.push(
+        cs && cs.status === "ai_draft" ? (
           <button
-            key={o.role}
+            key="a"
             type="button"
-            aria-pressed={picked === o.role}
-            onClick={(e) => (onPick ? onPick(o.role) : open(`owner:${o.role}`, e.currentTarget))}
-            className={`flex min-h-[104px] flex-col justify-between gap-1 rounded-xl border-[1.5px] bg-white px-3 py-2.5 text-left shadow-sm hover:shadow-md ${focus} ${TONE[tone].border} ${picked === o.role ? "ring-2 ring-indigo-500" : ""}`}
+            className={btn}
+            onClick={() => {
+              dispatch({ type: "ACCEPT", draftId: x.caseDraftId! });
+              dispatch({ type: "SEND", draftId: x.caseDraftId! });
+            }}
           >
-            <span className="w-fit whitespace-nowrap rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-800">{o.role}</span>
-            <span className="flex items-center justify-between gap-2">
-              <span className={`text-2xl font-bold tabular-nums ${tone === "green" ? "text-slate-900" : TONE[tone].text}`}>
-                {o.measures.length ? (
-                <>
-                  {o.offTrack} <span className="text-xs font-normal text-slate-500">of {o.measures.length} off track</span>
-                </>
-              ) : (
-                <span className="text-sm font-semibold text-slate-600">No board measure</span>
-              )}
-              </span>
-              <Pill tone={tone} label={tone === "grey" ? "Unconfirmed" : tone === "green" ? "On track" : tone === "red" ? "Red" : "Amber"} />
-            </span>
-            <span className="text-[11px] leading-snug text-slate-500">
-              {o.lastSignOff === "Unconfirmed" ? "Sign-off unconfirmed" : `Signed off ${o.lastSignOff.replace(/ (\w{3})\w* 2026/, " $1")}`} · {openN} {openN === 1 ? "action" : "actions"} open
-            </span>
+            Send case
           </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function OwnerDrill({ role }: { role: string }) {
-  const { state, dispatch } = useStore();
-  const o = useOwners().find((x) => x.role === role)!;
-  const done = state.session.notes.some((n) => n.from === `Reasonable steps · ${role}`);
+        ) : (
+          <span key="a" className="text-xs text-slate-400">
+            —
+          </span>
+        ),
+      );
+    return { key: x.routeId, rail: !routeDecided(x) && x.clockHours === 24 ? ("red" as const) : undefined, cells };
+  });
+  if (cro && awareness?.awarenessGap) rows.push({ key: "gap", rail: undefined, cells: ["Awareness date", `Records ${awareness.awarenessGap.gapDays} days earlier`, "", "", "", ""] });
   return (
-    <Card
-      title={`${role}: items`}
-      right={
-        <button type="button" disabled={done} onClick={() => dispatch({ type: "SAVE_NOTE", text: `Reasonable steps reviewed for ${role}`, from: `Reasonable steps · ${role}` })} className={btnPrimary}>
-          {done ? "Reasonable steps recorded" : "Record reasonable steps"}
-        </button>
-      }
-    >
-      {o.measures.map((m) => (
-        <Row key={m.unitId} tone={toneOf(rowState(m))} text={m.name} detail={`${m.value} ${m.denominator}`} drawer={`metric:${m.unitId}`} right={measurePill(m)} />
-      ))}
-      <Row tone="grey" text={`${o.draftIds.filter((id) => state.session.drafts[id]?.status === "ai_draft").length} open actions routed here`} detail={`last sign-off ${o.lastSignOff}`} />
-    </Card>
+    <Table
+      title="Reporting decisions"
+      right={<Chip>{`${r.decided} of ${r.total} routes decided`}</Chip>}
+      cols={cro ? "grid-cols-[minmax(130px,1fr)_minmax(110px,0.9fr)_minmax(110px,0.9fr)_minmax(150px,1.1fr)_84px_96px]" : "grid-cols-[minmax(130px,1fr)_minmax(110px,0.9fr)_minmax(120px,0.9fr)_minmax(150px,1.1fr)_84px]"}
+      head={cro ? ["Event", "Route", "Clock", "Decider", "Status", "Action"] : ["Event", "Route", "Clock", "Decider", "Status"]}
+      rightCols={cro ? [4, 5] : [4]}
+      rows={rows}
+    />
   );
 }
 
-function BadNews() {
-  const { state } = useStore();
-  return (
-    <Card title={state.persona === "chair" ? "Escalation" : "Is bad news reaching us?"}>
-      <Opener drawer="badnews" label="Is bad news reaching us?" className="rounded">
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-          <Stat label="To committee" value={`${FIG.escalation.medianMonths} months`} sub={`median of ${FIG.escalation.issues} serious issues`} tone="amber" />
-          <Stat label="Not escalated" value={String(FIG.escalation.notEscalated)} sub="issues after 12 months" tone="amber" />
-          <Stat label="Checks overdue" value={fmt.n(FIG.escalation.overdueChecks)} sub={`vs ${fmt.n(FIG.escalation.overdueTarget)} target`} tone="red" />
-          <Stat label="Closed, no effect" value={String(FIG.escalation.actionsClosed)} sub={`actions; ${FIG.escalation.downgraded} downgraded`} tone="red" />
-        </div>
-        {state.persona !== "cro" ? (
-          <div className="mt-2.5 space-y-1">
-            <Label>Months without escalation</Label>
-            {FIG.escalation.unescalated.map((u) => (
-              <div key={u.unit} className="flex items-center gap-2 text-xs">
-                <span className="w-36 shrink-0 text-slate-600">{u.unit}</span>
-                <span className="h-1.5 rounded-full bg-amber-400" style={{ width: `${(u.months / Math.max(...FIG.escalation.unescalated.map((x) => x.months))) * BAR_MAX}%` }} />
-                <b className="tabular-nums">{u.months} months</b>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </Opener>
-    </Card>
-  );
-}
-
-function SignOff() {
-  const b = signOffBuckets();
-  return (
-    <Card title="Sign-off status">
-      <div className="grid grid-cols-3 divide-x divide-slate-100 rounded-lg border border-slate-200">
-        {[
-          ["Signed off", b.signed.length, "green"],
-          ["Due", b.due.length, "amber"],
-          ["Unconfirmed", b.unconfirmed.length, "grey"],
-        ].map(([l, n, tone]) => (
-          <div key={l as string} className="px-3 py-2">
-            <p className={`text-2xl font-bold tabular-nums ${tone === "green" ? "text-emerald-600" : TONE[tone as Tone].text}`}>{n as number}</p>
-            <p className="text-xs text-slate-500">{l as string} of 12</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-2">
-        <Row tone="grey" text="Monitoring coverage" detail="signed off 3 hours early" drawer="metric:u-tm" right={<Pill tone="grey" label="Unconfirmed" />} />
-      </div>
-    </Card>
-  );
-}
-
-function Removed() {
-  const { state, dispatch } = useStore();
-  const chair = state.persona === "chair";
-  const latest = state.session.manifestVersions[state.session.manifestVersions.length - 1];
-  const restored = latest.itemIds.includes("pi-vuln");
-  const asked = state.session.notes.some((n) => n.from === "Chair request");
-  return (
-    <Card
-      title={state.persona === "board" ? "What was removed or downgraded?" : "Pack integrity"}
-      right={
-        chair ? (
-          <button type="button" disabled={asked || restored} onClick={() => dispatch({ type: "SAVE_NOTE", text: "Restore vulnerable-customer exceptions to the 15 Dec agenda", from: "Chair request" })} className={btnPrimary}>
-            {asked ? "Restore requested" : restored ? "Restored" : "Restore to agenda"}
-          </button>
-        ) : null
-      }
-    >
-      <Row tone={restored ? "amber" : "red"} text="Vulnerable-customer exceptions" detail="removed at Executive Risk Committee 14 Oct, no reason recorded" drawer="removed" right={<Pill tone={restored ? "amber" : "red"} label={restored ? "Restored · draft" : "Removed"} />} />
-      <Row tone="amber" text={`${FIG.escalation.downgraded} issues downgraded high → medium`} detail="linked measure unchanged" drawer="badnews" right={<Pill tone="amber" label="Downgraded" />} />
-      {state.persona === "board" ? <Row tone="amber" text="Customer-check backlog deadline extended 3 times" detail="limit 2" drawer="badnews" right={<Pill tone="amber" label="Extended" />} /> : null}
-      {state.persona === "board" ? (
-        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500">
-          <AiTag label="Board Pack agent" /> flagged the removal on 15 Oct
-        </p>
-      ) : null}
-    </Card>
-  );
-}
-
-/* ── Agent sections ──────────────────────────────────────────────────── */
-
-const statusTone = { running: "green", waiting: "amber", paused: "grey" } as const;
-const statusWord = { running: "Running", waiting: "Waiting", paused: "Paused" } as const;
-
-function AgentSummary() {
-  const { state } = useStore();
-  const waiting = QUEUE.filter((q) => state.session.drafts[q.draftId]?.status === "ai_draft").length;
-  return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-xl border-[1.5px] border-violet-200 bg-violet-50 px-4 py-2.5">
-      <AiTag label="AI agents" />
-      {[
-        [String(AGENTS.length), "agents"],
-        [String(totalChecks()), "checks this week"],
-        ...(state.persona === "board" ? [[String(FINDINGS.length), "findings this quarter"]] : []),
-        [String(waiting), "drafts waiting for a person"],
-        ["0", "actions without approval"],
-      ].map(([v, l]) => (
-        <span key={l} className="text-[13px] text-slate-700">
-          <b className="text-xl font-bold tabular-nums text-violet-800">{v}</b> {l}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function AgentRoster() {
-  const { state } = useStore();
-  if (state.persona === "board") {
-    return (
-      <Card title="Agent roster">
-        {AGENTS.map((a) => (
-          <Row key={a.id} tone={statusTone[a.status]} text={a.name} detail={`${a.finding} · ${a.accountable}`} drawer={`agent:${a.id}`} right={<Pill tone={statusTone[a.status]} label={statusWord[a.status]} />} />
-        ))}
-      </Card>
-    );
-  }
-  return (
-    <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {AGENTS.map((a) => (
-        <Opener key={a.id} drawer={`agent:${a.id}`} label={a.name} className="rounded-xl">
-          <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 hover:border-indigo-300 hover:shadow-md">
-            <div className="flex items-start justify-between gap-2">
-              <p className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
-                <Sparkles className="h-4 w-4 text-violet-500" aria-label="AI agent" />
-                {a.name}
-              </p>
-              <Pill tone={statusTone[a.status]} label={statusWord[a.status]} />
-            </div>
-            <p className="mt-1 truncate text-xs text-slate-800">{a.finding}</p>
-            <p className="mt-1 flex justify-between text-[11px] text-slate-500">
-              <span>{a.accountable}</span>
-              <span className="rounded bg-violet-100 px-1.5 font-semibold text-violet-800">{AUTONOMY_LABEL[state.session.autonomy[a.id]]}</span>
-            </p>
-          </div>
-        </Opener>
-      ))}
-    </div>
-  );
-}
-
-function Approvals() {
-  const { state } = useStore();
-  const waiting = QUEUE.filter((q) => state.session.drafts[q.draftId]?.status === "ai_draft");
-  return (
-    <Card title="Waiting for the CRO">
-      {waiting.length ? waiting.map((q) => <Row key={q.draftId} tone="amber" text={q.title} detail={agentName(q.agentId)} />) : <p className="text-xs text-slate-500">Nothing waiting.</p>}
-    </Card>
-  );
-}
-
-function AgentControls() {
+function AgentAutonomy() {
   const { state, dispatch } = useStore();
   const chair = state.persona === "chair";
   return (
-    <Card title="Agent autonomy" right={chair ? undefined : <span className="text-[11px] text-slate-500">Set by the Risk Committee</span>}>
+    <Card title="Agent autonomy" right={<span className="text-xs text-slate-500">{chair ? "Changes go to committee" : "Set by Risk Committee"}</span>}>
       {AGENTS.map((a) => (
-        <div key={a.id} className="flex h-9 items-center justify-between gap-2 border-b border-slate-100 text-xs last:border-b-0">
-          <span className="truncate text-slate-700">{a.name}</span>
+        <span key={a.id} className="flex min-h-9 items-center justify-between gap-2 border-t border-slate-100 pl-[13px] text-[13px]">
+          <span className="text-slate-700">{a.name}</span>
           {chair ? (
-            <select
-              aria-label={`${a.name} autonomy`}
-              value={state.session.autonomy[a.id]}
-              onChange={(e) => dispatch({ type: "SET_AUTONOMY", agentId: a.id, level: e.target.value as Autonomy })}
-              className={`rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700 ${focus}`}
-            >
+            <select aria-label={`${a.name} autonomy`} value={state.session.autonomy[a.id]} onChange={(e) => dispatch({ type: "SET_AUTONOMY", agentId: a.id, level: e.target.value as Autonomy })} className={`rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-xs font-semibold text-slate-800 ${focus}`}>
               {AUTONOMY_ORDER.map((lv) => (
                 <option key={lv} value={lv}>
                   {AUTONOMY_LABEL[lv]}
@@ -815,101 +337,756 @@ function AgentControls() {
               </option>
             </select>
           ) : (
-            <span className="rounded bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-800">{AUTONOMY_LABEL[state.session.autonomy[a.id]]}</span>
+            <Chip>{AUTONOMY_LABEL[state.session.autonomy[a.id]]}</Chip>
           )}
-        </div>
-      ))}
-      <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500">
-        <Lock className="h-3 w-3" aria-hidden /> Act: locked by policy{chair ? " · changes go to committee" : ""}
-      </p>
-    </Card>
-  );
-}
-
-function Guardrails() {
-  return (
-    <Card title="Rules agents cannot break">
-      {FIXED_RULES.map((r) => (
-        <p key={r} className="flex h-8 items-center gap-1.5 text-xs text-slate-700">
-          <Lock className="h-3 w-3 text-slate-400" aria-hidden />
-          {r}
-        </p>
-      ))}
-      <p className="mt-1 text-[11px] text-slate-500">
-        Model risk review {MODEL_OVERSIGHT.lastReview} · {MODEL_OVERSIGHT.pastValidation}
-      </p>
-    </Card>
-  );
-}
-
-function Tuning() {
-  const { state, dispatch } = useStore();
-  const [dial, setDial] = useState(TUNING.recommended);
-  return (
-    <Card title="Tuning lab: savings-pot check" right={<AiTag label="AI agent test" />}>
-      <p className="text-xs text-slate-600">
-        {TUNING.proposal} · {TUNING.test} · bars: caught of {TUNING.breaches}, extra alerts of {fmt.n(TUNING.alertsPerMonth)}
-      </p>
-      <div className="mt-2 grid grid-cols-1 items-start gap-3 lg:grid-cols-3">
-        {TUNING.options.map((o) => {
-          const tone: Tone = o.id === "C" ? "red" : o.id === "B" ? "green" : "amber";
-          return (
-            <button key={o.id} type="button" aria-pressed={dial === o.id} onClick={() => setDial(o.id)} className={`rounded-lg border-[1.5px] px-3 py-2 text-left ${focus} ${TONE[tone].bg} ${TONE[tone].border} ${dial === o.id ? "ring-2 ring-indigo-500" : ""}`}>
-              <span className="flex items-center justify-between text-[13px] font-bold text-slate-900">
-                {o.id} · {o.label}{o.dial !== o.label ? ` (${o.dial})` : ""}{o.view === "Recommended" ? <AiTag label="Recommended" /> : <span className="text-[11px] font-normal text-slate-500">{o.view}</span>}
-              </span>
-              <span className="mt-1 flex items-center gap-2 text-xs">
-                <span className="h-1.5 rounded-full bg-emerald-500" style={{ width: `${(o.caught / TUNING.breaches) * 60}%`, minWidth: 2 }} />
-                <b className="tabular-nums">{o.caught} of 97</b>
-              </span>
-              <span className="flex items-center gap-2 text-xs">
-                <span className="h-1.5 rounded-full bg-amber-500" style={{ width: `${(o.extraAlerts / 2100) * 60}%`, minWidth: 2 }} />
-                <b className="tabular-nums">
-                  +{o.extraAlerts.toLocaleString("en-GB")} ({((o.extraAlerts / TUNING.alertsPerMonth) * 100).toFixed(1)}%)
-                </b>
-              </span>
-              <span className="block text-[11px] text-slate-600">{o.capacity}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <p className="text-[11px] text-slate-500">Nothing goes live without model-risk review and a named approver.</p>
-        {state.session.tuningProposal ? (
-          <p className="text-xs font-semibold">Option {state.session.tuningProposal} proposed to the Risk Committee</p>
-        ) : (
-          <button type="button" onClick={() => dispatch({ type: "PROPOSE_TUNING", optionId: dial })} className={btnPrimary}>
-            Propose option {dial}
-          </button>
-        )}
-      </div>
-    </Card>
-  );
-}
-
-function AgentActivity() {
-  return (
-    <Card title="Agent activity this week">
-      {ACTIVITY.map((e, i) => (
-        <span key={i} className="flex h-8 items-center gap-3 border-b border-slate-100 text-xs last:border-b-0" title={agentName(e.agentId)}>
-          <span className="w-16 shrink-0 text-[10px] font-bold uppercase tracking-wider text-indigo-700">{e.type}</span>
-          <span className="w-20 shrink-0 text-[11px] text-slate-500">{e.date.replace(" 2026", "")}</span>
-          <span className="truncate text-slate-800">{e.line}</span>
         </span>
       ))}
     </Card>
   );
 }
 
-/* ── New sections: work queue, deadlines, pack builder, committee header ── */
+function Rules() {
+  return (
+    <Card title="Rules agents cannot break" right={<AiTag />}>
+      {FIXED_RULES.map((r) => (
+        <span key={r} className="flex min-h-9 items-center gap-2 border-t border-slate-100 pl-[13px] text-[13px] text-slate-700">
+          <Lock className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+          {r}
+        </span>
+      ))}
+      <StatRow label="Models past validation" value={MODEL_OVERSIGHT.pastValidation.split(" models")[0]} comparator={`reviewed ${MODEL_OVERSIGHT.lastReview}`} />
+    </Card>
+  );
+}
 
-type QueueRow = { type: "Approve" | "Prepare" | "Send case" | "Chase"; item: string; due: string; rank: number; owner: string; action: ReactNode };
+const statusFlow: Record<string, [string, "green" | "amber" | "grey"]> = { running: ["Running", "green"], waiting: ["Waiting", "amber"], paused: ["Paused", "grey"] };
+
+function AgentRoster() {
+  const { open } = useDrawer();
+  return (
+    <Table
+      title="Agent roster"
+      right={<AiTag label={`${AGENTS.length} agents`} />}
+      cols="grid-cols-[minmax(150px,1fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_96px]"
+      head={["Agent", "Purpose", "Owner", "Status"]}
+      rightCols={[3]}
+      rows={AGENTS.map((a) => ({
+        key: a.id,
+        onClick: (el) => open(`agent:${a.id}`, el),
+        cells: [
+          <b key="n" className="font-semibold text-slate-900">
+            {a.name}
+          </b>,
+          <span key="d" className="text-slate-700">
+            {a.does.split(" ").slice(0, 6).join(" ")}
+          </span>,
+          <span key="o" className="text-xs text-slate-500">
+            {a.accountable}
+          </span>,
+          <Pill key="s" tone={statusFlow[a.status][1]} label={statusFlow[a.status][0]} />,
+        ],
+      }))}
+    />
+  );
+}
+
+function TuningLab() {
+  const { state, dispatch } = useStore();
+  const [pick, setPick] = useState(TUNING.recommended);
+  useFigures(["f:tuning"]);
+  const cro = state.persona === "cro";
+  return (
+    <ChartCard
+      id="tuning"
+      title="Tuning lab"
+      right={
+        cro ? (
+          state.session.tuningProposal ? (
+            <FlowPill w="proposed" />
+          ) : (
+            <button type="button" onClick={() => dispatch({ type: "PROPOSE_TUNING", optionId: pick })} className={btnPrimary}>
+              Propose option {pick}
+            </button>
+          )
+        ) : (
+          <AiTag label="AI agent test" />
+        )
+      }
+    >
+      <p className="pb-1 text-xs text-slate-500">Breaches caught of {TUNING.breaches} · extra alerts a month</p>
+      {TUNING.options.map((o) => (
+        <button key={o.id} type="button" disabled={!cro} aria-pressed={pick === o.id} onClick={() => setPick(o.id)} className={`block w-full text-left ${cro && pick === o.id ? "bg-slate-50" : ""} ${focus}`}>
+          <BarRows max={TUNING.breaches} rows={[{ label: `${o.id} · ${o.label}`, value: o.caught, display: `${o.caught} · +${fmt.n(o.extraAlerts)}`, tag: o.id === TUNING.recommended ? <AiTag label="Recommended" /> : undefined }]} />
+        </button>
+      ))}
+      <p className="border-t border-slate-100 pt-2 text-xs text-slate-500">Nothing goes live without a named approver.</p>
+    </ChartCard>
+  );
+}
+
+function Activity() {
+  return <EventList title="Agent activity" right={<AiTag />} items={ACTIVITY.map((e) => ({ date: e.date.replace(" 2026", ""), text: e.line, tag: e.type.charAt(0) + e.type.slice(1).toLowerCase() }))} />;
+}
+
+function DecisionLog() {
+  const flow = (i: number): Workflow => (DECISION_HISTORY[i].tone === "green" ? "decided" : "overdue");
+  return (
+    <Table
+      title="Decision log"
+      cols="grid-cols-[96px_minmax(140px,0.8fr)_minmax(220px,2fr)_100px]"
+      head={["Date", "Forum", "Decision", "Status"]}
+      rightCols={[3]}
+      rows={DECISION_HISTORY.map((h, i) => ({
+        key: h.decision,
+        rail: flow(i) === "overdue" ? "amber" : undefined,
+        cells: [
+          <b key="d" className="font-semibold tabular-nums text-slate-900">
+            {h.date.replace(/^0/, "")}
+          </b>,
+          h.forum,
+          h.decision,
+          <FlowPill key="s" w={flow(i)} />,
+        ],
+      }))}
+    />
+  );
+}
+
+/* ══ Board member ═══════════════════════════════════════════════════════ */
+
+function BusinessTiles() {
+  const { open } = useDrawer();
+  useFigures(["f:mortgage-growth", "f:savings-growth", "m:u-wholesale"]);
+  const v = Object.fromEntries(FRANCHISES.map((f) => [f.id, f.verdict]));
+  const nUnconf = MEASURES.filter((m) => m.objectiveId === "O4" && m.status === "unconfirmed").length;
+  const tiles = [
+    { id: "O1", label: "Mortgages", value: fmt.gbpBn(FIG.mortgages.lentBn), comparator: `plan ${fmt.gbpBn(FIG.mortgages.planBn)} · £${mortgageHeadroomM()}m headroom` },
+    { id: "O2", label: "Savings", value: `+${fmt.gbpBn(FIG.savings.balancesBn)}`, comparator: `plan +${fmt.gbpBn(FIG.savings.planBn)} · ${FIG.savings.limitsBroken}/${FIG.savings.limits} limits broken` },
+    { id: "O3", label: "Funding", value: measure("u-wholesale").value, comparator: `wholesale, ${measure("u-wholesale").comparator}` },
+    { id: "O4", label: "Member protection", value: `${nUnconf} unconfirmed`, comparator: `re-check by ${FIG.dates.brc}` },
+  ];
+  return (
+    <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {tiles.map((t) => (
+        <KpiTile key={t.id} label={t.label} value={t.value} comparator={t.comparator} pill={<VerdictPill v={v[t.id]} />} rail={v[t.id] === "fix_first" ? "red" : v[t.id] === "hold" ? "amber" : undefined} onClick={(el) => open(`franchise:${t.id}`, el)} />
+      ))}
+    </div>
+  );
+}
+
+function Exceptions() {
+  const go = useGo();
+  return <MeasureTable title="Appetite exceptions" variant="exceptions" onWithin={() => go("growth")} />;
+}
+
+const DECISIONS = [
+  { n: 1, title: "Savings growth vs checks", decider: "Board", due: FIG.dates.campaign, ask: `Restore crime-check capacity or pace savings growth before ${FIG.dates.campaign}.`, rail: "amber" as const },
+  { n: 2, title: "Restriction breach reporting", decider: "Compliance", due: "Now", ask: "Confirm each reporting route is decided by its named decider now.", rail: "red" as const },
+  { n: 3, title: "Removed pack item", decider: "Chair", due: FIG.dates.brc, ask: "Decide how the dropped vulnerable-customer item returns to the board.", rail: "amber" as const },
+];
+
+let pendingDecision = 1;
+
+function DecisionsRequired() {
+  const go = useGo();
+  return (
+    <Card title="Decisions required">
+      {DECISIONS.map((d) => (
+        <LineItem
+          key={d.n}
+          rail={d.rail}
+          text={d.title}
+          detail={`${d.decider} · ${d.due}`}
+          onClick={() => {
+            pendingDecision = d.n;
+            go("decisions");
+          }}
+          right={<span className="text-indigo-700">›</span>}
+        />
+      ))}
+    </Card>
+  );
+}
+
+function KeyDates() {
+  return (
+    <EventList
+      title="Key dates"
+      items={[
+        { date: FIG.dates.restrictionSignOff, text: "Restriction sign-off", rail: "red" },
+        { date: FIG.dates.campaign, text: "Savings campaign", rail: "amber" },
+        { date: FIG.dates.brc, text: "Committee meeting" },
+      ]}
+    />
+  );
+}
+
+function SinceLastBoard() {
+  const n = statusChanges().length;
+  return <EventList title="Since last board" right={<Chip>{`${n} status changes`}</Chip>} items={SINCE_LAST_BOARD.slice(0, 4).map((e) => ({ ...e, tag: undefined }))} />;
+}
+
+function Assurance() {
+  const go = useGo();
+  const a = attestationThisMonth();
+  const j = journeysWithoutOwner();
+  return (
+    <StatList
+      title="Assurance"
+      right={<LinkMore onClick={() => go("ownership")} label="Ownership" />}
+      figures={["f:attest-month", "f:journeys", "f:agent-unapproved"]}
+      rows={[
+        { label: "Attested this month", value: `${a.attested} of ${a.total}` },
+        { label: "Journeys without owner", value: `${j.n} of ${j.of}`, rail: "red" },
+        { label: "Unapproved AI actions", value: "0" },
+      ]}
+    />
+  );
+}
+
+function StrategyTable() {
+  const { open } = useDrawer();
+  useFigures(["f:mortgage-growth", "f:savings-growth"]);
+  const plan: Record<string, string> = {
+    O1: `${fmt.gbpBn(FIG.mortgages.lentBn)} of ${fmt.gbpBn(FIG.mortgages.planBn)} · ${mortgagePlanPct()}%`,
+    O2: `+${fmt.gbpBn(FIG.savings.balancesBn)} vs +${fmt.gbpBn(FIG.savings.planBn)}`,
+    O3: "Funded within ceiling",
+    O4: "—",
+  };
+  const headroom: Record<string, string> = { O1: `£${mortgageHeadroomM()}m to limit`, O2: `${FIG.savings.limitsBroken} of ${FIG.savings.limits} broken`, O3: "Narrowing", O4: "Unconfirmed" };
+  const dot = (s: string) => (s === "red" ? "bg-red-500" : s === "amber" || s === "projected" ? "bg-amber-500" : s === "unconfirmed" ? "border border-dashed border-slate-500" : "bg-emerald-500");
+  return (
+    <Table
+      title="Strategy to appetite"
+      cols="grid-cols-[minmax(110px,0.9fr)_minmax(120px,1fr)_minmax(160px,1.6fr)_minmax(150px,1.3fr)_minmax(100px,0.9fr)_116px]"
+      head={["Business line", "Plan", "Appetite statement", "Measures", "Headroom", "Verdict"]}
+      rightCols={[5]}
+      rows={FRANCHISES.map((f) => ({
+        key: f.id,
+        rail: f.verdict === "fix_first" ? "red" : f.verdict === "hold" ? "amber" : undefined,
+        onClick: (el) => open(`franchise:${f.id}`, el),
+        cells: [
+          <b key="n" className="font-semibold text-slate-900">
+            {f.name}
+          </b>,
+          <span key="p" className="tabular-nums">
+            {plan[f.id]}
+          </span>,
+          <span key="a" className="text-slate-700">
+            {APPETITE_STATEMENTS[f.id]}
+          </span>,
+          <span key="l" className="flex items-center gap-1" title={MEASURES.filter((m) => m.objectiveId === f.id).map((m) => m.name).join(", ")}>
+            {MEASURES.filter((m) => m.objectiveId === f.id).map((m) => (
+              <span key={m.id} aria-label={`${m.name}: ${m.status}`} className={`h-2.5 w-2.5 rounded-full ${dot(m.status)}`} />
+            ))}
+            <span className="ml-1 text-xs text-slate-500">{MEASURES.filter((m) => m.objectiveId === f.id).length}</span>
+          </span>,
+          <span key="h" className="text-slate-700">
+            {headroom[f.id]}
+          </span>,
+          <VerdictPill key="v" v={f.verdict} />,
+        ],
+      }))}
+    />
+  );
+}
+
+function CreditQuality() {
+  const c = FIG.credit;
+  return (
+    <StatList
+      title="Credit quality"
+      figures={["f:credit"]}
+      rows={[
+        { label: "Above 4.5× income", value: fmt.pct(c.above45, 1), comparator: `limit ${c.above45Limit}%` },
+        { label: "Arrears 3 months+", value: fmt.pct(c.arrears, 2), comparator: `appetite ${fmt.pct(c.arrearsAppetite, 1)}` },
+        { label: "Cost of risk", value: `${c.costOfRiskBps} bps`, comparator: `Q2 ${c.costOfRiskQ2Bps} bps` },
+        { label: "Mortgage book", value: fmt.gbpBn(FIG.mortgages.bookBn) },
+      ]}
+    />
+  );
+}
+
+function PolicyTensions() {
+  const { open } = useDrawer();
+  return (
+    <Card title="Policy tensions" right={<AiTag label="AI agent found" />}>
+      {TENSIONS.map((t) => (
+        <LineItem
+          key={t.a}
+          rail={t.tone === "red" ? "red" : t.tone === "amber" ? "amber" : undefined}
+          text={`${t.a} vs ${t.b}`}
+          onClick={(el) => open(t.drawer, el)}
+          right={t.status === "Regulatory floor, not tradeable" ? <LimitPill l="floor" /> : <span className="whitespace-nowrap text-xs text-slate-500">{t.status === "Not agreed" ? "Not agreed" : "Agreed"}</span>}
+        />
+      ))}
+    </Card>
+  );
+}
+
+function NotMeasured() {
+  return (
+    <Card title="Not yet measured">
+      {EMERGING_UNMEASURED.map((e) => (
+        <LineItem key={e.name} text={e.name} detail={e.owner ? OWNER_SHORT[e.owner] ?? e.owner : "No owner"} right={<Pill tone="grey" label="Unconfirmed" />} />
+      ))}
+    </Card>
+  );
+}
+
+function ConsumerDuty() {
+  const cd = consumerDuty();
+  useFigures(["m:u-cd"]);
+  const key = (name: string, k: string) =>
+    name === "Consumer understanding" ? `letters ${fmt.pct(FIG.letters.pct)} · target ${fmt.pct(FIG.letters.target)}` : name === "Consumer support" ? `call wait ${FIG.callWait.value} · target ${FIG.callWait.target}` : k.toLowerCase();
+  return (
+    <Card title="Consumer Duty" right={<Chip>{`${cd.inTol} of ${cd.total} measures in tolerance`}</Chip>}>
+      <div className="grid grid-cols-1 items-start gap-4 pb-1 sm:grid-cols-2 xl:grid-cols-4">
+        {FIG.outcomes.map((o) => (
+          <KpiTile key={o.name} label={o.name} value={`${o.inTolerance} of ${o.measures}`} comparator={key(o.name, o.key)} pill={<StatusPill status={o.status === "amber" ? "amber" : "within"} />} rail={o.status === "amber" ? "amber" : undefined} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function Complaints() {
+  const c = FIG.complaints;
+  const n = c.perThousand.length - 1;
+  useFigures(["f:complaints"]);
+  return (
+    <ChartCard id="complaints" title="Complaints" right={<span className="text-xs text-slate-500">{c.basis}</span>}>
+      <LineChart title={`Complaints ${c.basis}`} height={140} series={[{ name: c.basis, points: c.quarters.map((q, i) => ({ label: q, value: c.perThousand[i] })) }]} />
+      <StatRow label="This quarter" value={String(c.perThousand[n])} comparator={`Q2 ${c.perThousand[n - 1]}`} rail="amber" />
+      <StatRow label="Ombudsman upholds" value={fmt.pct(c.uphold)} comparator={`Q2 ${fmt.pct(c.upholdQ2)}`} rail="amber" />
+    </ChartCard>
+  );
+}
+
+function Themes() {
+  const t = FIG.complaints.themes;
+  return (
+    <ChartCard id="themes" title="Complaint themes" right={<span className="text-xs text-slate-500">share this quarter</span>}>
+      <BarRows max={Math.max(...t.map((x) => x.share))} rows={t.map((x) => ({ label: x.theme, value: x.share, display: fmt.pct(x.share) }))} />
+    </ChartCard>
+  );
+}
+
+function Vulnerable() {
+  const { open } = useDrawer();
+  const v = FIG.vuln;
+  return (
+    <StatList
+      title="Vulnerable customers"
+      rail="amber"
+      figures={["f:vuln"]}
+      rows={[
+        { label: `Exceptions ${v.basis.replace(" contacts", "")}`, value: String(v.series[v.series.length - 1]), comparator: `amber ${v.amber} · red ${v.red}`, onClick: (el) => open("removed", el) },
+        { label: "At amber", value: `${v.quartersAmber} quarters`, comparator: "removed from pack" },
+        { label: "Previous quarter", value: String(v.series[v.series.length - 2]), comparator: v.labels[v.labels.length - 2] },
+      ]}
+    />
+  );
+}
+
+function Redress() {
+  const { open } = useDrawer();
+  const r = FIG.rateError;
+  return (
+    <StatList
+      title="Mortgage-rate redress"
+      figures={["f:redress"]}
+      rows={[
+        { label: "Customers contacted", value: `${rateErrorPct()}%`, comparator: fmt.nOfM(r.contacted, r.customers), onClick: (el) => open("event:e-117", el) },
+        { label: "Still to contact", value: fmt.n(r.customers - r.contacted), comparator: "customers" },
+        { label: "Redress estimate", value: fmt.gbpK(r.redressK), comparator: `by ${r.due}` },
+      ]}
+    />
+  );
+}
+
+function Signals() {
+  const f = FINDINGS.find((x) => x.agentId === "signals")!;
+  return (
+    <Card title="Customer signals" right={<AiTag label="Customer Signals" />}>
+      <LineItem rail="amber" text={f.finding.replace(" mention 'account frozen'", "")} detail="'account frozen'" />
+      <LineItem text="Linked to" detail="restriction block" />
+      <LineItem text="Accountable" detail="Chief Customer Officer" />
+    </Card>
+  );
+}
+
+const CHALLENGES: Record<number, string[]> = {
+  1: ["Restoring capacity finishes after the campaign starts. Then what?", "Why no resourcing decision since August?", "What would pacing growth cost in members?"],
+  2: ["When did we first know about the savings pot?", "Who decides each reporting route, and by when?", "Why are partner-channel openings still unchecked?"],
+  3: ["Who removed this item, and on what authority?", "Why no action while it stayed amber?", "What stops an item being dropped silently?"],
+};
+
+function DecisionPanel() {
+  const { state, dispatch } = useStore();
+  const { open } = useDrawer();
+  const [sel, setSel] = useState(pendingDecision);
+  useEffect(() => {
+    pendingDecision = 1;
+  }, []);
+  const d = DECISIONS.find((x) => x.n === sel)!;
+  const r = routesDecided();
+  const topic = `Decision ${d.n}: ${d.title}`;
+  const asked = state.session.deepDives.includes(topic);
+  const saved = (q: string) => state.session.notes.some((x) => x.from === `Decision ${d.n}` && x.text === q);
+  useFigures(d.n === 1 ? ["f:d1-options"] : d.n === 2 ? ["f:routes"] : ["f:d3-options"]);
+  return (
+    <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-12">
+      <div className="flex flex-col gap-4 xl:col-span-4">
+        <Card title="Decisions">
+          {DECISIONS.map((x) => (
+            <button key={x.n} type="button" aria-pressed={sel === x.n} onClick={() => setSel(x.n)} className={`block w-full text-left ${focus} ${sel === x.n ? "bg-slate-50" : "hover:bg-slate-50"}`}>
+              <span className={`flex min-h-11 items-center justify-between gap-2 border-l-[3px] border-t border-t-slate-100 py-1 pl-2.5 text-[13px] ${x.rail === "red" ? "border-l-red-500" : "border-l-amber-500"}`}>
+                <span>
+                  <span className={sel === x.n ? "font-semibold text-slate-900" : "text-slate-800"}>{x.title}</span>
+                  <span className="block text-xs text-slate-500">
+                    {x.decider} · {x.due}
+                  </span>
+                </span>
+                <span className="text-indigo-700">›</span>
+              </span>
+            </button>
+          ))}
+        </Card>
+        <Card title="Overdue reviews">
+          {DUE_FOR_REVIEW.map((x) => (
+            <LineItem key={x.item} rail="red" text={x.item} onClick={(el) => open(x.drawer, el)} right={<FlowPill w="overdue" />} />
+          ))}
+        </Card>
+      </div>
+      <Card title={d.title} rail={d.rail} className="xl:col-span-8" right={<span className="text-xs text-slate-500">{`${d.decider} · ${d.due}`}</span>}>
+        <p className="border-t border-slate-100 py-2 text-[13px] font-semibold text-slate-900">{d.ask}</p>
+        {d.n === 1 ? (
+          <Table
+            title="Options"
+            cols="grid-cols-[minmax(130px,0.9fr)_minmax(170px,1.3fr)_minmax(120px,0.9fr)_minmax(150px,1fr)_84px]"
+            head={["Option", "Growth", "Risk", "Cost", "To green"]}
+            rightCols={[4]}
+            rows={D1_OPTIONS.map((o) => ({
+              key: o.option,
+              cells: [
+                <span key="o" className="font-semibold text-slate-900">
+                  {o.option}
+                  {o.recommended ? (
+                    <span className="ml-1.5 align-middle">
+                      <AiTag label="Recommended" />
+                    </span>
+                  ) : null}
+                </span>,
+                o.growth,
+                o.risk,
+                o.cost,
+                <b key="t" className="font-semibold">
+                  {o.toGreen}
+                </b>,
+              ],
+            }))}
+          />
+        ) : d.n === 3 ? (
+          <Table
+            title="Options"
+            cols="grid-cols-[minmax(160px,1fr)_minmax(220px,1.6fr)]"
+            head={["Option", "Impact"]}
+            rows={D3_OPTIONS.map((o, i) => ({
+              key: o.option,
+              cells: [
+                <span key="o" className="font-semibold text-slate-900">
+                  {o.option}
+                  {i === 0 ? (
+                    <span className="ml-1.5 align-middle">
+                      <AiTag label="Recommended" />
+                    </span>
+                  ) : null}
+                </span>,
+                o.impact,
+              ],
+            }))}
+          />
+        ) : (
+          <>
+            <StatRow label="Reporting routes decided" value={`${r.decided} of ${r.total}`} comparator="Head of Compliance decides" rail="red" />
+            {D2_BOARD_ASKS.filter((x) => !/\d/.test(x)).map((x) => (
+              <LineItem key={x} text={x} />
+            ))}
+          </>
+        )}
+        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
+          <span className="text-sm font-semibold text-slate-900">Questions to ask</span>
+          <AiTag label="AI agent drafted" />
+        </div>
+        {CHALLENGES[d.n].map((q) => (
+          <LineItem
+            key={q}
+            text={q}
+            right={
+              <button type="button" disabled={saved(q)} onClick={() => dispatch({ type: "SAVE_NOTE", text: q, from: `Decision ${d.n}` })} className={btn}>
+                {saved(q) ? "In my notes" : "Add to notes"}
+              </button>
+            }
+          />
+        ))}
+        <div className="mt-2 flex gap-2 border-t border-slate-100 pt-2.5">
+          <button type="button" onClick={(e) => open(`decision:${d.n}`, e.currentTarget)} className={btn}>
+            Open detail
+          </button>
+          <button type="button" disabled={asked} onClick={() => dispatch({ type: "REQUEST_DEEP_DIVE", topic })} className={btn}>
+            {asked ? "Deep dive requested" : "Request a deep dive"}
+          </button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function RegulatorRelationship() {
+  return <StatList title="Regulator relationship" rows={REGULATOR_RELATIONSHIP.map((r) => ({ label: r.label, value: r.value, rail: r.tone === "red" || r.tone === "amber" ? r.tone : undefined }))} />;
+}
+
+function Sanctions() {
+  const s = FIG.sanctions;
+  const m = measure("u-sanctions");
+  return (
+    <StatList
+      title="Sanctions screening"
+      right={<StatusPill status={m.status} />}
+      figures={["m:u-sanctions"]}
+      rows={[
+        { label: "List coverage", value: m.value.split(" · ")[0], comparator: `${s.rules} rules · ${fmt.n(s.entries)} entries` },
+        { label: "Alerts", value: "None", comparator: `${s.weeksNoAlerts} weeks · ${s.expectedPerWeek} a week expected` },
+        { label: "Sign-off", value: "Unconfirmed", comparator: "Head of Financial Crime" },
+      ]}
+    />
+  );
+}
+
+function FoundIssues() {
+  const f = issuesFound();
+  const SHADE = ["bg-slate-700", "bg-slate-500", "bg-slate-400", "bg-slate-300"];
+  useFigures(["f:found"]);
+  return (
+    <ChartCard id="found" title="Who found the issues" right={<Chip>{`n = ${f.total}`}</Chip>}>
+      <div className="mb-1 mt-1 flex h-4 overflow-hidden rounded-full">
+        {ISSUES_FOUND.by.map((b, i) => (
+          <span key={b.line} className={SHADE[i]} style={{ width: `${(b.n / f.total) * 100}%` }} title={`${b.line}: ${b.n}`} />
+        ))}
+      </div>
+      {ISSUES_FOUND.by.map((b, i) => (
+        <StatRow key={b.line} label={b.line} value={String(b.n)} comparator={i === 0 ? `${f.firstPct}% · aim: most` : `of ${f.total}`} right={<span className={`h-2.5 w-2.5 rounded-sm ${SHADE[i]}`} />} />
+      ))}
+    </ChartCard>
+  );
+}
+
+function Journeys() {
+  const j = journeysWithoutOwner();
+  useFigures(["f:journeys"]);
+  return (
+    <Table
+      title="Risk owner vs control owner"
+      right={<Chip>{`${j.n} of ${j.of} without risk owner`}</Chip>}
+      cols="grid-cols-[minmax(170px,1.1fr)_minmax(150px,1fr)_minmax(170px,1fr)_120px_110px]"
+      head={["Journey", "Risk owner", "Control owner", "Aligned", "Complaints"]}
+      rightCols={[4]}
+      rows={JOURNEYS.map((x) => ({
+        key: x.journey,
+        rail: x.aligned ? undefined : "red",
+        cells: [
+          <b key="j" className="font-semibold text-slate-900">
+            {x.journey}
+          </b>,
+          x.riskOwner ?? "Not named",
+          x.controlOwner,
+          x.aligned ? (
+            <span key="a" className="text-xs text-slate-500">
+              Aligned
+            </span>
+          ) : (
+            <Pill key="a" tone="red" label="Mismatch" />
+          ),
+          <b key="c" className="font-semibold">
+            {x.complaints}
+          </b>,
+        ],
+      }))}
+    />
+  );
+}
+
+function DataTrust() {
+  const { open } = useDrawer();
+  const tm = measure("u-tm");
+  const ibs = measure("u-ibs");
+  return (
+    <StatList
+      title="Data trust"
+      figures={["m:u-tm", "m:u-ibs"]}
+      rows={[
+        { label: "Monitoring coverage", value: tm.value.split(" ")[0], comparator: "of 2.4m records", right: <Pill tone="grey" label="Unconfirmed" />, onClick: (el) => open("metric:u-tm", el) },
+        { label: "Monitoring sign-off", value: "Early", comparator: "before data check" },
+        { label: "Service disruption", value: ibs.value.split(" ")[0], comparator: "tolerance used", right: <DeltaMark d={ibs.delta} />, onClick: (el) => open("metric:u-ibs", el) },
+      ]}
+    />
+  );
+}
+
+function RemovedOrExtended() {
+  const { open } = useDrawer();
+  return (
+    <Card title="Removed or extended">
+      <LineItem rail="red" text="Vulnerable-customer item" detail="removed 14 Oct" onClick={(el) => open("removed", el)} right={<Pill tone="red" label="Removed" />} />
+      <LineItem rail="amber" text="Backlog deadline" detail={`extended ${FIG.escalation.extensions}× · limit ${FIG.escalation.extensionLimit}`} onClick={(el) => open("badnews", el)} right={<FlowPill w="overdue" />} />
+    </Card>
+  );
+}
+
+function SpeakUp() {
+  return (
+    <Card title="Speak-up">
+      <div className="grid grid-cols-1 gap-x-8 lg:grid-cols-2">
+        {CULTURE.map((c) => (
+          <StatRow key={c.label} label={c.label} value={c.value} comparator={c.against} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function AgentTiles() {
+  const { state } = useStore();
+  const a = agentFigures(QUEUE.filter((q) => state.session.drafts[q.draftId]?.status === "ai_draft").length);
+  useFigures(["f:agents"]);
+  const tiles: [string, string, string][] = [
+    ["Agents", String(a.agents), "on the roster"],
+    ["Checks this week", String(a.checksThisWeek), "all agents"],
+    ["Findings", String(a.findings), "this quarter"],
+    ["Drafts with CRO", String(a.drafts), "waiting for a person"],
+    ["Without approval", String(a.withoutApproval), "actions this quarter"],
+    ["Pack preparation", `${a.packHours} h`, `was ${a.packHoursWas} h`],
+  ];
+  return (
+    <div className="grid grid-cols-2 items-start gap-4 md:grid-cols-3 xl:grid-cols-6">
+      {tiles.map(([l, v, c]) => (
+        <KpiTile key={l} label={l} value={v} comparator={c} pill={<span className="text-violet-500">✦</span>} />
+      ))}
+    </div>
+  );
+}
+
+function AgentFindings() {
+  const { open } = useDrawer();
+  return (
+    <Table
+      title="Agent findings"
+      right={<AiTag label="AI agent findings" />}
+      cols="grid-cols-[minmax(220px,1.8fr)_minmax(140px,1fr)_72px_minmax(140px,1fr)]"
+      head={["Finding", "Agent", "Date", "With"]}
+      rows={FINDINGS.map((f) => ({
+        key: f.finding,
+        rail: f.tone === "red" ? "red" : f.tone === "amber" ? "amber" : undefined,
+        onClick: (el) => open(f.drawer, el),
+        cells: [
+          f.finding,
+          <span key="a" className="text-violet-700">
+            ✦ {agentName(f.agentId)}
+          </span>,
+          <span key="d" className="tabular-nums">
+            {f.flagged === "this quarter" ? "Q3" : f.flagged}
+          </span>,
+          <span key="w" className="text-xs text-slate-500">
+            {f.status}
+          </span>,
+        ],
+      }))}
+    />
+  );
+}
+
+/* ══ Chair ══════════════════════════════════════════════════════════════ */
+
+function ChairAgenda() {
+  const { state, dispatch } = useStore();
+  const { open } = useDrawer();
+  const [opt, setOpt] = useState<string | null>(null);
+  const rec = state.session.drafts["d-t234-options"];
+  const q = measure("u-capacity");
+  useFigures(["m:u-capacity", "m:u-restriction"]);
+  return (
+    <Card title="Agenda items" right={<Chip>{`Board Risk Committee · ${FIG.dates.brc}`}</Chip>}>
+      <div className="border-l-[3px] border-t border-l-amber-500 border-t-slate-100 py-2 pl-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <button type="button" onClick={(e) => open("decision:3", e.currentTarget)} className={`text-left text-[13px] font-semibold text-slate-900 ${focus}`}>
+            Issue removed from board pack
+          </button>
+          <FlowPill w={rec.status === "ai_draft" ? "due" : "decided"} />
+        </div>
+        <p className="text-xs text-slate-500">Your decision · amber {FIG.vuln.quartersAmber} quarters, then dropped</p>
+        {rec.status === "ai_draft" ? (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+            {DRAFTS["d-t234-options"].options!.map((o) => (
+              <label key={o.id} className="flex items-center gap-1.5 text-xs text-slate-700">
+                <input type="radio" name="chair-d3" checked={opt === o.id} onChange={() => setOpt(o.id)} />
+                {o.label}
+              </label>
+            ))}
+            <button type="button" disabled={!opt} onClick={() => opt && dispatch({ type: "CHAIR_RECORD", draftId: "d-t234-options", optionId: opt })} className={btnPrimary}>
+              Record decision
+            </button>
+          </div>
+        ) : (
+          <p className="mt-1 text-xs font-semibold text-slate-900">Recorded by Risk Committee Chair: {DRAFTS["d-t234-options"].options?.find((o) => o.id === rec.chosenOptionId)?.label}</p>
+        )}
+      </div>
+      <StatRow label="Savings growth vs crime checks" value={q.value} comparator={`${q.comparator} · for noting`} rail="amber" onClick={(el) => open("decision:1", el)} />
+      <StatRow label="Restriction breach: report or not" value={fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested)} comparator="for noting" rail="red" onClick={(el) => open("decision:2", el)} />
+    </Card>
+  );
+}
+
+function PackIntegrity() {
+  const { state, dispatch } = useStore();
+  const { open } = useDrawer();
+  const latest = state.session.manifestVersions[state.session.manifestVersions.length - 1];
+  const restored = latest.itemIds.includes("pi-vuln");
+  const asked = state.session.notes.some((n) => n.from === "Chair request");
+  return (
+    <Card
+      title="Pack integrity"
+      right={
+        <button type="button" disabled={asked || restored} onClick={() => dispatch({ type: "SAVE_NOTE", text: "Restore vulnerable-customer exceptions to the 15 Dec agenda", from: "Chair request" })} className={btnPrimary}>
+          {asked ? "Restore requested" : restored ? "Restored" : "Restore to agenda"}
+        </button>
+      }
+    >
+      <LineItem rail="red" text="Vulnerable-customer exceptions" detail="removed 14 Oct, no reason" onClick={(el) => open("removed", el)} right={<Pill tone="red" label="Removed" />} />
+      <LineItem rail="amber" text={`${FIG.escalation.downgraded} issues downgraded`} detail="measure unchanged" onClick={(el) => open("badnews", el)} right={<Pill tone="amber" label="Downgraded" />} />
+    </Card>
+  );
+}
+
+function WaitingForCro() {
+  const { state } = useStore();
+  const waiting = QUEUE.filter((q) => state.session.drafts[q.draftId]?.status === "ai_draft");
+  return (
+    <Card title="Waiting for the CRO" right={<Chip>{String(waiting.length)}</Chip>}>
+      {waiting.length ? waiting.map((q) => <LineItem key={q.draftId} text={q.title} right={<FlowPill w="draft" />} />) : <LineItem text="Nothing waiting" />}
+    </Card>
+  );
+}
+
+/* ══ CRO ════════════════════════════════════════════════════════════════ */
+
+type QRow = { type: "Approve" | "Prepare" | "Send case" | "Chase"; item: string; due: string; rank: number; owner: string; action: ReactNode };
 
 function WorkQueue() {
   const { state, dispatch } = useStore();
   const { open } = useDrawer();
-  const ownersList = useOwners();
-  const rows: QueueRow[] = [];
+  const openIds = useOpenDrafts();
+  const rows: QRow[] = [];
   for (const r of ROUTES) {
     if (r.caseDraftId && state.session.drafts[r.caseDraftId]?.status === "ai_draft") {
       const id = r.caseDraftId;
@@ -934,15 +1111,28 @@ function WorkQueue() {
       });
     }
   }
-  rows.push({ type: "Prepare", item: "Decision 1 paper: restore or pace", due: "8 Dec", rank: 2, owner: "Board", action: <button type="button" className={btn} onClick={(e) => open("decision:1", e.currentTarget)}>Prepare</button> });
-  rows.push({ type: "Prepare", item: "Decision 3 paper: dropped pack item", due: "15 Dec", rank: 4, owner: "Risk Committee Chair", action: <button type="button" className={btn} onClick={(e) => open("decision:3", e.currentTarget)}>Prepare</button> });
-  rows.push({ type: "Prepare", item: "Restriction sign-off evidence", due: "8 Nov", rank: 1, owner: "Head of Financial Crime", action: <button type="button" className={btn} onClick={(e) => open("decision:2", e.currentTarget)}>Prepare</button> });
+  const prep = (item: string, due: string, rank: number, owner: string, key: string) =>
+    rows.push({
+      type: "Prepare",
+      item,
+      due,
+      rank,
+      owner,
+      action: (
+        <button type="button" className={btn} onClick={(e) => open(key, e.currentTarget)}>
+          Prepare
+        </button>
+      ),
+    });
+  prep("Restriction sign-off evidence", FIG.dates.restrictionSignOff, 1, "Head of Financial Crime", "decision:2");
+  prep("Decision 1 paper: restore or pace", FIG.dates.campaign, 2, "Board", "decision:1");
+  prep("Decision 3 paper: dropped pack item", FIG.dates.brc, 4, "Risk Committee Chair", "decision:3");
   for (const q of QUEUE) {
     if (state.session.drafts[q.draftId]?.status !== "ai_draft") continue;
     rows.push({
       type: "Approve",
       item: q.title,
-      due: "Before 15 Dec",
+      due: `Before ${FIG.dates.brc}`,
       rank: 3,
       owner: agentName(q.agentId),
       action: (
@@ -960,103 +1150,111 @@ function WorkQueue() {
       ),
     });
   }
-  for (const o of ownersList) {
-    const n = o.draftIds.filter((id) => state.session.drafts[id]?.status === "ai_draft").length;
-    if (!n) continue;
-    rows.push({ type: "Chase", item: `${n} ${n === 1 ? "action" : "actions"} open`, due: "Before 15 Dec", rank: 5, owner: o.role, action: <button type="button" className={btn} onClick={(e) => open(`owner:${o.role}`, e.currentTarget)}>Send to owner</button> });
+  for (const o of ownerRows(openIds, draftTargets())) {
+    if (!o.actions) continue;
+    rows.push({
+      type: "Chase",
+      item: `${o.actions} ${o.actions === 1 ? "action" : "actions"} open`,
+      due: `Before ${FIG.dates.brc}`,
+      rank: 5,
+      owner: o.role,
+      action: (
+        <button type="button" className={btn} onClick={(e) => open(`owner:${o.role}`, e.currentTarget)}>
+          Send to owner
+        </button>
+      ),
+    });
   }
   rows.sort((a, b) => a.rank - b.rank);
-  const typeTone = { Approve: "amber", Prepare: "grey", "Send case": "red", Chase: "grey" } as const;
   return (
-    <Card title={`Work queue (${rows.length})`}>
-      <div className="grid grid-cols-[84px_minmax(0,1.6fr)_96px_minmax(0,1fr)_212px] gap-3 px-2 pb-1">
-        <Label>Type</Label>
-        <Label>Item</Label>
-        <Label>Due</Label>
-        <Label>Owner</Label>
-        <span className="justify-self-end">
-          <Label>Action</Label>
-        </span>
-      </div>
-      {rows.map((r, i) => (
-        <div key={i} className="grid min-h-11 grid-cols-[84px_minmax(0,1.6fr)_96px_minmax(0,1fr)_212px] items-center gap-3 border-t border-slate-100 px-2 py-1 text-xs leading-snug">
-          <Tag tone={typeTone[r.type]}>{r.type}</Tag>
-          <span className="text-[13px] text-slate-900">{r.item}</span>
-          <span className={`font-semibold ${r.due === "Immediate" ? "text-red-600" : "text-slate-600"}`}>{r.due}</span>
-          <span className="text-slate-500">{r.owner}</span>
-          <span className="justify-self-end">{r.action}</span>
-        </div>
-      ))}
-    </Card>
+    <Table
+      title="Work queue"
+      right={<Chip>{String(rows.length)}</Chip>}
+      cols="grid-cols-[84px_minmax(200px,1.6fr)_104px_minmax(140px,1fr)_212px]"
+      head={["Type", "Item", "Due", "Owner", "Action"]}
+      rightCols={[4]}
+      rows={rows.map((r, i) => ({
+        key: `${r.item}-${i}`,
+        rail: r.due === "Immediate" ? "red" : undefined,
+        cells: [
+          <span key="t" className="text-xs font-semibold text-slate-600">
+            {r.type}
+          </span>,
+          r.item,
+          <span key="d" className={r.due === "Immediate" ? "font-semibold text-red-600" : "tabular-nums"}>
+            {r.due}
+          </span>,
+          <span key="o" className="text-xs text-slate-500">
+            {r.owner}
+          </span>,
+          r.action,
+        ],
+      }))}
+    />
   );
-}
-
-export function queueCount(state: ReturnType<typeof useStore>["state"]) {
-  const s = state.session.drafts;
-  const cases = ROUTES.filter((r) => r.caseDraftId && s[r.caseDraftId]?.status === "ai_draft").length;
-  const approvals = QUEUE.filter((q) => s[q.draftId]?.status === "ai_draft").length;
-  const chases = owners(Object.fromEntries(Object.values(DRAFTS).map((d) => [d.draftId, d.targetRole]))).filter((o) => o.draftIds.some((id) => s[id]?.status === "ai_draft")).length;
-  return cases + approvals + 3 + chases;
 }
 
 function Deadlines() {
   return (
-    <Card title="Deadlines">
-      {[
-        [FIG.dates.restrictionSignOff, "Restriction sign-off", "red"],
-        [FIG.dates.campaign, "Savings campaign starts", "amber"],
-        [FIG.dates.brc, "Board Risk Committee", "amber"],
-        [FIG.dates.incidentRules, "New incident-reporting rules", "grey"],
-      ].map(([d, t, tone]) => (
-        <span key={d} className={`flex h-10 items-center gap-3 border-l-[3px] pl-3 text-[13px] ${TONE[tone as Tone].rail}`}>
-          <span className="w-24 shrink-0 text-[11px] font-bold uppercase tracking-wider text-indigo-700">{d}</span>
-          <span className="text-slate-800">{t}</span>
-        </span>
+    <EventList
+      title="Deadlines"
+      items={[
+        { date: FIG.dates.restrictionSignOff, text: "Restriction sign-off", rail: "red" },
+        { date: FIG.dates.campaign, text: "Savings campaign starts", rail: "amber" },
+        { date: FIG.dates.brc, text: "Board Risk Committee" },
+        { date: "18 Mar 27", text: "Incident-reporting rules start" },
+      ]}
+    />
+  );
+}
+
+function ClocksDue() {
+  const due = ROUTES.filter((r) => !routeDecided(r) && r.clockHours === 24);
+  return (
+    <Card title="Reporting clocks due" right={<Chip>{String(due.length)}</Chip>}>
+      {due.map((r) => (
+        <LineItem key={r.routeId} rail="red" text={`${r.eventId === "e-117" ? "Rate error" : "Restriction"}: ${ROUTE_PLAIN[r.routeId]}`} detail="immediate" right={<FlowPill w="due" />} />
       ))}
     </Card>
   );
 }
 
-function PackBuilder() {
+function PackChecklist() {
   const { state, dispatch } = useStore();
   const { open } = useDrawer();
   const latest = state.session.manifestVersions[state.session.manifestVersions.length - 1];
   const restore = state.session.drafts["d-t235-restore"];
   const ordered = [...PACK_ITEMS].sort((a, b) => Number(!!b.removal) - Number(!!a.removal));
   return (
-    <Card title={`Board pack · ${latest.itemIds.length} of ${PACK_ITEMS.length} qualifying items · v${latest.version} ${latest.state}`}>
-      <div className="max-h-[264px] overflow-y-auto">
+    <Card title="Pack checklist" right={<Chip>{`${latest.itemIds.length} of ${PACK_ITEMS.length} items · v${latest.version} ${latest.state}`}</Chip>}>
+      <div className="max-h-[252px] overflow-y-auto">
         {ordered.map((i) => {
           const inPack = latest.itemIds.includes(i.itemId);
           return (
-            <Row
+            <LineItem
               key={i.itemId}
-              tone={inPack ? "green" : "red"}
-              text={i.label}
-              detail={i.removal ? (inPack ? "restored in draft" : "removed, no reason") : undefined}
+              rail={inPack ? undefined : "red"}
+              text={plain(i.label)}
               right={
                 !inPack && restore.status === "ai_draft" ? (
                   <button type="button" className={btnPrimary} onClick={() => dispatch({ type: "ACCEPT", draftId: "d-t235-restore" })}>
                     Propose restore
                   </button>
-                ) : inPack ? (
-                  <Check className="h-4 w-4 text-emerald-600" aria-label="In pack" />
                 ) : (
-                  <Pill tone="red" label="Removed" />
+                  <span className={`text-xs ${inPack ? "text-slate-500" : "font-semibold text-red-600"}`}>{inPack ? "In pack" : "Removed"}</span>
                 )
               }
             />
           );
         })}
       </div>
-      <p className="mb-0.5 mt-2.5">
-        <Label>Decision papers</Label>
-      </p>
+      <p className="pb-1 pt-3 text-sm font-semibold text-slate-900">Decision papers</p>
       {DECISIONS.map((d) => (
-        <Row
+        <LineItem
           key={d.n}
-          tone={d.tone}
-          text={`${d.n}. ${d.title}`}
+          rail={d.rail}
+          text={d.title}
+          detail={`${d.decider} · ${d.due}`}
           right={
             <button type="button" className={btn} onClick={(e) => open(`decision:${d.n}`, e.currentTarget)}>
               Prepare paper
@@ -1068,90 +1266,69 @@ function PackBuilder() {
   );
 }
 
-function CommitteeHeader() {
-  const { state } = useStore();
-  const latest = state.session.manifestVersions[state.session.manifestVersions.length - 1];
-  const removed = PACK_ITEMS.length - latest.itemIds.length;
-  const decided = ROUTES.filter((r) => r.status === "decided").length;
-  const chips: [string, Tone][] = [
-    ["15 Dec", "amber"],
-    [`${PACK_ITEMS.length} items qualify`, "grey"],
-    [`${latest.itemIds.length} in pack`, "green"],
-    [`${removed} removed with no reason`, removed ? "red" : "green"],
-    ["1 decision is yours", "amber"],
-    [`${EVENTS.length} reporting events · ${decided} of ${ROUTES.length} routes decided`, "grey"],
-  ];
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border-[1.5px] border-indigo-200 bg-indigo-50 px-4 py-2.5">
-      <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-700">Board Risk Committee</span>
-      {chips.map(([l, tone]) => (
-        <Tag key={l} tone={tone}>
-          {l}
-        </Tag>
-      ))}
-    </div>
-  );
+/* ══ Registry ═══════════════════════════════════════════════════════════ */
+
+const SECTIONS: Record<string, () => ReactNode> = {
+  POSTURE: Posture,
+  ESCALATION: Escalation,
+  STILL_OPEN: () => <StillOpen />,
+  UNCHANGED: () => <StillOpen title="Not changed" />,
+  TRADEOFFS: Tradeoffs,
+  CAPACITY: () => <CapacityChart />,
+  CAPACITY_STATS: () => <CapacityChart withStats />,
+  OWNERS: OwnersTable,
+  HEATMAP: AttestationHeatmap,
+  ATTEST_MONTH: AttestationMonth,
+  ENFORCEMENT: EnforcementThemes,
+  HORIZON: Horizon,
+  RESTRICTION: RestrictionCard,
+  REPORTING: ReportingTable,
+  AUTONOMY: AgentAutonomy,
+  RULES: Rules,
+  ROSTER: AgentRoster,
+  TUNING: TuningLab,
+  ACTIVITY: Activity,
+  DECISION_LOG: DecisionLog,
+  EXCEPTIONS: Exceptions,
+  MEASURES_FULL: () => <MeasureTable title="Board measures" variant="full" />,
+  MEASURES_FULL_BAR: () => <MeasureTable title="Board measures" variant="full" inlineBar />,
+  B_TILES: BusinessTiles,
+  B_DECISIONS_REQ: DecisionsRequired,
+  B_KEY_DATES: KeyDates,
+  B_SINCE: SinceLastBoard,
+  B_ASSURANCE: Assurance,
+  B_STRATEGY: StrategyTable,
+  B_CREDIT: CreditQuality,
+  B_TENSIONS: PolicyTensions,
+  B_NOT_MEASURED: NotMeasured,
+  B_DUTY: ConsumerDuty,
+  B_COMPLAINTS: Complaints,
+  B_THEMES: Themes,
+  B_VULN: Vulnerable,
+  B_REDRESS: Redress,
+  B_SIGNALS: Signals,
+  B_DECISION_PANEL: DecisionPanel,
+  B_REG_REL: RegulatorRelationship,
+  B_SANCTIONS: Sanctions,
+  B_FOUND: FoundIssues,
+  B_JOURNEYS: Journeys,
+  B_DATA_TRUST: DataTrust,
+  B_REMOVED: RemovedOrExtended,
+  B_SPEAKUP: SpeakUp,
+  B_AGENT_TILES: AgentTiles,
+  B_FINDINGS: AgentFindings,
+  C_AGENDA: ChairAgenda,
+  C_PACK: PackIntegrity,
+  C_WAITING: WaitingForCro,
+  R_QUEUE: WorkQueue,
+  R_DEADLINES: Deadlines,
+  R_CLOCKS_DUE: ClocksDue,
+  R_PACK: PackChecklist,
+};
+
+export function renderSection(id: SectionId): ReactNode {
+  const C = SECTIONS[id];
+  return C ? <C /> : null;
 }
 
-/* ── Registry ────────────────────────────────────────────────────────── */
-
-export function renderSection(id: SectionId, ctx: { ownerPick: string; setOwnerPick: (r: string) => void; drill: boolean }): ReactNode {
-  switch (id) {
-    case "UNCHANGED":
-      return <UnchangedList />;
-    case "APPETITE_SUMMARY":
-      return <AppetiteSummary />;
-    case "MEASURES":
-      return <Measures />;
-    case "GROWTH_CAPACITY":
-      return <GrowthCapacity />;
-    case "TRADEOFFS":
-      return <Tradeoffs />;
-    case "DECISION_CARDS":
-      return <DecisionCards />;
-    case "DECISION_HISTORY":
-      return <DecisionHistory />;
-    case "CLOCKS":
-      return <Clocks />;
-    case "HORIZON":
-      return <Horizon />;
-    case "RESTRICTION":
-      return <Restriction />;
-    case "ENFORCEMENT":
-      return <Enforcement />;
-    case "OWNERS":
-      return <Owners onPick={ctx.drill ? ctx.setOwnerPick : undefined} picked={ctx.drill ? ctx.ownerPick : undefined} />;
-    case "OWNER_DRILL":
-      return <OwnerDrill role={ctx.ownerPick} />;
-    case "BAD_NEWS":
-      return <BadNews />;
-    case "SIGNOFF":
-      return <SignOff />;
-    case "REMOVED":
-      return <Removed />;
-    case "AGENT_SUMMARY":
-      return <AgentSummary />;
-    case "AGENT_ROSTER":
-      return <AgentRoster />;
-    case "APPROVALS":
-      return <Approvals />;
-    case "AGENT_CONTROLS":
-      return <AgentControls />;
-    case "GUARDRAILS":
-      return <Guardrails />;
-    case "TUNING":
-      return <Tuning />;
-    case "AGENT_ACTIVITY":
-      return <AgentActivity />;
-    case "WORK_QUEUE":
-      return <WorkQueue />;
-    case "DEADLINES":
-      return <Deadlines />;
-    case "PACK_BUILDER":
-      return <PackBuilder />;
-    case "COMMITTEE_HEADER":
-      return <CommitteeHeader />;
-    default:
-      return renderBoardMemberSection(id);
-  }
-}
+export const SECTION_IDS = Object.keys(SECTIONS);

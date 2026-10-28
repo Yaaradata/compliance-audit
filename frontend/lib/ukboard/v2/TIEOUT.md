@@ -14,7 +14,7 @@ All figures come from the UK Board data module (`lib/ukboard/v1/data.ts`, read o
 | Monitoring coverage 94.0%, −3.1 pts; same-day 0%; signed off 3 hours early | u-tm, TM_RUNS, TM_COHORTS | Member protection card; change list | Measure row | | | Sign-off status | |
 | Sanctions 1.3% (39 of 3,088) | u-sanctions | Not-changed list | Measure row | | | | |
 | Restriction 112 of 9,400; +41; 104 customers incl. 3 exited; 24,000 not checked; routes 97 / 9 / 6; block fired 1,208; 1 of 4 clauses; sign-off 08 Nov (12 days) | RESTRICTION | For your decision; change list | Measure row | Decision 2 | Restriction health | | Tuning lab (97) |
-| 2 events; 0 of 3 and 1 of 4 decided; day 1 and day 13; 2,300 customers; Helen Ward 23 Oct | EVENTS, ROUTES | | | Decision 2 | Reporting clocks | | Reporting Clock |
+| 2 events; 0 of 3 and 1 of 4 decided; day 1 and day 13; 2,300 customers; Head of Compliance 23 Oct | EVENTS, ROUTES | | | Decision 2 | Reporting clocks | | Reporting Clock |
 | Awareness gap 54 days (CRO only) | EVENTS e-117 | | | | Reporting clocks | | |
 | Vulnerable-customer exceptions 14.2 / 15.8 / 16.9; amber 3 quarters; removed at Executive Risk Committee 14 Oct, no reason; red projected Q1 2027 | SERIES u-vuln, PACK_ITEMS | For your decision; not-changed list | | Decision 3 | | Removed items; chair timeline | Board Pack |
 | 12 of 13 in the pack; board pack v1 → v2 (→ v3 on restore) | PACK_ITEMS, MANIFEST_VERSIONS | | | | | Drawer | Board Pack |
@@ -92,3 +92,18 @@ Every board figure is now held once in `boardStore.ts` (reading `v1/data.ts`, `b
 | Owners | Monitoring: Data owner (payments) · Consumer Duty: Chief Customer Officer · CET1: Chief Financial Officer · service disruption: Chief Operating Officer · low-EPC: Chief Credit Officer | Head of Compliance now holds no board measure |
 | Sign-off | 60 owner-months: 54 on time · 3 late · 2 missing · 1 early | Computed from the strip |
 | Agents | 7 · 41 checks this week · 6 findings this quarter · 5 drafts with the CRO · 0 without approval | Computed |
+
+## C-suite redesign (one component library, roles only)
+
+| Figure | Value | Source |
+|---|---|---|
+| Status changes since last board | 4: restriction Amber → Red; alert queue Within → Amber; LCR and NSFR Within → Heading for amber | Board-pack seed (`statusAtLastBoard`); the data holds no last-board date |
+| Attestation this month | 10 of 12 measures · 1 due · 1 unconfirmed | Computed from each measure's sign-off check |
+| Attestation record (12 months) | 54 of 60 owner-months on time · 3 late · 2 missing · 1 before data check | Computed from the sign-off strip |
+| Accountable owners | 8 roles; measures 3/3/2/1/1/1/0/1 = 12 | Computed (`ownerRows`) |
+| Reporting routes decided | 1 of 7 | Computed from v1 routes |
+| Days to Board Risk Committee | Computed from today's date (15 Dec 2026) | Live clock; measures as at 30 Sep 2026 |
+| High-LTV vs Q2 | ▲ 0.3 pts (17.3% → 17.6%) | Kept per Pass 0; 1.5 pts is since Q2 2025 |
+| Enforcement themes | Restriction (FCA final notice · 2024), controls not scaling (FCA final notice · 2025), monitoring gap (notice unconfirmed) | No firm names; the monitoring record is unverified |
+| Consumer Duty measure value | 2 of 4 outcomes amber (9 of 12 measures on Customers) | Computed |
+| Restriction runs | Jul 38 · Aug 71 · Sep 112 | v1 restriction history |

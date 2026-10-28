@@ -25,7 +25,7 @@
 | Queue 19 days (amber 14), 12 → 19 | For your decision #1; change list | Measure row; capacity stat | Decision 1 | | | |
 | 30,160 members per handler (was 25,000); 81% alerts within target (31,600 of 39,000) | | Capacity stats | Decision 1 support | | | Tuning lab base (39,000) |
 | Restriction 112 of 9,400; 104 customers incl. 3 exited; +41; 24,000 not checked; routes 97/9/6; flag 1,208; 1 of 4 clauses; sign-off 12 days (08 Nov) | For your decision #2; change list | Measure row | Decision 2 | Restriction health | | Tuning lab (97 savings pot) |
-| Reporting: 2 events; 0 of 3 and 1 of 4 decided; day 1 / day 13; 2,300 customers; Helen Ward 23 Oct | | | Decision 2 | Reporting clocks | | Reporting Clock agent |
+| Reporting: 2 events; 0 of 3 and 1 of 4 decided; day 1 / day 13; 2,300 customers; Head of Compliance 23 Oct | | | Decision 2 | Reporting clocks | | Reporting Clock agent |
 | Awareness gap 54 days | | | | Reporting clocks (CRO only) | | |
 | Vulnerable-customer exceptions 16.9 / 15.8 / 14.2; amber 3 quarters; removed at Executive Risk Committee 14 Oct, no reason; red projected Q1 2027 | For your decision #3; not-changed list | | Decision 3 | | Items removed | Board Pack agent |
 | 12 of 13 in the board pack | | | | | Items removed | Board Pack agent |

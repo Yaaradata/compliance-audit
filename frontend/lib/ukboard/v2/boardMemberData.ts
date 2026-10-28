@@ -183,8 +183,8 @@ export const CULTURE: Stat[] = [
 
 export const TENSIONS: { a: string; b: string; aWants: string; bWants: string; effect: string; status: "Regulatory floor, not tradeable" | "Not agreed" | "Board-agreed trade-off"; tone: Tone; note?: string; drawer: string }[] = [
   {
-    a: "Fast digital onboarding",
-    b: "Customer checks before transacting",
+    a: "Fast onboarding",
+    b: "checks before transacting",
     aWants: "Open savings accounts in minutes",
     bWants: "No transactions before checks finish",
     effect: "Customers transact before checks finish",
@@ -193,8 +193,8 @@ export const TENSIONS: { a: string; b: string; aWants: string; bWants: string; e
     drawer: "franchise:O2",
   },
   {
-    a: "Savings campaign, 8 Dec",
-    b: "Alert queue appetite",
+    a: "Savings campaign",
+    b: "alert queue",
     aWants: "More new members this winter",
     bWants: "Alerts cleared within 14 days",
     effect: "Campaign adds load to a queue already past amber",
@@ -203,8 +203,8 @@ export const TENSIONS: { a: string; b: string; aWants: string; bWants: string; e
     drawer: "decision:1",
   },
   {
-    a: "High-LTV first-time buyer target",
-    b: "High-LTV appetite limit",
+    a: "First-time buyer target",
+    b: "high-LTV limit",
     aWants: "More first-time buyer lending",
     bWants: "High-LTV inside the appetite limit",
     effect: "Headroom runs out by Q2 2027 at this pace",

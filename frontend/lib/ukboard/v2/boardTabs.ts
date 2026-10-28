@@ -2,7 +2,7 @@
  * UK Board v2 — tab content built from the existing data only (no new values).
  * Plain board wording; codes stay in drawer evidence. Agent data lives in agentsData.ts.
  */
-import { CAPACITY, PACK_ITEMS, RESTRICTION, ROUTES, SERIES, UNITS } from "../v1/data";
+import { CAPACITY, PACK_ITEMS, PEOPLE, RESTRICTION, ROUTES, SERIES, UNITS } from "../v1/data";
 import { CHECK_ORDER } from "../v1/selectors";
 import { headlineCounts, METRICS, objectiveMetrics, OBJECTIVES, rowState, verdict, type MetricMeta, type ObjectiveId, type Verdict } from "./board";
 
@@ -28,8 +28,11 @@ const PLAIN: [RegExp, string][] = [
   [/\bFR7\b/g, "PRA rule"],
 ];
 
+/** Roles only on screen: every person's name becomes their role. */
+const NAMES: [RegExp, string][] = Object.values(PEOPLE).map((p) => [new RegExp(p.name, "g"), p.roleShort === "BRC chair" ? "Risk Committee Chair" : p.roleShort === "CRO" ? "Chief Risk Officer" : p.roleShort]);
+
 export function plain(text: string): string {
-  return PLAIN.reduce((t, [re, to]) => t.replace(re, to), text);
+  return [...NAMES, ...PLAIN].reduce((t, [re, to]) => t.replace(re, to), text);
 }
 
 /* ── Franchises (Overview) ────────────────────────────────────────── */

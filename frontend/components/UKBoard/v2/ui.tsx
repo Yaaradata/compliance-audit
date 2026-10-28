@@ -201,7 +201,7 @@ export function DraftCard({ draftId, title, reason }: { draftId: string; title?:
       ) : (
         <div className="mt-2 space-y-1 text-xs">
           <p className="text-slate-600">
-            {ds.status === "rejected" ? "Rejected" : "Approved"} by {ds.byPersonId === "chair" ? "Graham Pryce" : "Eleanor Hartley"} on {ds.on} · v{ds.version}
+            {ds.status === "rejected" ? "Rejected" : "Approved"} by {ds.byPersonId === "chair" ? "Risk Committee Chair" : "Chief Risk Officer"} on {ds.on} · v{ds.version}
           </p>
           {ds.status !== "rejected" && (!sendable || ds.status === "sent_to_owner") ? <p className="font-semibold text-slate-900">{plain(d.faceAfter)}</p> : null}
           {sendable && ds.status === "accepted" && state.persona === "cro" ? (
@@ -229,7 +229,7 @@ export function AuditList({ refs }: { refs: string[] }) {
           <ul className="mt-1 divide-y divide-slate-100">
             {rows.map((r) => (
               <li key={r.entryId} className="py-1 text-slate-600">
-                {r.ts} · {r.actorName} ({r.actorRole}) · {plain(r.action)} · {plain(r.objectLabel)}
+                {r.ts} · {plain(r.actorRole.replace(/\s*\(SMF\d+\)/, ""))} · {plain(r.action)} · {plain(r.objectLabel)}
               </li>
             ))}
           </ul>
