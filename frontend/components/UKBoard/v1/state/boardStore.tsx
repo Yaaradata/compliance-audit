@@ -43,6 +43,8 @@ export type BoardAction =
   | { type: "GATE_ACCEPT"; draftId: string; optionId?: string }
   | { type: "GATE_EDIT_ACCEPT"; draftId: string; text: string; optionId?: string }
   | { type: "GATE_REJECT"; draftId: string; reasonCode: string }
+  /** BRC chair records a chair-held decision (v2 only; v1 never dispatches it). */
+  | { type: "CHAIR_RECORD"; draftId: string; optionId: string }
   | { type: "SEND_TO_OWNER"; draftId: string }
   | { type: "RESET_DEMO" };
 
@@ -220,6 +222,26 @@ function reducer(state: BoardState, action: BoardAction): BoardState {
           ...s,
           drafts: { ...s.drafts, [action.draftId]: { ...current, status: "sent_to_owner" } },
           audit: [...s.audit, audit(s, "send_to_owner", `${draft.title} → ${draft.targetRole}`, draft.unitId, current.version)],
+        },
+      };
+    }
+    case "CHAIR_RECORD": {
+      const draft = DRAFTS[action.draftId];
+      const current = state.session.drafts[action.draftId];
+      if (!draft || !current || current.status !== "ai_draft" || draft.gateHolder !== "brc_chair" || state.viewer !== "brc_chair_preview") return state;
+      const s = { ...state.session, clock: state.session.clock + 1 };
+      const chair = PEOPLE.chair;
+      const entry: AuditEntry = {
+        ...audit(s, "decision_record.recorded", draft.title, draft.unitId, current.version),
+        actorName: chair.name,
+        actorRole: chair.role,
+      };
+      return {
+        ...state,
+        session: {
+          ...s,
+          drafts: { ...s.drafts, [action.draftId]: { ...current, status: "accepted", chosenOptionId: action.optionId, byPersonId: "chair", on: FIRM.demoToday } },
+          audit: [...s.audit, entry],
         },
       };
     }
