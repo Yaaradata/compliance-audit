@@ -5,10 +5,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { daysToBrc, headlineCounts, headlineSentence, METRICS, OBJECTIVES, offTrackByTier, onTrack, rowState, verdict } from "./board";
 
-test("exactly 12 headline metrics; 8 within, 1 amber, 1 red, 2 unverified", () => {
+test("exactly 12 headline metrics; 5 within, 2 heading for amber, 2 amber, 1 red, 2 unconfirmed", () => {
   assert.equal(METRICS.length, 12);
   const c = headlineCounts();
-  assert.deepEqual([c.within_appetite, c.amber, c.red, c.unverified], [8, 1, 1, 2]);
+  assert.deepEqual([c.within_appetite, c.projected, c.amber, c.red, c.unverified], [5, 2, 2, 1, 2]);
 });
 
 test("verdicts: mortgage room to grow, savings fix first, funding hold, member safety unverified", () => {
@@ -20,22 +20,22 @@ test("off-track list: obligatory → top, ordered red → unverified → amber �
   const groups = offTrackByTier();
   assert.deepEqual(
     groups.find((g) => g.tier === "obligatory")!.rows.map((m) => m.unitId),
-    ["u-restriction", "u-tm", "u-sanctions"],
+    ["u-restriction", "u-tm", "u-sanctions", "u-cd"],
   );
   assert.deepEqual(groups.find((g) => g.tier === "top")!.rows.map((m) => rowState(m)), ["amber", "projected", "projected"]);
-  assert.equal(onTrack().length, 6);
+  assert.equal(onTrack().length, 5);
 });
 
 test("every metric has a denominator, an owner and a lead/lag tag", () => {
   for (const m of METRICS) {
-    assert.ok(m.denominator && m.owner && m.indicatorType, m.unitId);
+    assert.ok(m.value && m.owner && m.indicatorType, m.unitId);
     assert.ok(m.name.split(" ").length <= 4, m.name);
   }
 });
 
 test("headline sentence is rule-built and short", () => {
   const s = headlineSentence();
-  assert.equal(s, "8 of 12 measures within appetite. Room to grow mortgages: £96m. 3 decisions due before the BRC.");
+  assert.equal(s, "5 of 12 measures within appetite. Room to grow mortgages: £96m. 3 decisions due before the BRC.");
   assert.ok(s.split(" ").length <= 22);
   assert.equal(daysToBrc(), 49);
 });

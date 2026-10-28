@@ -146,7 +146,7 @@ const OWNER_ROLES: { role: string; match: (m: MetricMeta) => boolean; targets: s
   { role: "Treasurer", match: (m) => m.owner === "Treasurer", targets: ["Treasurer"] },
   { role: "Chief Credit Officer", match: (m) => m.owner === "Chief Credit Officer", targets: ["Chief Credit Officer"] },
   { role: "Head of Compliance", match: (m) => m.owner === "Head of Compliance", targets: ["Head of Compliance"] },
-  { role: "Data owner (payments)", match: (m) => m.owner === "Feed owner", targets: ["Feed owner"] },
+  { role: "Data owner (payments)", match: (m) => m.owner === "Data owner (payments)", targets: ["Feed owner"] },
 ];
 
 export function owners(draftTargets: Record<string, string>): Owner[] {

@@ -9,11 +9,12 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
-import { CAPACITY, DRAFTS, EVENTS, HORIZON, KRI_DETAIL, RESTRICTION, ROUTES, SERIES, TENSION_PAIR, TM_COHORTS, TM_RUNS, UNITS } from "@/lib/ukboard/v1/data";
+import { CAPACITY, DRAFTS, EVENTS, HORIZON, RESTRICTION, ROUTES, SERIES, TENSION_PAIR, TM_COHORTS, TM_RUNS, UNITS } from "@/lib/ukboard/v1/data";
 import { getPrecedent } from "@/lib/ukboard/v1/precedents";
 import { CHECK_ORDER } from "@/lib/ukboard/v1/selectors";
 import { METRICS, objectiveMetrics } from "@/lib/ukboard/v2/board";
 import { AGENTS, QUEUE, TUNING } from "@/lib/ukboard/v2/agentsData";
+import { appetiteUsedPct, FIG, fmt, measure, mortgageHeadroomM, reportingEvents } from "@/lib/ukboard/v2/boardStore";
 import { ENFORCEMENT_LESSONS, EVENT_PLAIN, FRANCHISES, owners, plain, RESTRICTION_ROUTES, ROUTE_PLAIN, type Persona } from "@/lib/ukboard/v2/boardTabs";
 import AppetiteDial from "./AppetiteDial";
 import LineChart from "./LineChart";
@@ -172,7 +173,7 @@ function content(key: DrawerKey, persona: Persona, session: ReturnType<typeof us
   }
   switch (key) {
     case "decision:1":
-      return { title: "Savings growth vs crime checks", position: capacityCharts(), why: ["Members grew 31%; qualified handlers grew 9%.", "Queue above amber since August.", "Only two choices: restore capacity or pace growth."], drafts: ["d-t25-choice", "d-t25-paper", "d-pg4"], evidenceUnitId: "u-capacity", precedentIds: ["uk-starling-2024", "uk-monzo-2025"], refs: ["u-capacity"] };
+      return { title: "Savings growth vs crime checks", position: capacityCharts(), why: [`Members grew ${FIG.savings.membersGrowthPct}%; qualified handlers grew ${HANDLER_GROWTH_PCT}%.`, "Queue above amber since August.", "Only two choices: restore capacity or pace growth."], drafts: ["d-t25-choice", "d-t25-paper", "d-pg4"], evidenceUnitId: "u-capacity", precedentIds: ["uk-starling-2024", "uk-monzo-2025"], refs: ["u-capacity"] };
     case "decision:2":
     case "restriction":
       return {
@@ -181,15 +182,17 @@ function content(key: DrawerKey, persona: Persona, session: ReturnType<typeof us
           <>
             <Rows
               rows={[
-                ["Accounts in breach", `${RESTRICTION.breachesAccounts} of ${RESTRICTION.tested.toLocaleString("en-GB")} checked`],
-                ["Customers", "104, including 3 previously exited"],
-                ["Not yet checked", "24,000 partner-channel openings"],
+                ["Accounts in breach", `${fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested)} checked`],
+                ["Customers", `${FIG.restriction.customers}, including ${FIG.restriction.exited} previously exited`],
+                ["Not yet checked", `${fmt.n(FIG.restriction.untested)} partner-channel openings`],
                 ...RESTRICTION_ROUTES.map((r) => [r.label, `${r.accounts} accounts`] as [string, ReactNode]),
-                ["Clauses supported", "3 of 4"],
-                ["Sign-off due", "08 Nov 2026 (12 days)"],
+                ["Clauses supported", `${FIG.restriction.clauses - FIG.restriction.clausesUnsupported} of ${FIG.restriction.clauses}`],
+                ["Sign-off due", FIG.dates.restrictionSignOff],
               ]}
             />
-            <p className="text-xs text-slate-600">The block fired 1,208 times, but the full check found 112 breaches.</p>
+            <p className="text-xs text-slate-600">
+              The block fired {fmt.n(FIG.restriction.blockFired)} times, but the full check found {FIG.restriction.breaches} breaches.
+            </p>
             <Routes eventId="e-r03" showGap={false} />
           </>
         ),
@@ -206,7 +209,7 @@ function content(key: DrawerKey, persona: Persona, session: ReturnType<typeof us
         title: "Issue removed from the board pack",
         position: (
           <>
-            <LineChart title="Vulnerable-customer exceptions per 10,000 contacts" series={[{ name: "Per 10,000 contacts", points: SERIES["u-vuln"] }]} threshold={{ value: 14, label: "amber 14 · red 18" }} />
+            <LineChart title={`Vulnerable-customer exceptions ${FIG.vuln.basis}`} series={[{ name: FIG.vuln.basis, points: SERIES["u-vuln"] }]} threshold={{ value: FIG.vuln.amber, label: `amber at ${FIG.vuln.amber} · red ${FIG.vuln.red}` }} />
             <Rows
               rows={[
                 ...session.manifestVersions.map((v) => [`Board pack v${v.version} (${v.state}) · ${v.createdOn}`, v.itemIds.includes("pi-vuln") ? "Item present" : "Item absent"] as [string, ReactNode]),
@@ -216,7 +219,7 @@ function content(key: DrawerKey, persona: Persona, session: ReturnType<typeof us
             />
           </>
         ),
-        why: ["Amber for 3 quarters, past the 2-quarter rule (firm practice).", "No action, decision or escalation recorded.", "Proves nothing was recorded, not that nothing was discussed."],
+        why: [`Amber for ${FIG.vuln.quartersAmber} quarters, past the 2-quarter rule (firm practice).`, "No action, decision or escalation recorded.", "Proves nothing was recorded, not that nothing was discussed."],
         drafts: ["d-t234-options", "d-t235-restore", "d-pg5"],
         evidenceUnitId: "u-vuln",
         precedentIds: [],
@@ -228,13 +231,13 @@ function content(key: DrawerKey, persona: Persona, session: ReturnType<typeof us
         position: (
           <Rows
             rows={[
-              ["Issue to Risk Committee (median)", `${KRI_DETAIL.latency.median}, 23 serious issues`],
-              ["Not escalated after 12 months", "3"],
-              ["Customer checks overdue", "26,900 vs 10,000 target"],
-              ["Actions closed, measure unchanged", "42 · 2 issues downgraded"],
-              ["Customer-check backlog to clear", "31 months vs 12 committed"],
-              ["Deadline extensions", "3 vs a limit of 2"],
-              ["Qualifying items in the pack", "12 of 13"],
+              ["Issue to Risk Committee (median)", `${FIG.escalation.medianMonths} months, ${FIG.escalation.issues} serious issues`],
+              ["Not escalated after 12 months", String(FIG.escalation.notEscalated)],
+              ["Customer checks overdue", `${fmt.n(FIG.escalation.overdueChecks)} vs ${fmt.n(FIG.escalation.overdueTarget)} target`],
+              ["Actions closed, measure unchanged", `${FIG.escalation.actionsClosed} · ${FIG.escalation.downgraded} issues downgraded`],
+              ["Customer-check backlog to clear", `${FIG.escalation.backlogMonths} months vs ${FIG.escalation.backlogCommitted} committed`],
+              ["Deadline extensions", `${FIG.escalation.extensions} vs a limit of ${FIG.escalation.extensionLimit}`],
+              ["Qualifying items in the pack", `${session.manifestVersions[session.manifestVersions.length - 1].itemIds.length} of ${FIG.pack.items}`],
             ]}
           />
         ),
@@ -264,7 +267,7 @@ function content(key: DrawerKey, persona: Persona, session: ReturnType<typeof us
     return {
       title: EVENT_PLAIN[id],
       position: <Routes eventId={id} showGap={cro} />,
-      why: id === "e-117" ? ["2,300 customers moved to the reversion rate without notice.", "1 of 4 reporting routes has a recorded decision."] : ["No reporting route decided yet; clocks are immediate."],
+      why: id === "e-117" ? [`${fmt.n(FIG.rateError.customers)} customers moved to the reversion rate without notice.`, `${eventRoutes(id).decided} of ${eventRoutes(id).routes} reporting routes has a recorded decision.`] : ["No reporting route decided yet; clocks are immediate."],
       drafts: id === "e-117" ? ["d-case-117-fr7", "d-case-117-sup1511", ...(cro ? ["d-t230-prompt"] : [])] : ["d-case-r03-sup153", "d-case-r03-fr7"],
       evidenceUnitId: "u-restriction",
       extraEvidence: <EvidenceCodes />,
@@ -316,19 +319,26 @@ function content(key: DrawerKey, persona: Persona, session: ReturnType<typeof us
     return { title: getPrecedent(id)?.respondent ?? id, position: <Dial unitId={l.unitId} />, why: [`${l.what} → ${l.touches}.`], drafts: [], precedentIds: [id], refs: [l.unitId] };
   }
   if (key === "unmapped") {
-    return { title: "Plan item with no appetite statement", position: <Rows rows={[["Business current account launch", "Q1 2027 · 18,000 accounts"], ["Appetite statement", "Missing"], ["Financial-crime measure", "Missing"]]} />, why: ["A plan item uses appetite with no board limit."], drafts: ["d-t23-ras"], evidenceUnitId: "u-unmapped", precedentIds: [], refs: ["u-unmapped"] };
+    return { title: "Plan item with no appetite statement", position: <Rows rows={[[FIG.unmapped.launch, `${FIG.unmapped.when} · ${fmt.n(FIG.unmapped.accounts)} accounts`], ["Appetite statement", "Missing"], ["Financial-crime measure", "Missing"]]} />, why: ["A plan item uses appetite with no board limit."], drafts: ["d-t23-ras"], evidenceUnitId: "u-unmapped", precedentIds: [], refs: ["u-unmapped"] };
   }
   return null;
 }
 
+const eventRoutes = (id: string) => reportingEvents().find((e) => e.id === id)!;
+const HANDLER_GROWTH_PCT = Math.round((CAPACITY.handlers[CAPACITY.handlers.length - 1] / CAPACITY.handlers[0] - 1) * 100);
+
 const WHY: Record<string, string[]> = {
-  "u-restriction": ["The full check found 112 accounts in breach of 9,400.", "97 came through the new savings pot, outside the block.", "24,000 partner-channel openings are not yet checked."],
-  "u-tm": ["Only 94.0% of payment records reached monitoring.", "Same-day accounts were not monitored at all.", "Signed off before the data run finished."],
-  "u-sanctions": ["39 rules cover 3,088 list entries.", "No alerts in 3 weeks against 42 a week expected."],
-  "u-capacity": ["Queue 19 days against amber 14, since August.", "Members per handler rose from 25,000 to 30,160."],
+  "u-restriction": [
+    `The full check found ${FIG.restriction.breaches} accounts in breach of ${fmt.n(FIG.restriction.tested)}.`,
+    `${RESTRICTION_ROUTES[0].accounts} came through the new savings pot, outside the block.`,
+    `${fmt.n(FIG.restriction.untested)} partner-channel openings are not yet checked.`,
+  ],
+  "u-tm": [`Only ${fmt.pct(FIG.monitoring.coverage, 1)} of payment records reached monitoring.`, "Same-day accounts were not monitored at all.", "Signed off before the data run finished."],
+  "u-sanctions": [`${FIG.sanctions.rules} rules cover ${fmt.n(FIG.sanctions.entries)} list entries.`, `No alerts in ${FIG.sanctions.weeksNoAlerts} weeks against ${FIG.sanctions.expectedPerWeek} a week expected.`],
+  "u-capacity": [`Queue ${measure("u-capacity").value} against ${measure("u-capacity").comparator}, since August.`, `Members per handler rose from ${fmt.n(FIG.capacity.perHandlerWas)} to ${fmt.n(FIG.capacity.perHandler)}.`],
   "u-lcr": ["Reaches amber in about 9 weeks; the Risk Committee is in 7."],
   "u-nsfr": ["Fell from 10 to 2 points above amber in one quarter."],
-  "u-hltv": ["88% of high-LTV appetite used; £96m headroom on £4.0bn."],
+  "u-hltv": [`${appetiteUsedPct()}% of high-LTV appetite used; £${mortgageHeadroomM()}m headroom to the limit on ${fmt.gbpBn(FIG.mortgages.planBn)}.`],
 };
 
 function EvidenceCodes() {

@@ -3,9 +3,10 @@
  * metadata only (tier, indicator type, direction, objective, short face names). No new values.
  * Verdicts and the off-track list are computed here, never hard-coded in components.
  */
-import { FIRM, SERIES, THRESHOLDS, UNITS } from "../v1/data";
-import { projectedCrossing, selectStatus, statusCounts } from "../v1/selectors";
-import type { ScorecardRow, Status } from "../v1/types";
+import { FIRM, SERIES, THRESHOLDS } from "../v1/data";
+import { projectedCrossing } from "../v1/selectors";
+import type { Status } from "../v1/types";
+import { deltaText, MEASURES, measure, mortgageHeadroomM, postureCounts, type Measure } from "./boardStore";
 
 export type Tier = "obligatory" | "top" | "emerging";
 export type IndicatorType = "leading" | "lagging";
@@ -47,180 +48,60 @@ export interface MetricMeta {
 
 const t = THRESHOLDS;
 
-/** The 12 board headlines (NSFR promoted in; critical vulnerabilities rotated to the cyber drawer). */
-export const METRICS: MetricMeta[] = [
-  {
-    unitId: "u-restriction",
-    name: "Customer restriction",
-    tier: "obligatory",
-    indicatorType: "lagging",
-    direction: "higherIsWorse",
-    objectiveId: "O2",
-    value: "112",
-    denominator: "/ 9,400 tested",
-    delta: { text: "+41", worse: true },
-    owner: "Head of Financial Crime",
-  },
-  {
-    unitId: "u-tm",
-    name: "Monitoring coverage",
-    tier: "obligatory",
-    indicatorType: "lagging",
-    direction: "lowerIsWorse",
-    objectiveId: "O4",
-    value: "94.0%",
-    denominator: "of 2.4m records",
-    delta: { text: "−3.1 pts", worse: true },
-    owner: "Feed owner",
-  },
-  {
-    unitId: "u-sanctions",
-    name: "Sanctions list cover",
-    tier: "obligatory",
-    indicatorType: "lagging",
-    direction: "lowerIsWorse",
-    objectiveId: "O4",
-    value: "1.3%",
-    denominator: "39 of 3,088 list",
-    owner: "Head of Financial Crime",
-  },
-  {
-    unitId: "u-cd",
-    name: "Consumer Duty outcomes",
-    tier: "obligatory",
-    indicatorType: "lagging",
-    direction: "lowerIsWorse",
-    objectiveId: "O4",
-    value: "4 of 4",
-    denominator: "within tolerance",
-    owner: "Head of Compliance",
-  },
-  {
-    unitId: "u-capacity",
-    name: "Alert queue age",
-    tier: "top",
-    indicatorType: "leading",
-    direction: "higherIsWorse",
-    objectiveId: "O2",
-    value: "19 days",
-    denominator: "amber 14",
-    delta: { text: "+7 days", worse: true },
-    dial: { min: 0, max: 28, amber: t["u-capacity"].amber, red: t["u-capacity"].red, actual: 19, unit: " days" },
-    owner: "Head of Financial Crime",
-  },
-  {
-    unitId: "u-lcr",
-    name: "Liquidity (LCR)",
-    tier: "top",
-    indicatorType: "leading",
-    direction: "lowerIsWorse",
-    objectiveId: "O3",
-    value: "162%",
-    denominator: "amber 150%",
-    delta: { text: "−6 pts", worse: true },
-    dial: { min: 110, max: 190, amber: t["u-lcr"].amber, red: t["u-lcr"].red, actual: 162, projection: t["u-lcr"].amber, unit: "%" },
-    projectionText: "amber in about 9 weeks",
-    quartersToAmber: 1,
-    owner: "Treasurer",
-  },
-  {
-    unitId: "u-nsfr",
-    name: "Stable funding (NSFR)",
-    tier: "top",
-    indicatorType: "leading",
-    direction: "lowerIsWorse",
-    objectiveId: "O3",
-    value: "117%",
-    denominator: "amber 115%",
-    delta: { text: "−8 pts", worse: true },
-    dial: { min: 95, max: 135, amber: t["u-nsfr"].amber, red: t["u-nsfr"].red, actual: 117, projection: t["u-nsfr"].amber, unit: "%" },
-    projectionText: "amber next quarter",
-    quartersToAmber: 1,
-    owner: "Treasurer",
-  },
-  {
-    unitId: "u-hltv",
-    name: "High-LTV lending",
-    tier: "top",
-    indicatorType: "leading",
-    direction: "higherIsWorse",
-    objectiveId: "O1",
-    value: "17.6%",
-    denominator: "red 20%",
-    delta: { text: "+0.3 pts", worse: true },
-    dial: { min: 0, max: t["u-hltv"].capacity ?? 24, amber: t["u-hltv"].amber, red: t["u-hltv"].red, actual: 17.6, projection: t["u-hltv"].amber, unit: "%" },
-    projectionText: "amber by Q2 2027",
-    owner: "Chief Credit Officer",
-  },
-  {
-    unitId: "u-wholesale",
-    name: "Wholesale funding",
-    tier: "top",
-    indicatorType: "lagging",
-    direction: "higherIsWorse",
-    objectiveId: "O3",
-    value: "34%",
-    denominator: "ceiling 40%",
-    delta: { text: "+1 pt", worse: true },
-    dial: { min: 0, max: 50, amber: t["u-wholesale"].amber, red: t["u-wholesale"].red, actual: 34, unit: "%" },
-    owner: "CFO",
-  },
-  {
-    unitId: "u-cet1",
-    name: "CET1 capital",
-    tier: "top",
-    indicatorType: "lagging",
-    direction: "lowerIsWorse",
-    value: "16.8%",
-    denominator: "limit 13.5%",
-    delta: { text: "−0.2 pts", worse: true },
-    dial: { min: 10, max: 20, amber: t["u-cet1"].amber, red: t["u-cet1"].red, actual: 16.8, unit: "%" },
-    owner: "CFO",
-  },
-  {
-    unitId: "u-ibs",
-    name: "Service disruption",
-    tier: "top",
-    indicatorType: "lagging",
-    direction: "higherIsWorse",
-    objectiveId: "O4",
-    value: "58%",
-    denominator: "of tolerance",
-    delta: { text: "+4 pts", worse: true },
-    dial: { min: 0, max: 100, amber: 75, red: 100, actual: 58, unit: "%" },
-    owner: "COO",
-  },
-  {
-    unitId: "u-climate",
-    name: "Low-EPC lending",
-    tier: "top",
-    indicatorType: "leading",
-    direction: "higherIsWorse",
-    objectiveId: "O1",
-    value: "7.4%",
-    denominator: "appetite 10%",
-    delta: { text: "+0.2 pts", worse: true },
-    dial: { min: 0, max: 14, red: 10, actual: 7.4, unit: "%" },
-    owner: "CRO",
-  },
-];
+/** Dial ranges for the compact appetite dials (presentation only; values come from boardStore). */
+const DIAL_RANGE: Record<string, { min: number; max: number; unit: string }> = {
+  "u-capacity": { min: 0, max: 28, unit: " days" },
+  "u-lcr": { min: 110, max: 190, unit: "%" },
+  "u-nsfr": { min: 95, max: 135, unit: "%" },
+  "u-hltv": { min: 10, max: 22, unit: "%" },
+  "u-wholesale": { min: 0, max: 50, unit: "%" },
+  "u-cet1": { min: 10, max: 20, unit: "%" },
+  "u-ibs": { min: 0, max: 100, unit: "%" },
+  "u-climate": { min: 0, max: 14, unit: "%" },
+};
+
+const toMeta = (m: Measure): MetricMeta => {
+  const r = DIAL_RANGE[m.id];
+  const dial: Dial | undefined =
+    r && m.actual !== undefined
+      ? { ...r, amber: m.amber, red: m.limit, actual: m.actual, projection: m.projection && m.quartersToAmber !== undefined ? m.amber : undefined }
+      : undefined;
+  return {
+    unitId: m.id,
+    name: m.name,
+    tier: m.tier,
+    indicatorType: m.type === "early_warning" ? "leading" : "lagging",
+    direction: m.direction === "lowerIsWorse" ? "lowerIsWorse" : "higherIsWorse",
+    objectiveId: m.objectiveId,
+    value: m.value,
+    denominator: m.comparator,
+    delta: m.delta ? { text: deltaText(m.delta), worse: m.delta.worse } : undefined,
+    dial,
+    projectionText: m.projection,
+    quartersToAmber: m.quartersToAmber,
+    owner: m.owner,
+  };
+};
+
+/** The 12 board headlines, read from the one store (boardStore.ts). */
+export const METRICS: MetricMeta[] = MEASURES.map(toMeta);
 
 /** Emerging-tier rows: registered risks with no metric (not one of the 12 headlines). */
 export const EMERGING = [{ unitId: "u-horizon", name: "AI impersonation fraud", owner: "Head of Financial Crime" }];
 
 export const HEADLINE_COUNT = METRICS.length;
 
+const TO_STATUS = { red: "red", amber: "amber", unconfirmed: "unverified", within: "within_appetite", projected: "within_appetite" } as const;
+
 export function metricStatus(m: MetricMeta): Status {
-  return selectStatus(UNITS[m.unitId]);
+  return TO_STATUS[measure(m.unitId).status];
 }
 
 const ORDER: Record<string, number> = { red: 0, unverified: 1, amber: 2, projected: 3, within_appetite: 4, not_assessed: 5 };
 
 /** "projected" = within appetite now, reaching amber within 2 quarters on the straight line. */
 export function rowState(m: MetricMeta): Status | "projected" {
-  const s = metricStatus(m);
-  if (s === "within_appetite" && m.quartersToAmber !== undefined && m.quartersToAmber <= 2) return "projected";
-  return s;
+  return measure(m.unitId).status === "projected" ? "projected" : metricStatus(m);
 }
 
 export function isOffTrack(m: MetricMeta): boolean {
@@ -241,9 +122,10 @@ export function onTrack() {
   return METRICS.filter((m) => !isOffTrack(m));
 }
 
+/** Posture counts from the store: within excludes the measures heading for amber. */
 export function headlineCounts() {
-  const rows: ScorecardRow[] = METRICS.map((m) => ({ unitId: m.unitId, name: m.name, domainLabel: "" }));
-  return statusCounts(rows, UNITS);
+  const c = postureCounts();
+  return { within_appetite: c.within, projected: c.projected, amber: c.amber, red: c.red, unverified: c.unconfirmed, not_assessed: 0 };
 }
 
 /* ── Strategy verdicts (computed) ─────────────────────────────────────── */
@@ -304,7 +186,7 @@ export const DECISION_COUNT = 3;
 export function headlineSentence(): string {
   const c = headlineCounts();
   const grow = OBJECTIVES.find((o) => verdict(o) === "room_to_grow");
-  const growText = grow ? ` Room to grow ${grow.name.toLowerCase().replace(" growth", "s")}: £96m.` : "";
+  const growText = grow ? ` Room to grow ${grow.name.toLowerCase().replace(" growth", "s")}: £${mortgageHeadroomM()}m.` : "";
   return `${c.within_appetite} of ${HEADLINE_COUNT} measures within appetite.${growText} ${DECISION_COUNT} decisions due before the BRC.`;
 }
 

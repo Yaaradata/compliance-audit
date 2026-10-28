@@ -6,12 +6,7 @@
 export type PersonaId = "board" | "chair" | "cro";
 
 export type SectionId =
-  | "POSTURE"
-  | "BUSINESS_LINES"
-  | "DECIDE_LIST"
-  | "CHANGED"
   | "UNCHANGED"
-  | "AGENT_STRIP"
   | "APPETITE_SUMMARY"
   | "MEASURES"
   | "GROWTH_CAPACITY"

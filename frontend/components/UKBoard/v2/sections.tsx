@@ -8,20 +8,17 @@
  */
 import { useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Check, Lock, Sparkles } from "lucide-react";
-import { CAPACITY, DRAFTS, EVENTS, HORIZON, KRI_DETAIL, PACK_ITEMS, PEOPLE, RESTRICTION, ROUTES } from "@/lib/ukboard/v1/data";
+import { CAPACITY, DRAFTS, EVENTS, HORIZON, PACK_ITEMS, PEOPLE, ROUTES } from "@/lib/ukboard/v1/data";
 import { getPrecedent } from "@/lib/ukboard/v1/precedents";
 import { headlineCounts, METRICS, rowState, type MetricMeta } from "@/lib/ukboard/v2/board";
 import {
-  CHANGES,
   DECISION_HISTORY,
   ENFORCEMENT_LESSONS,
   EVENT_PLAIN,
-  FRANCHISES,
   GROWTH_TIER_LABEL,
   indicatorWord,
   measuresByTier,
   owners,
-  postureWord,
   RESTRICTION_ROUTES,
   ROUTE_PLAIN,
   routesFor,
@@ -31,15 +28,18 @@ import {
 import { ACTIVITY, AGENTS, FINDINGS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, totalChecks, TUNING, type Autonomy } from "@/lib/ukboard/v2/agentsData";
 import type { SectionId } from "@/lib/ukboard/v2/personaViews";
 import AppetiteDial from "./AppetiteDial";
+import { fmt, FIG, measure } from "@/lib/ukboard/v2/boardStore";
 import { renderBoardMemberSection } from "./boardRegistry";
 import LineChart from "./LineChart";
 import { useDrawer } from "./drawerContext";
 import { useStore } from "./store";
-import { AiTag, btn, btnPrimary, focus, Label, Opener, Pill, Sparkline, TONE, toneOf, type Tone } from "./ui";
+import { AiTag, btn, btnPrimary, focus, Label, Opener, Pill, TONE, toneOf, type Tone } from "./ui";
+
+/** Longest bar in a small bar set, as a share of the row width (layout constant). */
+const BAR_MAX = 55;
 
 /* ── Building blocks ─────────────────────────────────────────────────── */
 
-const VERDICT_WORD = { room_to_grow: "Room to grow", hold: "Hold", fix_first: "Fix first", unverified: "Unconfirmed" } as const;
 const STATE_WORD = { red: "Red", amber: "Amber", unverified: "Unconfirmed", within_appetite: "Within", not_assessed: "Not measured" } as const;
 
 export function Card({ title, right, children, className = "", id }: { title?: string; right?: ReactNode; children: ReactNode; className?: string; id?: string }) {
@@ -103,121 +103,15 @@ export function useGo() {
 
 /* ── Overview sections ───────────────────────────────────────────────── */
 
-function Posture() {
-  const word = postureWord();
-  const t: Tone = word === "RED" ? "red" : word === "AMBER" ? "amber" : "green";
-  const c = headlineCounts();
-  const heading = METRICS.filter((m) => rowState(m) === "projected").length;
-  const chips: [string, Tone][] = [
-    [`${c.within_appetite} within`, "green"],
-    [`${heading} heading for amber`, "amber"],
-    [`${c.amber} amber`, "amber"],
-    [`${c.red} red`, "red"],
-    [`${c.unverified} unconfirmed`, "grey"],
-    ["3 decisions", "amber"],
-  ];
+function UnchangedList() {
   return (
-    <section className={`rounded-xl border-[1.5px] px-4 py-2.5 ${TONE[t].bg} ${TONE[t].border}`}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className={`h-3 w-3 rounded-full ${TONE[t].dot}`} />
-        <span className={`text-[11px] font-bold uppercase tracking-widest ${TONE[t].text}`}>Board risk posture</span>
-        <Pill tone={t} label={word} />
-        <span className="text-[13px] text-slate-700">Growing within appetite in mortgages; savings growth outruns financial-crime capacity.</span>
-      </div>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {chips.map(([l, tone]) => (
-          <Tag key={l} tone={tone}>
-            {l}
-          </Tag>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function BusinessLines() {
-  const { state } = useStore();
-  return (
-    <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {FRANCHISES.map((f) => {
-        const tone = toneOf(f.verdict);
-        const done = f.pathDrafts.filter((id) => state.session.drafts[id]?.status !== "ai_draft").length;
-        const isProtection = f.id === "O4";
-        return (
-          <Opener key={f.id} drawer={`franchise:${f.id}`} label={f.name} className="rounded-[10px]">
-            <div className={`flex min-h-[112px] flex-col justify-between rounded-[10px] border-[1.5px] px-3 py-2 hover:shadow-md ${TONE[tone].bg} ${TONE[tone].border}`}>
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-[13px] font-semibold text-slate-900">{f.name}</span>
-                <Pill tone={tone} label={VERDICT_WORD[f.verdict]} />
-              </div>
-              <p className={`text-2xl font-bold leading-none tabular-nums ${tone === "green" ? "text-slate-900" : TONE[tone].text}`}>{isProtection ? "2 unconfirmed" : f.big}</p>
-              <p className="flex items-baseline justify-between gap-2 text-[11px] leading-snug text-slate-600">
-                <span>{isProtection ? "Monitoring 94.0% · Sanctions 1.3%" : f.line}</span>
-                {!isProtection && f.verdict !== "room_to_grow" && f.pathDrafts.length ? (
-                  <span className="shrink-0 font-semibold text-slate-500">
-                    Path to green {done}/{f.pathDrafts.length}
-                  </span>
-                ) : null}
-              </p>
-              {isProtection ? null : (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-[11px] font-semibold tabular-nums text-slate-600">{f.trend}</span>
-                  {f.spark ? <Sparkline values={f.spark} tone={tone} /> : null}
-                </div>
-              )}
-            </div>
-          </Opener>
-        );
-      })}
-    </div>
-  );
-}
-
-function DecideList() {
-  const go = useGo();
-  const items: [string, string, Tone][] = [
-    ["Savings growth vs crime checks", "queue 19 days, amber 14", "amber"],
-    ["Restriction breach: report or not?", "112 of 9,400 accounts", "red"],
-    ["Issue removed from the pack", "amber 3 quarters", "amber"],
-  ];
-  return (
-    <Card title="For your decision">
-      {items.map(([t, d, tone], i) => (
-        <button key={t} type="button" onClick={() => go("decisions")} className={`block w-full text-left hover:bg-slate-50 ${focus}`}>
-          <Row tone={tone} text={`${i + 1}. ${t}`} detail={d} />
-        </button>
-      ))}
-    </Card>
-  );
-}
-
-function ChangeList({ kind }: { kind: "changed" | "unchanged" }) {
-  const list = kind === "changed" ? CHANGES : UNCHANGED;
-  return (
-    <Card title={kind === "changed" ? "What changed since last board" : "What has not changed"}>
-      {list.map((c) => (
+    <Card title="What has not changed">
+      {UNCHANGED.map((c) => (
         <Row key={c.text} tone={c.tone} text={c.text} drawer={c.drawer} right={<Tag tone={c.tone}>{c.standing ? c.standing.replace("Standing ", "") : c.tag}</Tag>} />
       ))}
     </Card>
   );
 }
-
-function AgentStrip() {
-  const { state } = useStore();
-  const go = useGo();
-  const waiting = QUEUE.filter((q) => state.session.drafts[q.draftId]?.status === "ai_draft").length;
-  return (
-    <button type="button" onClick={() => go("ai")} className={`flex w-full flex-wrap items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-left text-[13px] text-slate-700 hover:bg-violet-100 ${focus}`}>
-      <AiTag label="AI agents this quarter" />
-      <span>
-        <b>{totalChecks()}</b> checks · <b>{ACTIVITY.filter((a) => a.type === "FLAG").length}</b> flagged · <b>{waiting}</b> drafts with the CRO
-      </span>
-      <span className="ml-auto font-semibold text-indigo-700">AI oversight ›</span>
-    </button>
-  );
-}
-
-/* ── Appetite sections ───────────────────────────────────────────────── */
 
 function AppetiteSummary() {
   const c = headlineCounts();
@@ -323,9 +217,9 @@ function GrowthCapacity() {
         ]}
       />
       <div className="mt-2 grid grid-cols-3 gap-2">
-        <Stat label="Per handler" value="30,160" sub="was 25,000" />
-        <Stat label="In target" value="81%" sub="31,600 of 39,000" />
-        <Stat label="Queue" value="19 days" sub="amber 14" tone="amber" />
+        <Stat label="Per handler" value={fmt.n(FIG.capacity.perHandler)} sub={`was ${fmt.n(FIG.capacity.perHandlerWas)}`} />
+        <Stat label="In target" value={fmt.share(FIG.capacity.cleared, FIG.capacity.alerts)} sub={fmt.nOfM(FIG.capacity.cleared, FIG.capacity.alerts)} />
+        <Stat label="Queue" value={measure("u-capacity").value} sub={measure("u-capacity").comparator} tone="amber" />
       </div>
     </Card>
   );
@@ -336,10 +230,11 @@ function Tradeoffs() {
   const { open } = useDrawer();
   const p = state.persona;
   const returned = state.session.returned.includes("d-t26-redecide");
+  const tr = FIG.tradeoff;
   const rows: [string, string, Tone, string][] = [
-    ["Onboarding uplift", "+6.2 pts vs limit +5", "red", "Broken"],
-    ["High-risk acceptance", "1.1% vs limit 0.8%", "red", "Broken"],
-    ["Onboarding fraud losses", "0.9 bp vs limit 1.5 bp", "green", "Within"],
+    ["Onboarding uplift", `+${tr.uplift} pts vs limit +${tr.upliftLimit}`, "red", "Broken"],
+    ["High-risk acceptance", `${fmt.pct(tr.acceptance, 1)} vs limit ${fmt.pct(tr.acceptanceLimit, 1)}`, "red", "Broken"],
+    ["Onboarding fraud losses", `${tr.fraudBp} bp vs limit ${tr.fraudLimitBp} bp`, "green", "Within"],
     ["Checks before transacting", "regulatory floor", "red", "Floor"],
   ];
   const action =
@@ -355,7 +250,7 @@ function Tradeoffs() {
   return (
     <Card title="Agreed trade-off: savings" right={action}>
       <p className="mb-1 text-[11px] text-slate-500">
-        Agreed 14 Apr 2026 · <span className="font-semibold text-red-600">review 27 days overdue</span>
+        Agreed {FIG.tradeoff.agreed} · <span className="font-semibold text-red-600">review {FIG.tradeoff.overdueDays} days overdue</span>
       </p>
       {rows.map(([t, d, tone, pill]) => (
         <Row key={t} tone={tone} text={t} detail={d} right={<Pill tone={tone} label={pill} />} />
@@ -367,8 +262,8 @@ function Tradeoffs() {
 /* ── Decision sections ───────────────────────────────────────────────── */
 
 const CHALLENGES: Record<number, string[]> = {
-  1: ["What capacity do we need before the 8 Dec campaign?", "Why no resourcing decision since August?", "What would pacing growth cost in members?"],
-  2: ["When did we first know about the savings pot?", "Who decides each reporting route, and by when?", "Why are 24,000 openings still not checked?"],
+  1: [`What capacity do we need before the ${FIG.dates.campaign} campaign?`, "Why no resourcing decision since August?", "What would pacing growth cost in members?"],
+  2: ["When did we first know about the savings pot?", "Who decides each reporting route, and by when?", `Why are ${fmt.n(FIG.restriction.untested)} openings still not checked?`],
   3: ["Who removed this item, and on what authority?", "Why no action after 3 quarters at amber?", "What stops an item being dropped silently?"],
 };
 
@@ -385,9 +280,39 @@ interface DecisionDef {
 }
 
 const DECISIONS: DecisionDef[] = [
-  { n: 1, title: "Savings growth vs crime checks", tone: "amber", key: "19 days", keySub: "alert queue age · amber 14", support: "30,160 members per handler (was 25,000)", why: "Next savings campaign starts in 6 weeks.", recommend: "Recommends restore capacity", decider: "Board · before 8 Dec" },
-  { n: 2, title: "Restriction breach: report or not?", tone: "red", key: "112 of 9,400", keySub: "accounts checked · 24,000 not checked", support: "104 customers, including 3 previously exited", why: "FCA and PRA clocks are immediate.", recommend: "Prepared the case; no answer recommended", decider: "Head of Compliance · immediate" },
-  { n: 3, title: "Issue removed from board pack", tone: "amber", key: "3 quarters", keySub: "vulnerable-customer exceptions at amber", support: "Removed at Executive Risk Committee 14 Oct, no reason", why: "It met a committee rule but left the pack.", recommend: "Recommends remediation with an owner", decider: "Risk Committee Chair · 15 Dec" },
+  {
+    n: 1,
+    title: "Savings growth vs crime checks",
+    tone: "amber",
+    key: measure("u-capacity").value,
+    keySub: `alert queue age · ${measure("u-capacity").comparator}`,
+    support: `${fmt.n(FIG.capacity.perHandler)} members per handler (was ${fmt.n(FIG.capacity.perHandlerWas)})`,
+    why: "Next savings campaign starts in 6 weeks.",
+    recommend: "Recommends restore capacity",
+    decider: `Board · before ${FIG.dates.campaign}`,
+  },
+  {
+    n: 2,
+    title: "Restriction breach: report or not?",
+    tone: "red",
+    key: fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested),
+    keySub: `accounts checked · ${fmt.n(FIG.restriction.untested)} not checked`,
+    support: `${FIG.restriction.customers} customers, including ${FIG.restriction.exited} previously exited`,
+    why: "FCA and PRA clocks are immediate.",
+    recommend: "Prepared the case; no answer recommended",
+    decider: "Head of Compliance · immediate",
+  },
+  {
+    n: 3,
+    title: "Issue removed from board pack",
+    tone: "amber",
+    key: `${FIG.vuln.quartersAmber} quarters`,
+    keySub: "vulnerable-customer exceptions at amber",
+    support: "Removed at Executive Risk Committee 14 Oct, no reason",
+    why: "It met a committee rule but left the pack.",
+    recommend: "Recommends remediation with an owner",
+    decider: `Risk Committee Chair · ${FIG.dates.brc}`,
+  },
 ];
 
 function Challenge({ n }: { n: number }) {
@@ -580,10 +505,10 @@ function Clocks() {
 function Horizon() {
   return (
     <Card title="Horizon">
-      <Row tone="grey" text="7 emerging risks" detail="in the register" drawer="horizon" />
-      <Row tone="amber" text="2 within 12 months" detail="1 not yet measured" drawer="horizon" />
-      <Row tone="grey" text={`${HORIZON.daysToIncidentRules} days`} detail="to new incident rules (18 Mar 2027)" drawer="horizon" />
-      <Row tone="grey" text="9 of 31 incidents" detail="classified in a trial run" drawer="horizon" />
+      <Row tone="grey" text={`${HORIZON.emergingRisks} emerging risks`} detail="in the register" drawer="horizon" />
+      <Row tone="amber" text={`${HORIZON.withinTwelveMonths} within 12 months`} detail="1 not yet measured" drawer="horizon" />
+      <Row tone="grey" text={`${HORIZON.daysToIncidentRules} days`} detail={`to new incident rules (${FIG.dates.incidentRules})`} drawer="horizon" />
+      <Row tone="grey" text={`${HORIZON.trialClassified.classified} of ${HORIZON.trialClassified.total} incidents`} detail="classified in a trial run" drawer="horizon" />
     </Card>
   );
 }
@@ -593,18 +518,22 @@ function Restriction() {
     <Card title="Restriction health" right={<Pill tone="red" label="Breach" />}>
       <Opener drawer="restriction" label="Restriction health" className="rounded">
         <p className="text-2xl font-bold tabular-nums text-red-600">
-          112 of 9,400 <span className="text-xs font-normal text-slate-500">accounts checked · 104 customers</span>
+          {fmt.nOfM(FIG.restriction.breaches, FIG.restriction.tested)} <span className="text-xs font-normal text-slate-500">accounts checked · {FIG.restriction.customers} customers</span>
         </p>
-        <p className="text-xs text-slate-600">The block fired 1,208 times; the full check found 112 breaches.</p>
+        <p className="text-xs text-slate-600">
+          The block fired {fmt.n(FIG.restriction.blockFired)} times; the full check found {FIG.restriction.breaches} breaches.
+        </p>
         <div className="mt-1.5 space-y-1">
             {RESTRICTION_ROUTES.map((r) => (
               <div key={r.label} className="flex items-center gap-2 text-xs">
                 <span className="w-28 shrink-0 text-slate-600">{r.label}</span>
-                <span className="h-1.5 rounded-full bg-red-400" style={{ width: `${(r.accounts / RESTRICTION.breachesAccounts) * 55}%` }} />
+                <span className="h-1.5 rounded-full bg-red-400" style={{ width: `${(r.accounts / FIG.restriction.breaches) * BAR_MAX}%` }} />
                 <b className="tabular-nums">{r.accounts}</b>
               </div>
             ))}
-          <p className="text-xs text-slate-500">1 of 4 clauses not supported · sign-off due 8 Nov</p>
+          <p className="text-xs text-slate-500">
+            {FIG.restriction.clausesUnsupported} of {FIG.restriction.clauses} clauses not supported · sign-off due {FIG.dates.restrictionSignOff}
+          </p>
         </div>
       </Opener>
     </Card>
@@ -672,7 +601,13 @@ function Owners({ onPick, picked }: { onPick?: (role: string) => void; picked?: 
             <span className="w-fit whitespace-nowrap rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-800">{o.role}</span>
             <span className="flex items-center justify-between gap-2">
               <span className={`text-2xl font-bold tabular-nums ${tone === "green" ? "text-slate-900" : TONE[tone].text}`}>
-                {o.offTrack} <span className="text-xs font-normal text-slate-500">of {o.measures.length} off track</span>
+                {o.measures.length ? (
+                <>
+                  {o.offTrack} <span className="text-xs font-normal text-slate-500">of {o.measures.length} off track</span>
+                </>
+              ) : (
+                <span className="text-sm font-semibold text-slate-600">No board measure</span>
+              )}
               </span>
               <Pill tone={tone} label={tone === "grey" ? "Unconfirmed" : tone === "green" ? "On track" : tone === "red" ? "Red" : "Amber"} />
             </span>
@@ -713,18 +648,18 @@ function BadNews() {
     <Card title={state.persona === "chair" ? "Escalation" : "Is bad news reaching us?"}>
       <Opener drawer="badnews" label="Is bad news reaching us?" className="rounded">
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-          <Stat label="To committee" value="4.6 months" sub="median of 23 serious issues" tone="amber" />
-          <Stat label="Not escalated" value="3" sub="issues after 12 months" tone="amber" />
-          <Stat label="Checks overdue" value="26,900" sub="vs 10,000 target" tone="red" />
-          <Stat label="Closed, no effect" value="42" sub="actions; 2 downgraded" tone="red" />
+          <Stat label="To committee" value={`${FIG.escalation.medianMonths} months`} sub={`median of ${FIG.escalation.issues} serious issues`} tone="amber" />
+          <Stat label="Not escalated" value={String(FIG.escalation.notEscalated)} sub="issues after 12 months" tone="amber" />
+          <Stat label="Checks overdue" value={fmt.n(FIG.escalation.overdueChecks)} sub={`vs ${fmt.n(FIG.escalation.overdueTarget)} target`} tone="red" />
+          <Stat label="Closed, no effect" value={String(FIG.escalation.actionsClosed)} sub={`actions; ${FIG.escalation.downgraded} downgraded`} tone="red" />
         </div>
         {state.persona !== "cro" ? (
           <div className="mt-2.5 space-y-1">
             <Label>Months without escalation</Label>
-            {KRI_DETAIL.latency.unescalated.map((u) => (
+            {FIG.escalation.unescalated.map((u) => (
               <div key={u.unit} className="flex items-center gap-2 text-xs">
                 <span className="w-36 shrink-0 text-slate-600">{u.unit}</span>
-                <span className="h-1.5 rounded-full bg-amber-400" style={{ width: `${(u.months / 14) * 55}%` }} />
+                <span className="h-1.5 rounded-full bg-amber-400" style={{ width: `${(u.months / Math.max(...FIG.escalation.unescalated.map((x) => x.months))) * BAR_MAX}%` }} />
                 <b className="tabular-nums">{u.months} months</b>
               </div>
             ))}
@@ -776,7 +711,7 @@ function Removed() {
       }
     >
       <Row tone={restored ? "amber" : "red"} text="Vulnerable-customer exceptions" detail="removed at Executive Risk Committee 14 Oct, no reason recorded" drawer="removed" right={<Pill tone={restored ? "amber" : "red"} label={restored ? "Restored · draft" : "Removed"} />} />
-      <Row tone="amber" text="2 issues downgraded high → medium" detail="linked measure unchanged" drawer="badnews" right={<Pill tone="amber" label="Downgraded" />} />
+      <Row tone="amber" text={`${FIG.escalation.downgraded} issues downgraded high → medium`} detail="linked measure unchanged" drawer="badnews" right={<Pill tone="amber" label="Downgraded" />} />
       {state.persona === "board" ? <Row tone="amber" text="Customer-check backlog deadline extended 3 times" detail="limit 2" drawer="badnews" right={<Pill tone="amber" label="Extended" />} /> : null}
       {state.persona === "board" ? (
         <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500">
@@ -916,7 +851,7 @@ function Tuning() {
   return (
     <Card title="Tuning lab: savings-pot check" right={<AiTag label="AI agent test" />}>
       <p className="text-xs text-slate-600">
-        {TUNING.proposal} · {TUNING.test} · bars: caught of 97, extra alerts of 39,000
+        {TUNING.proposal} · {TUNING.test} · bars: caught of {TUNING.breaches}, extra alerts of {fmt.n(TUNING.alertsPerMonth)}
       </p>
       <div className="mt-2 grid grid-cols-1 items-start gap-3 lg:grid-cols-3">
         {TUNING.options.map((o) => {
@@ -1071,10 +1006,10 @@ function Deadlines() {
   return (
     <Card title="Deadlines">
       {[
-        ["8 Nov 2026", "Restriction sign-off", "red"],
-        ["8 Dec 2026", "Savings campaign starts", "amber"],
-        ["15 Dec 2026", "Board Risk Committee", "amber"],
-        ["18 Mar 2027", "New incident-reporting rules", "grey"],
+        [FIG.dates.restrictionSignOff, "Restriction sign-off", "red"],
+        [FIG.dates.campaign, "Savings campaign starts", "amber"],
+        [FIG.dates.brc, "Board Risk Committee", "amber"],
+        [FIG.dates.incidentRules, "New incident-reporting rules", "grey"],
       ].map(([d, t, tone]) => (
         <span key={d} className={`flex h-10 items-center gap-3 border-l-[3px] pl-3 text-[13px] ${TONE[tone as Tone].rail}`}>
           <span className="w-24 shrink-0 text-[11px] font-bold uppercase tracking-wider text-indigo-700">{d}</span>
@@ -1165,18 +1100,8 @@ function CommitteeHeader() {
 
 export function renderSection(id: SectionId, ctx: { ownerPick: string; setOwnerPick: (r: string) => void; drill: boolean }): ReactNode {
   switch (id) {
-    case "POSTURE":
-      return <Posture />;
-    case "BUSINESS_LINES":
-      return <BusinessLines />;
-    case "DECIDE_LIST":
-      return <DecideList />;
-    case "CHANGED":
-      return <ChangeList kind="changed" />;
     case "UNCHANGED":
-      return <ChangeList kind="unchanged" />;
-    case "AGENT_STRIP":
-      return <AgentStrip />;
+      return <UnchangedList />;
     case "APPETITE_SUMMARY":
       return <AppetiteSummary />;
     case "MEASURES":
