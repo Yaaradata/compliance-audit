@@ -37,7 +37,41 @@ export type SectionId =
   | "DEADLINES"
   | "PACK_BUILDER"
   | "COMMITTEE_HEADER"
-  | "OWNER_DRILL";
+  | "OWNER_DRILL"
+  | "BM_POSTURE"
+  | "BM_SCORECARD"
+  | "BM_DIAL_GRID"
+  | "BM_TIERS"
+  | "BM_CHANGED"
+  | "BM_UNCHANGED"
+  | "BM_CUSTOMER_PULSE"
+  | "BM_FIN_STRENGTH"
+  | "BM_AGENT_PANEL"
+  | "BM_GROWTH_TABLE"
+  | "BM_EARLY_WARNINGS"
+  | "BM_CREDIT"
+  | "BM_FIN_DETAIL"
+  | "BM_TENSIONS"
+  | "BM_DUTY_OUTCOMES"
+  | "BM_COMPLAINTS"
+  | "BM_THEMES"
+  | "BM_VULN"
+  | "BM_HARM"
+  | "BM_SIGNALS"
+  | "BM_CULTURE"
+  | "BM_DECISION_CARDS"
+  | "BM_CHALLENGES"
+  | "BM_MY_NOTES"
+  | "BM_DUE_REVIEW"
+  | "BM_REG_RELATIONSHIP"
+  | "BM_REG_CALENDAR"
+  | "BM_SIGNOFF_STRIP"
+  | "BM_DEFENCE"
+  | "BM_JOURNEYS"
+  | "BM_AGENT_VALUE"
+  | "BM_FINDINGS"
+  | "BM_TUNING_SUMMARY"
+  | "BM_DECIDE_DATES";
 
 /** A row of columns on the 12-column grid; each column stacks its sections. */
 export type Layout = { cols: { span: 3 | 4 | 6 | 8 | 12; sections: SectionId[] }[] }[];
@@ -47,6 +81,8 @@ export interface TabView {
   label: string;
   question: string;
   subtitle: string;
+  /** Optional meta line shown beside the title (Board member briefing). */
+  meta?: string;
   layout: Layout;
 }
 
@@ -71,44 +107,88 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         id: "briefing",
         label: "Briefing",
         question: "Are we growing safely?",
-        subtitle: "Where we stand, what changed, and what needs the board.",
+        subtitle: "Growth, appetite and what needs the board on 15 Dec.",
+        meta: "Board pack for 15 Dec · prepared 15 Oct · 12 measures · 3 decisions",
         layout: [
-          full("POSTURE"),
-          full("BUSINESS_LINES"),
-          { cols: [{ span: 4, sections: ["DECIDE_LIST"] }, { span: 4, sections: ["CHANGED"] }, { span: 4, sections: ["UNCHANGED"] }] },
-          full("AGENT_STRIP"),
+          full("BM_POSTURE"),
+          full("BM_SCORECARD"),
+          { cols: [{ span: 8, sections: ["BM_DIAL_GRID"] }, { span: 4, sections: ["BM_DECIDE_DATES"] }] },
+          full("BM_TIERS"),
+          { cols: [{ span: 6, sections: ["BM_CHANGED"] }, { span: 6, sections: ["BM_UNCHANGED"] }] },
+          { cols: [{ span: 4, sections: ["BM_CUSTOMER_PULSE"] }, { span: 4, sections: ["BM_FIN_STRENGTH"] }, { span: 4, sections: ["BM_AGENT_PANEL"] }] },
         ],
       },
       {
         id: "growth",
         label: "Growth & Appetite",
-        question: "How much risk are we using to grow?",
-        subtitle: "Appetite the board set against where we operate.",
-        layout: [full("APPETITE_SUMMARY"), { cols: [{ span: 8, sections: ["MEASURES"] }, { span: 4, sections: ["GROWTH_CAPACITY", "TRADEOFFS"] }] }],
+        question: "Where can we grow, and what's stopping us?",
+        subtitle: "Plan, appetite headroom and the early warnings.",
+        layout: [
+          full("APPETITE_SUMMARY"),
+          full("BM_GROWTH_TABLE"),
+          { cols: [{ span: 8, sections: ["MEASURES"] }, { span: 4, sections: ["BM_EARLY_WARNINGS", "BM_CREDIT"] }] },
+          { cols: [{ span: 6, sections: ["BM_FIN_DETAIL", "BM_TENSIONS"] }, { span: 6, sections: ["GROWTH_CAPACITY", "TRADEOFFS"] }] },
+        ],
+      },
+      {
+        id: "customers",
+        label: "Customers",
+        question: "What are customers telling us?",
+        subtitle: "Outcomes, complaints and vulnerable customers.",
+        layout: [
+          full("BM_DUTY_OUTCOMES"),
+          { cols: [{ span: 6, sections: ["BM_COMPLAINTS"] }, { span: 6, sections: ["BM_THEMES"] }] },
+          { cols: [{ span: 4, sections: ["BM_VULN"] }, { span: 4, sections: ["BM_HARM"] }, { span: 4, sections: ["BM_SIGNALS"] }] },
+          full("BM_CULTURE"),
+        ],
       },
       {
         id: "decisions",
         label: "Decisions",
-        question: "What must we decide on 15 Dec?",
-        subtitle: "Three decisions, their options, and who decides.",
-        layout: [full("DECISION_CARDS"), full("DECISION_HISTORY")],
+        question: "What do you need from the board?",
+        subtitle: "Three decisions, their options and their cost.",
+        layout: [
+          full("BM_DECISION_CARDS"),
+          { cols: [{ span: 8, sections: ["BM_CHALLENGES"] }, { span: 4, sections: ["BM_MY_NOTES", "BM_DUE_REVIEW"] }] },
+          full("DECISION_HISTORY"),
+        ],
       },
       {
         id: "regulator",
         label: "Regulator view",
         question: "Will the regulator be surprised?",
-        subtitle: "Reporting status, restriction health and enforcement lessons.",
+        subtitle: "What may be reportable, deadlines and lessons from others.",
         layout: [
-          { cols: [{ span: 8, sections: ["CLOCKS"] }, { span: 4, sections: ["HORIZON"] }] },
-          { cols: [{ span: 6, sections: ["ENFORCEMENT"] }, { span: 6, sections: ["RESTRICTION"] }] },
+          { cols: [{ span: 6, sections: ["CLOCKS"] }, { span: 6, sections: ["RESTRICTION"] }] },
+          { cols: [{ span: 6, sections: ["BM_REG_RELATIONSHIP"] }, { span: 6, sections: ["BM_REG_CALENDAR"] }] },
+          full("ENFORCEMENT"),
+        ],
+      },
+      {
+        id: "ownership",
+        label: "Ownership",
+        question: "Who owns it, and do we hear bad news early?",
+        subtitle: "Owners, monthly sign-off and escalation.",
+        layout: [
+          full("OWNERS"),
+          { cols: [{ span: 8, sections: ["BM_SIGNOFF_STRIP"] }, { span: 4, sections: ["BM_DEFENCE"] }] },
+          full("BM_JOURNEYS"),
+          { cols: [{ span: 8, sections: ["BAD_NEWS"] }, { span: 4, sections: ["REMOVED"] }] },
         ],
       },
       {
         id: "ai",
         label: "AI oversight",
-        question: "Are our AI agents working safely?",
-        subtitle: "What the agents do, and the rules they cannot break.",
-        layout: [full("AGENT_SUMMARY"), { cols: [{ span: 8, sections: ["AGENT_ROSTER"] }, { span: 4, sections: ["GUARDRAILS"] }] }, full("AGENT_ACTIVITY")],
+        question: "Are our AI agents helping, and under control?",
+        subtitle: "What agents found, what they saved, and their limits.",
+        layout: [
+          full("AGENT_SUMMARY"),
+          full("BM_AGENT_VALUE"),
+          { cols: [{ span: 8, sections: ["BM_FINDINGS"] }, { span: 4, sections: ["AGENT_CONTROLS"] }] },
+          full("AGENT_ROSTER"),
+          { cols: [{ span: 6, sections: ["BM_TUNING_SUMMARY"] }, { span: 6, sections: ["AGENT_ACTIVITY"] }] },
+          full("GUARDRAILS"),
+        ],
       },
     ],
   },

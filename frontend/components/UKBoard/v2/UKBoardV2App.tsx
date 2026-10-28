@@ -8,11 +8,12 @@
  */
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { CalendarDays, ListChecks, MoreHorizontal, NotebookPen } from "lucide-react";
+import { CalendarDays, ListChecks, MoreHorizontal, NotebookPen, Sparkles } from "lucide-react";
 import { METRICS } from "@/lib/ukboard/v2/board";
 import { AGENTS } from "@/lib/ukboard/v2/agentsData";
 import { daysToBrc } from "@/lib/ukboard/v2/board";
 import { PERSONA_VIEWS, type PersonaId, type TabView } from "@/lib/ukboard/v2/personaViews";
+import AskBoardAgent from "./AskBoardAgent";
 import BoardDrawer from "./BoardDrawer";
 import { DrawerContext } from "./drawerContext";
 import type { DrawerKey } from "./drawerKeys";
@@ -64,7 +65,7 @@ function Search({ onPick }: { onPick: (k: DrawerKey, el: HTMLElement) => void })
   );
 }
 
-function Header({ onOpen, onPersona }: { onOpen: (k: DrawerKey, el?: HTMLElement | null) => void; onPersona: (p: PersonaId) => void }) {
+function Header({ onOpen, onPersona, onAgent }: { onOpen: (k: DrawerKey, el?: HTMLElement | null) => void; onPersona: (p: PersonaId) => void; onAgent: () => void }) {
   const { state, dispatch } = useStore();
   const [menu, setMenu] = useState(false);
   const view = PERSONA_VIEWS[state.persona];
@@ -99,6 +100,12 @@ function Header({ onOpen, onPersona }: { onOpen: (k: DrawerKey, el?: HTMLElement
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <span className="rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-800">Viewing as: {view.label}</span>
+          {state.persona === "board" ? (
+            <button type="button" onClick={onAgent} className={`${headerBtn} border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100`}>
+              <Sparkles className="h-3.5 w-3.5 text-violet-500" aria-hidden />
+              Ask the board agent
+            </button>
+          ) : null}
           {view.headerAction === "notes" ? (
             <button type="button" onClick={(e) => onOpen("notes", e.currentTarget)} className={headerBtn}>
               <NotebookPen className="h-3.5 w-3.5" aria-hidden />
@@ -206,9 +213,11 @@ function Page() {
   const { dispatch } = useStore();
   const view = PERSONA_VIEWS[state.persona];
   const tab = view.tabs.find((t) => t.id === state.tab) ?? view.tabs[0];
+  const [agent, setAgent] = useState(false);
   const onPersona = useCallback(
     (p: PersonaId) => {
       setKey(null);
+      setAgent(false);
       opener.current = null;
       dispatch({ type: "SET_PERSONA", persona: p });
     },
@@ -217,14 +226,18 @@ function Page() {
   return (
     <DrawerContext.Provider value={api}>
       <div className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
-        <Header onOpen={open} onPersona={onPersona} />
+        <Header onOpen={open} onPersona={onPersona} onAgent={() => setAgent(true)} />
         <main key={`${state.persona}-${tab.id}-${state.epoch}`} className="space-y-4 px-6 py-4">
-          <div className="max-h-14">
-            <h1 className="text-xl font-extrabold leading-7 tracking-tight text-slate-900">{tab.question}</h1>
-            <p className="text-[13px] leading-5 text-slate-600">{tab.subtitle}</p>
+          <div className="flex max-h-14 items-end justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-extrabold leading-7 tracking-tight text-slate-900">{tab.question}</h1>
+              <p className="text-[13px] leading-5 text-slate-600">{tab.subtitle}</p>
+            </div>
+            {tab.meta ? <p className="hidden text-xs font-medium text-slate-500 md:block">{tab.meta}</p> : null}
           </div>
           <TabBody tab={tab} />
         </main>
+        {agent && state.persona === "board" ? <AskBoardAgent onClose={() => setAgent(false)} /> : null}
         {key ? <BoardDrawer key={`${key}-${state.persona}`} drawerKey={key} onClose={close} /> : null}
       </div>
     </DrawerContext.Provider>

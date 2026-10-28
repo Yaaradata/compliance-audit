@@ -28,9 +28,10 @@ import {
   signOffBuckets,
   UNCHANGED,
 } from "@/lib/ukboard/v2/boardTabs";
-import { ACTIVITY, AGENTS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, totalChecks, TUNING, type Autonomy } from "@/lib/ukboard/v2/agentsData";
+import { ACTIVITY, AGENTS, FINDINGS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, totalChecks, TUNING, type Autonomy } from "@/lib/ukboard/v2/agentsData";
 import type { SectionId } from "@/lib/ukboard/v2/personaViews";
 import AppetiteDial from "./AppetiteDial";
+import { renderBoardMemberSection } from "./boardRegistry";
 import LineChart from "./LineChart";
 import { useDrawer } from "./drawerContext";
 import { useStore } from "./store";
@@ -41,7 +42,7 @@ import { AiTag, btn, btnPrimary, focus, Label, Opener, Pill, Sparkline, TONE, to
 const VERDICT_WORD = { room_to_grow: "Room to grow", hold: "Hold", fix_first: "Fix first", unverified: "Unconfirmed" } as const;
 const STATE_WORD = { red: "Red", amber: "Amber", unverified: "Unconfirmed", within_appetite: "Within", not_assessed: "Not measured" } as const;
 
-function Card({ title, right, children, className = "", id }: { title?: string; right?: ReactNode; children: ReactNode; className?: string; id?: string }) {
+export function Card({ title, right, children, className = "", id }: { title?: string; right?: ReactNode; children: ReactNode; className?: string; id?: string }) {
   return (
     <section id={id} className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm ${className}`}>
       {title ? (
@@ -56,7 +57,7 @@ function Card({ title, right, children, className = "", id }: { title?: string; 
 }
 
 /** One-line 40px list row with a 3px status rail; secondary detail inline after " · ". */
-function Row({ tone, text, detail, right, drawer }: { tone: Tone; text: string; detail?: string; right?: ReactNode; drawer?: string }) {
+export function Row({ tone, text, detail, right, drawer }: { tone: Tone; text: string; detail?: string; right?: ReactNode; drawer?: string }) {
   const body = (
     <span className={`flex min-h-10 items-center justify-between gap-3 border-l-[3px] py-1 pl-3 pr-1 text-[13px] leading-snug ${TONE[tone].rail}`}>
       <span className="min-w-0 text-slate-800">
@@ -75,11 +76,11 @@ function Row({ tone, text, detail, right, drawer }: { tone: Tone; text: string; 
   );
 }
 
-function Tag({ tone, children }: { tone: Tone; children: ReactNode }) {
+export function Tag({ tone, children }: { tone: Tone; children: ReactNode }) {
   return <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${TONE[tone].bg} ${TONE[tone].text}`}>{children}</span>;
 }
 
-function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: Tone }) {
+export function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: Tone }) {
   return (
     <div className={`rounded-lg border px-3 py-2 ${tone ? `${TONE[tone].bg} ${TONE[tone].border}` : "border-slate-200 bg-white"}`}>
       <Label>{label}</Label>
@@ -89,13 +90,13 @@ function Stat({ label, value, sub, tone }: { label: string; value: string; sub?:
   );
 }
 
-const measurePill = (m: MetricMeta) => {
+export const measurePill = (m: MetricMeta) => {
   const s = rowState(m);
   if (s === "projected") return <Pill tone="amber" outline label={m.projectionText === "amber in about 9 weeks" ? "Amber ~9 weeks" : "Amber next quarter"} />;
   return <Pill tone={toneOf(s)} label={STATE_WORD[s]} />;
 };
 
-function useGo() {
+export function useGo() {
   const { dispatch } = useStore();
   return (tab: string) => dispatch({ type: "SET_TAB", tab });
 }
@@ -242,6 +243,9 @@ function AppetiteSummary() {
 const ROW_GRID = "grid min-h-11 grid-cols-[minmax(120px,1.2fr)_minmax(70px,0.8fr)_minmax(0,1.2fr)_64px_88px_auto] items-center gap-2.5 border-b border-slate-100 px-2 py-1 text-[13px] leading-snug min-[1400px]:grid-cols-[minmax(130px,1.3fr)_minmax(70px,0.8fr)_minmax(0,1.2fr)_64px_88px_minmax(0,1.1fr)_auto]";
 
 function MeasureRow({ m }: { m: MetricMeta }) {
+  const { state } = useStore();
+  // Board member face: plain owner wording (no "feed").
+  const owner = state.persona === "board" ? m.owner.replace(/^Feed owner$/, "Data owner") : m.owner;
   return (
     <Opener drawer={`metric:${m.unitId}`} label={`${m.name}: ${m.value} ${m.denominator}`} className="hover:bg-slate-50">
       <div className={ROW_GRID}>
@@ -261,7 +265,7 @@ function MeasureRow({ m }: { m: MetricMeta }) {
           )}
         </span>
         <span className={`rounded px-1.5 py-0.5 text-center text-[10px] font-semibold ${m.indicatorType === "leading" ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-600"}`}>{indicatorWord(m)}</span>
-        <span className="hidden truncate text-xs text-slate-500 min-[1400px]:block">{m.owner}</span>
+        <span className="hidden truncate text-xs text-slate-500 min-[1400px]:block">{owner}</span>
         <span className="justify-self-end">{measurePill(m)}</span>
       </div>
     </Opener>
@@ -520,7 +524,7 @@ function Clocks() {
   const { state, dispatch } = useStore();
   const cro = state.persona === "cro";
   return (
-    <Card title={cro ? "Reporting clocks" : "Reporting status"}>
+    <Card title={cro ? "Reporting clocks" : state.persona === "board" ? "What may be reportable?" : "Reporting status"}>
       {EVENTS.map((e) => {
         const rs = routesFor(e.eventId);
         const decided = rs.filter((r) => r.status === "decided").length;
@@ -564,6 +568,11 @@ function Clocks() {
           </div>
         );
       })}
+      {state.persona === "board" ? (
+        <>
+          <Row tone="red" text="FCA and PRA clocks are immediate" detail="Head of Compliance decides, not the board" />
+        </>
+      ) : null}
     </Card>
   );
 }
@@ -580,7 +589,6 @@ function Horizon() {
 }
 
 function Restriction() {
-  const { state } = useStore();
   return (
     <Card title="Restriction health" right={<Pill tone="red" label="Breach" />}>
       <Opener drawer="restriction" label="Restriction health" className="rounded">
@@ -588,10 +596,7 @@ function Restriction() {
           112 of 9,400 <span className="text-xs font-normal text-slate-500">accounts checked · 104 customers</span>
         </p>
         <p className="text-xs text-slate-600">The block fired 1,208 times; the full check found 112 breaches.</p>
-        {state.persona === "board" ? (
-          <p className="mt-1 text-xs text-slate-500">1 of 4 clauses not supported · sign-off due 8 Nov</p>
-        ) : (
-          <div className="mt-1.5 space-y-1">
+        <div className="mt-1.5 space-y-1">
             {RESTRICTION_ROUTES.map((r) => (
               <div key={r.label} className="flex items-center gap-2 text-xs">
                 <span className="w-28 shrink-0 text-slate-600">{r.label}</span>
@@ -599,9 +604,8 @@ function Restriction() {
                 <b className="tabular-nums">{r.accounts}</b>
               </div>
             ))}
-            <p className="text-xs text-slate-500">1 of 4 clauses not supported · sign-off due 8 Nov</p>
-          </div>
-        )}
+          <p className="text-xs text-slate-500">1 of 4 clauses not supported · sign-off due 8 Nov</p>
+        </div>
       </Opener>
     </Card>
   );
@@ -706,7 +710,7 @@ function OwnerDrill({ role }: { role: string }) {
 function BadNews() {
   const { state } = useStore();
   return (
-    <Card title={state.persona === "cro" ? "Is bad news reaching us?" : "Escalation"}>
+    <Card title={state.persona === "chair" ? "Escalation" : "Is bad news reaching us?"}>
       <Opener drawer="badnews" label="Is bad news reaching us?" className="rounded">
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           <Stat label="To committee" value="4.6 months" sub="median of 23 serious issues" tone="amber" />
@@ -714,7 +718,7 @@ function BadNews() {
           <Stat label="Checks overdue" value="26,900" sub="vs 10,000 target" tone="red" />
           <Stat label="Closed, no effect" value="42" sub="actions; 2 downgraded" tone="red" />
         </div>
-        {state.persona === "chair" ? (
+        {state.persona !== "cro" ? (
           <div className="mt-2.5 space-y-1">
             <Label>Months without escalation</Label>
             {KRI_DETAIL.latency.unescalated.map((u) => (
@@ -762,7 +766,7 @@ function Removed() {
   const asked = state.session.notes.some((n) => n.from === "Chair request");
   return (
     <Card
-      title="Pack integrity"
+      title={state.persona === "board" ? "What was removed or downgraded?" : "Pack integrity"}
       right={
         chair ? (
           <button type="button" disabled={asked || restored} onClick={() => dispatch({ type: "SAVE_NOTE", text: "Restore vulnerable-customer exceptions to the 15 Dec agenda", from: "Chair request" })} className={btnPrimary}>
@@ -773,6 +777,12 @@ function Removed() {
     >
       <Row tone={restored ? "amber" : "red"} text="Vulnerable-customer exceptions" detail="removed at Executive Risk Committee 14 Oct, no reason recorded" drawer="removed" right={<Pill tone={restored ? "amber" : "red"} label={restored ? "Restored · draft" : "Removed"} />} />
       <Row tone="amber" text="2 issues downgraded high → medium" detail="linked measure unchanged" drawer="badnews" right={<Pill tone="amber" label="Downgraded" />} />
+      {state.persona === "board" ? <Row tone="amber" text="Customer-check backlog deadline extended 3 times" detail="limit 2" drawer="badnews" right={<Pill tone="amber" label="Extended" />} /> : null}
+      {state.persona === "board" ? (
+        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500">
+          <AiTag label="Board Pack agent" /> flagged the removal on 15 Oct
+        </p>
+      ) : null}
     </Card>
   );
 }
@@ -791,6 +801,7 @@ function AgentSummary() {
       {[
         [String(AGENTS.length), "agents"],
         [String(totalChecks()), "checks this week"],
+        ...(state.persona === "board" ? [[String(FINDINGS.length), "findings this quarter"]] : []),
         [String(waiting), "drafts waiting for a person"],
         ["0", "actions without approval"],
       ].map(([v, l]) => (
@@ -1219,6 +1230,6 @@ export function renderSection(id: SectionId, ctx: { ownerPick: string; setOwnerP
     case "COMMITTEE_HEADER":
       return <CommitteeHeader />;
     default:
-      return null;
+      return renderBoardMemberSection(id);
   }
 }

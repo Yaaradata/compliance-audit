@@ -96,6 +96,36 @@ export const AGENTS: Agent[] = [
     autonomy: "propose",
     draftIds: [],
   },
+  {
+    id: "signals",
+    name: "Customer Signals",
+    does: "Reads complaints and social posts for emerging harm",
+    status: "running",
+    checksThisWeek: 0,
+    quarterCount: "63 complaints flagged",
+    finding: "63 complaints mention 'account frozen' after the restriction block",
+    accountable: "Chief Customer Officer",
+    autonomy: "watch",
+    draftIds: [],
+  },
+];
+
+/** Board member view: what the agents saved (boardMemberData seed, see TIEOUT.md). */
+export const AGENT_VALUE: { label: string; value: string; against: string }[] = [
+  { label: "Board pack preparation", value: "9 hours", against: "was 41 hours" },
+  { label: "Found before people did", value: "3", against: "issues this quarter" },
+  { label: "Data to flag", value: "1 day", against: "median" },
+  { label: "Actions without approval", value: "0", against: "every action signed off" },
+];
+
+/** Board member view: what the agents found this quarter, with impact and where it sits now. */
+export const FINDINGS: { agentId: string; finding: string; impact: string; flagged: string; status: string; tone: "red" | "amber" | "green" | "grey"; drawer: string }[] = [
+  { agentId: "pack", finding: "Qualifying item removed from the pack", impact: "Amber for 3 quarters, no reason", flagged: "15 Oct", status: "With CRO", tone: "amber", drawer: "removed" },
+  { agentId: "tuning", finding: "97 of 112 breaches via the savings pot", impact: "Block does not cover the pot", flagged: "25 Oct", status: "Option B proposed", tone: "red", drawer: "tuning" },
+  { agentId: "clock", finding: "Restriction breach may be reportable", impact: "FCA and PRA routes opened", flagged: "26 Oct", status: "With Head of Compliance", tone: "red", drawer: "event:e-r03" },
+  { agentId: "capacity", finding: "Campaign in 6 weeks, no resourcing decision", impact: "Queue 19 days vs amber 14", flagged: "24 Oct", status: "Paper with CRO", tone: "amber", drawer: "decision:1" },
+  { agentId: "appetite", finding: "Stable funding reaches amber next quarter", impact: "NSFR 117% vs amber 115%", flagged: "27 Oct", status: "Watching", tone: "amber", drawer: "metric:u-nsfr" },
+  { agentId: "signals", finding: "63 complaints mention 'account frozen'", impact: "After the restriction block", flagged: "this quarter", status: "With Chief Customer Officer", tone: "amber", drawer: "metric:u-restriction" },
 ];
 
 /** Approval queue: existing AI drafts, with board-level copy (title ≤ 8 words, reason ≤ 12 words). */

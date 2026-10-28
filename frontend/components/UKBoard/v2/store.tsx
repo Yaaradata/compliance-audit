@@ -22,6 +22,7 @@ interface Session {
   autonomy: Record<string, Autonomy>;
   tuningProposal: string | null;
   returned: string[];
+  deepDives: string[];
   clock: number;
 }
 
@@ -43,6 +44,7 @@ export type Action =
   | { type: "SAVE_NOTE"; text: string; from: string }
   | { type: "SET_AUTONOMY"; agentId: string; level: Autonomy }
   | { type: "PROPOSE_TUNING"; optionId: string }
+  | { type: "REQUEST_DEEP_DIVE"; topic: string }
   | { type: "RESET" };
 
 function seed(): Session {
@@ -57,6 +59,7 @@ function seed(): Session {
     autonomy: Object.fromEntries(AGENTS.map((a) => [a.id, a.autonomy])),
     tuningProposal: null,
     returned: [],
+    deepDives: [],
     clock: 0,
   };
 }
@@ -155,6 +158,10 @@ function reducer(state: State, a: Action): State {
     case "PROPOSE_TUNING":
       if (s0.tuningProposal) return state;
       return write({ tuningProposal: a.optionId }, entry(state, s, `tuning option ${a.optionId} proposed to the Risk Committee`, "Financial-crime tuning lab", "agent:tuning"));
+    case "REQUEST_DEEP_DIVE":
+      // Board members request; the CRO prepares. Logged against the board member.
+      if (state.persona !== "board" || s0.deepDives.includes(a.topic)) return state;
+      return write({ deepDives: [...s.deepDives, a.topic] }, entry(state, s, "deep dive requested from the CRO", a.topic, "deep-dive"));
     case "RESET":
       return { ...initial(state.persona), epoch: state.epoch + 1 };
     default:

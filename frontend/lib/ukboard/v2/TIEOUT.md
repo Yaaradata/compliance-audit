@@ -39,3 +39,38 @@ All figures come from the UK Board data module (`lib/ukboard/v1/data.ts`, read o
 ## Persona views
 
 Tabs are now built per persona from `personaViews.ts`; the columns above name the section, which appears on exactly one tab per persona (test: "no section repeats within a persona"). No figure was added or changed in the persona redesign; only display copy was shortened.
+
+## Board member view (`boardMemberData` seed)
+
+New values for the Board member tabs live in `boardMemberData.ts`; agent additions in `agentsData.ts`. Source for every row below: "boardMemberData seed" unless a derivation or existing source is given.
+
+| Figure | Where shown | Source / derivation |
+|---|---|---|
+| Mortgage new lending £2.9bn of £4.0bn plan (73%; plan pace 75% → "2 pts behind plan pace"); book £17.9bn | Briefing scorecard; Growth table | Seed; £4.0bn plan is existing (u-hltv) |
+| £96m more high-LTV lending before the appetite limit | Scorecard; Growth table | Existing: (20% − 17.6%) × £4.0bn = £96m. To the 20% limit, not amber (amber 18.5% = £36m) |
+| Savings balances +£1.1bn vs +£0.8bn plan (138%) | Scorecard; Growth table | Seed |
+| +13 handlers to restore capacity | Scorecard; Decision 1 | Existing: 1.90m ÷ 25,000 = 76 needed − 63 today |
+| Wholesale funding 34% vs 40% ceiling; NSFR 117% vs amber 115% (2 pts headroom); LCR 162% vs amber 150% | Scorecard; Financial strength | Existing (u-wholesale, u-nsfr, u-lcr) |
+| CET1 16.8% vs 13.5% limit | Financial strength; board agent | Existing (u-cet1) |
+| Consumer Duty 9 of 12 outcome measures in tolerance (3 outside) | Scorecard; Growth table | Seed; 3 = 12 − 9 |
+| Credit: above 4.5× income 9.2% (limit 15%); cost of risk 6 bps (Q2 5 bps); arrears Q2 0.38% | Credit quality | Seed. Arrears now 0.42% is existing (6,100 of 1,452,000), not 0.41% |
+| Consumer Duty outcomes (14 of 14 reviews; fair-value review; letters 71% vs 80%; call wait 6m 40s vs 5m) | Customers | Seed |
+| Vulnerable-customer exceptions 14.2 → 15.8 → 16.9, amber 14, red 18 | Customers; Briefing pulse | Existing (u-vuln, VULN_HISTORY); amber 14 not 15 |
+| Complaints 1.6 → 1.7 → 1.8 → 2.1 per 1,000; themes 34% / 21% / 14% | Customers; Briefing pulse | Seed |
+| Ombudsman upholds 31% (118 of 381); Q2 27% | Customers; Briefing pulse | 31% existing; Q2 27% seed |
+| Mortgage rate error: 2,300 customers; 1,720 contacted (75%); 580 still to contact; redress ~£410k; target 31 Dec | Customers; Briefing pulse | 2,300 existing; 1,720, £410k, 31 Dec seed; 580 = 2,300 − 1,720 |
+| Speak-up 9 (Q2 5); 34 days median; 78% safe (target 80%); 0 retaliation | Customers | Seed |
+| 3 policy tensions | Growth & Appetite | Seed (AI-found) |
+| Decision 1 options: +£300m inflow kept / −£300m vs plan; ~£0.8m a year; ~10 / ~6 weeks to green | Decisions | Seed |
+| Decision 3 options: ~2 quarters to green; 6-month waiver | Decisions | Seed; option names existing |
+| Temporary 25% high-LTV limit expired 06 Oct; trade-off review 27 days overdue | Briefing; Decisions | Existing (decision history, TENSION_PAIR) |
+| Monthly sign-off, month of the numbers Oct 2025 – Sep 2026 (HoFC late Aug, Sep; Compliance late Jul; Data owner missing Jun, Jul, signed before data check finished Sep) | Ownership | Seed; Sep "early" ties to "Monitoring: signed off 3 hours early" |
+| Issues found 42: first line 16 (38%), second 11 (26%), audit 9 (21%), regulator 6 (14%) | Ownership | Seed; sums to 42 |
+| 4 journeys, 2 mismatches; complaints 412 / 258 / 97 / 173 | Ownership | Seed |
+| Regulator relationship: 2 open requests; restriction in force; 0 skilled person reviews; last meeting 18 Sep | Regulator view | Seed; restriction existing |
+| Calendar: 8 Nov, 15 Dec, 18 Mar 2027, Jul 2027 | Regulator view | 8 Nov, 15 Dec, 18 Mar 2027 existing; Jul 2027 seed. "SMCR Phase 2, 22 Jan 2027" dropped (unverified) |
+| Pack prepared 15 Oct | Briefing meta | Existing (board pack v2 created 15 Oct) |
+| Since last board: 6 moved, 0 new red, restriction up 41 | Briefing banner | Existing: 6 CHANGES; restriction already red (38 → 71 → 112) |
+| Customer Signals agent: 63 complaints mention "account frozen"; 0 checks this week | AI oversight (all personas see 7 agents) | Seed; 0 checks keeps the 41-check total |
+| Agent value: pack prep 41 → 9 hours; 3 found before people; 1 day median; 0 without approval | AI oversight | Seed |
+| 6 findings | AI oversight; Briefing panel | 5 existing activity items + the Customer Signals finding |

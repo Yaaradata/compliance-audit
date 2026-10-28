@@ -60,7 +60,7 @@ test("owner cards use completed sign-offs only", () => {
 });
 
 test("agent data ties out", () => {
-  assert.equal(AGENTS.length, 6);
+  assert.equal(AGENTS.length, 7);
   assert.equal(totalChecks(), 41);
   assert.equal(QUEUE.length, 5);
   assert.equal(((2100 / TUNING.alertsPerMonth) * 100).toFixed(1), "5.4");
@@ -74,11 +74,29 @@ test("plain words replace board jargon", () => {
 
 import { PERSONA_VIEWS, sectionsOf } from "./personaViews";
 
-test("each persona has 5 tabs and no section repeats within a persona", () => {
+test("board has 7 tabs, chair and CRO 5; no section repeats within a persona", () => {
   for (const [id, v] of Object.entries(PERSONA_VIEWS)) {
-    assert.equal(v.tabs.length, 5, id);
+    assert.equal(v.tabs.length, id === "board" ? 7 : 5, id);
     assert.ok(v.tabs.some((t) => t.id === v.defaultTab), `${id} default tab`);
     const all = v.tabs.flatMap(sectionsOf);
     assert.deepEqual(all.filter((s, i) => all.indexOf(s) !== i), [], `${id} repeats`);
   }
+});
+
+import { ISSUES_FOUND, LINE_GROWTH, SIGNOFF_HISTORY, VULN, HARM_EVENT, JOURNEYS, TENSIONS } from "./boardMemberData";
+import { CAPACITY, RESTRICTION } from "../v1/data";
+
+test("board member seed ties out to existing data", () => {
+  // +13 handlers = 76 needed at 25,000 members each − 63 today
+  assert.equal(Math.round(1_900_000 / 25_000) - CAPACITY.handlers[CAPACITY.handlers.length - 1], 13);
+  // £96m = (20% − 17.6%) of the £4.0bn plan: headroom to the appetite limit, not amber
+  assert.equal(Math.round((0.2 - 0.176) * 4000), 96);
+  assert.equal(VULN.amber, 14);
+  assert.equal(HARM_EVENT.customers, 2300);
+  assert.equal(RESTRICTION.breachesAccounts, 112);
+  assert.equal(ISSUES_FOUND.by.reduce((a, b) => a + b.n, 0), ISSUES_FOUND.total);
+  for (const o of SIGNOFF_HISTORY) assert.equal(o.marks.length, 12, o.role);
+  assert.equal(LINE_GROWTH.length, 4);
+  assert.equal(JOURNEYS.filter((j) => !j.aligned).length, 2);
+  assert.equal(TENSIONS.filter((t) => t.status === "Regulatory floor, not tradeable").length, 1);
 });
