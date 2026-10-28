@@ -126,7 +126,7 @@ function ObjectiveTile({ tile }: { tile: ObjectiveTileVM }) {
   const status = unitStatus(u.unitId);
   const highlighted = nav.highlightRef === tile.drill.focusUnitId;
   return (
-    <div className={`flex min-h-[116px] flex-col rounded-lg border p-3 ${TILE_TINT[status]} ${highlighted ? "ring-2 ring-[var(--ukb-focus)]" : ""}`}>
+    <div className={`flex min-h-[132px] flex-col rounded-lg border p-3 ${TILE_TINT[status]} ${highlighted ? "ring-2 ring-[var(--ukb-focus)]" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <button
           type="button"
@@ -173,12 +173,12 @@ function CapacityCard() {
       }
     >
       <StatGrid
-        cols={2}
+        cols={3}
+        dense
         items={[
-          { label: "Queue median age", value: "19 days", sub: "Amber 14 · +7 vs Q2", status: "amber", onClick: open },
-          { label: "Members per handler", value: CAPACITY.membersPerHandler.to.toLocaleString("en-GB"), sub: `Was ${CAPACITY.membersPerHandler.from.toLocaleString("en-GB")}`, onClick: open },
-          { label: "Members", value: "+31%", sub: "1.45m → 1.90m", onClick: open },
-          { label: "Qualified handlers", value: "+9%", sub: "58 → 63", onClick: open },
+          { label: "Queue age", value: "19 days", sub: "Amber 14 · +7 vs Q2", status: "amber", onClick: open },
+          { label: "Per handler", value: CAPACITY.membersPerHandler.to.toLocaleString("en-GB"), sub: `members · was ${CAPACITY.membersPerHandler.from.toLocaleString("en-GB")}`, onClick: open },
+          { label: "Growth", value: "+31%", sub: "members · handlers +9%", onClick: open },
         ]}
       />
       <SoWhat>Next savings campaign in 6 weeks; no resourcing decision recorded.</SoWhat>
@@ -205,7 +205,7 @@ function DefensibilityCard() {
   return (
     <CardShell
       id="zone-z5"
-      title="Can I defend this figure? Transaction monitoring coverage"
+      title="Can I defend this figure?"
       status={unitStatus(u.unitId)}
       integration={u.integration}
       highlight={nav.highlightRef === u.unitId}
@@ -217,12 +217,12 @@ function DefensibilityCard() {
       }
     >
       <StatGrid
-        cols={2}
+        cols={3}
+        dense
         items={[
-          { label: "Records reconciled", value: "94.0%", sub: "2,256,000 of 2,400,000", status: "unverified", onClick: open },
-          { label: "Same-day accounts", value: "0%", sub: "monitored in the 26 October run", status: "unverified", onClick: open },
-          { label: "Other cohorts", value: "99.97%", sub: "2,256,677 records", onClick: open },
-          { label: "Attestation", value: "3 hours", sub: "signed before the run finished", status: "unverified", onClick: open },
+          { label: "TM coverage", value: "94.0%", sub: "2,256,000 of 2,400,000 records", status: "unverified", onClick: open },
+          { label: "Same-day", value: "0%", sub: "accounts monitored", status: "unverified", onClick: open },
+          { label: "Attestation", value: "3 hrs", sub: "signed before the run ended", status: "unverified", onClick: open },
         ]}
       />
       {caveat ? (
@@ -234,7 +234,7 @@ function DefensibilityCard() {
       <Details>
         <RuleLine>{u.ruleLine}</RuleLine>
         <RuleLine>The attestation must reference a finished run. The month 2 signature preceded the run by 3 hours.</RuleLine>
-        <MutedLine>Proves records were not monitored, not that suspicious activity was missed.</MutedLine>
+        <MutedLine>Other cohorts 99.97% (2,256,677 records). Proves records were not monitored, not that suspicious activity was missed.</MutedLine>
         <PrecedentLine id="uk-metro-2024" onOpen={open} />
       </Details>
     </CardShell>
@@ -395,7 +395,7 @@ export default function BoardRiskViewScreen() {
         </>
       }
       rows={[
-        { key: "r1", left: <HeadlineAndStrip />, rightStack: [<CapacityCard key="z2" />, <DefensibilityCard key="z5" />] },
+        { key: "r1", left: <HeadlineAndStrip />, rightStack: [<CapacityCard key="z2" />, <DefensibilityCard key="z5" />], stretch: true },
         { key: "r2", full: <RasScorecard /> },
         { key: "r3", full: <HorizonLine /> },
       ]}

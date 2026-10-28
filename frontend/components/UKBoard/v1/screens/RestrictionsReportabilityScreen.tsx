@@ -247,7 +247,7 @@ export default function RestrictionsReportabilityScreen() {
         </>
       }
       rows={[
-        { key: "r1", left: <PopulationTestCard />, rightStack: [<ClauseEvidenceList key="z2" />] },
+        { key: "r1", left: <PopulationTestCard />, rightStack: [<ClauseEvidenceList key="z2" />], stretch: true },
         { key: "r2", full: <ReportabilityLedger /> },
       ]}
     />

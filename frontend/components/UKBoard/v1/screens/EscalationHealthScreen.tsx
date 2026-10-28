@@ -215,7 +215,7 @@ export default function EscalationHealthScreen() {
           </>
         }
         rows={[
-          { key: "r1", left: <EscalationHeadline />, rightStack: [<ExceptionFeed key="z2" />] },
+          { key: "r1", left: <EscalationHeadline />, rightStack: [<ExceptionFeed key="z2" />], stretch: true },
           {
             key: "r2",
             full: (
