@@ -107,3 +107,24 @@ Every board figure is now held once in `boardStore.ts` (reading `v1/data.ts`, `b
 | Enforcement themes | Restriction (FCA final notice · 2024), controls not scaling (FCA final notice · 2025), monitoring gap (notice unconfirmed) | No firm names; the monitoring record is unverified |
 | Consumer Duty measure value | 2 of 4 outcomes amber (9 of 12 measures on Customers) | Computed |
 | Restriction runs | Jul 38 · Aug 71 · Sep 112 | v1 restriction history |
+
+## Risk-appetite rebuild (Top · Emerging · Obligatory)
+
+Seeds added in `boardStore.ts` for this rebuild. Everything else is computed by the selectors and checked by `validateBoardStore()`.
+
+| Figure | Value | Source |
+|---|---|---|
+| Board measures | 12: Top risks #1–#6, Emerging risks #7–#8, Obligatory risks · Level 0 #9–#12 | `MEASURES` |
+| Posture | 4 within · 2 heading for amber · 4 amber · 1 red · 1 unconfirmed | Computed (`postureCounts`) |
+| New measures #1, #6, #7, #12 | Lending growth 73% of plan (amber < 70%, limit < 65%); critical security findings 1 open (amber 1, limit 2); time to detect 12 min median (amber 15, limit 30); regulatory notifications 0 missed · 2 open | Seed |
+| Rows below the 12 | 37 Level 2 metrics + 95 Level 3 controls = 132; 14 off track (9 Level 2 + 5 Level 3 reds); 3 unconfirmed | Seed counts per measure; computed totals (`rollupTotals`) |
+| Band medians | Top risks 11.5% of the limit · Emerging risks 30% | Computed (`bandMedians`) |
+| Objective status | Worst linked measure: red → Off track; amber or unconfirmed → Under pressure ("at risk" is a banned phrase); heading for amber counts as On track | Computed (`objectiveStatus`) |
+| Attestation | 8 attested (#1 1 Oct, #2 30 Sep, #3 1 Oct, #4 2 Oct, #5 26 Oct, #8 2 Oct, #11 3 Oct, #12 2 Oct) · 3 due (#6, #7, #9 restriction due 8 Nov) · 1 unconfirmed (#10) | Seed; #9 keeps the existing restriction due date |
+| Status changes since last board | 4 (restriction Amber → Red; alert queue, LCR and security findings Within → off track) · 1 new (#7) | Seed (`statusAtLastBoard`) |
+| High-LTV decision (D2) headroom | Hold 20% £96m · Loosen 22% about £176m · Tighten 18% £16m | Computed (`ftbHeadroomM`) on the £4.0bn plan at 17.6% |
+| Detection time series | May 7 · Jun 8 · Jul 8 · Aug 9 · Sep 11 · Oct 12 minutes | Seed (`DETECTION_SERIES`) |
+| Policy linkage | 41 of 46 policies linked to a board measure; 5 untracked | Seed (`POLICIES`) |
+| Not yet measured | Agent-initiated payments (Head of Payments (proposed)); synthetic-voice impersonation (Head of Fraud) | Seed (`EMERGING_UNMEASURED`) |
+| Next SMF certification | 31 Jan 2027; 6 of 9 SMFs with evidence | Seed (`SMF_CERT`) |
+| Decision log stance | Hold · Hold · Loosen · Hold · Tighten (rate-error record has no stance) | Seed (`DECISION_HISTORY`) |

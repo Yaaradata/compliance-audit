@@ -86,12 +86,13 @@ const R = 40;
 /** Point on the upper semicircle for a share of appetite used (0 left, SCALE right). */
 const pt = (v: number, r = R) => {
   const a = Math.PI * (1 - Math.min(Math.max(v, 0), SCALE) / SCALE);
-  return [48 + r * Math.cos(a), 48 - r * Math.sin(a)] as const;
+  // Rounded so server and client render identical SVG attributes (no hydration mismatch).
+  return [Math.round((48 + r * Math.cos(a)) * 10) / 10, Math.round((48 - r * Math.sin(a)) * 10) / 10] as const;
 };
 const arc = (from: number, to: number) => {
   const [x1, y1] = pt(from);
   const [x2, y2] = pt(to);
-  return `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${R} ${R} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+  return `M ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2}`;
 };
 
 /**
@@ -105,7 +106,7 @@ export function BandDial({ m, size = 96, chart }: { m: Measure; size?: number; c
   const amber = p.amber ?? (m.direction === "status" ? 0 : undefined);
   const label = unconfirmed ? `${m.name}: unconfirmed, no position` : p.actual === undefined ? `${m.name}: ${m.value}` : `${m.name}: ${Math.round(p.actual)} per cent of appetite used`;
   return (
-    <svg {...(chart ? { "data-chart": "band-dial" } : {})} width={size} height={size * 0.56} viewBox="0 0 96 54" role="img" aria-label={label} className="shrink-0">
+    <svg {...(chart ? { "data-chart": "band-dial" } : {})} width={size} height={Math.round(size * 0.56)} viewBox="0 0 96 54" role="img" aria-label={label} className="shrink-0">
       {unconfirmed ? (
         <path d={arc(0, SCALE)} fill="none" stroke={TONE.grey.stroke} strokeWidth={6} strokeDasharray="3 3" />
       ) : (
@@ -320,7 +321,7 @@ export function ReportableTable() {
     <Table
       title="Reportable events"
       right={<span className="text-xs text-slate-500">Decider decides; nothing is sent from here</span>}
-      cols="grid-cols-[minmax(160px,1.4fr)_56px_96px_minmax(140px,1.2fr)_92px_minmax(120px,1fr)_92px_150px]"
+      cols="grid-cols-[minmax(160px,1.4fr)_56px_120px_minmax(140px,1.2fr)_92px_minmax(120px,1fr)_92px_150px]"
       head={["Event", "Found", "Classification", "Rule", "Clock", "Decider", "Read-across", ""]}
       rows={REPORTABLE_EVENTS.map((e) => {
         const done = state.session.escalated.includes(e.id);
