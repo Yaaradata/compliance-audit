@@ -102,7 +102,7 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         layout: [full("O_POSTURE"), row([8, "C_AGENDA", "C_PACK"], [4, "P_PAPER", "O_CALLS"])],
       },
       { id: "tiers", label: "Risk tiers", title: "Risk tiers", layout: [full("P_TIERS"), full("OB_REPORTABLE"), row([6, "S_TENSIONS"], [6, "S_POLICY"])] },
-      { id: "accountability", label: "Accountability & attestation", title: "Accountability and attestation", layout: [full("AC_OWNERS"), row([8, "AC_HEATMAP"], [4, "ATTEST_MONTH"]), full("AC_SIGHT")] },
+      { id: "accountability", label: "Accountability & attestation", title: "Accountability and attestation", layout: [full("AC_OWNERS"), full("AC_SIGHT"), row([8, "AC_HEATMAP"], [4, "AC_DEFENCE"]), row([6, "AC_CULTURE"], [6, "AC_REMOVED"])] },
       { id: "agents", label: "Agent governance", title: "Agent governance", layout: [row([4, "A_AUTONOMY"], [4, "A_RULES"], [4, "C_WAITING"]), full("A_ACTIVITY")] },
     ],
   },
@@ -113,7 +113,7 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
     tabs: [
       { id: "actions", label: "My actions", title: "My actions", layout: [row([8, "R_QUEUE"], [4, "P_PAPER", "R_DEADLINES", "R_CLOCKS_DUE"])] },
       { id: "tiers", label: "Risk tiers & roll-up", title: "Risk tiers and roll-up", layout: [full("O_POSTURE"), full("P_TIERS_DIAL"), row([6, "S_TENSIONS"], [6, "S_POLICY"])] },
-      { id: "reportable", label: "Reportable events", title: "Reportable events", layout: [full("OB_REPORTABLE"), row([8, "REPORTING"], [4, "OB_RESTRICTION"]), row([6, "E_HORIZON"], [6, "OB_ENFORCEMENT"])] },
+      { id: "reportable", label: "Reportable events", title: "Reportable events", layout: [full("OB_REPORTABLE"), row([6, "OB_RESTRICTION"], [6, "OB_ENFORCEMENT"]), full("E_HORIZON")] },
       { id: "pack", label: "Board pack", title: "Board pack", layout: [row([8, "R_PACK"], [4, "ESCALATION"]), full("AC_OWNERS"), full("DECISION_LOG")] },
       { id: "agents", label: "AI agents", title: "AI agents", layout: [row([8, "A_ROSTER"], [4, "A_AUTONOMY"]), full("A_TUNING"), full("A_ACTIVITY")] },
     ],

@@ -11,7 +11,7 @@
  * Chart budget: the heatmap and the lines-of-defence bar only.
  * Figures come from lib/ukboard/v2/boardStore.ts; nothing here notifies a regulator or changes a limit.
  */
-import { DRAFTS, RESTRICTION } from "@/lib/ukboard/v1/data";
+import { DRAFTS, EVENTS, RESTRICTION, ROUTES } from "@/lib/ukboard/v1/data";
 import { CULTURE, ISSUES_FOUND, JOURNEYS, SIGNOFF_HISTORY, SIGNOFF_MONTHS, type SignOffMark } from "@/lib/ukboard/v2/boardMemberData";
 import {
   attestationRecord,
@@ -87,13 +87,36 @@ function ZeroAppetiteCards() {
 function ReportableMatrix() {
   const { state, dispatch } = useStore();
   const canEscalate = state.persona !== "board";
+  const cro = state.persona === "cro";
+  // The CRO sends each route's drafted case to its decider from the pending cell; nothing goes to a regulator.
+  const sendCase = (r: (typeof ROUTES)[number]) => {
+    const cs = r.caseDraftId ? state.session.drafts[r.caseDraftId] : undefined;
+    if (!cro || !cs) return undefined;
+    return cs.status === "ai_draft" ? (
+      <button
+        type="button"
+        className={`${btn} !px-2 !py-0.5 !text-[11px]`}
+        onClick={() => {
+          dispatch({ type: "ACCEPT", draftId: r.caseDraftId! });
+          dispatch({ type: "SEND", draftId: r.caseDraftId! });
+        }}
+      >
+        Send case
+      </button>
+    ) : (
+      <span className="text-[11px] font-semibold text-slate-600">Case sent</span>
+    );
+  };
+  const gap = EVENTS.find((e) => e.awarenessGap);
   useFigures(["f:routes"]);
   return (
     <Card title="Reportable events" right={<span className="text-xs text-slate-500">Decider decides; nothing is sent from here</span>}>
       <EventRouteMatrix
+        action={sendCase}
         detail={(e) => (
           <>
             {`${e.classification} · found ${e.found} · ${e.decider} · read-across ${e.readAcross.toLowerCase()}`}
+            {cro && gap?.awarenessGap && gap.eventId === e.id ? <span className="block">{`Awareness: records ${gap.awarenessGap.gapDays} days earlier`}</span> : null}
             {canEscalate ? (
               <button
                 type="button"

@@ -10,7 +10,7 @@ import { Fragment, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { measure, measuresByTier, REPORTABLE_EVENTS, TIER_INFO, type Measure } from "@/lib/ukboard/v2/boardStore";
 import { ExceptionTree, RollupChip } from "./appetite";
-import { MeasureVisual } from "./visuals";
+import { MeasureVisual, StatusStrip } from "./visuals";
 import { useDrawer } from "./drawerContext";
 import { Card, LineItem, StatusPill, useFigures } from "./present";
 import { useStore } from "./store";
@@ -20,17 +20,18 @@ function TierRollup({ visuals }: { visuals?: boolean }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const groups = measuresByTier();
   useFigures([...groups.flatMap((g) => g.rows.map((m) => `m:${m.id}`))]);
-  const cols = visuals ? "grid-cols-[20px_minmax(200px,1.6fr)_216px_150px_minmax(140px,1fr)_124px]" : "grid-cols-[20px_minmax(200px,1.6fr)_minmax(110px,0.9fr)_150px_minmax(140px,1fr)_124px]";
+  const cols = visuals ? "grid-cols-[20px_minmax(200px,1.6fr)_216px_150px_minmax(140px,1fr)_124px]" : "grid-cols-[20px_minmax(200px,1.6fr)_minmax(110px,0.9fr)_minmax(150px,1fr)_150px_124px]";
   const row = `grid min-h-10 ${cols} items-center gap-3 px-4 py-1 text-[13px] leading-snug`;
   return (
-    <Card title="Risk tiers and roll-up" flush right={<span className="text-xs text-slate-500">Open a measure for its Level 2 metrics and Level 3 controls</span>}>
+    <Card title="Risk tiers and roll-up" flush right={visuals ? <span className="text-xs text-slate-500">Open a measure for its Level 2 metrics and Level 3 controls</span> : <StatusStrip />}>
       <div {...(visuals ? { "data-chart": "measure-visuals" } : {})}>
         <div className={`${row} !min-h-7 border-t border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}>
           <span />
           <span>Board measure</span>
           <span>{visuals ? "Position" : "Value"}</span>
+          {visuals ? null : <span>Threshold</span>}
           <span>Below</span>
-          <span>Risk owner</span>
+          {visuals ? <span>Risk owner</span> : null}
           <span className="text-right">Status</span>
         </div>
         {groups.map((g) => (
@@ -59,8 +60,9 @@ function TierRow({ m, row, visuals, expanded, onToggle }: { m: Measure; row: str
           <Icon className="h-4 w-4 text-slate-400" aria-hidden />
           <span className={m.status === "within" ? "text-slate-600" : "font-semibold text-slate-900"}>{m.name}</span>
           {visuals ? <MeasureVisual m={m} width={100} /> : <span className="tabular-nums">{m.short ?? m.value}</span>}
+          {visuals ? null : <span className="text-xs text-slate-500">{m.comparator}</span>}
           <RollupChip m={m} />
-          <span className="text-xs text-slate-500">{m.owner}</span>
+          {visuals ? <span className="text-xs text-slate-500">{m.owner}</span> : null}
           <span className="justify-self-end">
             <StatusPill status={m.status} />
           </span>

@@ -304,7 +304,7 @@ function Label({ e }: { e: { date: string; label: string; tag?: string } }) {
 
 /* ── RouteMatrix ─────────────────────────────────────────────────────── */
 
-export type RouteCell = { status: "decided" | "pending"; clock: string } | null;
+export type RouteCell = { status: "decided" | "pending"; clock: string; action?: ReactNode } | null;
 const CLOCK_SHORT: Record<string, string> = { "Within the reporting period": "Reporting period" };
 
 /** Events × routes: ● decided, ◐ pending (clock underneath), — not applicable. */
@@ -334,6 +334,7 @@ export function RouteMatrix({ rows, cols, compact }: { rows: { key: string; even
                     className={`mx-auto block h-3 w-3 rounded-full border-[1.5px] border-slate-900 ${c.status === "decided" ? "bg-slate-900" : "bg-[linear-gradient(90deg,#0f172a_50%,#fff_50%)]"}`}
                   />
                   {c.status === "pending" ? <span className="block text-[11px] text-slate-500">{CLOCK_SHORT[c.clock] ?? c.clock}</span> : null}
+                  {c.action ? <span className="mt-1 block">{c.action}</span> : null}
                 </>
               ) : (
                 <span className="text-slate-300">—</span>
@@ -563,7 +564,7 @@ const ROUTE_COLS: { label: string; match: RegExp }[] = [
 ];
 
 /** The reportable events against the four routes, from the store's events and routes. */
-export function EventRouteMatrix({ detail, compact }: { detail?: (e: (typeof REPORTABLE_EVENTS)[number]) => ReactNode; compact?: boolean }) {
+export function EventRouteMatrix({ detail, compact, action }: { detail?: (e: (typeof REPORTABLE_EVENTS)[number]) => ReactNode; compact?: boolean; action?: (route: (typeof ROUTES)[number]) => ReactNode }) {
   const rows = REPORTABLE_EVENTS.map((e) => ({
     key: e.id,
     rail: e.breached ? ("red" as const) : undefined,
@@ -575,7 +576,7 @@ export function EventRouteMatrix({ detail, compact }: { detail?: (e: (typeof REP
     ),
     cells: ROUTE_COLS.map((c): RouteCell => {
       const r = ROUTES.find((x) => x.eventId === e.id && c.match.test(x.name));
-      return r ? { status: r.status === "decided" ? "decided" : "pending", clock: r.clock } : null;
+      return r ? { status: r.status === "decided" ? "decided" : "pending", clock: r.clock, action: r.status === "decided" ? undefined : action?.(r) } : null;
     }),
   }));
   return <RouteMatrix rows={rows} cols={ROUTE_COLS.map((c) => c.label)} compact={compact} />;
