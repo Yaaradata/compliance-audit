@@ -200,7 +200,7 @@ function AgentRoster() {
 
 function Rules() {
   return (
-    <Card title="Rules agents cannot break" right={<AiTag />}>
+    <Card title="Agent rules" right={<AiTag />}>
       {FIXED_RULES.map((r) => (
         <span key={r} className="flex min-h-9 items-center gap-2 border-t border-slate-100 pl-[13px] text-[13px] text-slate-700">
           <Lock className="h-3.5 w-3.5 text-slate-400" aria-hidden />

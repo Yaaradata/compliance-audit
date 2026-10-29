@@ -6,12 +6,12 @@
 import type { MeasureStatus } from "@/lib/ukboard/v2/boardStore";
 
 export const CHART = {
-  measure: "#2563EB",
-  comparison: "#0D9488",
-  gapFill: "#F59E0B",
-  gapOpacity: 0.15,
+  measure: "#1E40AF",
+  comparison: "#0F766E",
+  gapFill: "#FCD34D",
+  gapOpacity: 0.35,
   amber: "#D97706",
-  limit: "#DC2626",
+  limit: "#B91C1C",
   zoneOpacity: 0.08,
   grid: "#E2E8F0",
   axis: "#64748B",
@@ -23,11 +23,11 @@ export const CHART = {
 } as const;
 
 export const STATUS_INK: Record<MeasureStatus, string> = {
-  within: "#16A34A",
-  projected: "#D97706",
-  amber: "#D97706",
-  red: "#DC2626",
-  unconfirmed: "#64748B",
+  within: "#15803D",
+  projected: "#B45309",
+  amber: "#B45309",
+  red: "#B91C1C",
+  unconfirmed: "#475569",
 };
 
 /** Categorical order, used the same way everywhere (never status colours on categories). */
@@ -39,4 +39,4 @@ export const TRADEOFF = { current: "#64748B", recommended: "#4F46E5", other: "#0
 export const TIMELINE = { regulatory: "#4F46E5", board: "#0D9488", today: "#2563EB" } as const;
 
 /** Attestation heatmap cells. */
-export const HEAT = { onTime: "rgba(22,163,74,0.7)", late: "#D97706", early: "#DC2626" } as const;
+export const HEAT = { onTime: "#BBF7D0", late: "#FDE68A", early: "#FECACA" } as const;

@@ -18,7 +18,7 @@ export interface TabView {
   title: string;
   /** Optional meta line, at most 10 words. */
   meta?: string;
-  /** One-screen summary: sources as ⓘ tooltips, 12px gaps, cards end at their last row. */
+  /** One-screen summary: 12px gaps. */
   compact?: boolean;
   layout: Layout;
 }
@@ -45,32 +45,32 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         label: "Overview",
         title: "Board risk summary",
         compact: true,
-        layout: [full("O_SCORECARD"), full("O_POSTURE_B"), row([4, "O_TOP"], [4, "O_OBLIGATORY"], [4, "O_EMERGING", "O_CALLS_B"]), row([7, "O_EXPOSURE"], [5, "O_SINCE"])],
+        layout: [full("O_SCORECARD"), row([6, "O_OUTSIDE"], [6, "O_DECISIONS", "O_TELL"]), row([6, "O_SINCE"], [6, "O_OWNERSHIP"])],
       },
       {
         id: "appetite",
         label: "Risk appetite",
         title: "Risk appetite",
-        layout: [full("M_TABLE"), row([6, "R_CAPACITY"], [6, "R_CYBER"]), row([6, "E_TRIAL"], [6, "E_UNMEASURED"]), row([6, "S_TENSIONS"], [6, "S_POLICY"]), full("S_HISTORY")],
+        layout: [full("M_TABLE"), row([6, "R_CAPACITY", "E_UNMEASURED"], [6, "E_TRIAL", "R_CYBER"]), row([6, "S_TENSIONS"], [6, "S_POLICY"])],
       },
       {
         id: "obligatory",
         label: "Regulatory · Level 0",
         title: "Regulatory · Level 0",
         meta: "Zero appetite. Regulatory must-haves.",
-        layout: [full("OB_CARDS"), full("OB_REPORTABLE"), row([6, "OB_RESTRICTION"], [6, "OB_SCREENING"]), full("OB_DUTY"), row([4, "OB_VULN"], [4, "OB_REDRESS"], [4, "OB_ENFORCEMENT"]), full("E_HORIZON")],
+        layout: [full("OB_CARDS"), row([6, "OB_REPORTABLE", "OB_ENFORCEMENT"], [6, "OB_RESTRICTION", "OB_VULN"]), row([6, "OB_SCREENING"], [6, "E_HORIZON", "OB_REDRESS"])],
       },
       {
         id: "accountability",
         label: "Accountability",
         title: "Accountability",
-        layout: [full("AC_OWNERS"), full("AC_SIGHT"), row([8, "AC_HEATMAP"], [4, "AC_DEFENCE"]), row([6, "AC_CULTURE"], [6, "AC_REMOVED"]), full("DECISION_LOG")],
+        layout: [row([8, "AC_OWNERS"], [4, "AC_DEFENCE", "AC_CULTURE"]), row([6, "AC_HEATMAP"], [6, "AC_SIGHT"]), full("DECISION_LOG")],
       },
       {
         id: "ai",
         label: "AI agents",
         title: "AI agents",
-        layout: [full("A_TILES"), row([8, "A_FINDINGS"], [4, "A_AUTONOMY"]), row([8, "A_TUNING"], [4, "A_RULES"]), full("A_ROSTER")],
+        layout: [row([6, "A_FINDINGS", "A_RULES"], [6, "A_TUNING", "A_AUTONOMY"]), full("A_ROSTER")],
       },
     ],
   },
@@ -84,14 +84,14 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         label: "Committee",
         title: "Committee",
         meta: "Board Risk Committee · 15 Dec",
-        layout: [full("O_POSTURE"), row([8, "C_AGENDA"], [4, "P_PAPER"]), row([4, "C_PACK"], [4, "O_CALLS"], [4, "ESCALATION"])],
+        layout: [row([8, "C_AGENDA"], [4, "P_PAPER", "C_PACK"]), row([6, "O_CALLS"], [6, "ESCALATION"])],
       },
       { id: "risk", label: "Risk & reporting", title: "Risk and reporting", layout: [full("P_TIERS"), full("OB_REPORTABLE")] },
       {
         id: "oversight",
         label: "Oversight",
         title: "Oversight",
-        layout: [full("AC_OWNERS"), full("AC_SIGHT"), full("AC_HEATMAP"), row([8, "A_AUTONOMY"], [4, "A_RULES"]), row([4, "C_WAITING"], [8, "A_ACTIVITY"])],
+        layout: [row([8, "AC_OWNERS"], [4, "C_WAITING", "A_RULES"]), full("AC_SIGHT"), row([7, "AC_HEATMAP"], [5, "A_AUTONOMY"])],
       },
     ],
   },
@@ -101,9 +101,9 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
     defaultTab: "actions",
     tabs: [
       { id: "actions", label: "My actions", title: "My actions", layout: [row([8, "R_QUEUE"], [4, "R_DEADLINES", "R_CLOCKS_DUE", "P_PAPER"]), full("R_PACK")] },
-      { id: "risk", label: "Risk & roll-up", title: "Risk and roll-up", layout: [full("M_TABLE_CRO"), row([6, "S_TENSIONS"], [6, "S_POLICY"]), row([8, "AC_OWNERS"], [4, "ESCALATION"])] },
-      { id: "reporting", label: "Regulatory reporting", title: "Regulatory reporting", layout: [full("OB_REPORTABLE"), row([6, "OB_RESTRICTION"], [6, "OB_ENFORCEMENT"]), full("E_HORIZON")] },
-      { id: "agents", label: "AI agents", title: "AI agents", layout: [row([8, "A_ROSTER"], [4, "A_AUTONOMY"]), full("A_TUNING"), full("A_ACTIVITY")] },
+      { id: "risk", label: "Risk & roll-up", title: "Risk and roll-up", layout: [full("M_TABLE_CRO"), row([8, "AC_OWNERS"], [4, "ESCALATION", "S_POLICY"]), full("S_TENSIONS")] },
+      { id: "reporting", label: "Regulatory reporting", title: "Regulatory reporting", layout: [full("OB_REPORTABLE"), row([6, "OB_RESTRICTION"], [6, "OB_ENFORCEMENT", "E_HORIZON"])] },
+      { id: "agents", label: "AI agents", title: "AI agents", layout: [row([6, "A_AUTONOMY", "A_ROSTER"], [6, "A_TUNING", "A_ACTIVITY"])] },
     ],
   },
 };

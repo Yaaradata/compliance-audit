@@ -39,7 +39,7 @@ import { DECISION_HISTORY, EVENT_PLAIN, FRANCHISES, plain, ROUTE_PLAIN } from "@
 import type { SectionId } from "@/lib/ukboard/v2/personaViews";
 import { useDrawer } from "./drawerContext";
 import LineChart from "./LineChart";
-import { BarRows, Card, OWNER_SHORT, ChartCard, Chip, EventList, FlowPill, KpiTile, LimitPill, LineItem, LinkMore, MeasureTable, OwnerTable, PostureStrip, StatList, StatRow, StatusPill, Table, useFigures, VerdictPill, type Workflow } from "./present";
+import { BarRows, Card, OWNER_SHORT, ChartCard, Chip, EventList, FlowPill, KpiTile, LimitPill, LineItem, LinkMore, MeasureTable, OwnerTable, PostureStrip, StatList, StatRow, StatusPill, Table, useCollapse, useFigures, VerdictPill, type Workflow } from "./present";
 import { OVERVIEW_SECTIONS } from "./overview";
 import { AGENT_SECTIONS } from "./agents";
 import { OBLIGATORY_SECTIONS } from "./obligatory";
@@ -353,7 +353,7 @@ function AgentAutonomy() {
 
 function Rules() {
   return (
-    <Card title="Rules agents cannot break" right={<AiTag />}>
+    <Card title="Agent rules" right={<AiTag />}>
       {FIXED_RULES.map((r) => (
         <span key={r} className="flex min-h-9 items-center gap-2 border-t border-slate-100 pl-[13px] text-[13px] text-slate-700">
           <Lock className="h-3.5 w-3.5 text-slate-400" aria-hidden />
@@ -878,7 +878,7 @@ function FoundIssues() {
   const SHADE = ["bg-slate-700", "bg-slate-500", "bg-slate-400", "bg-slate-300"];
   useFigures(["f:found"]);
   return (
-    <ChartCard id="found" title="Who found the issues" right={<Chip>{`n = ${f.total}`}</Chip>}>
+    <ChartCard id="found" title="Who found issues" right={<Chip>{`n = ${f.total}`}</Chip>}>
       <div className="mb-1 mt-1 flex h-4 overflow-hidden rounded-full">
         {ISSUES_FOUND.by.map((b, i) => (
           <span key={b.line} className={SHADE[i]} style={{ width: `${(b.n / f.total) * 100}%` }} title={`${b.line}: ${b.n}`} />
@@ -896,7 +896,7 @@ function Journeys() {
   useFigures(["f:journeys"]);
   return (
     <Table
-      title="Risk owner vs control owner"
+      title="Line of sight"
       right={<Chip>{`${j.n} of ${j.of} without risk owner`}</Chip>}
       cols="grid-cols-[minmax(170px,1.1fr)_minmax(150px,1fr)_minmax(170px,1fr)_120px_110px]"
       head={["Journey", "Risk owner", "Control owner", "Aligned", "Complaints"]}
@@ -1081,7 +1081,7 @@ function WaitingForCro() {
   const { state } = useStore();
   const waiting = QUEUE.filter((q) => state.session.drafts[q.draftId]?.status === "ai_draft");
   return (
-    <Card title="Waiting for the CRO" right={<Chip>{String(waiting.length)}</Chip>}>
+    <Card title="Waiting on CRO" right={<Chip>{String(waiting.length)}</Chip>}>
       {waiting.length ? waiting.map((q) => <LineItem key={q.draftId} text={q.title} right={<FlowPill w="draft" />} />) : <LineItem text="Nothing waiting" />}
     </Card>
   );
@@ -1234,10 +1234,11 @@ function PackChecklist() {
   const latest = state.session.manifestVersions[state.session.manifestVersions.length - 1];
   const restore = state.session.drafts["d-t235-restore"];
   const ordered = [...PACK_ITEMS].sort((a, b) => Number(!!b.removal) - Number(!!a.removal));
+  const [shown, more] = useCollapse(ordered, 8);
   return (
     <Card title="Pack checklist" right={<Chip>{`${latest.itemIds.length} of ${PACK_ITEMS.length} items · v${latest.version} ${latest.state}`}</Chip>}>
       <div>
-        {ordered.map((i) => {
+        {shown.map((i) => {
           const inPack = latest.itemIds.includes(i.itemId);
           return (
             <LineItem
@@ -1256,6 +1257,7 @@ function PackChecklist() {
             />
           );
         })}
+        {more}
       </div>
       <p className="pb-1 pt-3 text-sm font-semibold text-slate-900">Decision papers</p>
       {DECISIONS.map((d) => (

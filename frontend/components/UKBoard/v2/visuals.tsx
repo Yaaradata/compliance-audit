@@ -28,9 +28,10 @@ import { CHART, STATUS_INK, TIMELINE, TRADEOFF } from "./boardChartTheme";
 import { useStore } from "./store";
 import { AiTag, btn, btnPrimary } from "./ui";
 
-const INK = "#0f172a";
-const BAND = "#e2e8f0";
-const BEYOND = "#cbd5e1";
+/** Actual values in navy; the amber band and the zone past the limit in the soft tints. */
+const INK = CHART.measure;
+const BAND = "#FEF3C7";
+const BEYOND = "#FEE2E2";
 const TRACK = "#f8fafc";
 const r1 = (v: number) => Math.round(v * 10) / 10;
 
@@ -41,7 +42,7 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
  * light grey from the amber trigger to the limit and darker beyond the limit; the actual value is an
  * ink bar; an optional marker (plan pace) is a hollow tick. The value is printed to the right.
  */
-export function BulletBar({ value, amber, limit, scale, lowerIsWorse, marker, display, width = 168, label, status }: { value: number; amber: number; limit: number; scale: [number, number]; lowerIsWorse?: boolean; marker?: number; display: string; width?: number; label: string; status?: MeasureStatus }) {
+export function BulletBar({ value, amber, limit, scale, lowerIsWorse, marker, display, width = 168, label }: { value: number; amber: number; limit: number; scale: [number, number]; lowerIsWorse?: boolean; marker?: number; display: string; width?: number; label: string; status?: MeasureStatus }) {
   const [lo, hi] = scale;
   const x = (v: number) => r1(((Math.min(Math.max(v, lo), hi) - lo) / (hi - lo)) * width);
   const band = lowerIsWorse ? [x(limit), x(amber)] : [x(amber), x(limit)];
@@ -52,9 +53,9 @@ export function BulletBar({ value, amber, limit, scale, lowerIsWorse, marker, di
         <rect x={0} y={2} width={width} height={8} fill={TRACK} />
         <rect x={band[0]} y={2} width={band[1] - band[0]} height={8} fill={BAND} />
         <rect x={beyond[0]} y={2} width={beyond[1] - beyond[0]} height={8} fill={BEYOND} />
-        <rect x={0} y={4} width={x(value)} height={4} fill={status ? STATUS_INK[status] : INK} />
-        <line x1={x(amber)} x2={x(amber)} y1={1} y2={11} stroke={CHART.tick} strokeWidth={1} />
-        <line x1={x(limit)} x2={x(limit)} y1={0} y2={12} stroke={CHART.tick} strokeWidth={1.5} />
+        <rect x={0} y={4} width={x(value)} height={4} fill={INK} />
+        <line x1={x(amber)} x2={x(amber)} y1={1} y2={11} stroke={CHART.amber} strokeWidth={1} strokeDasharray="2 1" />
+        <line x1={x(limit)} x2={x(limit)} y1={0} y2={12} stroke={CHART.limit} strokeWidth={1.5} strokeDasharray="2 1" />
         {marker !== undefined ? <rect x={x(marker) - 1} y={0.5} width={2} height={11} fill="white" stroke={INK} strokeWidth={0.75} /> : null}
       </svg>
       <b className="whitespace-nowrap text-[13px] font-semibold tabular-nums text-slate-900">{display}</b>
@@ -65,12 +66,12 @@ export function BulletBar({ value, amber, limit, scale, lowerIsWorse, marker, di
 /* ── PipRow ──────────────────────────────────────────────────────────── */
 
 const PIP: Record<PipStatus, string> = {
-  within: "bg-emerald-500",
-  decided: "bg-emerald-500",
-  amber: "bg-amber-500",
-  pending: "bg-amber-500",
-  red: "bg-red-500",
-  open: "border border-slate-400 bg-white",
+  within: "border border-[#15803D] bg-[#DCFCE7]",
+  decided: "border border-[#15803D] bg-[#DCFCE7]",
+  amber: "border border-[#B45309] bg-[#FEF3C7]",
+  pending: "border border-[#B45309] bg-[#FEF3C7]",
+  red: "border border-[#B91C1C] bg-[#FEE2E2]",
+  open: "border border-[#475569] bg-[#F1F5F9]",
 };
 
 /** A small count against a small limit: one pip per unit up to the limit, filled pips dark. */
@@ -79,9 +80,9 @@ export function PipRow({ value, limit, display, label }: { value: number; limit:
     <span className="inline-flex items-center gap-2.5" role="img" aria-label={label}>
       <span className="inline-flex items-center gap-1">
         {Array.from({ length: limit }, (_, i) => (
-          <span key={i} className={`h-2.5 w-2.5 rounded-full ${i < value ? "bg-slate-900" : "border border-slate-400 bg-white"}`} />
+          <span key={i} className={`h-2.5 w-2.5 rounded-full ${i < value ? "bg-[#1E40AF]" : "border border-slate-400 bg-white"}`} />
         ))}
-        <span className="ml-0.5 h-3.5 w-px bg-slate-900" aria-hidden />
+        <span className="ml-0.5 h-3.5 w-px bg-[#B91C1C]" aria-hidden />
       </span>
       <b className="whitespace-nowrap text-[13px] font-semibold tabular-nums text-slate-900">{display}</b>
     </span>
@@ -168,12 +169,13 @@ export function Sparkline({ values, amber, limit, status, label }: { values: num
 
 /* ── StatusStrip and StatusHistory ───────────────────────────────────── */
 
-const CELL: Record<MeasureStatus, string> = {
-  red: "bg-red-500",
-  amber: "bg-amber-500",
-  projected: "border-2 border-amber-500 bg-white",
-  unconfirmed: "border border-dashed border-slate-500 bg-white",
-  within: "bg-emerald-500",
+/** Status-strip cells: the pill tints, each with a 1px border in its text colour. */
+export const CELL: Record<MeasureStatus, string> = {
+  red: "border border-[#B91C1C] bg-[#FEE2E2]",
+  amber: "border border-[#B45309] bg-[#FEF3C7]",
+  projected: "border border-dashed border-[#F59E0B] bg-white",
+  unconfirmed: "border border-[#475569] bg-[#F1F5F9]",
+  within: "border border-[#15803D] bg-[#DCFCE7]",
 };
 
 const LEGEND: Record<MeasureStatus, string> = { red: "red", amber: "amber", projected: "heading", unconfirmed: "unconfirmed", within: "within" };
@@ -195,6 +197,25 @@ export function StatusStrip() {
             <b className="tabular-nums text-slate-900">{MEASURES.filter((m) => m.status === s).length}</b> {LEGEND[s]}
           </span>
         ))}
+      </span>
+    </span>
+  );
+}
+
+/** The 12 status cells and "n of 12 need attention" (headline bar). */
+export function StatusCells() {
+  const order: MeasureStatus[] = ["red", "amber", "projected", "unconfirmed", "within"];
+  const sorted = [...MEASURES].sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
+  const n = MEASURES.filter((m) => m.status !== "within").length;
+  return (
+    <span className="inline-flex items-center gap-3 whitespace-nowrap">
+      <span className="inline-flex gap-0.5" role="img" aria-label={order.map((s) => `${MEASURES.filter((m) => m.status === s).length} ${STATUS_WORD[s].toLowerCase()}`).join(", ")}>
+        {sorted.map((m) => (
+          <span key={m.id} title={`${m.name}: ${STATUS_WORD[m.status]}`} className={`block h-5 w-2.5 rounded-[2px] ${CELL[m.status]}`} />
+        ))}
+      </span>
+      <span className="text-[13px] text-slate-600">
+        <b className="tabular-nums text-slate-900">{`${n} of ${MEASURES.length}`}</b> need attention
       </span>
     </span>
   );
@@ -245,7 +266,7 @@ export function ProgressPace({ actual, target, pace, text, width = 200 }: { actu
   return (
     <span className="block">
       <span className="relative block h-2 rounded-full bg-slate-100" style={{ width }} role="img" aria-label={text}>
-        <span className="absolute inset-y-0 left-0 rounded-full bg-slate-900" style={{ width: `${fill * 100}%` }} />
+        <span className="absolute inset-y-0 left-0 rounded-full bg-[#1E40AF]" style={{ width: `${fill * 100}%` }} />
         {pace !== undefined ? <span className="absolute -top-1 h-4 w-0.5 bg-slate-500" style={{ left: `${Math.min(pace, 1) * 100}%` }} /> : null}
       </span>
       <span className="mt-1 block text-xs tabular-nums text-slate-600">{text}</span>
@@ -334,7 +355,7 @@ export function RouteMatrix({ rows, cols, compact }: { rows: { key: string; even
                   <span
                     role="img"
                     aria-label={c.status}
-                    className={`mx-auto block h-3 w-3 rounded-full border-[1.5px] border-slate-900 ${c.status === "decided" ? "bg-slate-900" : "bg-[linear-gradient(90deg,#0f172a_50%,#fff_50%)]"}`}
+                    className={`mx-auto block h-3 w-3 rounded-full border-[1.5px] border-[#1E40AF] ${c.status === "decided" ? "bg-[#1E40AF]" : "bg-[linear-gradient(90deg,#1E40AF_50%,#fff_50%)]"}`}
                   />
                   {compact ? <span className="block text-[11px] text-slate-500">{CLOCK_WORD[c.clock] ?? c.clock}</span> : c.status === "pending" ? <span className="block text-[11px] text-slate-500">{CLOCK_SHORT[c.clock] ?? c.clock}</span> : null}
                   {c.action ? <span className="mt-1 block">{c.action}</span> : null}
@@ -569,14 +590,14 @@ const ROUTE_COLS: { label: string; match: RegExp }[] = [
 ];
 
 /** The reportable events against the four routes, from the store's events and routes. */
-export function EventRouteMatrix({ detail, compact, action }: { detail?: (e: (typeof REPORTABLE_EVENTS)[number]) => ReactNode; compact?: boolean; action?: (route: (typeof ROUTES)[number]) => ReactNode }) {
+export function EventRouteMatrix({ compact, action }: { detail?: (e: (typeof REPORTABLE_EVENTS)[number]) => ReactNode; compact?: boolean; action?: (route: (typeof ROUTES)[number]) => ReactNode }) {
   const rows = REPORTABLE_EVENTS.map((e) => ({
     key: e.id,
     rail: e.breached ? ("red" as const) : undefined,
     event: (
       <span className="block leading-snug">
         <b className="font-semibold text-slate-900">{compact ? e.event.split(",")[0] : e.event}</b>
-        {compact ? null : <span className="block text-xs text-slate-500">{detail ? detail(e) : `Found ${e.found} · ${e.decider}`}</span>}
+        {compact ? null : <span className="text-xs font-normal text-slate-500">{` · ${e.decider}`}</span>}
       </span>
     ),
     cells: ROUTE_COLS.map((c): RouteCell => {

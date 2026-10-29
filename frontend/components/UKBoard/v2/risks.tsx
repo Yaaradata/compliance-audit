@@ -105,7 +105,7 @@ function ExerciseLine({ last, next }: { last: { label: string; value: string; no
   return (
     <div className="border-t border-slate-100 pt-2.5" role="img" aria-label={`${last.label} ${last.value}; ${next.label} ${next.value}`}>
       <div className="relative mx-2 h-px bg-slate-300">
-        <span className="absolute -top-1 left-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-slate-900" />
+        <span className="absolute -top-1 left-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-[#1E40AF]" />
         <span className="absolute -top-1 right-0 h-2.5 w-2.5 translate-x-1/2 rounded-full border border-slate-900 bg-white" />
       </div>
       <div className="mt-2 flex justify-between text-xs leading-tight">
@@ -126,7 +126,7 @@ function CyberExercises() {
   const { open } = useDrawer();
   useFigures(["f:cyber-exercises"]);
   return (
-    <Card title="Cyber: red team and blue team" className="h-full">
+    <Card title="Cyber testing" className="h-full">
       {CYBER_EXERCISES.filter((x) => !/exercise$/i.test(x.label)).map((x) => (
         <StatRow key={x.label} label={x.label} value={x.value} comparator={x.note} onClick={(el) => open("metric:u-secfind", el)} />
       ))}
@@ -209,14 +209,13 @@ function NotYetMeasured() {
   const [drafted, setDrafted] = useState<string[]>([]);
   useFigures(["f:unmeasured"]);
   return (
-    <Card title="Not yet measured" right={<span className="text-xs text-slate-500">{`${EMERGING_UNMEASURED.length} risks in the register without a board measure`}</span>}>
+    <Card title="Not yet measured" right={<span className="text-xs text-slate-500">{`${EMERGING_UNMEASURED.length} risks without a board measure`}</span>}>
       {EMERGING_UNMEASURED.map((e) => {
         const done = drafted.includes(e.name);
         return (
           <div key={e.name} className={`flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-slate-100 py-1.5 text-[13px] leading-snug ${rowRail()}`}>
-            <span className="min-w-0">
-              <span className="text-slate-800">{e.name}</span>
-              <span className="block text-xs text-slate-500">{`${e.why} · Risk owner: ${e.owner}`}</span>
+            <span className="min-w-0 text-slate-800">
+              {e.name} <span className="text-xs text-slate-500">· {e.owner}</span>
             </span>
             {done ? (
               <span className="text-xs font-semibold text-slate-700" role="status">{`Proposal drafted for ${e.owner}`}</span>

@@ -161,7 +161,7 @@ function Screening() {
   const s = FIG.sanctions;
   useFigures(["f:screening-l2"]);
   return (
-    <Card title="Monitoring and sanctions screening" right={<StatusPill status={m.status} />}>
+    <Card title="Screening coverage" right={<StatusPill status={m.status} />}>
       <ExceptionTree m={m} />
       <StatRow label="Sanctions alerts" value="None" comparator={`${s.weeksNoAlerts} weeks · ${s.expectedPerWeek} a week expected`} />
       <StatRow label="Attestation" value="Unconfirmed" comparator={`Risk owner: ${m.owner}`} />
@@ -313,10 +313,10 @@ function OwnersWithEvidence() {
 }
 
 const MARK: Record<SignOffMark, { cls: string; word: string }> = {
-  on_time: { cls: "bg-green-600/70", word: "On time" },
-  late: { cls: "bg-amber-600", word: "Late" },
-  missing: { cls: "border border-slate-400 bg-white", word: "Missing" },
-  early: { cls: "bg-red-600", word: "Before data check" },
+  on_time: { cls: "border border-[#15803D] bg-[#DCFCE7]", word: "On time" },
+  late: { cls: "border border-[#B45309] bg-[#FEF3C7]", word: "Late" },
+  missing: { cls: "border border-dashed border-slate-400 bg-white", word: "Missing" },
+  early: { cls: "border border-[#B91C1C] bg-[#FEE2E2]", word: "Before data check" },
 };
 
 function AttestationRecord() {
@@ -364,7 +364,7 @@ function LinesOfDefence() {
   const SHADE = ["bg-indigo-600", "bg-teal-600", "bg-sky-500", "bg-slate-500"];
   useFigures(["f:found"]);
   return (
-    <ChartCard id="lines-of-defence" title="Who found the issues" right={<Chip>{`${fmt.n(f.total)} issues`}</Chip>}>
+    <ChartCard id="lines-of-defence" title="Who found issues" right={<Chip>{`${fmt.n(f.total)} issues`}</Chip>}>
       <div className="mb-1 mt-1 flex h-4 overflow-hidden rounded-full" role="img" aria-label={ISSUES_FOUND.by.map((b) => `${LINE_LABEL[b.line] ?? b.line}: ${b.n}`).join(", ")}>
         {ISSUES_FOUND.by.map((b, i) => (
           <span key={b.line} className={SHADE[i]} style={{ width: `${(b.n / f.total) * 100}%` }} title={`${LINE_LABEL[b.line] ?? b.line}: ${b.n}`} />
@@ -392,7 +392,7 @@ function JourneySight() {
   useFigures(["f:journeys", "f:sight"]);
   return (
     <Table
-      title="Risk owner vs control owner"
+      title="Line of sight"
       right={<span className="text-xs text-slate-500">{`${gaps} of ${JOURNEYS.length} journeys with a line-of-sight gap`}</span>}
       cols="grid-cols-[minmax(170px,1.3fr)_minmax(140px,1fr)_minmax(150px,1fr)_168px_minmax(110px,0.8fr)]"
       head={["Journey", "Risk owner", "Control owner", "Line of sight", "Complaints"]}

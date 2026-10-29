@@ -9,32 +9,35 @@
  * red Level 3 controls (ExceptionTree applies the persona's visibility) and names the row's feed.
  */
 import { Fragment, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { historyOf, measure, measuresByTier, REPORTABLE_EVENTS, thresholdCells, TIER_INFO, type Measure } from "@/lib/ukboard/v2/boardStore";
+import { historyOf, measure, measuresByTier, MEASURES, REPORTABLE_EVENTS, thresholdCells, TIER_INFO, type Measure } from "@/lib/ukboard/v2/boardStore";
 import { ExceptionTree, RollupChip } from "./appetite";
-import { MeasureVisual, Sparkline, StanceLine, StatusStrip } from "./visuals";
+import { MeasureVisual, Sparkline, StanceLine } from "./visuals";
 import { useDrawer } from "./drawerContext";
-import { Card, DeltaMark, LineItem, SourceLine, StatusPill, useFigures } from "./present";
+import { Card, DeltaMark, LineItem, StatusPill, useFigures } from "./present";
 import { useStore } from "./store";
 import { focus, Pill } from "./ui";
 
 /** Column templates: at 1024 amber and limit share a column and type and stance are hidden. */
-const VISUAL_COLS = "grid-cols-[20px_minmax(160px,1.6fr)_230px_88px_140px_112px] xl:grid-cols-[20px_minmax(190px,1.6fr)_230px_64px_64px_60px_minmax(110px,1fr)_140px_112px]";
-const TEXT_COLS = "grid-cols-[20px_minmax(200px,1.6fr)_minmax(110px,0.9fr)_minmax(150px,1fr)_150px_124px]";
+const VISUAL_COLS = "grid-cols-[minmax(160px,1.6fr)_230px_88px_140px_112px] xl:grid-cols-[minmax(190px,1.6fr)_230px_64px_64px_60px_minmax(110px,1fr)_140px_112px]";
+const TEXT_COLS = "grid-cols-[minmax(200px,1.6fr)_minmax(110px,0.9fr)_minmax(150px,1fr)_150px_124px]";
 
 function MeasureTable({ visuals }: { visuals?: boolean }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const groups = measuresByTier();
+  const [all, setAll] = useState(false);
+  // Tables show at most 8 rows: the measures outside appetite, then "+n more" for those within.
+  const groups = measuresByTier()
+    .map((g) => ({ ...g, rows: all ? g.rows : g.rows.filter((m) => m.status !== "within") }))
+    .filter((g) => g.rows.length);
+  const hidden = all ? 0 : MEASURES.filter((m) => m.status === "within").length;
   useFigures([...groups.flatMap((g) => g.rows.map((m) => `m:${m.id}`))]);
-  const row = `grid min-h-[52px] ${visuals ? VISUAL_COLS : TEXT_COLS} items-center gap-3 px-4 py-1 text-[13px] leading-snug`;
+  const row = `grid min-h-10 ${visuals ? VISUAL_COLS : TEXT_COLS} items-center gap-3 px-4 py-1 text-[13px] leading-snug`;
   const head = `${row} !min-h-7 border-t border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500`;
   return (
-    <Card title="Board measures by tier" flush right={visuals ? <span className="text-xs text-slate-500">Open a row for its trend, Level 2 metrics and Level 3 controls</span> : <StatusStrip />}>
+    <Card title="Board measures" flush>
       <div {...(visuals ? { "data-chart": "measure-visuals" } : {})}>
         {visuals ? (
           <div className={head}>
-            <span />
-            <span>Board measure · risk appetite statement</span>
+            <span>Board measure</span>
             <span>Position</span>
             <span className="xl:hidden">Amber · limit</span>
             <span className="hidden xl:block">Amber</span>
@@ -46,7 +49,6 @@ function MeasureTable({ visuals }: { visuals?: boolean }) {
           </div>
         ) : (
           <div className={head}>
-            <span />
             <span>Board measure</span>
             <span>Value</span>
             <span>Threshold</span>
@@ -64,6 +66,11 @@ function MeasureTable({ visuals }: { visuals?: boolean }) {
             ))}
           </Fragment>
         ))}
+        {hidden ? (
+          <button type="button" onClick={() => setAll(true)} className={`flex h-9 w-full items-center border-t border-slate-200 px-4 text-left text-[13px] font-semibold text-indigo-700 hover:bg-slate-50 ${focus}`}>
+            +{hidden} more within appetite
+          </button>
+        ) : null}
       </div>
     </Card>
   );
@@ -72,7 +79,6 @@ function MeasureTable({ visuals }: { visuals?: boolean }) {
 function MeasureRow({ m, row, visuals, expanded, onToggle }: { m: Measure; row: string; visuals?: boolean; expanded: boolean; onToggle: () => void }) {
   const { open } = useDrawer();
   const rail = m.status === "red" ? "border-l-red-500" : m.status === "amber" ? "border-l-amber-500" : "border-l-transparent";
-  const Icon = expanded ? ChevronDown : ChevronRight;
   const t = thresholdCells(m);
   const h = historyOf(m.id);
   const name = <span className={m.status === "within" ? "text-slate-600" : "font-semibold text-slate-900"}>{m.name}</span>;
@@ -81,11 +87,7 @@ function MeasureRow({ m, row, visuals, expanded, onToggle }: { m: Measure; row: 
       <button type="button" aria-expanded={expanded} onClick={onToggle} className={`block w-full text-left hover:bg-slate-50 ${focus}`}>
         {visuals ? (
           <span className={`${row} !pl-[13px]`}>
-            <Icon className="h-4 w-4 text-slate-400" aria-hidden />
-            <span className="min-w-0">
-              {name}
-              <span className="block text-xs text-slate-500">{m.statement}</span>
-            </span>
+            <span className="min-w-0">{name}</span>
             <MeasureVisual m={m} width={120} />
             <span className="text-xs tabular-nums xl:hidden">
               {t.amber} · {t.limit}
@@ -103,7 +105,6 @@ function MeasureRow({ m, row, visuals, expanded, onToggle }: { m: Measure; row: 
           </span>
         ) : (
           <span className={`${row} !pl-[13px]`}>
-            <Icon className="h-4 w-4 text-slate-400" aria-hidden />
             {name}
             <span className="tabular-nums">{m.short ?? m.value}</span>
             <span className="text-xs text-slate-500">{m.comparator}</span>
@@ -115,7 +116,7 @@ function MeasureRow({ m, row, visuals, expanded, onToggle }: { m: Measure; row: 
         )}
       </button>
       {expanded ? (
-        <div className="px-4 pb-3 pl-10">
+        <div className="px-4 pb-3">
           <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 py-2 text-xs text-slate-500">
             <b className="text-[15px] font-semibold tabular-nums text-slate-900">{m.short ?? m.value}</b>
             {h ? <Sparkline values={h.values} amber={m.amber} limit={m.limit} status={m.status} label={`${m.name}, last ${h.span}`} /> : <span>History from Q3 2026</span>}
@@ -125,8 +126,7 @@ function MeasureRow({ m, row, visuals, expanded, onToggle }: { m: Measure; row: 
             <span>Risk owner: {m.owner}</span>
           </div>
           <ExceptionTree m={m} />
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            <SourceLine src={{ ids: [m.source.id], note: m.projection ? "projection: 6-month trend" : undefined }} bare />
+          <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
             <button type="button" onClick={(e) => open(`metric:${m.id}`, e.currentTarget)} className={`rounded text-xs font-semibold text-indigo-700 hover:underline ${focus}`}>
               Open {m.name} ›
             </button>
@@ -148,7 +148,7 @@ function DecisionPaper() {
     ...s.proposals.map((p) => ({ key: `pro:${p}`, text: measure(p.replace(/^tuning:/, "")).name, detail: "tuning proposal with the risk owner", tag: "Proposed" })),
   ];
   return (
-    <Card title="Decision paper and agenda" right={<span className="text-xs text-slate-500">This session</span>}>
+    <Card title="Decision paper" right={<span className="text-xs text-slate-500">This session</span>}>
       {items.map((i) => (
         <LineItem key={i.key} text={i.text} detail={i.detail} right={<Pill tone="grey" outline label={i.tag} />} />
       ))}

@@ -67,7 +67,10 @@ export const sourceRef = (id: SourceId): SourceRef => ({ id, cadence: SOURCES[id
 export const PANEL_SOURCES: Record<string, { ids: SourceId[]; note?: string }> = {
   O_SCORECARD: { ids: ["RAS", "LEN", "SAV"] },
   O_POSTURE: { ids: ["RAS"], note: "heading for amber is a projection: 6-month trend" },
-  O_POSTURE_B: { ids: ["RAS"], note: "heading for amber is a projection: 6-month trend" },
+  O_OUTSIDE: { ids: ["RAS"], note: "heading for amber is a projection: 6-month trend" },
+  O_DECISIONS: { ids: ["GOV"] },
+  O_TELL: { ids: ["REG"] },
+  O_OWNERSHIP: { ids: ["RAS", "GOV"] },
   O_CALLS_B: { ids: ["GOV"] },
   O_TOP: { ids: ["RAS", "LEN", "TRE", "FCR", "SEC"], note: "projection: 6-month trend" },
   O_EMERGING: { ids: ["RAS", "FRD", "LEN"], note: "projection: 6-month trend" },

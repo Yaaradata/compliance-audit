@@ -67,7 +67,7 @@ export function useFigures(ids: string[]) {
 /* ── Pills: one vocabulary ───────────────────────────────────────────── */
 
 export function StatusPill({ status }: { status: MeasureStatus }) {
-  return <Pill tone={STATUS_TONE[status]} outline={status === "projected"} label={STATUS_WORD[status]} />;
+  return <Pill tone={STATUS_TONE[status]} heading={status === "projected"} label={STATUS_WORD[status]} />;
 }
 
 export type Verdict = "room_to_grow" | "hold" | "fix_first" | "unverified";
@@ -105,16 +105,6 @@ export function sourceText(src: PanelSource) {
   return `${src.ids.length > 1 ? "Sources: " : "Source: "}${parts.join("; ")}${src.note ? ` · ${src.note}` : ""}`;
 }
 
-/** ⓘ with the source line on hover and focus. */
-export function InfoTip({ src }: { src: PanelSource }) {
-  const text = sourceText(src);
-  return (
-    <span tabIndex={0} title={text} aria-label={text} data-source={src.ids.join(" ")} className={`inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center rounded-full border border-slate-300 text-[10px] font-semibold leading-none text-slate-400 hover:text-slate-600 ${focus}`}>
-      i
-    </span>
-  );
-}
-
 /** "Source: {source} · {cadence} · as at {date}" (11px, muted). */
 export function SourceLine({ src, bare }: { src: PanelSource; bare?: boolean }) {
   const parts = src.ids.map((id) => `${SOURCES[id].name} · ${SOURCES[id].cadence.toLowerCase()} · as at ${SOURCES[id].asAt}`);
@@ -127,46 +117,62 @@ export function SourceLine({ src, bare }: { src: PanelSource; bare?: boolean }) 
   );
 }
 
-/** For sections that are not a single card: renders the section's footer once. */
+/** Per-card source footers are gone (one page line instead); kept as a no-op for section bodies. */
 export function SectionSource() {
-  const src = useContext(SourceCtx);
-  return src && !src.tooltip ? <SourceLine src={src} bare /> : null;
+  return null;
 }
 
 /* ── Page and cards ──────────────────────────────────────────────────── */
 
-export function PageHeader({ title, meta }: { title: string; meta?: string }) {
+const HEAD_BORDER = { red: "border-l-[#B91C1C]", amber: "border-l-[#B45309]", within: "border-l-[#15803D]" } as const;
+
+/** Headline bar: worst status, the main problem, the ask; the status strip on the right where it fits. */
+export function HeadlineBar({ status, line, ask, right }: { status: keyof typeof HEAD_BORDER; line: string; ask?: string; right?: ReactNode }) {
   return (
-    <div className="flex items-end justify-between gap-4">
-      <h1 className="text-[22px] font-semibold leading-7 text-slate-900">{title}</h1>
-      {meta ? <p className="text-xs text-slate-500">{meta}</p> : null}
-    </div>
+    <section data-headline className={`flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-l-4 border-slate-200 bg-white px-4 py-2.5 ${HEAD_BORDER[status]}`}>
+      <div className="min-w-0 flex-1">
+        <h1 className="flex items-center gap-2.5 text-[20px] font-semibold leading-7 text-slate-900">
+          <StatusPill status={status} />
+          <span>{line}</span>
+        </h1>
+        {ask ? <p className="mt-0.5 text-sm leading-5 text-slate-500">{ask}</p> : null}
+      </div>
+      {right}
+    </section>
   );
+}
+
+/** One muted sources line at the bottom of each page. */
+export function PageSources({ text }: { text: string }) {
+  return <p className="pt-1 text-[11px] leading-snug text-slate-400">{text}</p>;
+}
+
+/** Shows the first `n` items and a "+n more" row that expands the rest. */
+export function useCollapse<T>(items: T[], n: number): [T[], ReactNode] {
+  const [all, setAll] = useState(false);
+  if (items.length <= n || all) return [items, null];
+  return [
+    items.slice(0, n),
+    <button key="more" type="button" onClick={() => setAll(true)} className={`flex min-h-8 w-full items-center border-t border-slate-100 px-0 text-left text-[13px] font-semibold text-indigo-700 hover:bg-slate-50 ${focus}`}>
+      +{items.length - n} more
+    </button>,
+  ];
 }
 
 export function Card({ title, right, rail, children, className = "", id, flush }: { title?: string; right?: ReactNode; rail?: Tone; children: ReactNode; className?: string; id?: string; flush?: boolean }) {
   const railCls = rail === "red" || rail === "amber" ? `border-l-[3px] ${RAIL[rail]}` : "";
-  const src = useContext(SourceCtx);
   return (
     <section id={id} className={`flex flex-col rounded-lg border border-slate-200 bg-white ${flush ? "" : "px-4 pb-2.5"} ${railCls} ${className}`}>
       {/* Cards inside a card do not repeat the footer. */}
       <SourceCtx.Provider value={null}>
         {title ? (
           <div className={`flex h-10 items-center justify-between gap-3 ${flush ? "px-4" : ""}`}>
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-              {title}
-              {src?.tooltip ? <InfoTip src={src} /> : null}
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
             {right}
           </div>
         ) : null}
         {children}
       </SourceCtx.Provider>
-      {src && !src.tooltip ? (
-        <div className={`mt-auto ${flush ? "px-4 pb-2.5" : ""} pt-2`}>
-          <SourceLine src={src} />
-        </div>
-      ) : null}
     </section>
   );
 }
@@ -279,11 +285,13 @@ export interface StatRowData {
 
 export function StatList({ title, right, rows, rail, figures = [] }: { title: string; right?: ReactNode; rail?: Tone; rows: StatRowData[]; figures?: string[] }) {
   useFigures(figures);
+  const [shown, more] = useCollapse(rows, 5);
   return (
     <Card title={title} right={right} rail={rail}>
-      {rows.map((r) => (
+      {shown.map((r) => (
         <StatRow key={r.label} {...r} />
       ))}
+      {more}
     </Card>
   );
 }
@@ -310,9 +318,10 @@ export function LineItem({ text, detail, rail, right, onClick }: { text: string;
 
 export function EventList({ title, right, items }: { title: string; right?: ReactNode; items: { date: string; text: string; tag?: string; rail?: Tone; drawer?: string }[] }) {
   const { open } = useDrawer();
+  const [shown, more] = useCollapse(items, 5);
   return (
     <Card title={title} right={right}>
-      {items.map((e) => {
+      {shown.map((e) => {
         const row = (
           <span className={`grid min-h-9 grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 py-1 text-[13px] leading-snug ${rowRail(e.rail)}`}>
             <b className="font-semibold tabular-nums text-slate-900">{e.date}</b>
@@ -328,6 +337,7 @@ export function EventList({ title, right, items }: { title: string; right?: Reac
           <div key={e.text}>{row}</div>
         );
       })}
+      {more}
     </Card>
   );
 }
@@ -335,6 +345,7 @@ export function EventList({ title, right, items }: { title: string; right?: Reac
 /** Generic table inside a card: header row plus rows; numbers right-aligned by column flag. */
 export function Table({ title, right, cols, head, rows, rightCols = [] }: { title: string; right?: ReactNode; cols: string; head: string[]; rows: { key: string; cells: ReactNode[]; rail?: Tone; onClick?: (el: HTMLElement) => void }[]; rightCols?: number[] }) {
   const grid = `grid min-h-9 ${cols} items-center gap-3 px-4 py-1 text-[13px] leading-snug`;
+  const [shown, more] = useCollapse(rows, 8);
   return (
     <Card title={title} flush right={right}>
       <div className={`${grid} !min-h-7 border-t border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}>
@@ -344,7 +355,7 @@ export function Table({ title, right, cols, head, rows, rightCols = [] }: { titl
           </span>
         ))}
       </div>
-      {rows.map((r) => {
+      {shown.map((r) => {
         const rail = r.rail === "red" ? "border-l-red-500" : r.rail === "amber" ? "border-l-amber-500" : "border-l-transparent";
         const inner = (
           <span className={`${grid} !pl-[13px]`}>
@@ -360,11 +371,12 @@ export function Table({ title, right, cols, head, rows, rightCols = [] }: { titl
             {inner}
           </button>
         ) : (
-          <div key={r.key} className={`border-l-[3px] border-t border-t-slate-100 ${rail}`}>
+          <div key={r.key} data-row className={`border-l-[3px] border-t border-t-slate-100 ${rail}`}>
             {inner}
           </div>
         );
       })}
+      {more ? <div className="px-4">{more}</div> : null}
     </Card>
   );
 }

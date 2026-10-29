@@ -6,7 +6,6 @@
  * Unconfirmed is neutral grey with a dashed border, the word and a broken-link icon.
  */
 import { useState, type ReactNode } from "react";
-import { Unlink } from "lucide-react";
 import { DRAFTS } from "@/lib/ukboard/v1/data";
 import type { Status } from "@/lib/ukboard/v1/types";
 import { plain } from "@/lib/ukboard/v2/boardTabs";
@@ -17,10 +16,10 @@ import type { DrawerKey } from "./drawerKeys";
 export type Tone = "red" | "amber" | "green" | "grey";
 
 export const TONE: Record<Tone, { bg: string; border: string; text: string; pill: string; dot: string; rail: string; stroke: string; fill: string }> = {
-  red: { bg: "bg-red-50", border: "border-red-300", text: "text-red-600", pill: "bg-red-600 text-white", dot: "bg-red-500", rail: "border-l-red-500", stroke: "#e11d48", fill: "#fee2e2" },
-  amber: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-700", pill: "bg-amber-500 text-white", dot: "bg-amber-500", rail: "border-l-amber-500", stroke: "#d97706", fill: "#fef3c7" },
-  green: { bg: "bg-emerald-50", border: "border-emerald-300", text: "text-emerald-600", pill: "bg-emerald-600 text-white", dot: "bg-emerald-500", rail: "border-l-emerald-500", stroke: "#059669", fill: "#d1fae5" },
-  grey: { bg: "bg-slate-50", border: "border-dashed border-slate-300", text: "text-slate-600", pill: "border border-slate-400 bg-white text-slate-600", dot: "bg-slate-400", rail: "border-l-slate-400", stroke: "#64748b", fill: "#f1f5f9" },
+  red: { bg: "bg-red-50", border: "border-red-300", text: "text-[#B91C1C]", pill: "bg-[#FEE2E2] text-[#B91C1C]", dot: "bg-red-500", rail: "border-l-red-500", stroke: "#e11d48", fill: "#fee2e2" },
+  amber: { bg: "bg-amber-50", border: "border-amber-300", text: "text-[#B45309]", pill: "bg-[#FEF3C7] text-[#B45309]", dot: "bg-amber-500", rail: "border-l-amber-500", stroke: "#d97706", fill: "#fef3c7" },
+  green: { bg: "bg-emerald-50", border: "border-emerald-300", text: "text-[#15803D]", pill: "bg-[#DCFCE7] text-[#15803D]", dot: "bg-emerald-500", rail: "border-l-emerald-500", stroke: "#059669", fill: "#d1fae5" },
+  grey: { bg: "bg-slate-50", border: "border-dashed border-slate-300", text: "text-[#475569]", pill: "bg-[#F1F5F9] text-[#475569]", dot: "bg-slate-400", rail: "border-l-slate-400", stroke: "#64748b", fill: "#f1f5f9" },
 };
 
 export function toneOf(s: Status | "projected" | "room_to_grow" | "hold" | "fix_first" | "unverified"): Tone {
@@ -34,11 +33,12 @@ export const focus = "focus-visible:outline focus-visible:outline-2 focus-visibl
 export const btn = `inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 ${focus}`;
 export const btnPrimary = `inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 ${focus}`;
 
-export function Pill({ tone, label, outline }: { tone: Tone; label: string; outline?: boolean }) {
-  const cls = tone === "grey" ? TONE.grey.pill : outline ? `border ${TONE[tone].border} bg-white ${TONE[tone].text}` : TONE[tone].pill;
+/** Soft-tint pill: 20px high, 11px semibold caps, 4px radius. `heading` is the dashed heading-for-amber pill. */
+export function Pill({ tone, label, outline, heading }: { tone: Tone; label: string; outline?: boolean; heading?: boolean }) {
+  const cls = heading ? "border border-dashed border-[#F59E0B] bg-white text-[#B45309]" : outline ? `border border-current/30 bg-white ${TONE[tone].text}` : TONE[tone].pill;
   return (
-    <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${cls}`}>
-      {tone === "grey" ? <Unlink className="h-3 w-3" aria-hidden /> : null}
+    <span className={`inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded px-2 text-[11px] font-semibold uppercase tracking-wide ${cls}`}>
+      {heading ? <span aria-hidden>↗</span> : null}
       {label}
     </span>
   );

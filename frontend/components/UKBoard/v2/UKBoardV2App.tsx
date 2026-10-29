@@ -11,16 +11,18 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { METRICS } from "@/lib/ukboard/v2/board";
 import { AGENTS } from "@/lib/ukboard/v2/agentsData";
-import { OWNER_ROLES, PANEL_SOURCES } from "@/lib/ukboard/v2/boardStore";
+import { OWNER_ROLES } from "@/lib/ukboard/v2/boardStore";
+import { headlineOf, PAGE_SOURCES, waitingDraftCount } from "@/lib/ukboard/v2/headlines";
 import { PERSONA_VIEWS, type PersonaId, type TabView } from "@/lib/ukboard/v2/personaViews";
 import BoardDrawer from "./BoardDrawer";
 import { DrawerContext } from "./drawerContext";
 import type { DrawerKey } from "./drawerKeys";
 import { StoreProvider, useStore } from "./store";
 import { installAudit } from "./audit";
-import { FigureRegistry, PageHeader, SourceCtx } from "./present";
+import { FigureRegistry, HeadlineBar, PageSources } from "./present";
 import { renderSection } from "./sections";
 import { focus } from "./ui";
+import { StatusCells } from "./visuals";
 
 const SEARCH_ITEMS: { label: string; hint: string; key: DrawerKey }[] = [
   ...METRICS.map((m) => ({ label: m.name, hint: `Measure · ${m.owner}`, key: `metric:${m.unitId}` })),
@@ -119,19 +121,21 @@ function Header({ onOpen, onPersona }: { onOpen: (k: DrawerKey, el?: HTMLElement
 /** Columns stack below 1280px so tables keep their width at 1024. */
 const SPAN = { 3: "xl:col-span-3", 4: "xl:col-span-4", 5: "xl:col-span-5", 6: "xl:col-span-6", 7: "xl:col-span-7", 8: "xl:col-span-8", 12: "xl:col-span-12" } as const;
 
+/** A stretched card shares its spare height across its list rows, so cards in a row end level with no empty space. */
+const STRETCH = "flex flex-1 flex-col [&>section]:flex-1 [&>section>button]:flex [&>section>button]:flex-1 [&>section>button>span:only-child]:w-full [&>section>span]:flex-1 [&>section>div[data-row]]:flex [&>section>div[data-row]]:flex-1 [&>section>div[data-row]>span:only-child]:w-full";
+
 function TabBody({ tab }: { tab: TabView }) {
   const compact = !!tab.compact;
   return (
     <div className={compact ? "space-y-3" : "space-y-4"}>
       {tab.layout.map((row, i) => (
-        <div key={i} className={`grid grid-cols-1 xl:grid-cols-12 ${compact ? "items-start gap-3" : "items-stretch gap-x-6 gap-y-4"}`}>
+        <div key={i} className={`grid grid-cols-1 items-stretch xl:grid-cols-12 ${compact ? "gap-3" : "gap-x-6 gap-y-4"}`}>
           {row.cols.map((c, j) => (
             <div key={j} className={`flex min-w-0 flex-col ${compact ? "gap-3" : "gap-4"} ${SPAN[c.span]}`}>
               {c.sections.map((id, k) => (
-                // The last section in a column stretches, so cards in a row end level (not on compact tabs).
-                <div key={id} data-section={id} className={!compact && k === c.sections.length - 1 ? "flex flex-1 flex-col [&>section]:flex-1" : undefined}>
-                  {/* Every panel names its feed; the card inside renders the footer, or the ⓘ on compact tabs. */}
-                  <SourceCtx.Provider value={PANEL_SOURCES[id] ? { ...PANEL_SOURCES[id], tooltip: compact } : null}>{renderSection(id)}</SourceCtx.Provider>
+                // The last section in a column stretches, so cards in a row end level (every section on compact tabs).
+                <div key={id} data-section={id} className={compact || k === c.sections.length - 1 ? STRETCH : undefined}>
+                  {renderSection(id)}
                 </div>
               ))}
             </div>
@@ -158,6 +162,7 @@ function Page() {
   const { dispatch } = useStore();
   const view = PERSONA_VIEWS[state.persona];
   const tab = view.tabs.find((t) => t.id === state.tab) ?? view.tabs[0];
+  const headline = headlineOf(state.persona, tab.id, waitingDraftCount(state.session.drafts));
   useEffect(() => {
     if (process.env.NODE_ENV === "development") installAudit(dispatch);
   }, [dispatch]);
@@ -173,11 +178,12 @@ function Page() {
     <DrawerContext.Provider value={api}>
       <div className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
         <Header onOpen={open} onPersona={onPersona} />
-        <main key={`${state.persona}-${tab.id}-${state.epoch}`} className="mx-auto max-w-[1440px] space-y-4 px-6 py-4">
-          <PageHeader title={tab.title} meta={tab.meta} />
+        <main key={`${state.persona}-${tab.id}-${state.epoch}`} className={`mx-auto max-w-[1440px] px-6 py-4 ${tab.compact ? "space-y-3" : "space-y-4"}`}>
+          {headline ? <HeadlineBar status={headline.status} line={headline.line} ask={headline.ask} right={<StatusCells />} /> : null}
           <FigureRegistry tab={`${state.persona}-${tab.id}`}>
             <TabBody tab={tab} />
           </FigureRegistry>
+          <PageSources text={PAGE_SOURCES} />
         </main>
         {key ? <BoardDrawer key={`${key}-${state.persona}`} drawerKey={key} onClose={close} /> : null}
       </div>

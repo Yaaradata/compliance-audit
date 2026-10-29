@@ -155,7 +155,6 @@ export function TensionList({ title = "Tensions" }: { title?: string }) {
         <button key={t.id} type="button" onClick={(e) => open(`metric:${t.measureId}`, e.currentTarget)} className={`flex min-h-9 w-full items-center justify-between gap-3 border-t border-slate-100 py-1 text-left text-[13px] hover:bg-slate-50 ${focus}`}>
           <span className="min-w-0 leading-snug text-slate-800">
             {t.a} <span className="text-slate-400">vs</span> {t.b}
-            <span className="block text-xs text-slate-500">{t.note}</span>
           </span>
           <Pill tone={TENSION[t.state][0]} outline={t.state !== "floor"} label={TENSION[t.state][1]} />
         </button>
