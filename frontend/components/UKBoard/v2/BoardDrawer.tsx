@@ -3,7 +3,7 @@
 /**
  * UK Board v2 — DetailDrawer.
  * Board measure (metric:<id>): header (name · risk owner · status · attestation) → risk appetite
- * statement → band dial with value, amber trigger, appetite limit and time to threshold → stance
+ * statement → measure visual with value, amber trigger, appetite limit and time to threshold → stance
  * (Tighten · Hold · Loosen) → Level 2 metrics and Level 3 controls (exception tree, with linkage) →
  * one trend chart → Evidence (collapsed) → History (collapsed).
  * Every other drawer: header → Position (stat list + at most one trend chart) → Level 2 metrics →
@@ -32,7 +32,8 @@ import {
 } from "@/lib/ukboard/v2/boardStore";
 import { EVENT_PLAIN, FRANCHISES, plain, ROUTE_PLAIN } from "@/lib/ukboard/v2/boardTabs";
 import LineChart from "./LineChart";
-import { AttestationButton, BandDial, ExceptionTree, StanceControl } from "./appetite";
+import { AttestationButton, ExceptionTree } from "./appetite";
+import { MeasureVisual, StanceLine } from "./visuals";
 import { AttestPill, DeltaMark, StatRow, StatusPill, VerdictPill } from "./present";
 import { useStore } from "./store";
 import { AuditList, btnPrimary, DraftCard, focus } from "./ui";
@@ -337,7 +338,7 @@ function TrendChart({ chart }: { chart: Chart }) {
 
 const SUB = "text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 
-/** Board measure drawer body: statement → dial → stance → exception tree → trend → evidence → history. */
+/** Board measure drawer body: statement → measure visual → stance → exception tree → trend → evidence → history. */
 function MetricBody({ m }: { m: Measure }) {
   const chart = trendFor(m.id);
   return (
@@ -346,17 +347,23 @@ function MetricBody({ m }: { m: Measure }) {
         <p className={SUB}>Risk appetite statement</p>
         <p className="mt-1 text-sm text-slate-900">{m.statement}</p>
       </section>
-      <section className="flex items-center gap-4 border-b border-slate-100 py-3">
-        <BandDial m={m} chart />
-        <div className="min-w-0 flex-1">
-          {positionFor(m).map((r) => (
-            <StatRow key={r.label} label={r.label} value={r.value} comparator={r.comparator} right={r.label === "Value" ? <DeltaMark d={m.delta} /> : undefined} />
-          ))}
+      <section className="border-b border-slate-100 py-3">
+        <div className="flex flex-wrap items-center gap-3 pb-2" data-chart="measure-visual">
+          <MeasureVisual m={m} />
+          <DeltaMark d={m.delta} />
+        </div>
+        <div className="min-w-0">
+          {/* The visual prints the value; the rows carry the thresholds only. */}
+          {positionFor(m)
+            .filter((r) => r.label !== "Value")
+            .map((r) => (
+              <StatRow key={r.label} label={r.label} value={r.value} comparator={r.comparator} />
+            ))}
         </div>
       </section>
       <section className="border-b border-slate-100 py-3">
         <p className={`pb-2 ${SUB}`}>Appetite stance</p>
-        <StanceControl m={m} />
+        <StanceLine m={m} />
       </section>
       <section className="border-b border-slate-100 py-3">
         <ExceptionTree m={m} />

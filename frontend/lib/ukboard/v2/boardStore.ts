@@ -33,6 +33,8 @@ export type Tier = "top" | "emerging" | "obligatory";
 export type ObjId = "O1" | "O2" | "O3" | "O4";
 export type Stance = "tighten" | "hold" | "loosen" | "new";
 export type AttestState = "attested" | "due" | "unconfirmed";
+/** One visual form per kind of fact (§3): every measure renders through this switch. */
+export type VisualKind = "bullet" | "pips" | "pipsStatus" | "zero" | "unconfirmed";
 
 export interface Delta {
   value: number;
@@ -88,6 +90,10 @@ export interface Measure {
   linkage: { tested: string; result: "linked" | "gap"; note?: string };
   attest: { state: AttestState; date?: string };
   isNew?: boolean;
+  /** How the measure is drawn: bullet bar, pip row, zero counter or unconfirmed placeholder. */
+  visualKind: VisualKind;
+  /** Natural scale for a bullet bar (no normalising). */
+  scale?: [number, number];
 }
 
 /* ── The 12 board measures ───────────────────────────────────────────── */
@@ -102,6 +108,7 @@ const LINKED = { tested: "30 Sep", result: "linked" as const };
 export const MEASURES: Measure[] = [
   {
     id: "u-growth",
+    visualKind: "bullet", scale: [50, 100],
     num: 1,
     name: "Lending growth vs plan",
     tier: "top",
@@ -132,6 +139,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-hltv",
+    visualKind: "bullet", scale: [10, 25],
     num: 2,
     name: "High-LTV share of new lending",
     tier: "top",
@@ -163,6 +171,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-lcr",
+    visualKind: "bullet", scale: [100, 200],
     num: 3,
     name: "Liquidity coverage (LCR)",
     tier: "top",
@@ -194,6 +203,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-cet1",
+    visualKind: "bullet", scale: [10, 20],
     num: 4,
     name: "CET1 ratio",
     tier: "top",
@@ -223,6 +233,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-capacity",
+    visualKind: "bullet", scale: [0, 28],
     num: 5,
     name: "Alert queue age",
     tier: "top",
@@ -253,6 +264,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-secfind",
+    visualKind: "pips",
     num: 6,
     name: "Critical security findings open over 30 days",
     tier: "top",
@@ -285,6 +297,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-detect",
+    visualKind: "bullet", scale: [0, 40],
     num: 7,
     name: "Time to detect a coordinated automated attack",
     tier: "emerging",
@@ -317,6 +330,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-climate",
+    visualKind: "bullet", scale: [0, 12],
     num: 8,
     name: "Lending to least-efficient homes (EPC F–G)",
     tier: "emerging",
@@ -345,6 +359,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-restriction",
+    visualKind: "zero",
     num: 9,
     name: "Customer restriction breaches",
     tier: "obligatory",
@@ -371,6 +386,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-screening",
+    visualKind: "unconfirmed",
     num: 10,
     name: "Monitoring and sanctions screening coverage",
     tier: "obligatory",
@@ -395,6 +411,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-cd",
+    visualKind: "pipsStatus",
     num: 11,
     name: "Consumer Duty outcomes",
     tier: "obligatory",
@@ -420,6 +437,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-notify",
+    visualKind: "pipsStatus",
     num: 12,
     name: "Regulatory notifications on time",
     tier: "obligatory",
@@ -887,8 +905,27 @@ export function timeToThreshold(m: Measure): string {
 
 /* ── Consistency checks ──────────────────────────────────────────────── */
 
+/** Plan-pace marker for the lending-growth bullet bar (share of plan that should be lent by now). */
+export const planPacePct = () => Math.round(FIG.mortgages.pace * 100);
+
+/** Categorical pips for "n of m" measures: Consumer Duty outcomes and reporting routes. */
+export type PipStatus = "within" | "amber" | "red" | "decided" | "pending" | "open";
+export function pipsOf(m: Measure): { items: { label: string; status: PipStatus }[]; label: string } {
+  if (m.id === "u-cd") {
+    const items = FIG.outcomes.map((o) => ({ label: o.name, status: (o.status === "amber" ? "amber" : "within") as PipStatus }));
+    return { items, label: `${items.filter((i) => i.status === "amber").length} of ${items.length} amber` };
+  }
+  const items = ROUTES.map((r) => ({ label: r.name, status: (r.status === "decided" ? "decided" : r.status === "undecided" ? "pending" : "open") as PipStatus }));
+  return { items, label: `${items.filter((i) => i.status === "decided").length} of ${items.length} decided` };
+}
+
 export function validateBoardStore(): string[] {
   const errs: string[] = [];
+  const kinds: Record<string, VisualKind> = { "u-growth": "bullet", "u-hltv": "bullet", "u-lcr": "bullet", "u-cet1": "bullet", "u-capacity": "bullet", "u-secfind": "pips", "u-detect": "bullet", "u-climate": "bullet", "u-restriction": "zero", "u-screening": "unconfirmed", "u-cd": "pipsStatus", "u-notify": "pipsStatus" };
+  for (const m of MEASURES) {
+    if (m.visualKind !== kinds[m.id]) errs.push(`${m.id} visualKind ${m.visualKind}, expected ${kinds[m.id]}`);
+    if (m.visualKind === "bullet" && !(m.scale && m.actual !== undefined && m.amber !== undefined && m.limit !== undefined)) errs.push(`${m.id} bullet needs scale, actual, amber and limit`);
+  }
   const c = postureCounts();
   if (MEASURES.length !== 12) errs.push(`expected 12 measures, found ${MEASURES.length}`);
   if (new Set(MEASURES.map((m) => m.id)).size !== 12) errs.push("duplicate measure id");

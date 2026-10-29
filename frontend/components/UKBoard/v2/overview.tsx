@@ -3,7 +3,7 @@
 /**
  * UK Board v2 — Board member Overview (§5.1): posture, the three risk tiers, board calls, reportable
  * events, tensions, accountability and what changed since the last board. At most 300 words; the
- * BandDial in the tier map is the only chart. Figures come from lib/ukboard/v2/boardStore.ts.
+ * Tier rows are text (value · pill); no measure visuals here. Figures come from lib/ukboard/v2/boardStore.ts.
  */
 import {
   attestationThisMonth,

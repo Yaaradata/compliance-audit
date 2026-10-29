@@ -9,26 +9,26 @@
 import { Fragment, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { measure, measuresByTier, REPORTABLE_EVENTS, TIER_INFO, type Measure } from "@/lib/ukboard/v2/boardStore";
-import { BandDial, ExceptionTree, RollupChip } from "./appetite";
+import { ExceptionTree, RollupChip } from "./appetite";
+import { MeasureVisual } from "./visuals";
 import { useDrawer } from "./drawerContext";
 import { Card, LineItem, StatusPill, useFigures } from "./present";
 import { useStore } from "./store";
 import { focus, Pill } from "./ui";
 
-function TierRollup({ dial }: { dial?: boolean }) {
+function TierRollup({ visuals }: { visuals?: boolean }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const groups = measuresByTier();
   useFigures([...groups.flatMap((g) => g.rows.map((m) => `m:${m.id}`))]);
-  const cols = dial ? "grid-cols-[20px_64px_minmax(200px,1.6fr)_minmax(110px,0.9fr)_150px_minmax(140px,1fr)_124px]" : "grid-cols-[20px_minmax(200px,1.6fr)_minmax(110px,0.9fr)_150px_minmax(140px,1fr)_124px]";
+  const cols = visuals ? "grid-cols-[20px_minmax(200px,1.6fr)_216px_150px_minmax(140px,1fr)_124px]" : "grid-cols-[20px_minmax(200px,1.6fr)_minmax(110px,0.9fr)_150px_minmax(140px,1fr)_124px]";
   const row = `grid min-h-10 ${cols} items-center gap-3 px-4 py-1 text-[13px] leading-snug`;
   return (
     <Card title="Risk tiers and roll-up" flush right={<span className="text-xs text-slate-500">Open a measure for its Level 2 metrics and Level 3 controls</span>}>
-      <div {...(dial ? { "data-chart": "band-dial" } : {})}>
+      <div {...(visuals ? { "data-chart": "measure-visuals" } : {})}>
         <div className={`${row} !min-h-7 border-t border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}>
           <span />
-          {dial ? <span>Appetite</span> : null}
           <span>Board measure</span>
-          <span>Value</span>
+          <span>{visuals ? "Position" : "Value"}</span>
           <span>Below</span>
           <span>Risk owner</span>
           <span className="text-right">Status</span>
@@ -39,7 +39,7 @@ function TierRollup({ dial }: { dial?: boolean }) {
               {TIER_INFO[g.tier].label} <span className="font-normal normal-case tracking-normal">· {TIER_INFO[g.tier].meaning}</span>
             </p>
             {g.rows.map((m) => (
-              <TierRow key={m.id} m={m} row={row} dial={dial} expanded={openId === m.id} onToggle={() => setOpenId(openId === m.id ? null : m.id)} />
+              <TierRow key={m.id} m={m} row={row} visuals={visuals} expanded={openId === m.id} onToggle={() => setOpenId(openId === m.id ? null : m.id)} />
             ))}
           </Fragment>
         ))}
@@ -48,7 +48,7 @@ function TierRollup({ dial }: { dial?: boolean }) {
   );
 }
 
-function TierRow({ m, row, dial, expanded, onToggle }: { m: Measure; row: string; dial?: boolean; expanded: boolean; onToggle: () => void }) {
+function TierRow({ m, row, visuals, expanded, onToggle }: { m: Measure; row: string; visuals?: boolean; expanded: boolean; onToggle: () => void }) {
   const { open } = useDrawer();
   const rail = m.status === "red" ? "border-l-red-500" : m.status === "amber" ? "border-l-amber-500" : "border-l-transparent";
   const Icon = expanded ? ChevronDown : ChevronRight;
@@ -57,9 +57,8 @@ function TierRow({ m, row, dial, expanded, onToggle }: { m: Measure; row: string
       <button type="button" aria-expanded={expanded} onClick={onToggle} className={`block w-full text-left hover:bg-slate-50 ${focus}`}>
         <span className={`${row} !pl-[13px]`}>
           <Icon className="h-4 w-4 text-slate-400" aria-hidden />
-          {dial ? <BandDial m={m} size={56} /> : null}
           <span className={m.status === "within" ? "text-slate-600" : "font-semibold text-slate-900"}>{m.name}</span>
-          <span className="tabular-nums">{m.short ?? m.value}</span>
+          {visuals ? <MeasureVisual m={m} width={100} /> : <span className="tabular-nums">{m.short ?? m.value}</span>}
           <RollupChip m={m} />
           <span className="text-xs text-slate-500">{m.owner}</span>
           <span className="justify-self-end">
@@ -101,6 +100,6 @@ function DecisionPaper() {
 
 export const PERSONA_SECTIONS = {
   P_TIERS: () => <TierRollup />,
-  P_TIERS_DIAL: () => <TierRollup dial />,
+  P_TIERS_DIAL: () => <TierRollup visuals />,
   P_PAPER: DecisionPaper,
 };

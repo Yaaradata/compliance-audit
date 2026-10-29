@@ -2,10 +2,10 @@
 
 /**
  * UK Board v2 — risk appetite components (Top · Emerging · Obligatory).
- * StrategyStrip · TierMap · BandDial · RollupChip · ExceptionTree · StanceControl · TensionList ·
+ * StrategyStrip · TierMap · RollupChip · ExceptionTree · TensionList ·
  * ReportableTable · LineOfSightTable · AttestationButton.
- * BandDial is the one appetite visual. Nothing here changes a live limit or notifies a regulator:
- * stance goes to the decision paper, escalation drafts a note to the named decider.
+ * Measure visuals live in visuals.tsx. Nothing here changes a live limit or notifies a regulator:
+ * escalation drafts a note to the named decider.
  */
 import { useState } from "react";
 import { X } from "lucide-react";
@@ -19,7 +19,6 @@ import {
   OBJ_WORD,
   OBJECTIVE_LIST,
   objectiveStatus,
-  position,
   REPORTABLE_EVENTS,
   rollupOf,
   TENSION_LIST,
@@ -27,14 +26,13 @@ import {
   type Measure,
   type ObjId,
   type ObjStatus,
-  type Stance,
   type TensionState,
   type Tier,
 } from "@/lib/ukboard/v2/boardStore";
 import { useDrawer } from "./drawerContext";
 import { AttestPill, Card, StatusPill, Table, useFigures } from "./present";
 import { useStore } from "./store";
-import { AiTag, btn, btnPrimary, focus, Pill, TONE, type Tone } from "./ui";
+import { btn, focus, Pill, type Tone } from "./ui";
 
 /* ── Objective filter ────────────────────────────────────────────────── */
 
@@ -66,7 +64,7 @@ export function StrategyStrip() {
           >
             <b className="font-semibold text-slate-500">{o.id}</b>
             <span className="text-slate-800">{o.short}</span>
-            <Pill tone={OBJ_TONE[st]} outline={st === "on_track"} label={OBJ_WORD[st]} />
+            <Pill tone={OBJ_TONE[st]} label={OBJ_WORD[st]} />
           </button>
         );
       })}
@@ -76,64 +74,6 @@ export function StrategyStrip() {
         </button>
       ) : null}
     </section>
-  );
-}
-
-/* ── BandDial ────────────────────────────────────────────────────────── */
-
-const SCALE = 120;
-const R = 40;
-/** Point on the upper semicircle for a share of appetite used (0 left, SCALE right). */
-const pt = (v: number, r = R) => {
-  const a = Math.PI * (1 - Math.min(Math.max(v, 0), SCALE) / SCALE);
-  // Rounded so server and client render identical SVG attributes (no hydration mismatch).
-  return [Math.round((48 + r * Math.cos(a)) * 10) / 10, Math.round((48 - r * Math.sin(a)) * 10) / 10] as const;
-};
-const arc = (from: number, to: number) => {
-  const [x1, y1] = pt(from);
-  const [x2, y2] = pt(to);
-  return `M ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2}`;
-};
-
-/**
- * The one appetite visual: a 96px half-dial on one scale (share of appetite used; further right is
- * worse). Grey up to the amber trigger, amber to the appetite limit, red beyond; the needle is the
- * current value. Unconfirmed shows a dashed arc and no needle.
- */
-export function BandDial({ m, size = 96, chart }: { m: Measure; size?: number; chart?: boolean }) {
-  const p = position(m);
-  const unconfirmed = m.status === "unconfirmed";
-  const amber = p.amber ?? (m.direction === "status" ? 0 : undefined);
-  const label = unconfirmed ? `${m.name}: unconfirmed, no position` : p.actual === undefined ? `${m.name}: ${m.value}` : `${m.name}: ${Math.round(p.actual)} per cent of appetite used`;
-  return (
-    <svg {...(chart ? { "data-chart": "band-dial" } : {})} width={size} height={Math.round(size * 0.56)} viewBox="0 0 96 54" role="img" aria-label={label} className="shrink-0">
-      {unconfirmed ? (
-        <path d={arc(0, SCALE)} fill="none" stroke={TONE.grey.stroke} strokeWidth={6} strokeDasharray="3 3" />
-      ) : (
-        <>
-          <path d={arc(0, amber ?? p.limit)} fill="none" stroke="#e2e8f0" strokeWidth={6} />
-          {amber !== undefined && amber < p.limit ? <path d={arc(amber, p.limit)} fill="none" stroke={TONE.amber.fill} strokeWidth={6} /> : null}
-          <path d={arc(p.limit, SCALE)} fill="none" stroke={TONE.red.fill} strokeWidth={6} />
-          {amber !== undefined && amber > 0 ? <Tick v={amber} c={TONE.amber.stroke} /> : null}
-          <Tick v={p.limit} c={TONE.red.stroke} />
-          {p.actual !== undefined ? <Needle v={p.actual} muted={m.status === "within"} /> : null}
-        </>
-      )}
-    </svg>
-  );
-}
-function Tick({ v, c }: { v: number; c: string }) {
-  const [x1, y1] = pt(v, R - 6);
-  const [x2, y2] = pt(v, R + 5);
-  return <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={c} strokeWidth={1.5} />;
-}
-function Needle({ v, muted }: { v: number; muted: boolean }) {
-  const [x, y] = pt(v, R - 4);
-  return (
-    <>
-      <line x1={48} y1={48} x2={x} y2={y} stroke={muted ? "#94a3b8" : "#0f172a"} strokeWidth={2} strokeLinecap="round" />
-      <circle cx={48} cy={48} r={2.5} fill={muted ? "#94a3b8" : "#0f172a"} />
-    </>
   );
 }
 
@@ -147,7 +87,7 @@ export function TierMap() {
   const linked = new Set(useFilteredMeasures().map((m) => m.id));
   useFigures(MEASURES.map((m) => `m:${m.id}`));
   return (
-    <div data-chart="band-dial" className="grid gap-3 xl:grid-cols-12">
+    <div className="grid gap-3 xl:grid-cols-12">
       {measuresByTier().map((g) => (
         <Card key={g.tier} title={TIER_INFO[g.tier].label} right={<span className="text-xs text-slate-500">{TIER_INFO[g.tier].meaning}</span>} className={TIER_SPAN[g.tier]}>
           {g.rows.map((m) => (
@@ -157,8 +97,8 @@ export function TierMap() {
               onClick={(e) => open(`metric:${m.id}`, e.currentTarget)}
               className={`flex min-h-10 w-full items-center gap-2.5 border-t border-slate-100 py-1 text-left text-[13px] hover:bg-slate-50 ${linked.has(m.id) ? "" : "opacity-40"} ${focus}`}
             >
-              <BandDial m={m} size={44} />
               <span className={`min-w-0 flex-1 leading-snug ${m.status === "within" ? "text-slate-600" : "font-semibold text-slate-900"}`}>{m.name}</span>
+              <span className="whitespace-nowrap tabular-nums text-slate-900">{m.short ?? m.value}</span>
               <StatusPill status={m.status} />
             </button>
           ))}
@@ -232,56 +172,6 @@ export function ExceptionTree({ m }: { m: Measure }) {
           <StatusPill status="red" />
         </div>
       ))}
-    </div>
-  );
-}
-
-/* ── StanceControl ───────────────────────────────────────────────────── */
-
-const STANCES: { id: Exclude<Stance, "new">; label: string }[] = [
-  { id: "tighten", label: "Tighten" },
-  { id: "hold", label: "Hold" },
-  { id: "loosen", label: "Loosen" },
-];
-
-/** Tighten · Hold · Loosen. Adds a stance to the decision paper; the band itself never changes here. */
-export function StanceControl({ m }: { m: Measure }) {
-  const { state, dispatch } = useStore();
-  const proposed = m.proposal && m.proposal.stance !== "set" ? m.proposal.stance : undefined;
-  const [pick, setPick] = useState<Exclude<Stance, "new">>(proposed ?? (m.stance === "new" ? "hold" : m.stance));
-  const item = `stance:${m.id}`;
-  const added = state.session.paper.includes(item);
-  return (
-    <div className="space-y-2 text-[13px]">
-      <div className="flex flex-wrap items-center gap-2">
-        <div role="radiogroup" aria-label="Appetite stance" className="inline-flex overflow-hidden rounded-lg border border-slate-300">
-          {STANCES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              role="radio"
-              aria-checked={pick === s.id}
-              disabled={added}
-              onClick={() => setPick(s.id)}
-              className={`px-3 py-1.5 text-xs font-semibold ${pick === s.id ? "bg-slate-900 text-white" : "bg-white text-slate-700 hover:bg-slate-50"} border-l border-slate-300 first:border-l-0 disabled:cursor-not-allowed ${focus}`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-        <button type="button" disabled={added} onClick={() => dispatch({ type: "ADD_TO_PAPER", item })} className={added ? btn : btnPrimary}>
-          {added ? "Added to decision paper" : "Add to decision paper"}
-        </button>
-      </div>
-      <p className="text-xs text-slate-500">Current stance: {m.stance === "new" ? "New measure, appetite to set" : STANCES.find((s) => s.id === m.stance)?.label}</p>
-      {m.proposal ? (
-        <p className="flex flex-wrap items-center gap-1.5 text-xs text-slate-700">
-          {m.proposal.ai ? <AiTag label="Proposed" /> : null}
-          <span>
-            {m.proposal.text} · {m.proposal.proposer}
-          </span>
-        </p>
-      ) : null}
     </div>
   );
 }

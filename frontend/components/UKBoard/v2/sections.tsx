@@ -1300,7 +1300,6 @@ const SECTIONS: Record<string, () => ReactNode> = {
   DECISION_LOG: DecisionLog,
   EXCEPTIONS: Exceptions,
   MEASURES_FULL: () => <MeasureTable title="Board measures" variant="full" />,
-  MEASURES_FULL_BAR: () => <MeasureTable title="Board measures" variant="full" inlineBar />,
   B_TILES: BusinessTiles,
   B_DECISIONS_REQ: DecisionsRequired,
   B_KEY_DATES: KeyDates,

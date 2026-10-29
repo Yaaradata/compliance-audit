@@ -2,9 +2,9 @@
 
 /**
  * UK Board v2 — Board member Top risks and Emerging risks.
- * Top risks: the six top-tier board measures with the BandDial inline, credit quality, liquidity and
+ * Top risks: the six top-tier board measures, credit quality, liquidity and
  * capital, cyber exercises, the alert-queue capacity chart (the only line chart on the tab) and the
- * financial crime Level 2 metrics. Emerging risks: measures #7 and #8 (no BandDial), the
+ * financial crime Level 2 metrics. Emerging risks: measures #7 and #8, the
  * detection-time chart with amber trigger and appetite limit lines, attack signals ✦, the
  * not-yet-measured register and the regulatory horizon.
  * Every figure comes from lib/ukboard/v2/boardStore.ts. Nothing here changes a limit or notifies
@@ -28,7 +28,7 @@ import {
   type MeasureStatus,
   type Tier,
 } from "@/lib/ukboard/v2/boardStore";
-import { BandDial, RollupChip, useFilteredMeasures } from "./appetite";
+import { RollupChip, useFilteredMeasures } from "./appetite";
 import { useDrawer } from "./drawerContext";
 import LineChart from "./LineChart";
 import { Card, ChartCard, rowRail, StatRow, StatusPill, Table, useFigures } from "./present";
@@ -57,13 +57,13 @@ function TopRiskTable() {
   const rows = useTier("top");
   useFigures(rows.map((m) => `m:${m.id}`));
   return (
-    <div data-chart="band-dial">
+    <div>
       <Table
         title="Top risks"
         right={<span className="text-xs text-slate-500">{`${rows.length} board measures · tight bands`}</span>}
-        cols="grid-cols-[minmax(140px,1.5fr)_64px_minmax(80px,0.9fr)_64px_64px_minmax(88px,0.9fr)_124px_minmax(96px,1fr)_112px]"
-        head={["Board measure", "Appetite", "Value", "Amber trigger", "Appetite limit", "To threshold", "Below", "Risk owner", "Status"]}
-        rightCols={[3, 4, 8]}
+        cols="grid-cols-[minmax(140px,1.5fr)_minmax(80px,0.9fr)_64px_64px_minmax(88px,0.9fr)_124px_minmax(96px,1fr)_112px]"
+        head={["Board measure", "Value", "Amber trigger", "Appetite limit", "To threshold", "Below", "Risk owner", "Status"]}
+        rightCols={[2, 3, 7]}
         rows={rows.map((m) => {
           const t = thresholdCells(m);
           return {
@@ -72,7 +72,6 @@ function TopRiskTable() {
             onClick: (el: HTMLElement) => open(`metric:${m.id}`, el),
             cells: [
               <MeasureName key="n" m={m} />,
-              <BandDial key="d" m={m} size={60} />,
               <span key="v" className="tabular-nums text-slate-900">{m.short ?? m.value}</span>,
               <span key="a" className="text-xs">{t.amber}</span>,
               <span key="l" className="text-xs">{t.limit}</span>,

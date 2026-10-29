@@ -13,7 +13,6 @@ import {
   deltaText,
   measuresByTier,
   MEASURES,
-  position,
   postureCounts,
   STATUS_WORD,
   thresholdCells,
@@ -323,26 +322,7 @@ export const OWNER_SHORT: Record<string, string> = {
   "Chief Financial Officer": "Finance",
   "Chief Operating Officer": "Operations",
 };
-const BAR_SCALE = 120;
-const at = (v: number) => `${(Math.min(v, BAR_SCALE) / BAR_SCALE) * 100}%`;
-
-/** 80px inline appetite bar (one scale: share of appetite used; further right is worse). */
-function AppetiteBar({ m }: { m: Measure }) {
-  const p = position(m);
-  if (m.status === "unconfirmed") return <span className="block h-2 w-20 rounded-full border border-dashed border-slate-400" aria-label="Unconfirmed: no position" />;
-  if (m.direction === "status" && m.id !== "u-restriction") return <span className="block w-20 text-xs text-slate-400">—</span>;
-  const muted = m.status === "within";
-  return (
-    <span className="relative block h-3 w-20" role="img" aria-label={`${Math.round(p.actual ?? 0)} per cent of appetite used`}>
-      <span className={`absolute inset-x-0 top-1 h-1 rounded-full ${muted ? "bg-slate-100" : "bg-slate-200"}`} />
-      {p.amber !== undefined ? <span className="absolute -top-0.5 h-4 w-px bg-amber-500" style={{ left: at(p.amber) }} /> : null}
-      <span className="absolute -top-0.5 h-4 w-px bg-red-500" style={{ left: at(p.limit) }} />
-      {p.actual !== undefined ? <span className={`absolute top-0 h-3 w-1.5 -translate-x-1/2 rounded-sm ${muted ? "bg-slate-400" : "bg-slate-900"}`} style={{ left: at(p.actual) }} /> : null}
-    </span>
-  );
-}
-
-export function MeasureTable({ title, variant, inlineBar, onWithin }: { title: string; variant: "exceptions" | "full"; inlineBar?: boolean; onWithin?: () => void }) {
+export function MeasureTable({ title, variant, onWithin }: { title: string; variant: "exceptions" | "full"; onWithin?: () => void }) {
   const { open } = useDrawer();
   const groups = measuresByTier()
     .map((g) => ({ ...g, rows: variant === "exceptions" ? g.rows.filter((m) => m.status !== "within") : g.rows }))
@@ -352,13 +332,13 @@ export function MeasureTable({ title, variant, inlineBar, onWithin }: { title: s
   const within = MEASURES.filter((m) => m.status === "within").length;
   const full = variant === "full";
   const cols = full
-    ? `grid min-h-9 ${inlineBar ? "grid-cols-[minmax(130px,1.3fr)_84px_minmax(110px,1.2fr)_56px_64px_minmax(100px,1fr)_64px_96px_minmax(84px,0.8fr)_110px]" : "grid-cols-[minmax(130px,1.3fr)_minmax(120px,1.3fr)_56px_64px_minmax(100px,1fr)_64px_96px_minmax(84px,0.8fr)_120px]"} items-center gap-3 px-4 py-1 text-[13px] leading-snug`
+    ? `grid min-h-9 grid-cols-[minmax(130px,1.3fr)_minmax(120px,1.3fr)_56px_64px_minmax(100px,1fr)_64px_96px_minmax(84px,0.8fr)_120px] items-center gap-3 px-4 py-1 text-[13px] leading-snug`
     : "grid min-h-9 grid-cols-[minmax(140px,1.3fr)_minmax(120px,1.2fr)_minmax(100px,1fr)_64px_minmax(90px,0.8fr)_120px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
-  const head = full ? ["Measure", ...(inlineBar ? ["Appetite"] : []), "Value", "Amber trigger", "Appetite limit", "To threshold", "vs Q2", "Type", "Risk owner", "Status"] : ["Measure", "Value", "Threshold", "vs Q2", "Risk owner", "Status"];
+  const head = full ? ["Measure", "Value", "Amber trigger", "Appetite limit", "To threshold", "vs Q2", "Type", "Risk owner", "Status"] : ["Measure", "Value", "Threshold", "vs Q2", "Risk owner", "Status"];
   const rightHead = new Set(["Amber trigger", "Appetite limit", "vs Q2", "Status"]);
   return (
     <Card title={title} flush right={full ? <span className="text-xs text-slate-500">{`${MEASURES.length} measures`}</span> : undefined}>
-      <div {...(inlineBar ? { "data-chart": "appetite-bar" } : {})}>
+      <div>
         <div className={`${cols} !min-h-7 border-t border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}>
           {head.map((h) => (
             <span key={h} className={rightHead.has(h) ? "text-right" : ""}>
@@ -377,8 +357,7 @@ export function MeasureTable({ title, variant, inlineBar, onWithin }: { title: s
                 <button key={m.id} type="button" onClick={(e) => open(`metric:${m.id}`, e.currentTarget)} className={`block w-full border-l-[3px] border-t border-t-slate-100 text-left hover:bg-slate-50 ${rail} ${focus}`}>
                   <span className={`${cols} !pl-[13px] ${muted ? "text-slate-500" : "text-slate-900"}`}>
                     <span className={muted ? "" : "font-semibold"}>{m.name}</span>
-                    {full && inlineBar ? <AppetiteBar m={m} /> : null}
-                    <span className="tabular-nums">{m.short ?? m.value}</span>
+                                        <span className="tabular-nums">{m.short ?? m.value}</span>
                     {full ? (
                       <>
                         <span className="text-right tabular-nums">{t.amber}</span>

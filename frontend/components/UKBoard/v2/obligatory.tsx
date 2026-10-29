@@ -2,10 +2,10 @@
 
 /**
  * UK Board v2 — Board member Obligatory · Level 0 and Accountability tabs.
- * Obligatory: zero-appetite banner, the obligatory board measures with BandDial and attestation,
+ * Obligatory: zero-appetite banner, the obligatory board measures with attestation,
  * reportable events, the restriction breach with its route bar, screening Level 2 rows and the
  * linkage gap, Consumer Duty outcomes, vulnerable customers, redress and enforcement themes.
- * Chart budget: BandDial and the restriction route bar only.
+ * Chart budget: measure visuals and the restriction route bar only.
  * Accountability: risk owners with SMF certification evidence, line of sight, the attestation
  * heatmap, a lines-of-defence stacked bar, culture and items removed or extended.
  * Chart budget: the heatmap and the lines-of-defence bar only.
@@ -31,7 +31,7 @@ import {
   thresholdCells,
   type Measure,
 } from "@/lib/ukboard/v2/boardStore";
-import { AttestationButton, BandDial, ExceptionTree, LineOfSightTable, ReportableTable } from "./appetite";
+import { AttestationButton, ExceptionTree, LineOfSightTable, ReportableTable } from "./appetite";
 import { useDrawer } from "./drawerContext";
 import { AttestPill, BarRows, Card, ChartCard, Chip, FlowPill, KpiTile, LineItem, StatList, StatRow, StatusPill, Table, useFigures } from "./present";
 import { useStore } from "./store";
@@ -74,17 +74,16 @@ function ObligatoryBanner() {
   );
 }
 
-const OB_ROW = "grid min-h-12 grid-cols-[minmax(180px,1.8fr)_64px_minmax(100px,1fr)_minmax(100px,1fr)_minmax(140px,1.1fr)_minmax(110px,1fr)_116px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
+const OB_ROW = "grid min-h-12 grid-cols-[minmax(180px,1.8fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(140px,1.1fr)_minmax(110px,1fr)_116px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
 
 function ObligatoryMeasures() {
   const rows = OBLIGATORY();
   useFigures(rows.map((m) => `m:${m.id}`));
   return (
     <Card title="Obligatory board measures" flush right={<span className="text-xs text-slate-500">Level 0 · zero appetite</span>}>
-      <div data-chart="band-dial">
+      <div>
         <div className={`${OB_ROW} !min-h-7 border-t border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}>
           <span>Board measure</span>
-          <span>Appetite</span>
           <span>Value</span>
           <span>Appetite limit</span>
           <span>Attestation</span>
@@ -118,7 +117,6 @@ function ObligatoryRow({ m }: { m: Measure }) {
           </button>
           <span className="block text-xs text-slate-500">{m.statement}</span>
         </span>
-        <BandDial m={m} size={60} />
         <span className="tabular-nums text-slate-900">{m.short ?? m.value}</span>
         <span className="text-xs">{thresholdCells(m).limit}</span>
         <span onClick={(e) => e.stopPropagation()}>

@@ -5,7 +5,7 @@
  * Strategy: the cascade from objective to risk appetite statement to board measure, tensions,
  * policy linkage and the band-design line. Decisions: board calls as master–detail with the stance
  * control, options, second-order effects and questions ✦, then the decision log.
- * The BandDial is the only chart on Strategy; Decisions has none.
+ * Measure visuals render through MeasureVisual (visualKind); Decisions has none.
  */
 import { Fragment } from "react";
 import {
@@ -24,7 +24,8 @@ import {
   type Measure,
   type ObjId,
 } from "@/lib/ukboard/v2/boardStore";
-import { BandDial, StanceControl, TensionList, useFilteredMeasures } from "./appetite";
+import { TensionList, useFilteredMeasures } from "./appetite";
+import { MeasureVisual, StanceLine } from "./visuals";
 import { useDrawer } from "./drawerContext";
 import { Card, LineItem, StatusPill, Table, useFigures } from "./present";
 import { useStore } from "./store";
@@ -37,7 +38,7 @@ const GROWTH: Partial<Record<ObjId, string>> = {
   O2: `+${fmt.gbpBn(FIG.savings.balancesBn)} vs +${fmt.gbpBn(FIG.savings.planBn)} plan`,
 };
 const STANCE_WORD = { tighten: "Tighten", hold: "Hold", loosen: "Loosen", new: "To set" } as const;
-const ROW = "grid min-h-11 grid-cols-[minmax(220px,2fr)_68px_minmax(96px,0.8fr)_minmax(84px,0.7fr)_minmax(84px,0.7fr)_64px_minmax(120px,1fr)_124px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
+const ROW = "grid min-h-[52px] grid-cols-[minmax(180px,2fr)_230px_72px_72px_56px_minmax(100px,1fr)_112px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
 
 /** Objective → risk appetite statement → board measure; grouped by primary objective. */
 function Cascade() {
@@ -51,11 +52,10 @@ function Cascade() {
   useFigures(["f:mortgage-growth", "f:savings-growth", ...shown.map((m) => `m:${m.id}`)]);
   return (
     <Card title="Strategy to risk appetite" flush right={<span className="text-xs text-slate-500">Objective · Risk appetite statement · Board measures (Level 1)</span>}>
-      <div data-chart="band-dial">
+      <div data-chart="measure-visuals">
         <div className={`${ROW} !min-h-7 border-t border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}>
           <span>Board measure · Risk appetite statement</span>
-          <span>Appetite</span>
-          <span>Value</span>
+          <span>Position</span>
           <span>Amber trigger</span>
           <span>Appetite limit</span>
           <span>Stance</span>
@@ -93,8 +93,7 @@ function CascadeRow({ m, onOpen }: { m: Measure; onOpen: (el: HTMLElement) => vo
           <span className={muted ? "text-slate-600" : "font-semibold text-slate-900"}>{m.name}</span>
           <span className="block text-xs text-slate-500">{m.statement}</span>
         </span>
-        <BandDial m={m} size={60} />
-        <span className="tabular-nums text-slate-900">{m.short ?? m.value}</span>
+        <MeasureVisual m={m} width={110} />
         <span className="text-xs tabular-nums">{t.amber}</span>
         <span className="text-xs tabular-nums">{t.limit}</span>
         <span className="text-xs">{STANCE_WORD[m.stance]}</span>
@@ -174,7 +173,7 @@ function BoardCallsPanel() {
             Decider: {call.decider} · due {call.due} · Risk owner: {m.owner}
           </p>
           <div className="border-t border-slate-100 py-2.5">
-            <StanceControl m={m} />
+            <StanceLine m={m} />
           </div>
         </Card>
         <Table
