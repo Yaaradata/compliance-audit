@@ -60,13 +60,14 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         id: "emerging",
         label: "Emerging risks",
         title: "Emerging risks",
-        layout: [full("E_TABLE"), row([8, "E_DETECTION"], [4, "E_SIGNALS"]), row([6, "E_UNMEASURED"], [6, "E_HORIZON"])],
+        layout: [row([8, "E_CARDS"], [4, "E_SIGNALS"]), row([6, "E_TRIAL"], [6, "E_UNMEASURED"]), full("E_HORIZON")],
       },
       {
         id: "obligatory",
         label: "Obligatory · Level 0",
         title: "Obligatory risks · Level 0",
-        layout: [full("OB_BANNER"), full("OB_MEASURES"), full("OB_REPORTABLE"), row([6, "OB_RESTRICTION"], [6, "OB_SCREENING"]), full("OB_DUTY"), row([4, "OB_VULN"], [4, "OB_REDRESS"], [4, "OB_ENFORCEMENT"])],
+        meta: "Zero appetite. Regulatory must-haves.",
+        layout: [full("OB_CARDS"), full("OB_REPORTABLE"), row([6, "OB_RESTRICTION"], [6, "OB_SCREENING"]), full("OB_DUTY"), row([4, "OB_VULN"], [4, "OB_REDRESS"], [4, "OB_ENFORCEMENT"])],
       },
       {
         id: "accountability",

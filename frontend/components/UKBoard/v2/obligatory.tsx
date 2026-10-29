@@ -26,16 +26,13 @@ import {
   ownerRows,
   rateErrorPct,
   SMF_CERT,
-  STATUS_ORDER,
-  STATUS_WORD,
-  thresholdCells,
-  type Measure,
 } from "@/lib/ukboard/v2/boardStore";
-import { AttestationButton, ExceptionTree, LineOfSightTable, ReportableTable } from "./appetite";
+import { AttestationButton, ExceptionTree, LineOfSightTable } from "./appetite";
 import { useDrawer } from "./drawerContext";
-import { AttestPill, BarRows, Card, ChartCard, Chip, FlowPill, KpiTile, LineItem, StatList, StatRow, StatusPill, Table, useFigures } from "./present";
+import { AttestPill, BarRows, Card, ChartCard, Chip, FlowPill, LineItem, StatRow, StatusPill, Table, useFigures } from "./present";
 import { useStore } from "./store";
 import { btn, focus, Pill } from "./ui";
+import { EventRouteMatrix, MeasureVisual, ProgressPace, Sparkline, StatusPips } from "./visuals";
 
 /* ── Seed constants (new on this tab) ────────────────────────────────── */
 
@@ -55,79 +52,59 @@ const OBLIGATORY = () => MEASURES.filter((m) => m.tier === "obligatory").sort((a
 
 /* ══ Obligatory · Level 0 ═══════════════════════════════════════════════ */
 
-function ObligatoryBanner() {
-  const rows = OBLIGATORY();
-  const counts = STATUS_ORDER.map((s) => [s, rows.filter((m) => m.status === s).length] as const).filter(([, n]) => n > 0);
-  useFigures(["f:obligatory-posture"]);
-  return (
-    <Card>
-      <div className="flex min-h-12 flex-wrap items-center gap-x-4 gap-y-1 pt-3">
-        <span className="text-[13px] font-semibold text-slate-900">Zero appetite. Regulatory must-haves.</span>
-        <span className="text-xs text-slate-500">{`${rows.length} obligatory board measures · no amber band, any breach is past the appetite limit`}</span>
-        <span className="ml-auto flex flex-wrap gap-1.5">
-          {counts.map(([s, n]) => (
-            <Chip key={s}>{`${n} ${STATUS_WORD[s].toLowerCase()}`}</Chip>
-          ))}
-        </span>
-      </div>
-    </Card>
-  );
-}
-
-const OB_ROW = "grid min-h-12 grid-cols-[minmax(180px,1.8fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(140px,1.1fr)_minmax(110px,1fr)_116px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
-
-function ObligatoryMeasures() {
+/** The four zero-appetite measures, each in its own form (§3), with attestation and risk owner. */
+function ZeroAppetiteCards() {
+  const { open } = useDrawer();
   const rows = OBLIGATORY();
   useFigures(rows.map((m) => `m:${m.id}`));
   return (
-    <Card title="Obligatory board measures" flush right={<span className="text-xs text-slate-500">Level 0 · zero appetite</span>}>
-      <div>
-        <div className={`${OB_ROW} !min-h-7 border-t border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}>
-          <span>Board measure</span>
-          <span>Value</span>
-          <span>Appetite limit</span>
-          <span>Attestation</span>
-          <span>Risk owner</span>
-          <span className="text-right">Status</span>
-        </div>
-        {rows.map((m) => (
-          <ObligatoryRow key={m.id} m={m} />
-        ))}
-      </div>
-    </Card>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4" data-chart="measure-visuals">
+      {rows.map((m) => (
+        <section key={m.id} className={`flex h-full flex-col gap-2.5 rounded-lg border border-slate-200 bg-white px-4 py-3 ${m.status === "red" ? "border-l-[3px] border-l-red-500" : m.status === "amber" ? "border-l-[3px] border-l-amber-500" : ""}`}>
+          <div className="flex items-start justify-between gap-2">
+            <button type="button" onClick={(e) => open(`metric:${m.id}`, e.currentTarget)} className={`rounded text-left text-sm font-semibold leading-snug text-slate-900 hover:underline ${focus}`}>
+              {m.name}
+            </button>
+            <StatusPill status={m.status} />
+          </div>
+          <div className="flex-1">
+            <MeasureVisual m={m} width={120} />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
+            <span>Risk owner: {m.owner}</span>
+            <AttestationButton measureId={m.id} />
+          </div>
+        </section>
+      ))}
+    </div>
   );
 }
 
-function ObligatoryRow({ m }: { m: Measure }) {
-  const { open } = useDrawer();
-  const rail = m.status === "red" ? "border-l-red-500" : m.status === "amber" ? "border-l-amber-500" : "border-l-transparent";
+/** Reportable events × routes, with the decider and read-across per event. Escalation drafts a note only. */
+function ReportableMatrix() {
+  const { state, dispatch } = useStore();
+  const canEscalate = state.persona !== "board";
+  useFigures(["f:routes"]);
   return (
-    <div onClick={(e) => open(`metric:${m.id}`, e.currentTarget)} className={`cursor-pointer border-l-[3px] border-t border-t-slate-100 hover:bg-slate-50 ${rail}`}>
-      <div className={`${OB_ROW} !pl-[13px]`}>
-        <span className="min-w-0">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              open(`metric:${m.id}`, e.currentTarget);
-            }}
-            className={`rounded text-left font-semibold text-slate-900 hover:underline ${focus}`}
-          >
-            {m.name}
-          </button>
-          <span className="block text-xs text-slate-500">{m.statement}</span>
-        </span>
-        <span className="tabular-nums text-slate-900">{m.short ?? m.value}</span>
-        <span className="text-xs">{thresholdCells(m).limit}</span>
-        <span onClick={(e) => e.stopPropagation()}>
-          <AttestationButton measureId={m.id} />
-        </span>
-        <span className="text-xs text-slate-500">{m.owner}</span>
-        <span className="justify-self-end">
-          <StatusPill status={m.status} />
-        </span>
-      </div>
-    </div>
+    <Card title="Reportable events" right={<span className="text-xs text-slate-500">Decider decides; nothing is sent from here</span>}>
+      <EventRouteMatrix
+        detail={(e) => (
+          <>
+            {`${e.classification} · found ${e.found} · ${e.decider} · read-across ${e.readAcross.toLowerCase()}`}
+            {canEscalate ? (
+              <button
+                type="button"
+                disabled={state.session.escalated.includes(e.id)}
+                onClick={() => dispatch({ type: "ESCALATE_EVENT", eventId: e.id, decider: e.decider })}
+                className={`${btn} mt-1 block`}
+              >
+                {state.session.escalated.includes(e.id) ? "Note drafted" : "Escalate for decision"}
+              </button>
+            ) : null}
+          </>
+        )}
+      />
+    </Card>
   );
 }
 
@@ -144,7 +121,7 @@ function RestrictionBreach() {
       <StatRow label="Clauses not supported" value={fmt.nOfM(r.clausesUnsupported, r.clauses)} comparator={`attestation ${FIG.dates.restrictionSignOff}`} />
       <p className="pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Accounts in breach by route</p>
       <div data-chart="restriction-routes" className="pt-1">
-        <BarRows max={Math.max(...RESTRICTION.byRoute.map((b) => b.accounts))} rows={RESTRICTION.byRoute.map((b) => ({ label: ROUTE_LABEL[b.lane] ?? b.route, value: b.accounts, display: fmt.n(b.accounts) }))} />
+        <BarRows max={Math.max(...RESTRICTION.byRoute.map((b) => b.accounts))} rows={[...RESTRICTION.byRoute].sort((a, b) => b.accounts - a.accounts).map((b) => ({ label: ROUTE_LABEL[b.lane] ?? b.route, value: b.accounts, display: fmt.n(b.accounts) }))} />
       </div>
     </Card>
   );
@@ -170,9 +147,16 @@ function DutyOutcomes() {
     name === "Consumer understanding" ? `letters ${fmt.pct(FIG.letters.pct)} · target ${fmt.pct(FIG.letters.target)}` : name === "Consumer support" ? `call wait ${FIG.callWait.value} · target ${FIG.callWait.target}` : k.toLowerCase();
   return (
     <Card title="Consumer Duty outcomes" right={<Chip>{`${cd.inTol} of ${cd.total} measures in tolerance`}</Chip>}>
-      <div className="grid grid-cols-1 items-start gap-4 pb-1 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 pb-1 sm:grid-cols-2 xl:grid-cols-4">
         {FIG.outcomes.map((o) => (
-          <KpiTile key={o.name} label={o.name} value={fmt.nOfM(o.inTolerance, o.measures)} comparator={key(o.name, o.key)} pill={<StatusPill status={o.status === "amber" ? "amber" : "within"} />} rail={o.status === "amber" ? "amber" : undefined} />
+          <div key={o.name} className={`flex flex-col gap-2 rounded-lg border border-slate-200 px-3 py-2.5 ${o.status === "amber" ? "border-l-[3px] border-l-amber-500" : ""}`}>
+            <span className="flex items-start justify-between gap-2">
+              <span className="text-xs font-semibold text-slate-700">{o.name}</span>
+              <StatusPill status={o.status === "amber" ? "amber" : "within"} />
+            </span>
+            <StatusPips items={Array.from({ length: o.measures }, (_, i) => ({ label: `Measure ${i + 1}`, status: i < o.inTolerance ? "within" : "amber" }))} display={`${fmt.nOfM(o.inTolerance, o.measures)} in tolerance`} />
+            <span className="text-xs text-slate-500">{key(o.name, o.key)}</span>
+          </div>
         ))}
       </div>
     </Card>
@@ -183,16 +167,14 @@ function VulnerableCustomers() {
   const { open } = useDrawer();
   const v = FIG.vuln;
   return (
-    <StatList
-      title="Vulnerable customers"
-      rail="amber"
-      figures={["f:vuln"]}
-      rows={[
-        { label: `Exceptions ${v.basis.replace(" contacts", "")}`, value: String(v.series[v.series.length - 1]), comparator: `amber ${v.amber} · red ${v.red}`, onClick: (el) => open("removed", el) },
-        { label: "Past amber", value: `${v.quartersAmber} quarters`, comparator: "removed from pack" },
-        { label: "Previous quarter", value: String(v.series[v.series.length - 2]), comparator: v.labels[v.labels.length - 2] },
-      ]}
-    />
+    <Card title="Vulnerable customers" rail="amber" className="h-full">
+      <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 py-2.5" data-chart="vuln-sparkline">
+        <b className="text-2xl font-semibold leading-7 tabular-nums text-slate-900">{v.series[v.series.length - 1]}</b>
+        <Sparkline values={v.series} amber={v.amber} label={`Exceptions ${v.basis}, ${v.labels[0]} to ${v.labels[v.labels.length - 1]}`} />
+        <span className="text-xs text-slate-500">{`exceptions ${v.basis.replace(" contacts", "")} · amber ${v.amber} · red ${v.red}`}</span>
+      </div>
+      <StatRow label="Past amber" value={`${v.quartersAmber} quarters`} comparator="removed from pack" onClick={(el) => open("removed", el)} />
+    </Card>
   );
 }
 
@@ -200,15 +182,13 @@ function RateRedress() {
   const { open } = useDrawer();
   const r = FIG.rateError;
   return (
-    <StatList
-      title="Mortgage-rate redress"
-      figures={["f:redress"]}
-      rows={[
-        { label: "Customers contacted", value: fmt.pct(rateErrorPct()), comparator: fmt.nOfM(r.contacted, r.customers), onClick: (el) => open("event:e-117", el) },
-        { label: "Still to contact", value: fmt.n(r.customers - r.contacted), comparator: "customers" },
-        { label: "Redress estimate", value: fmt.gbpK(r.redressK), comparator: `by ${r.due}` },
-      ]}
-    />
+    <Card title="Mortgage-rate redress" className="h-full">
+      <button type="button" onClick={(e) => open("event:e-117", e.currentTarget)} className={`block w-full border-t border-slate-100 py-2.5 text-left ${focus}`}>
+        <ProgressPace actual={r.contacted} target={r.customers} text={`${fmt.nOfM(r.contacted, r.customers)} customers contacted · ${fmt.pct(rateErrorPct())}`} width={220} />
+      </button>
+      <StatRow label="Still to contact" value={fmt.n(r.customers - r.contacted)} comparator="customers" />
+      <StatRow label="Redress estimate" value={fmt.gbpK(r.redressK)} comparator={`by ${r.due}`} />
+    </Card>
   );
 }
 
@@ -218,6 +198,7 @@ function Enforcement() {
   const done = state.session.drafts["d-t232-readacross"]?.status !== "ai_draft";
   return (
     <Card
+      className="h-full"
       title="Enforcement themes"
       right={
         state.persona === "cro" ? (
@@ -379,9 +360,8 @@ function RemovedExtended() {
 }
 
 export const OBLIGATORY_SECTIONS = {
-  OB_BANNER: ObligatoryBanner,
-  OB_MEASURES: ObligatoryMeasures,
-  OB_REPORTABLE: () => <ReportableTable />,
+  OB_CARDS: ZeroAppetiteCards,
+  OB_REPORTABLE: ReportableMatrix,
   OB_RESTRICTION: RestrictionBreach,
   OB_SCREENING: Screening,
   OB_DUTY: DutyOutcomes,

@@ -12,6 +12,7 @@ import { agentFigures, ATTACK_SIGNALS, fmt, measure } from "@/lib/ukboard/v2/boa
 import { useDrawer } from "./drawerContext";
 import { BarRows, Card, ChartCard, Chip, EventList, FlowPill, KpiTile, StatRow, Table, useFigures } from "./present";
 import { useStore } from "./store";
+import { TradeoffPlot } from "./visuals";
 import { AiTag, btn, btnPrimary, focus, Pill } from "./ui";
 
 /* ── Seed: Detection model (#7) scenario ─────────────────────────────── */
@@ -29,7 +30,7 @@ const leadingNumber = (v: string) => Number(v.replace(/[^\d.]/g, ""));
  * - the time bars run to the appetite limit; the false-alert bars run to the challenger's level.
  * Proposing sends the challenger to the risk owner only. Nothing goes live without a named approver.
  */
-const DETECT_TRIAL = (() => {
+export const DETECT_TRIAL = (() => {
   const m = measure("u-detect");
   const median = signal("Challenger model median");
   const falseAlerts = signal("Challenger false alerts");
@@ -49,6 +50,24 @@ const DETECT_TRIAL = (() => {
     recommended: "challenger",
   };
 })();
+
+/** Detection model trial as a trade-off: false alerts (right is worse) vs median time to detect (up is better). */
+export function DetectionTradeoff() {
+  const t = DETECT_TRIAL;
+  const toMin = (sec: number) => Math.round((sec / 60) * 100) / 100;
+  return (
+    <TradeoffPlot
+      points={t.options.map((o) => ({ id: o.id, label: o.label, x: o.falseIndex - 100, y: toMin(o.medianSec), recommended: o.id === t.recommended }))}
+      xMax={Math.max(10, t.extraPct * 1.5)}
+      yMax={toMin(t.amberSec)}
+      invertY
+      xLabel="Extra false alerts, %"
+      yLabel="Median detection"
+      fmtX={(v) => (v ? `+${v}%` : "baseline")}
+      fmtY={(v) => (v >= 1 ? `${v} min` : `${Math.round(v * 60)} sec`)}
+    />
+  );
+}
 
 /* ── Tiles and findings ──────────────────────────────────────────────── */
 

@@ -10,21 +10,17 @@
  * Every figure comes from lib/ukboard/v2/boardStore.ts. Nothing here changes a limit or notifies
  * anyone: "Propose a measure" only drafts a proposal to the named owner (local state).
  */
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { CAPACITY } from "@/lib/ukboard/v1/data";
 import {
   ATTACK_SIGNALS,
   CYBER_EXERCISES,
-  DETECTION_SERIES,
   EMERGING_UNMEASURED,
   FIG,
   fmt,
   historyOf,
   l2Visible,
-  measure,
   SMF_CERT,
-  thresholdCells,
-  timeToThreshold,
   type Measure,
   type MeasureStatus,
   type Tier,
@@ -32,10 +28,11 @@ import {
 import { RollupChip, useFilteredMeasures } from "./appetite";
 import { useDrawer } from "./drawerContext";
 import LineChart from "./LineChart";
-import { Card, ChartCard, DeltaMark, rowRail, StatRow, StatusPill, Table, useFigures } from "./present";
-import { Sparkline } from "./visuals";
+import { Card, ChartCard, DeltaMark, rowRail, StatRow, StatusPill, useFigures } from "./present";
+import { DetectionTradeoff } from "./agents";
+import { HorizonTimeline, Sparkline } from "./visuals";
 import { useStore } from "./store";
-import { AiTag, btn, focus, Pill, type Tone } from "./ui";
+import { AiTag, btn, focus, type Tone } from "./ui";
 
 /* ── Seed data (new, risks tab only) ─────────────────────────────────── */
 
@@ -45,12 +42,7 @@ const HORIZON_EXTRA: { date: string; text: string; tag: string }[] = [{ date: "J
 /* ── Shared helpers ──────────────────────────────────────────────────── */
 
 const railOf = (s: MeasureStatus): Tone | undefined => (s === "red" ? "red" : s === "amber" ? "amber" : undefined);
-const TYPE_WORD = { leading: "Leading", lagging: "Lagging" } as const;
 const useTier = (tier: Tier) => useFilteredMeasures().filter((m) => m.tier === tier).sort((a, b) => a.num - b.num);
-
-function MeasureName({ m }: { m: Measure }) {
-  return <b className={m.status === "within" ? "font-normal text-slate-600" : "font-semibold text-slate-900"}>{m.name}</b>;
-}
 
 /* ── Top risks ───────────────────────────────────────────────────────── */
 
@@ -166,60 +158,35 @@ function CapacityChart() {
 
 /* ── Emerging risks ──────────────────────────────────────────────────── */
 
-function EmergingTable() {
-  const { open } = useDrawer();
+/** The two emerging risks as cards (same form as the top risks). */
+function EmergingCards() {
   const rows = useTier("emerging");
   useFigures(rows.map((m) => `m:${m.id}`));
   return (
-    <Table
-      title="Emerging risks"
-      right={<span className="text-xs text-slate-500">Forward-looking, wider ranges</span>}
-      cols="grid-cols-[minmax(150px,1.7fr)_minmax(84px,0.8fr)_64px_64px_minmax(100px,0.9fr)_64px_minmax(96px,0.9fr)_minmax(96px,1fr)_112px]"
-      head={["Board measure", "Value", "Amber trigger", "Appetite limit", "To threshold", "Type", "Stance", "Risk owner", "Status"]}
-      rightCols={[2, 3, 8]}
-      rows={rows.map((m) => {
-        const t = thresholdCells(m);
-        return {
-          key: m.id,
-          rail: railOf(m.status),
-          onClick: (el: HTMLElement) => open(`metric:${m.id}`, el),
-          cells: [
-            <span key="n" className="flex flex-wrap items-center gap-1.5">
-              <MeasureName m={m} />
-              {m.isNew ? <Pill tone="grey" outline label="New" /> : null}
-            </span>,
-            <span key="v" className="tabular-nums text-slate-900">{m.short ?? m.value}</span>,
-            <span key="a" className="text-xs">{t.amber}</span>,
-            <span key="l" className="text-xs">{t.limit}</span>,
-            <span key="t" className="text-xs">{timeToThreshold(m)}</span>,
-            <span key="y" className="text-xs">{TYPE_WORD[m.type]}</span>,
-            <span key="st" className="text-xs">{m.stance === "new" ? "New · appetite to set" : m.stance === "hold" ? "Hold" : m.stance === "tighten" ? "Tighten" : "Loosen"}</span>,
-            <span key="o" className="text-xs text-slate-500">{m.owner}</span>,
-            <StatusPill key="s" status={m.status} />,
-          ],
-        };
-      })}
-    />
+    <div className="grid h-full grid-cols-1 gap-4 md:grid-cols-2" data-chart="sparklines">
+      {rows.map((m) => (
+        <TopRiskCard key={m.id} m={m} />
+      ))}
+    </div>
   );
 }
 
-function DetectionChart() {
-  const m = measure("u-detect");
-  const u = m.unit ?? "";
-  useFigures(["f:detection-series"]);
+function DetectionTrial() {
+  const { open } = useDrawer();
+  useFigures(["f:detect-trial"]);
   return (
-    <ChartCard id="detection" title="Time to detect a coordinated automated attack" right={<span className="text-xs text-slate-500">Monthly median</span>}>
-      <LineChart
-        title="Median detection time, minutes"
-        height={180}
-        suffix={u}
-        series={[{ name: "Median detection time", points: DETECTION_SERIES }]}
-        thresholds={[
-          { value: m.amber!, label: `Amber trigger ${m.amber}${u}`, tone: "amber" },
-          { value: m.limit!, label: `Appetite limit ${m.limit}${u}`, tone: "red" },
-        ]}
-      />
-    </ChartCard>
+    <Card title="Detection model trial" right={<AiTag label="Fraud Watch agent" />} className="h-full">
+      <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 pt-3">
+        <DetectionTradeoff />
+        <div className="min-w-[160px] flex-1 text-xs leading-relaxed text-slate-600">
+          <p>Challenger detects far faster on the parallel cohort, at the cost of more false alerts.</p>
+          <p className="mt-1">Proposals go to the risk owner; live rules do not change.</p>
+          <button type="button" onClick={(e) => open("metric:u-detect", e.currentTarget)} className={`mt-2 rounded font-semibold text-indigo-700 hover:underline ${focus}`}>
+            Detection trend ›
+          </button>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -262,35 +229,33 @@ function NotYetMeasured() {
   );
 }
 
+const noop = () => () => {};
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** Today's date on the client only (the page is prerendered), e.g. "29 Oct". */
+function useToday() {
+  return useSyncExternalStore(
+    noop,
+    () => {
+      const d = new Date();
+      return `${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() === 2026 ? "" : ` ${d.getFullYear()}`}`;
+    },
+    () => null,
+  );
+}
+
 function RegulatoryHorizon() {
-  const { open } = useDrawer();
+  const today = useToday();
   useFigures(["f:horizon", "f:smf-cert"]);
-  const items = [
-    { date: SMF_CERT.next, text: "Next SMF certification", detail: `${SMF_CERT.evidence} of ${SMF_CERT.smfs} senior managers with evidence`, tag: "FCA · PRA", drawer: undefined as string | undefined },
-    { date: FIG.dates.incidentRules, text: "Incident and third-party reporting rules", detail: undefined as string | undefined, tag: "FCA · PRA", drawer: "horizon" },
-    ...HORIZON_EXTRA.map((h) => ({ ...h, detail: undefined as string | undefined, drawer: undefined as string | undefined })),
+  const events = [
+    { date: SMF_CERT.next, label: "Next SMF certification", tag: `${SMF_CERT.evidence} of ${SMF_CERT.smfs} with evidence` },
+    { date: FIG.dates.incidentRules, label: "Incident and third-party reporting rules", tag: "FCA · PRA" },
+    ...HORIZON_EXTRA.map((h) => ({ date: h.date, label: h.text, tag: h.tag })),
   ];
   return (
-    <Card title="Regulatory horizon">
-      {items.map((e) => {
-        const row = (
-          <span className={`grid min-h-9 grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-100 py-1 text-[13px] leading-snug ${rowRail()}`}>
-            <b className="whitespace-nowrap font-semibold tabular-nums text-slate-900">{e.date}</b>
-            <span className="min-w-0 text-slate-800">
-              {e.text}
-              {e.detail ? <span className="block text-xs text-slate-500">{e.detail}</span> : null}
-            </span>
-            <span className="whitespace-nowrap rounded border border-slate-200 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">{e.tag}</span>
-          </span>
-        );
-        return e.drawer ? (
-          <button key={e.text} type="button" onClick={(ev) => open(e.drawer!, ev.currentTarget)} className={`block w-full text-left hover:bg-slate-50 ${focus}`}>
-            {row}
-          </button>
-        ) : (
-          <div key={e.text}>{row}</div>
-        );
-      })}
+    <Card title="Regulatory horizon" className="h-full">
+      <div data-chart="horizon" className="border-t border-slate-100 pt-3">
+        <HorizonTimeline events={events} today={today ?? "1 Oct"} />
+      </div>
     </Card>
   );
 }
@@ -299,8 +264,8 @@ export const RISK_SECTIONS = {
   R_CARDS: TopRiskCards,
   R_CYBER: CyberExercises,
   R_CAPACITY: CapacityChart,
-  E_TABLE: EmergingTable,
-  E_DETECTION: DetectionChart,
+  E_CARDS: EmergingCards,
+  E_TRIAL: DetectionTrial,
   E_SIGNALS: AttackSignals,
   E_UNMEASURED: NotYetMeasured,
   E_HORIZON: RegulatoryHorizon,

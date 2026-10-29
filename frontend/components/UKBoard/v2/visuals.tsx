@@ -328,9 +328,11 @@ export function RouteMatrix({ rows, cols, compact }: { rows: { key: string; even
             <span key={i} className="text-center leading-tight">
               {c ? (
                 <>
-                  <span className="text-base text-slate-900" aria-label={c.status}>
-                    {c.status === "decided" ? "●" : "◐"}
-                  </span>
+                  <span
+                    role="img"
+                    aria-label={c.status}
+                    className={`mx-auto block h-3 w-3 rounded-full border-[1.5px] border-slate-900 ${c.status === "decided" ? "bg-slate-900" : "bg-[linear-gradient(90deg,#0f172a_50%,#fff_50%)]"}`}
+                  />
                   {c.status === "pending" ? <span className="block text-[11px] text-slate-500">{CLOCK_SHORT[c.clock] ?? c.clock}</span> : null}
                 </>
               ) : (
