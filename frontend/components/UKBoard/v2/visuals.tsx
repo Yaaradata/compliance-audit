@@ -418,7 +418,7 @@ export function StanceLine({ m, compact, short }: { m: Measure; compact?: boolea
       {m.proposal ? (
         <>
           {" "}
-          · Proposed <b className="font-semibold text-slate-900">{STANCE_WORD[m.proposal.stance]}</b> by {m.proposal.proposer} {m.proposal.ai ? <AiTag label="✦" /> : null}
+          · Proposed <b className="font-semibold text-slate-900">{STANCE_WORD[m.proposal.stance]}</b> by {m.proposal.proposer} {m.proposal.ai ? <AiTag label="AI" /> : null}
         </>
       ) : null}
     </span>

@@ -25,9 +25,9 @@ import {
   type ObjId,
 } from "@/lib/ukboard/v2/boardStore";
 import { TensionList, useFilteredMeasures } from "./appetite";
-import { MeasureVisual, StanceLine, StatusHistory } from "./visuals";
+import { MeasureVisual, OptionCompare, StanceLine, StatusHistory, type CompareOption } from "./visuals";
 import { useDrawer } from "./drawerContext";
-import { Card, LineItem, StatusPill, Table, useFigures } from "./present";
+import { Card, LineItem, StatusPill, useFigures } from "./present";
 import { useStore } from "./store";
 import { AiTag, btn, focus, Pill } from "./ui";
 
@@ -176,31 +176,12 @@ function BoardCallsPanel() {
             <StanceLine m={m} />
           </div>
         </Card>
-        <Table
-          title="Options"
-          cols="grid-cols-[minmax(180px,1.4fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_96px]"
-          head={["Option", "Growth", "Risk", "Cost", "Time"]}
-          rows={call.options.map((o) => ({
-            key: o.option,
-            cells: [
-              <span key="o" className="flex flex-wrap items-center gap-1.5">
-                <b className="font-semibold text-slate-900">{o.option}</b>
-                {"recommended" in o && o.recommended ? <Pill tone="green" outline label="Recommended" /> : null}
-                {"ai" in o && o.ai ? <AiTag label="Proposed" /> : null}
-              </span>,
-              <span key="g" className="text-xs">{o.growth}</span>,
-              <span key="r" className="text-xs">{o.risk}</span>,
-              <span key="c" className="text-xs">{o.cost}</span>,
-              <span key="t" className="text-xs">{o.time}</span>,
-            ],
-          }))}
-        />
-        <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
-          <Card title="Second-order effects">
-            {call.effects.slice(0, 3).map((e) => (
-              <LineItem key={e} text={e} />
-            ))}
-          </Card>
+        <Card title="Options" className="pb-3">
+          <div className="border-t border-slate-100 pt-3">
+            <OptionCompare rows={["Growth", "Risk", "Cost", "Time", "Second-order effect"]} options={compareOptions(call)} />
+          </div>
+        </Card>
+        <div className="grid grid-cols-1 items-start gap-4">
           <Card title="Questions to ask" right={<AiTag label="Drafted" />}>
             {call.questions.slice(0, 3).map((q) => (
               <LineItem key={q} text={q} />
@@ -216,6 +197,20 @@ function BoardCallsPanel() {
       </div>
     </div>
   );
+}
+
+/** Second-order effects belong to the option named before the arrow ("Loosen → …"). */
+function compareOptions(call: (typeof BOARD_CALLS)[number]): CompareOption[] {
+  return call.options.map((o) => {
+    const effects = call.effects.filter((e) => o.option.toLowerCase().includes(e.split(" → ")[0].toLowerCase())).map((e) => e.split(" → ")[1]);
+    return {
+      name: o.option,
+      recommended: "recommended" in o && !!o.recommended,
+      current: /^Hold\b/.test(o.option),
+      ai: "ai" in o && !!o.ai,
+      cells: [o.growth, o.risk, o.cost, o.time, effects.join("; ")],
+    };
+  });
 }
 
 /** Status by quarter for all 12 (earlier quarters hatched where the store has no record). */

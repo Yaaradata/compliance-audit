@@ -12,7 +12,6 @@ import { X } from "lucide-react";
 import {
   l2Visible,
   l3Visible,
-  LINE_OF_SIGHT,
   measure,
   measuresByTier,
   MEASURES,
@@ -240,32 +239,6 @@ export function ReportableTable() {
           ],
         };
       })}
-    />
-  );
-}
-
-/* ── LineOfSightTable ────────────────────────────────────────────────── */
-
-const SIGHT_HEAD = ["Risk owner", "Control owner", "Board measure"];
-
-/** Line of sight from each customer journey to a named owner and a board measure. */
-export function LineOfSightTable() {
-  const rows = Object.entries(LINE_OF_SIGHT);
-  const gaps = rows.filter(([, v]) => v.includes(false)).length;
-  return (
-    <Table
-      title="Line of sight"
-      right={<span className="text-xs text-slate-500">{gaps} of {rows.length} journeys with a gap</span>}
-      cols="grid-cols-[minmax(180px,1.6fr)_repeat(3,minmax(100px,1fr))]"
-      head={["Journey", ...SIGHT_HEAD]}
-      rows={rows.map(([journey, v]) => ({
-        key: journey,
-        rail: v[0] ? undefined : "amber",
-        cells: [
-          <b key="j" className="font-semibold text-slate-900">{journey}</b>,
-          ...v.map((ok, i) => (ok ? <span key={i} className="text-xs text-slate-600">Named</span> : <Pill key={i} tone="amber" outline label="Gap" />)),
-        ],
-      }))}
     />
   );
 }

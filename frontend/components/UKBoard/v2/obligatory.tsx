@@ -12,7 +12,7 @@
  * Figures come from lib/ukboard/v2/boardStore.ts; nothing here notifies a regulator or changes a limit.
  */
 import { DRAFTS, RESTRICTION } from "@/lib/ukboard/v1/data";
-import { CULTURE, ISSUES_FOUND, SIGNOFF_HISTORY, SIGNOFF_MONTHS, type SignOffMark } from "@/lib/ukboard/v2/boardMemberData";
+import { CULTURE, ISSUES_FOUND, JOURNEYS, SIGNOFF_HISTORY, SIGNOFF_MONTHS, type SignOffMark } from "@/lib/ukboard/v2/boardMemberData";
 import {
   attestationRecord,
   consumerDuty,
@@ -20,19 +20,22 @@ import {
   FIG,
   fmt,
   issuesFound,
+  LINE_OF_SIGHT,
   measure,
   MEASURES,
   OWNER_ROLES,
   ownerRows,
   rateErrorPct,
   SMF_CERT,
+  type AttestState,
 } from "@/lib/ukboard/v2/boardStore";
-import { AttestationButton, ExceptionTree, LineOfSightTable } from "./appetite";
+import { AttestationButton, ExceptionTree } from "./appetite";
 import { useDrawer } from "./drawerContext";
-import { AttestPill, BarRows, Card, ChartCard, Chip, FlowPill, LineItem, StatRow, StatusPill, Table, useFigures } from "./present";
+import { BarRows, Card, ChartCard, Chip, FlowPill, LineItem, StatRow, StatusPill, Table, useFigures } from "./present";
 import { useStore } from "./store";
 import { btn, focus, Pill } from "./ui";
-import { EventRouteMatrix, MeasureVisual, ProgressPace, Sparkline, StatusPips } from "./visuals";
+import { Check, Clock, HelpCircle } from "lucide-react";
+import { CheckGrid, DataBarCell, EventRouteMatrix, MeasureVisual, ProgressPace, Sparkline, StatusPips } from "./visuals";
 
 /* ── Seed constants (new on this tab) ────────────────────────────────── */
 
@@ -221,6 +224,24 @@ function Enforcement() {
 
 const draftTargets = () => Object.fromEntries(Object.values(DRAFTS).map((d) => [d.draftId, d.targetRole]));
 
+const ATTEST_ICON = {
+  attested: { Icon: Check, word: "Attested", cls: "text-slate-900" },
+  due: { Icon: Clock, word: "Due", cls: "text-amber-600" },
+  unconfirmed: { Icon: HelpCircle, word: "Unconfirmed", cls: "text-slate-500" },
+} as const;
+
+/** ✓ attested · ◷ due · ? unconfirmed. */
+function AttestIcon({ a }: { a: AttestState | "none" }) {
+  if (a === "none") return <span className="text-xs text-slate-400">—</span>;
+  const { Icon, word, cls } = ATTEST_ICON[a];
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-slate-600" title={word}>
+      <Icon className={`h-4 w-4 ${cls}`} aria-hidden />
+      {word}
+    </span>
+  );
+}
+
 function OwnersWithEvidence() {
   const { state } = useStore();
   const { open } = useDrawer();
@@ -232,7 +253,7 @@ function OwnersWithEvidence() {
       title="Risk owners"
       right={<Chip>{`${fmt.nOfM(SMF_CERT.evidence, SMF_CERT.smfs)} SMFs with certification evidence · next certification ${SMF_CERT.next}`}</Chip>}
       cols="grid-cols-[minmax(180px,1.6fr)_88px_80px_96px_minmax(140px,1fr)_130px]"
-      head={["Risk owner", "Board measures", "Off track", "Actions open", "Attestation this month", "Status"]}
+      head={["Risk owner", "Board measures", "Off track", "Actions open", "Attestation", "Status"]}
       rightCols={[1, 2, 3, 5]}
       rows={rows.map((o) => ({
         key: o.role,
@@ -251,7 +272,7 @@ function OwnersWithEvidence() {
           <b key="a" className="font-semibold">
             {o.actions}
           </b>,
-          <AttestPill key="t" a={o.attest} />,
+          <AttestIcon key="t" a={o.attest} />,
           o.status === "none" ? (
             <span key="s" className="text-xs text-slate-400">
               No board measure
@@ -294,13 +315,12 @@ function AttestationRecord() {
             ))}
           </div>
         ))}
-        {newOwners.map((role) => (
-          <div key={role} className="contents">
-            <span className="flex h-7 items-center text-xs text-slate-800">{role}</span>
-            <span className="col-span-12 flex h-5 items-center rounded border border-slate-100 px-2 text-xs text-slate-400">{RECORD_STARTS}</span>
-          </div>
-        ))}
       </div>
+      {newOwners.length ? (
+        <p className="mt-2 text-xs text-slate-500" title={newOwners.join(", ")}>
+          {`${newOwners.length} owners: ${RECORD_STARTS.charAt(0).toLowerCase()}${RECORD_STARTS.slice(1)}`}
+        </p>
+      ) : null}
       <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-600">
         {(Object.keys(MARK) as SignOffMark[]).map((k) => (
           <span key={k} className="flex items-center gap-1.5">
@@ -337,6 +357,35 @@ function LinesOfDefence() {
   );
 }
 
+const SIGHT_CHECKS = ["Complaints", "Operational errors", "Parameter changes"];
+
+/** Risk owner vs control owner per journey, with the three line-of-sight checks and complaints. */
+function JourneySight() {
+  const max = Math.max(...JOURNEYS.map((j) => j.complaints));
+  const gaps = JOURNEYS.filter((j) => (LINE_OF_SIGHT[j.journey] ?? []).includes(false)).length;
+  useFigures(["f:journeys", "f:sight"]);
+  return (
+    <Table
+      title="Risk owner vs control owner"
+      right={<span className="text-xs text-slate-500">{`${gaps} of ${JOURNEYS.length} journeys with a line-of-sight gap`}</span>}
+      cols="grid-cols-[minmax(170px,1.3fr)_minmax(140px,1fr)_minmax(150px,1fr)_168px_minmax(110px,0.8fr)]"
+      head={["Journey", "Risk owner", "Control owner", "Line of sight", "Complaints"]}
+      rightCols={[4]}
+      rows={JOURNEYS.map((j) => ({
+        key: j.journey,
+        rail: j.riskOwner ? undefined : "red",
+        cells: [
+          <b key="j" className="font-semibold text-slate-900">{j.journey}</b>,
+          j.riskOwner ? <span key="r" className="text-xs">{j.riskOwner}</span> : <Pill key="r" tone="red" label="Not named" />,
+          <span key="c" className="text-xs">{j.controlOwner}</span>,
+          <CheckGrid key="g" checks={LINE_OF_SIGHT[j.journey] ?? [false, false, false]} labels={SIGHT_CHECKS} />,
+          <DataBarCell key="n" value={j.complaints} max={max} display={fmt.n(j.complaints)} />,
+        ],
+      }))}
+    />
+  );
+}
+
 function Culture() {
   useFigures(["f:culture"]);
   return (
@@ -369,7 +418,7 @@ export const OBLIGATORY_SECTIONS = {
   OB_REDRESS: RateRedress,
   OB_ENFORCEMENT: Enforcement,
   AC_OWNERS: OwnersWithEvidence,
-  AC_SIGHT: () => <LineOfSightTable />,
+  AC_SIGHT: JourneySight,
   AC_HEATMAP: AttestationRecord,
   AC_DEFENCE: LinesOfDefence,
   AC_CULTURE: Culture,
