@@ -1,0 +1,1048 @@
+{
+ "tabs": [
+  {
+   "persona": "board",
+   "personaName": "Board member",
+   "tab": "overview",
+   "tabName": "Overview",
+   "height": 900,
+   "shots": [
+    "board-overview-1.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 72,
+     "title": "AmberSavings growth is outrunning crime checks, and a customer restriction was breached.",
+     "n": 1,
+     "crop": "board-overview-c01.png"
+    },
+    {
+     "id": "O_SCORECARD",
+     "x": 24,
+     "y": 193,
+     "w": 1392,
+     "h": 96,
+     "title": "",
+     "n": 2,
+     "crop": "board-overview-c02.png"
+    },
+    {
+     "id": "O_OUTSIDE",
+     "x": 24,
+     "y": 301,
+     "w": 690,
+     "h": 340,
+     "title": "Outside appetite",
+     "n": 3,
+     "crop": "board-overview-c03.png"
+    },
+    {
+     "id": "O_DECISIONS",
+     "x": 726,
+     "y": 301,
+     "w": 690,
+     "h": 164,
+     "title": "Board decisions",
+     "n": 4,
+     "crop": "board-overview-c04.png"
+    },
+    {
+     "id": "O_TELL",
+     "x": 726,
+     "y": 477,
+     "w": 690,
+     "h": 164,
+     "title": "Tell the regulator?",
+     "n": 5,
+     "crop": "board-overview-c05.png"
+    },
+    {
+     "id": "O_SINCE",
+     "x": 24,
+     "y": 653,
+     "w": 690,
+     "h": 180,
+     "title": "Since last board",
+     "n": 6,
+     "crop": "board-overview-c06.png"
+    },
+    {
+     "id": "O_OWNERSHIP",
+     "x": 726,
+     "y": 653,
+     "w": 690,
+     "h": 180,
+     "title": "Ownership",
+     "n": 7,
+     "crop": "board-overview-c07.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 845,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 8,
+     "crop": "board-overview-c08.png"
+    }
+   ]
+  },
+  {
+   "persona": "board",
+   "personaName": "Board member",
+   "tab": "appetite",
+   "tabName": "Risk appetite",
+   "height": 1459,
+   "shots": [
+    "board-appetite-1.png",
+    "board-appetite-2.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 72,
+     "title": "Amber8 of 12 measures need attention; credit has room to loosen.",
+     "n": 1,
+     "crop": "board-appetite-c01.png"
+    },
+    {
+     "id": "M_TABLE",
+     "x": 24,
+     "y": 197,
+     "w": 1392,
+     "h": 522.5,
+     "title": "Board measures",
+     "n": 2,
+     "crop": "board-appetite-c02.png"
+    },
+    {
+     "id": "R_CAPACITY",
+     "x": 24,
+     "y": 735.5,
+     "w": 684,
+     "h": 268,
+     "title": "Alert-queue capacity",
+     "n": 3,
+     "crop": "board-appetite-c03.png"
+    },
+    {
+     "id": "E_TRIAL",
+     "x": 732,
+     "y": 735.5,
+     "w": 684,
+     "h": 225,
+     "title": "Detection backtest",
+     "n": 4,
+     "crop": "board-appetite-c04.png"
+    },
+    {
+     "id": "R_CYBER",
+     "x": 732,
+     "y": 976.5,
+     "w": 684,
+     "h": 183,
+     "title": "Cyber testing",
+     "n": 5,
+     "crop": "board-appetite-c05.png"
+    },
+    {
+     "id": "E_UNMEASURED",
+     "x": 24,
+     "y": 1019.5,
+     "w": 684,
+     "h": 140,
+     "title": "Not yet measured",
+     "n": 6,
+     "crop": "board-appetite-c06.png"
+    },
+    {
+     "id": "S_TENSIONS",
+     "x": 24,
+     "y": 1175.5,
+     "w": 684,
+     "h": 232,
+     "title": "Tensions",
+     "n": 7,
+     "crop": "board-appetite-c07.png"
+    },
+    {
+     "id": "S_POLICY",
+     "x": 732,
+     "y": 1175.5,
+     "w": 684,
+     "h": 232,
+     "title": "Policy linkage",
+     "n": 8,
+     "crop": "board-appetite-c08.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 1423.5,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 9,
+     "crop": "board-appetite-c09.png"
+    }
+   ]
+  },
+  {
+   "persona": "board",
+   "personaName": "Board member",
+   "tab": "obligatory",
+   "tabName": "Regulatory · Level 0",
+   "height": 1345,
+   "shots": [
+    "board-obligatory-1.png",
+    "board-obligatory-2.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 72,
+     "title": "RedA customer restriction was breached 112 times; regulator decisions are due now.",
+     "n": 1,
+     "crop": "board-obligatory-c01.png"
+    },
+    {
+     "id": "OB_CARDS",
+     "x": 24,
+     "y": 197,
+     "w": 1392,
+     "h": 177.5,
+     "title": "",
+     "n": 2,
+     "crop": "board-obligatory-c02.png"
+    },
+    {
+     "id": "OB_REPORTABLE",
+     "x": 24,
+     "y": 390.5,
+     "w": 684,
+     "h": 214.125,
+     "title": "Reportable events",
+     "n": 3,
+     "crop": "board-obligatory-c03.png"
+    },
+    {
+     "id": "OB_RESTRICTION",
+     "x": 732,
+     "y": 390.5,
+     "w": 684,
+     "h": 336.5,
+     "title": "Restriction breach",
+     "n": 4,
+     "crop": "board-obligatory-c04.png"
+    },
+    {
+     "id": "OB_ENFORCEMENT",
+     "x": 24,
+     "y": 620.625,
+     "w": 684,
+     "h": 259.375,
+     "title": "Enforcement themes",
+     "n": 5,
+     "crop": "board-obligatory-c05.png"
+    },
+    {
+     "id": "OB_VULN",
+     "x": 732,
+     "y": 743,
+     "w": 684,
+     "h": 137,
+     "title": "Vulnerable customers",
+     "n": 6,
+     "crop": "board-obligatory-c06.png"
+    },
+    {
+     "id": "OB_SCREENING",
+     "x": 24,
+     "y": 896,
+     "w": 684,
+     "h": 398,
+     "title": "Screening coverage",
+     "n": 7,
+     "crop": "board-obligatory-c07.png"
+    },
+    {
+     "id": "E_HORIZON",
+     "x": 732,
+     "y": 896,
+     "w": 684,
+     "h": 209,
+     "title": "Regulatory horizon",
+     "n": 8,
+     "crop": "board-obligatory-c08.png"
+    },
+    {
+     "id": "OB_REDRESS",
+     "x": 732,
+     "y": 1121,
+     "w": 684,
+     "h": 173,
+     "title": "Mortgage-rate redress",
+     "n": 9,
+     "crop": "board-obligatory-c09.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 1310,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 10,
+     "crop": "board-obligatory-c10.png"
+    }
+   ]
+  },
+  {
+   "persona": "board",
+   "personaName": "Board member",
+   "tab": "accountability",
+   "tabName": "Accountability",
+   "height": 1276,
+   "shots": [
+    "board-accountability-1.png",
+    "board-accountability-2.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 72,
+     "title": "AmberTwo customer journeys have no risk owner; 4 owners have not attested.",
+     "n": 1,
+     "crop": "board-accountability-c01.png"
+    },
+    {
+     "id": "AC_OWNERS",
+     "x": 24,
+     "y": 197,
+     "w": 920,
+     "h": 414.75,
+     "title": "Risk owners",
+     "n": 2,
+     "crop": "board-accountability-c02.png"
+    },
+    {
+     "id": "AC_DEFENCE",
+     "x": 968,
+     "y": 197,
+     "w": 448,
+     "h": 237.5,
+     "title": "Who found issues",
+     "n": 3,
+     "crop": "board-accountability-c03.png"
+    },
+    {
+     "id": "AC_CULTURE",
+     "x": 968,
+     "y": 450.5,
+     "w": 448,
+     "h": 161.25,
+     "title": "Culture and speak-up",
+     "n": 4,
+     "crop": "board-accountability-c04.png"
+    },
+    {
+     "id": "AC_HEATMAP",
+     "x": 24,
+     "y": 627.75,
+     "w": 684,
+     "h": 289.5,
+     "title": "Attestation record",
+     "n": 5,
+     "crop": "board-accountability-c05.png"
+    },
+    {
+     "id": "AC_SIGHT",
+     "x": 732,
+     "y": 627.75,
+     "w": 684,
+     "h": 289.5,
+     "title": "Line of sight",
+     "n": 6,
+     "crop": "board-accountability-c06.png"
+    },
+    {
+     "id": "DECISION_LOG",
+     "x": 24,
+     "y": 933.25,
+     "w": 1392,
+     "h": 292,
+     "title": "Decision log",
+     "n": 7,
+     "crop": "board-accountability-c07.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 1241.25,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 8,
+     "crop": "board-accountability-c08.png"
+    }
+   ]
+  },
+  {
+   "persona": "board",
+   "personaName": "Board member",
+   "tab": "ai",
+   "tabName": "AI agents",
+   "height": 1195,
+   "shots": [
+    "board-ai-1.png",
+    "board-ai-2.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 72,
+     "title": "WithinAgents draft and flag; none acted without approval.",
+     "n": 1,
+     "crop": "board-ai-c01.png"
+    },
+    {
+     "id": "A_FINDINGS",
+     "x": 24,
+     "y": 197,
+     "w": 684,
+     "h": 307.5,
+     "title": "Agent findings",
+     "n": 2,
+     "crop": "board-ai-c02.png"
+    },
+    {
+     "id": "A_TUNING",
+     "x": 732,
+     "y": 197,
+     "w": 684,
+     "h": 358.328125,
+     "title": "Tuning lab",
+     "n": 3,
+     "crop": "board-ai-c03.png"
+    },
+    {
+     "id": "A_RULES",
+     "x": 24,
+     "y": 520.5,
+     "w": 684,
+     "h": 241.828125,
+     "title": "Agent rules",
+     "n": 4,
+     "crop": "board-ai-c04.png"
+    },
+    {
+     "id": "A_AUTONOMY",
+     "x": 732,
+     "y": 571.328125,
+     "w": 684,
+     "h": 191,
+     "title": "Agent autonomy",
+     "n": 5,
+     "crop": "board-ai-c05.png"
+    },
+    {
+     "id": "A_ROSTER",
+     "x": 24,
+     "y": 778.328125,
+     "w": 1392,
+     "h": 366,
+     "title": "Agent roster",
+     "n": 6,
+     "crop": "board-ai-c06.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 1160.328125,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 7,
+     "crop": "board-ai-c07.png"
+    }
+   ]
+  },
+  {
+   "persona": "chair",
+   "personaName": "Risk Committee Chair",
+   "tab": "committee",
+   "tabName": "Committee",
+   "height": 900,
+   "shots": [
+    "chair-committee-1.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 72,
+     "title": "AmberOne decision is yours: restore the item removed from the pack.",
+     "n": 1,
+     "crop": "chair-committee-c01.png"
+    },
+    {
+     "id": "C_AGENDA",
+     "x": 24,
+     "y": 197,
+     "w": 920,
+     "h": 233.75,
+     "title": "Agenda items",
+     "n": 2,
+     "crop": "chair-committee-c02.png"
+    },
+    {
+     "id": "P_PAPER",
+     "x": 968,
+     "y": 197,
+     "w": 448,
+     "h": 85,
+     "title": "Decision paper",
+     "n": 3,
+     "crop": "chair-committee-c03.png"
+    },
+    {
+     "id": "C_PACK",
+     "x": 968,
+     "y": 298,
+     "w": 448,
+     "h": 132.75,
+     "title": "Pack integrity",
+     "n": 4,
+     "crop": "chair-committee-c04.png"
+    },
+    {
+     "id": "O_CALLS",
+     "x": 24,
+     "y": 446.75,
+     "w": 684,
+     "h": 196,
+     "title": "Board calls",
+     "n": 5,
+     "crop": "chair-committee-c05.png"
+    },
+    {
+     "id": "ESCALATION",
+     "x": 732,
+     "y": 446.75,
+     "w": 684,
+     "h": 196,
+     "title": "Escalation",
+     "n": 6,
+     "crop": "chair-committee-c06.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 658.75,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 7,
+     "crop": "chair-committee-c07.png"
+    }
+   ]
+  },
+  {
+   "persona": "chair",
+   "personaName": "Risk Committee Chair",
+   "tab": "risk",
+   "tabName": "Risk & reporting",
+   "height": 964,
+   "shots": [
+    "chair-risk-1.png",
+    "chair-risk-2.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 50,
+     "title": "Amber8 of 12 measures need attention; 6 regulator routes undecided.",
+     "n": 1,
+     "crop": "chair-risk-c01.png"
+    },
+    {
+     "id": "P_TIERS",
+     "x": 24,
+     "y": 175,
+     "w": 1392,
+     "h": 522.5,
+     "title": "Board measures",
+     "n": 2,
+     "crop": "chair-risk-c02.png"
+    },
+    {
+     "id": "OB_REPORTABLE",
+     "x": 24,
+     "y": 713.5,
+     "w": 1392,
+     "h": 199,
+     "title": "Reportable events",
+     "n": 3,
+     "crop": "chair-risk-c03.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 928.5,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 4,
+     "crop": "chair-risk-c04.png"
+    }
+   ]
+  },
+  {
+   "persona": "chair",
+   "personaName": "Risk Committee Chair",
+   "tab": "oversight",
+   "tabName": "Oversight",
+   "height": 1246,
+   "shots": [
+    "chair-oversight-1.png",
+    "chair-oversight-2.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 50,
+     "title": "AmberBad news takes 4.6 months to reach committee; 3 issues never arrived.",
+     "n": 1,
+     "crop": "chair-oversight-c01.png"
+    },
+    {
+     "id": "AC_OWNERS",
+     "x": 24,
+     "y": 175,
+     "w": 920,
+     "h": 480,
+     "title": "Risk owners",
+     "n": 2,
+     "crop": "chair-oversight-c02.png"
+    },
+    {
+     "id": "C_WAITING",
+     "x": 968,
+     "y": 175,
+     "w": 448,
+     "h": 232,
+     "title": "Waiting on CRO",
+     "n": 3,
+     "crop": "chair-oversight-c03.png"
+    },
+    {
+     "id": "A_RULES",
+     "x": 968,
+     "y": 423,
+     "w": 448,
+     "h": 232,
+     "title": "Agent rules",
+     "n": 4,
+     "crop": "chair-oversight-c04.png"
+    },
+    {
+     "id": "AC_SIGHT",
+     "x": 24,
+     "y": 671,
+     "w": 1392,
+     "h": 218,
+     "title": "Line of sight",
+     "n": 5,
+     "crop": "chair-oversight-c05.png"
+    },
+    {
+     "id": "AC_HEATMAP",
+     "x": 24,
+     "y": 905,
+     "w": 802,
+     "h": 289.5,
+     "title": "Attestation record",
+     "n": 6,
+     "crop": "chair-oversight-c06.png"
+    },
+    {
+     "id": "A_AUTONOMY",
+     "x": 850,
+     "y": 905,
+     "w": 566,
+     "h": 289.5,
+     "title": "Agent autonomy",
+     "n": 7,
+     "crop": "chair-oversight-c07.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 1210.5,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 8,
+     "crop": "chair-oversight-c08.png"
+    }
+   ]
+  },
+  {
+   "persona": "cro",
+   "personaName": "Chief Risk Officer",
+   "tab": "actions",
+   "tabName": "My actions",
+   "height": 1241,
+   "shots": [
+    "cro-actions-1.png",
+    "cro-actions-2.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 50,
+     "title": "Red3 regulator cases to send now; 5 drafts need your approval.",
+     "n": 1,
+     "crop": "cro-actions-c01.png"
+    },
+    {
+     "id": "R_QUEUE",
+     "x": 24,
+     "y": 175,
+     "w": 920,
+     "h": 473,
+     "title": "Work queue",
+     "n": 2,
+     "crop": "cro-actions-c02.png"
+    },
+    {
+     "id": "R_DEADLINES",
+     "x": 968,
+     "y": 175,
+     "w": 448,
+     "h": 196,
+     "title": "Deadlines",
+     "n": 3,
+     "crop": "cro-actions-c03.png"
+    },
+    {
+     "id": "R_CLOCKS_DUE",
+     "x": 968,
+     "y": 387,
+     "w": 448,
+     "h": 160,
+     "title": "Reporting clocks due",
+     "n": 4,
+     "crop": "cro-actions-c04.png"
+    },
+    {
+     "id": "P_PAPER",
+     "x": 968,
+     "y": 563,
+     "w": 448,
+     "h": 85,
+     "title": "Decision paper",
+     "n": 5,
+     "crop": "cro-actions-c05.png"
+    },
+    {
+     "id": "R_PACK",
+     "x": 24,
+     "y": 664,
+     "w": 1392,
+     "h": 526,
+     "title": "Pack checklist",
+     "n": 6,
+     "crop": "cro-actions-c06.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 1206,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 7,
+     "crop": "cro-actions-c07.png"
+    }
+   ]
+  },
+  {
+   "persona": "cro",
+   "personaName": "Chief Risk Officer",
+   "tab": "risk",
+   "tabName": "Risk & roll-up",
+   "height": 1421,
+   "shots": [
+    "cro-risk-1.png",
+    "cro-risk-2.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 50,
+     "title": "Amber14 metrics below the board measures are off track; 5 controls are red.",
+     "n": 1,
+     "crop": "cro-risk-c01.png"
+    },
+    {
+     "id": "M_TABLE_CRO",
+     "x": 24,
+     "y": 175,
+     "w": 1392,
+     "h": 522.5,
+     "title": "Board measures",
+     "n": 2,
+     "crop": "cro-risk-c02.png"
+    },
+    {
+     "id": "AC_OWNERS",
+     "x": 24,
+     "y": 713.5,
+     "w": 920,
+     "h": 444,
+     "title": "Risk owners",
+     "n": 3,
+     "crop": "cro-risk-c03.png"
+    },
+    {
+     "id": "ESCALATION",
+     "x": 968,
+     "y": 713.5,
+     "w": 448,
+     "h": 196,
+     "title": "Escalation",
+     "n": 4,
+     "crop": "cro-risk-c04.png"
+    },
+    {
+     "id": "S_POLICY",
+     "x": 968,
+     "y": 925.5,
+     "w": 448,
+     "h": 232,
+     "title": "Policy linkage",
+     "n": 5,
+     "crop": "cro-risk-c05.png"
+    },
+    {
+     "id": "S_TENSIONS",
+     "x": 24,
+     "y": 1173.5,
+     "w": 1392,
+     "h": 196,
+     "title": "Tensions",
+     "n": 6,
+     "crop": "cro-risk-c06.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 1385.5,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 7,
+     "crop": "cro-risk-c07.png"
+    }
+   ]
+  },
+  {
+   "persona": "cro",
+   "personaName": "Chief Risk Officer",
+   "tab": "reporting",
+   "tabName": "Regulatory reporting",
+   "height": 900,
+   "shots": [
+    "cro-reporting-1.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 50,
+     "title": "RedRestriction breach: 0 of 3 routes decided; read-across not started.",
+     "n": 1,
+     "crop": "cro-reporting-c01.png"
+    },
+    {
+     "id": "OB_REPORTABLE",
+     "x": 24,
+     "y": 175,
+     "w": 1392,
+     "h": 221.8125,
+     "title": "Reportable events",
+     "n": 2,
+     "crop": "cro-reporting-c02.png"
+    },
+    {
+     "id": "OB_RESTRICTION",
+     "x": 24,
+     "y": 412.8125,
+     "w": 684,
+     "h": 402.5,
+     "title": "Restriction breach",
+     "n": 3,
+     "crop": "cro-reporting-c03.png"
+    },
+    {
+     "id": "OB_ENFORCEMENT",
+     "x": 732,
+     "y": 412.8125,
+     "w": 684,
+     "h": 177.5,
+     "title": "Enforcement themes",
+     "n": 4,
+     "crop": "cro-reporting-c04.png"
+    },
+    {
+     "id": "E_HORIZON",
+     "x": 732,
+     "y": 606.3125,
+     "w": 684,
+     "h": 209,
+     "title": "Regulatory horizon",
+     "n": 5,
+     "crop": "cro-reporting-c05.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 831.3125,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 6,
+     "crop": "cro-reporting-c06.png"
+    }
+   ]
+  },
+  {
+   "persona": "cro",
+   "personaName": "Chief Risk Officer",
+   "tab": "agents",
+   "tabName": "AI agents",
+   "height": 900,
+   "shots": [
+    "cro-agents-1.png"
+   ],
+   "components": [
+    {
+     "id": "HEADLINE",
+     "x": 24,
+     "y": 109,
+     "w": 1392,
+     "h": 50,
+     "title": "WithinOption B catches 71 of 97 breaches within current capacity.",
+     "n": 1,
+     "crop": "cro-agents-c01.png"
+    },
+    {
+     "id": "A_AUTONOMY",
+     "x": 24,
+     "y": 175,
+     "w": 684,
+     "h": 191,
+     "title": "Agent autonomy",
+     "n": 2,
+     "crop": "cro-agents-c02.png"
+    },
+    {
+     "id": "A_TUNING",
+     "x": 732,
+     "y": 175,
+     "w": 684,
+     "h": 370.328125,
+     "title": "Tuning lab",
+     "n": 3,
+     "crop": "cro-agents-c03.png"
+    },
+    {
+     "id": "A_ROSTER",
+     "x": 24,
+     "y": 382,
+     "w": 684,
+     "h": 443.328125,
+     "title": "Agent roster",
+     "n": 4,
+     "crop": "cro-agents-c04.png"
+    },
+    {
+     "id": "A_ACTIVITY",
+     "x": 732,
+     "y": 561.328125,
+     "w": 684,
+     "h": 264,
+     "title": "Agent activity",
+     "n": 5,
+     "crop": "cro-agents-c05.png"
+    },
+    {
+     "id": "PAGE_SOURCES",
+     "x": 24,
+     "y": 841.328125,
+     "w": 1392,
+     "h": 19.125,
+     "title": "",
+     "n": 6,
+     "crop": "cro-agents-c06.png"
+    }
+   ]
+  }
+ ],
+ "states": [
+  {
+   "file": "board-state-decision-panel.png",
+   "title": "Decision panel"
+  },
+  {
+   "file": "board-state-expanded-row.png",
+   "title": "Expanded measure row"
+  },
+  {
+   "file": "board-state-measure-drawer.png",
+   "title": "Measure drawer"
+  },
+  {
+   "file": "cro-state-tuning-alert.png",
+   "title": "Tuning lab: alert tuning"
+  },
+  {
+   "file": "cro-state-tuning-detection.png",
+   "title": "Tuning lab: detection model"
+  }
+ ]
+}
