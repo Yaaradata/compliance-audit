@@ -148,17 +148,18 @@ function Days() {
 const headerBtn = `flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 ${focus}`;
 
 /** Columns stack below 1280px so tables keep their width at 1024. */
-const SPAN = { 3: "xl:col-span-3", 4: "xl:col-span-4", 6: "xl:col-span-6", 8: "xl:col-span-8", 12: "xl:col-span-12" } as const;
+const SPAN = { 3: "xl:col-span-3", 4: "xl:col-span-4", 5: "xl:col-span-5", 6: "xl:col-span-6", 7: "xl:col-span-7", 8: "xl:col-span-8", 12: "xl:col-span-12" } as const;
 
 function TabBody({ tab }: { tab: TabView }) {
   return (
     <>
       {tab.layout.map((row, i) => (
-        <div key={i} className="grid grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-12">
+        <div key={i} className="grid grid-cols-1 items-stretch gap-x-6 gap-y-4 xl:grid-cols-12">
           {row.cols.map((c, j) => (
             <div key={j} className={`flex min-w-0 flex-col gap-4 ${SPAN[c.span]}`}>
-              {c.sections.map((id) => (
-                <div key={id} data-section={id}>
+              {c.sections.map((id, k) => (
+                // The last section in a column stretches, so cards in a row end level.
+                <div key={id} data-section={id} className={k === c.sections.length - 1 ? "flex flex-1 flex-col [&>section]:flex-1" : undefined}>
                   {renderSection(id)}
                 </div>
               ))}
@@ -205,7 +206,7 @@ function Page() {
         <Header onOpen={open} onPersona={onPersona} onAgent={() => setAgent(true)} />
         <main key={`${state.persona}-${tab.id}-${state.epoch}`} className="mx-auto max-w-[1440px] space-y-4 px-6 py-4">
           <PageHeader title={tab.title} meta={tab.meta} />
-          {state.persona === "board" ? <StrategyStrip /> : null}
+          {state.persona === "board" && tab.id !== "overview" ? <StrategyStrip /> : null}
           <FigureRegistry tab={`${state.persona}-${tab.id}`}>
             <TabBody tab={tab} />
           </FigureRegistry>

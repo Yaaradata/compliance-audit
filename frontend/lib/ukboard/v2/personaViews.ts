@@ -9,7 +9,7 @@ export type PersonaId = "board" | "chair" | "cro";
 export type SectionId = string;
 
 /** A row of columns on the 12-column grid; each column stacks its sections. */
-export type Layout = { cols: { span: 3 | 4 | 6 | 8 | 12; sections: SectionId[] }[] }[];
+export type Layout = { cols: { span: 3 | 4 | 5 | 6 | 7 | 8 | 12; sections: SectionId[] }[] }[];
 
 export interface TabView {
   id: string;
@@ -28,7 +28,7 @@ export interface PersonaView {
   tabs: TabView[];
 }
 
-type Span = 3 | 4 | 6 | 8 | 12;
+type Span = 3 | 4 | 5 | 6 | 7 | 8 | 12;
 const full = (...sections: SectionId[]) => ({ cols: [{ span: 12 as const, sections }] });
 const row = (...cols: [Span, ...SectionId[]][]) => ({ cols: cols.map(([span, ...sections]) => ({ span, sections })) });
 
@@ -42,8 +42,7 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         id: "overview",
         label: "Overview",
         title: "Board risk summary",
-        meta: "Pack 15 Dec · evidence 26 Oct",
-        layout: [full("O_POSTURE"), full("O_TIERS"), row([4, "O_CALLS"], [4, "O_REPORTABLE"], [4, "O_TENSIONS"]), row([4, "O_ACCOUNT"], [8, "O_SINCE"])],
+        layout: [full("O_SCORECARD"), full("O_POSTURE"), row([4, "O_TOP"], [4, "O_EMERGING"], [4, "O_OBLIGATORY"]), row([5, "O_CALLS"], [7, "O_EXPOSURE"]), row([6, "O_TENSIONS"], [6, "O_SINCE"])],
       },
       {
         id: "strategy",

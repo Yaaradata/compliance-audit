@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import {
   MEASURES,
   pipsOf,
+  REPORTABLE_EVENTS,
   planPacePct,
   STATUS_ORDER,
   STATUS_WORD,
@@ -22,6 +23,7 @@ import {
   type MeasureStatus,
   type PipStatus,
 } from "@/lib/ukboard/v2/boardStore";
+import { ROUTES } from "@/lib/ukboard/v1/data";
 import { useStore } from "./store";
 import { AiTag, btn, btnPrimary } from "./ui";
 
@@ -173,6 +175,8 @@ const CELL: Record<MeasureStatus, string> = {
   within: "bg-emerald-500",
 };
 
+const LEGEND: Record<MeasureStatus, string> = { red: "red", amber: "amber", projected: "heading", unconfirmed: "unconfirmed", within: "within" };
+
 /** All 12 at once: equal cells ordered red → amber → heading → unconfirmed → within. */
 export function StatusStrip() {
   const order: MeasureStatus[] = ["red", "amber", "projected", "unconfirmed", "within"];
@@ -187,7 +191,7 @@ export function StatusStrip() {
       <span className="flex flex-wrap gap-x-2.5 text-[11px] text-slate-600">
         {order.map((s) => (
           <span key={s}>
-            <b className="tabular-nums text-slate-900">{MEASURES.filter((m) => m.status === s).length}</b> {STATUS_WORD[s].toLowerCase()}
+            <b className="tabular-nums text-slate-900">{MEASURES.filter((m) => m.status === s).length}</b> {LEGEND[s]}
           </span>
         ))}
       </span>
@@ -301,13 +305,15 @@ function Label({ e }: { e: { date: string; label: string; tag?: string } }) {
 /* ── RouteMatrix ─────────────────────────────────────────────────────── */
 
 export type RouteCell = { status: "decided" | "pending"; clock: string } | null;
+const CLOCK_SHORT: Record<string, string> = { "Within the reporting period": "Reporting period" };
 
 /** Events × routes: ● decided, ◐ pending (clock underneath), — not applicable. */
-export function RouteMatrix({ rows, cols }: { rows: { key: string; event: ReactNode; cells: RouteCell[]; rail?: "red" | "amber" }[]; cols: string[] }) {
-  const grid = `grid grid-cols-[minmax(160px,1.6fr)_repeat(${cols.length},minmax(84px,1fr))] items-center gap-3`;
+export function RouteMatrix({ rows, cols, compact }: { rows: { key: string; event: ReactNode; cells: RouteCell[]; rail?: "red" | "amber" }[]; cols: string[]; compact?: boolean }) {
+  const grid = "grid items-center gap-3";
+  const tpl = { gridTemplateColumns: `minmax(160px,1.6fr) repeat(${cols.length}, minmax(72px,1fr))` };
   return (
     <div className="text-[13px]" data-chart="route-matrix">
-      <div className={`${grid} min-h-7 border-t border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}>
+      <div className={`${grid} min-h-7 border-t border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500`} style={tpl}>
         <span>Event</span>
         {cols.map((c) => (
           <span key={c} className="text-center">
@@ -316,7 +322,7 @@ export function RouteMatrix({ rows, cols }: { rows: { key: string; event: ReactN
         ))}
       </div>
       {rows.map((r) => (
-        <div key={r.key} className={`${grid} min-h-12 border-l-[3px] border-t border-t-slate-100 py-1 pl-2 ${r.rail === "red" ? "border-l-red-500" : r.rail === "amber" ? "border-l-amber-500" : "border-l-transparent"}`}>
+        <div key={r.key} className={`${grid} min-h-12 border-l-[3px] border-t border-t-slate-100 py-1 pl-2 ${r.rail === "red" ? "border-l-red-500" : r.rail === "amber" ? "border-l-amber-500" : "border-l-transparent"}`} style={tpl}>
           <span className="min-w-0">{r.event}</span>
           {r.cells.map((c, i) => (
             <span key={i} className="text-center leading-tight">
@@ -325,7 +331,7 @@ export function RouteMatrix({ rows, cols }: { rows: { key: string; event: ReactN
                   <span className="text-base text-slate-900" aria-label={c.status}>
                     {c.status === "decided" ? "●" : "◐"}
                   </span>
-                  {c.status === "pending" ? <span className="block text-[11px] text-slate-500">{c.clock}</span> : <span className="block text-[11px] text-slate-500">Decided</span>}
+                  {c.status === "pending" ? <span className="block text-[11px] text-slate-500">{CLOCK_SHORT[c.clock] ?? c.clock}</span> : null}
                 </>
               ) : (
                 <span className="text-slate-300">—</span>
@@ -334,7 +340,7 @@ export function RouteMatrix({ rows, cols }: { rows: { key: string; event: ReactN
           ))}
         </div>
       ))}
-      <p className="border-t border-slate-100 pt-1.5 text-xs text-slate-500">● decided · ◐ pending, clock shown · — no route</p>
+      <p className="border-t border-slate-100 pt-1.5 text-xs text-slate-500">{compact ? "● decided · ◐ pending" : "● decided · ◐ pending, clock shown · — no route"}</p>
     </div>
   );
 }
@@ -351,10 +357,11 @@ export interface CompareOption {
 
 /** 2–3 options side by side on the same rows; recommended outlined in indigo. */
 export function OptionCompare({ rows, options }: { rows: string[]; options: CompareOption[] }) {
-  const grid = `grid grid-cols-[96px_repeat(${options.length},minmax(0,1fr))] gap-x-3`;
+  const grid = "grid gap-x-3";
+  const tpl = { gridTemplateColumns: `96px repeat(${options.length}, minmax(0,1fr))` };
   return (
     <div className="text-[13px]">
-      <div className={`${grid} items-end pb-1.5`}>
+      <div className={`${grid} items-end pb-1.5`} style={tpl}>
         <span />
         {options.map((o) => (
           <span key={o.name} className={`rounded-t-md px-2.5 pt-2 ${o.recommended ? "border-2 border-b-0 border-indigo-500" : "border-2 border-transparent"}`}>
@@ -368,7 +375,7 @@ export function OptionCompare({ rows, options }: { rows: string[]; options: Comp
         ))}
       </div>
       {rows.map((row, ri) => (
-        <div key={row} className={`${grid} items-stretch`}>
+        <div key={row} className={`${grid} items-stretch`} style={tpl}>
           <span className="border-t border-slate-100 py-1.5 text-xs font-semibold text-slate-500">{row}</span>
           {options.map((o) => (
             <span key={o.name} className={`border-t border-t-slate-100 px-2.5 py-1.5 text-slate-800 ${o.recommended ? `border-x-2 border-x-indigo-500 ${ri === rows.length - 1 ? "rounded-b-md border-b-2 border-b-indigo-500" : ""}` : "border-x-2 border-x-transparent"}`}>
@@ -530,3 +537,31 @@ export function DataBarCell({ value, max, display }: { value: number; max: numbe
   );
 }
 
+
+/* ── Reportable events as a route matrix (store-driven) ──────────────── */
+
+const ROUTE_COLS: { label: string; match: RegExp }[] = [
+  { label: "FCA", match: /^FCA/ },
+  { label: "PRA", match: /^PRA/ },
+  { label: "SAR", match: /Suspicious/ },
+  { label: "Conduct rules", match: /Conduct rule/ },
+];
+
+/** The reportable events against the four routes, from the store's events and routes. */
+export function EventRouteMatrix({ detail, compact }: { detail?: (e: (typeof REPORTABLE_EVENTS)[number]) => ReactNode; compact?: boolean }) {
+  const rows = REPORTABLE_EVENTS.map((e) => ({
+    key: e.id,
+    rail: e.breached ? ("red" as const) : undefined,
+    event: (
+      <span className="block leading-snug">
+        <b className="font-semibold text-slate-900">{e.event}</b>
+        {compact ? null : <span className="block text-xs text-slate-500">{detail ? detail(e) : `Found ${e.found} · ${e.decider}`}</span>}
+      </span>
+    ),
+    cells: ROUTE_COLS.map((c): RouteCell => {
+      const r = ROUTES.find((x) => x.eventId === e.id && c.match.test(x.name));
+      return r ? { status: r.status === "decided" ? "decided" : "pending", clock: r.clock } : null;
+    }),
+  }));
+  return <RouteMatrix rows={rows} cols={ROUTE_COLS.map((c) => c.label)} compact={compact} />;
+}
