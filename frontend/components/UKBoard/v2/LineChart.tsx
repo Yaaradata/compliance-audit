@@ -44,6 +44,7 @@ export default function LineChart({
   suffix = "",
   axes = true,
   title,
+  directLabels,
 }: {
   series: ChartSeries[];
   height?: number;
@@ -52,6 +53,8 @@ export default function LineChart({
   suffix?: string;
   axes?: boolean;
   title: string;
+  /** Name each series at its last point instead of a legend. */
+  directLabels?: boolean;
 }) {
   const lines: ChartThreshold[] = [...(threshold ? [{ ...threshold, tone: "amber" as const }] : []), ...(thresholds ?? [])];
   const all = series.flatMap((s) => s.points.map((p) => p.value)).concat(lines.map((t) => t.value));
@@ -62,7 +65,7 @@ export default function LineChart({
   const y = (v: number) => top + (1 - (v - lo) / (hi - lo || 1)) * (height - top - bottom);
   const n = series[0].points.length;
   const x0 = axes ? 9 : 2;
-  const x1 = 98;
+  const x1 = directLabels ? 86 : 98;
   const x = (i: number) => `${x0 + (i / Math.max(n - 1, 1)) * (x1 - x0)}%`;
   const desc = series.map((s) => `${s.name}: ${s.points.map((p) => `${p.label} ${p.value}${suffix}`).join(", ")}`).join("; ");
   return (
@@ -87,14 +90,21 @@ export default function LineChart({
               x2={x(i + 1)}
               y1={y(s.points[i].value)}
               y2={y(p.value)}
-              stroke={si === 0 ? "#0f172a" : "#4f46e5"}
+              stroke={si === 0 ? "#0f172a" : "#64748b"}
               strokeWidth={2}
               strokeDasharray={s.dashed ? "5 3" : undefined}
             />
           )),
         )}
+        {directLabels
+          ? series.map((s, si) => (
+              <text key={`lbl-${s.name}`} x={`${x1 + 1}%`} y={y(s.points[s.points.length - 1].value) + 4} fontSize={11} fontWeight={600} fill={si === 0 ? "#0f172a" : "#64748b"}>
+                {s.name}
+              </text>
+            ))
+          : null}
         {series.map((s, si) =>
-          s.points.map((p, i) => <circle key={`${si}-p${i}`} cx={x(i)} cy={y(p.value)} r={2.5} fill={si === 0 ? "#0f172a" : "#4f46e5"} />),
+          s.points.map((p, i) => <circle key={`${si}-p${i}`} cx={x(i)} cy={y(p.value)} r={2.5} fill={si === 0 ? "#0f172a" : "#64748b"} />),
         )}
         {axes ? (
           <>
@@ -114,13 +124,13 @@ export default function LineChart({
           </>
         ) : null}
       </svg>
-      {series.length > 1 || axes ? (
+      {!directLabels && (series.length > 1 || axes) ? (
         <figcaption className="mt-1 flex flex-wrap gap-3 text-[11px] text-[#64748b]">
           {series.map((s, si) => (
             <span key={s.name} className="inline-flex items-center gap-1">
               <span
                 className={`inline-block h-0 w-4 border-t-2 ${s.dashed ? "border-dashed" : ""}`}
-                style={{ borderColor: si === 0 ? "#0f172a" : "#4f46e5" }}
+                style={{ borderColor: si === 0 ? "#0f172a" : "#64748b" }}
                 aria-hidden
               />
               {s.name}

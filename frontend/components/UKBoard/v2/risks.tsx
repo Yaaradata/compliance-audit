@@ -19,6 +19,7 @@ import {
   EMERGING_UNMEASURED,
   FIG,
   fmt,
+  historyOf,
   l2Visible,
   measure,
   SMF_CERT,
@@ -31,7 +32,8 @@ import {
 import { RollupChip, useFilteredMeasures } from "./appetite";
 import { useDrawer } from "./drawerContext";
 import LineChart from "./LineChart";
-import { Card, ChartCard, rowRail, StatRow, StatusPill, Table, useFigures } from "./present";
+import { Card, ChartCard, DeltaMark, rowRail, StatRow, StatusPill, Table, useFigures } from "./present";
+import { Sparkline } from "./visuals";
 import { useStore } from "./store";
 import { AiTag, btn, focus, Pill, type Tone } from "./ui";
 
@@ -52,83 +54,78 @@ function MeasureName({ m }: { m: Measure }) {
 
 /* ── Top risks ───────────────────────────────────────────────────────── */
 
-function TopRiskTable() {
+function TopRiskCard({ m }: { m: Measure }) {
+  const { state } = useStore();
   const { open } = useDrawer();
+  const h = historyOf(m.id);
+  const rows = l2Visible(m, state.persona).slice(0, 3);
+  const hidden = m.l2.length - l2Visible(m, state.persona).length;
+  const rail = m.status === "red" ? "border-l-[3px] border-l-red-500" : m.status === "amber" ? "border-l-[3px] border-l-amber-500" : "";
+  return (
+    <section className={`flex h-full flex-col rounded-lg border border-slate-200 bg-white px-4 pb-3 pt-3 ${rail}`}>
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="text-sm font-semibold leading-snug text-slate-900">{m.name}</h2>
+        <StatusPill status={m.status} />
+      </div>
+      <p className="text-xs text-slate-500">Risk owner: {m.owner}</p>
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <b className="text-2xl font-semibold leading-7 tabular-nums text-slate-900">{m.short ?? m.value}</b>
+        {h ? <Sparkline values={h.values} amber={m.amber} label={`${m.name}, last ${h.span}`} /> : <span className="text-xs text-slate-400">History from Q3 2026</span>}
+        <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+          <DeltaMark d={m.delta} /> vs Q2
+        </span>
+      </div>
+      <p className="mt-1.5 truncate text-xs text-slate-500" title={m.statement}>
+        {m.statement}
+      </p>
+      <div className="mt-2 flex-1">
+        {rows.map((x) => (
+          <StatRow key={x.name} label={x.name} value={x.value} comparator={x.threshold} rail={railOf(x.status)} />
+        ))}
+        {hidden > 0 ? <p className="border-t border-slate-100 py-1.5 text-xs text-slate-500">{`${hidden} Level 2 within appetite`}</p> : null}
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+        <RollupChip m={m} />
+        <button type="button" onClick={(e) => open(`metric:${m.id}`, e.currentTarget)} className={`rounded text-xs font-semibold text-indigo-700 hover:underline ${focus}`}>
+          Open ›
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** The six top risks as equal-height cards in a 3 × 2 grid. */
+function TopRiskCards() {
   const rows = useTier("top");
   useFigures(rows.map((m) => `m:${m.id}`));
   return (
-    <div>
-      <Table
-        title="Top risks"
-        right={<span className="text-xs text-slate-500">{`${rows.length} board measures · tight bands`}</span>}
-        cols="grid-cols-[minmax(140px,1.5fr)_minmax(80px,0.9fr)_64px_64px_minmax(88px,0.9fr)_124px_minmax(96px,1fr)_112px]"
-        head={["Board measure", "Value", "Amber trigger", "Appetite limit", "To threshold", "Below", "Risk owner", "Status"]}
-        rightCols={[2, 3, 7]}
-        rows={rows.map((m) => {
-          const t = thresholdCells(m);
-          return {
-            key: m.id,
-            rail: railOf(m.status),
-            onClick: (el: HTMLElement) => open(`metric:${m.id}`, el),
-            cells: [
-              <MeasureName key="n" m={m} />,
-              <span key="v" className="tabular-nums text-slate-900">{m.short ?? m.value}</span>,
-              <span key="a" className="text-xs">{t.amber}</span>,
-              <span key="l" className="text-xs">{t.limit}</span>,
-              <span key="t" className="text-xs">{timeToThreshold(m)}</span>,
-              <RollupChip key="r" m={m} />,
-              <span key="o" className="text-xs text-slate-500">{m.owner}</span>,
-              <StatusPill key="s" status={m.status} />,
-            ],
-          };
-        })}
-      />
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" data-chart="sparklines">
+      {rows.map((m) => (
+        <TopRiskCard key={m.id} m={m} />
+      ))}
     </div>
   );
 }
 
-function CreditQuality() {
-  const c = FIG.credit;
-  const { open } = useDrawer();
-  useFigures(["f:credit", "f:mortgage-book"]);
-  const toHltv = (el: HTMLElement) => open("metric:u-hltv", el);
+/** Last and next exercise on one short line (a mini timeline inside the cyber card). */
+function ExerciseLine({ last, next }: { last: { label: string; value: string; note: string }; next: { label: string; value: string; note: string } }) {
   return (
-    <Card title="Credit quality">
-      <StatRow label="Above 4.5× income" value={fmt.pct(c.above45, 1)} comparator={`limit ${fmt.pct(c.above45Limit)}`} onClick={toHltv} />
-      <StatRow label="Arrears 3 months+" value={fmt.pct(c.arrears, 2)} comparator={`appetite ${fmt.pct(c.arrearsAppetite, 1)} · Q2 ${fmt.pct(c.arrearsQ2, 2)}`} onClick={toHltv} />
-      <StatRow label="Cost of risk" value={`${c.costOfRiskBps} bps`} comparator={`Q2 ${c.costOfRiskQ2Bps} bps`} onClick={toHltv} />
-      <StatRow label="Mortgage book" value={fmt.gbpBn(FIG.mortgages.bookBn)} />
-    </Card>
-  );
-}
-
-function LiquidityCapital() {
-  const l = FIG.liquidity;
-  const { open } = useDrawer();
-  const lcr = measure("u-lcr");
-  const nsfrStatus = lcr.l2.find((x) => x.name.includes("NSFR"))?.status ?? "within";
-  const wholesaleStatus = lcr.l2.find((x) => x.name.startsWith("Wholesale"))?.status ?? "within";
-  const toLcr = (el: HTMLElement) => open("metric:u-lcr", el);
-  useFigures(["f:liquidity"]);
-  return (
-    <Card title="Liquidity & capital" right={<span className="text-xs text-slate-500">Liquidity coverage and CET1 in the table</span>}>
-      <StatRow
-        label="Stable funding (NSFR)"
-        value={fmt.pct(l.nsfr)}
-        comparator={`amber ${fmt.pct(l.nsfrAmber)} · ${fmt.pts(l.nsfr - l.nsfrAmber, 0)} above`}
-        rail={railOf(nsfrStatus)}
-        right={<StatusPill status={nsfrStatus} />}
-        onClick={toLcr}
-      />
-      <StatRow
-        label="Wholesale funding"
-        value={fmt.pct(l.wholesale)}
-        comparator={`ceiling ${fmt.pct(l.wholesaleCeiling)} · ${fmt.pts(l.wholesaleCeiling - l.wholesale, 0)} headroom`}
-        rail={railOf(wholesaleStatus)}
-        right={<StatusPill status={wholesaleStatus} />}
-        onClick={toLcr}
-      />
-    </Card>
+    <div className="border-t border-slate-100 pt-2.5" role="img" aria-label={`${last.label} ${last.value}; ${next.label} ${next.value}`}>
+      <div className="relative mx-2 h-px bg-slate-300">
+        <span className="absolute -top-1 left-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-slate-900" />
+        <span className="absolute -top-1 right-0 h-2.5 w-2.5 translate-x-1/2 rounded-full border border-slate-900 bg-white" />
+      </div>
+      <div className="mt-2 flex justify-between text-xs leading-tight">
+        <span>
+          <b className="block font-semibold text-slate-900">{last.value}</b>
+          <span className="text-slate-500">Last red team · {last.note}</span>
+        </span>
+        <span className="text-right">
+          <b className="block font-semibold text-slate-900">{next.value}</b>
+          <span className="text-slate-500">Next · {next.note}</span>
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -136,10 +133,11 @@ function CyberExercises() {
   const { open } = useDrawer();
   useFigures(["f:cyber-exercises"]);
   return (
-    <Card title="Cyber: red team and blue team">
-      {CYBER_EXERCISES.map((x) => (
+    <Card title="Cyber: red team and blue team" className="h-full">
+      {CYBER_EXERCISES.filter((x) => !/exercise$/i.test(x.label)).map((x) => (
         <StatRow key={x.label} label={x.label} value={x.value} comparator={x.note} onClick={(el) => open("metric:u-secfind", el)} />
       ))}
+      <ExerciseLine last={CYBER_EXERCISES[0]} next={CYBER_EXERCISES[2]} />
     </Card>
   );
 }
@@ -155,6 +153,7 @@ function CapacityChart() {
       <LineChart
         title="Members and qualified handlers, indexed"
         height={180}
+        directLabels
         series={[
           { name: "Members", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: members[i] })) },
           { name: "Handlers", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: handlers[i] })), dashed: true },
@@ -162,23 +161,6 @@ function CapacityChart() {
       />
       <StatRow label="Handlers to restore the ratio" value={`+${c.restoreNeeded}`} comparator={`about ${fmt.gbpM(c.restoreCostM)} a year · ${c.handlers} today`} />
     </ChartCard>
-  );
-}
-
-function FinCrimeLevel2() {
-  const { state } = useStore();
-  const { open } = useDrawer();
-  const m = measure("u-capacity");
-  const rows = l2Visible(m, state.persona);
-  const hidden = m.l2.length - rows.length;
-  useFigures([`l2:${m.id}`]);
-  return (
-    <Card title="Financial crime · Level 2 metrics" right={<span className="text-xs text-slate-500">{`${m.name} · Risk owner: ${m.owner}`}</span>}>
-      {rows.map((x) => (
-        <StatRow key={x.name} label={x.name} value={x.value} comparator={x.threshold} rail={railOf(x.status)} right={<StatusPill status={x.status} />} onClick={(el) => open(`metric:${m.id}`, el)} />
-      ))}
-      {hidden > 0 ? <p className="border-t border-slate-100 py-1.5 text-xs text-slate-500">{`${hidden} of ${m.l2.length} Level 2 metrics within appetite not shown`}</p> : null}
-    </Card>
   );
 }
 
@@ -314,12 +296,9 @@ function RegulatoryHorizon() {
 }
 
 export const RISK_SECTIONS = {
-  R_TOP_TABLE: TopRiskTable,
-  R_CREDIT: CreditQuality,
-  R_LIQUIDITY: LiquidityCapital,
+  R_CARDS: TopRiskCards,
   R_CYBER: CyberExercises,
   R_CAPACITY: CapacityChart,
-  R_FINCRIME_L2: FinCrimeLevel2,
   E_TABLE: EmergingTable,
   E_DETECTION: DetectionChart,
   E_SIGNALS: AttackSignals,

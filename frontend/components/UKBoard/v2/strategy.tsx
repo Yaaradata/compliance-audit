@@ -25,7 +25,7 @@ import {
   type ObjId,
 } from "@/lib/ukboard/v2/boardStore";
 import { TensionList, useFilteredMeasures } from "./appetite";
-import { MeasureVisual, StanceLine } from "./visuals";
+import { MeasureVisual, StanceLine, StatusHistory } from "./visuals";
 import { useDrawer } from "./drawerContext";
 import { Card, LineItem, StatusPill, Table, useFigures } from "./present";
 import { useStore } from "./store";
@@ -37,8 +37,8 @@ const GROWTH: Partial<Record<ObjId, string>> = {
   O1: `${fmt.gbpBn(FIG.mortgages.lentBn)} of ${fmt.gbpBn(FIG.mortgages.planBn)} plan`,
   O2: `+${fmt.gbpBn(FIG.savings.balancesBn)} vs +${fmt.gbpBn(FIG.savings.planBn)} plan`,
 };
-const STANCE_WORD = { tighten: "Tighten", hold: "Hold", loosen: "Loosen", new: "To set" } as const;
-const ROW = "grid min-h-[52px] grid-cols-[minmax(180px,2fr)_230px_72px_72px_56px_minmax(100px,1fr)_112px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
+/** 52px rows; the measure visual sits in one column so the eye scans down one line. */
+const ROW = "grid min-h-[52px] grid-cols-[minmax(170px,2fr)_258px_64px_64px_64px_minmax(120px,1fr)_112px] items-center gap-3 px-4 py-1 text-[13px] leading-snug";
 
 /** Objective → risk appetite statement → board measure; grouped by primary objective. */
 function Cascade() {
@@ -58,8 +58,8 @@ function Cascade() {
           <span>Position</span>
           <span>Amber trigger</span>
           <span>Appetite limit</span>
+          <span>Type</span>
           <span>Stance</span>
-          <span>Risk owner</span>
           <span className="text-right">Status</span>
         </div>
         {groups.map(({ o, rows }) => (
@@ -69,7 +69,7 @@ function Cascade() {
               <b className="font-semibold text-slate-900">{o.name}</b>
               {GROWTH[o.id] ? <span className="tabular-nums text-slate-600">{GROWTH[o.id]}</span> : null}
               <span className="ml-auto">
-                <Pill tone={objectiveStatus(o.id) === "off_track" ? "red" : objectiveStatus(o.id) === "at_risk" ? "amber" : "green"} outline={objectiveStatus(o.id) === "on_track"} label={OBJ_WORD[objectiveStatus(o.id)]} />
+                <Pill tone={objectiveStatus(o.id) === "off_track" ? "red" : objectiveStatus(o.id) === "at_risk" ? "amber" : "green"} label={OBJ_WORD[objectiveStatus(o.id)]} />
               </span>
             </div>
             {rows.map((m) => (
@@ -93,11 +93,11 @@ function CascadeRow({ m, onOpen }: { m: Measure; onOpen: (el: HTMLElement) => vo
           <span className={muted ? "text-slate-600" : "font-semibold text-slate-900"}>{m.name}</span>
           <span className="block text-xs text-slate-500">{m.statement}</span>
         </span>
-        <MeasureVisual m={m} width={110} />
+        <MeasureVisual m={m} width={160} />
         <span className="text-xs tabular-nums">{t.amber}</span>
         <span className="text-xs tabular-nums">{t.limit}</span>
-        <span className="text-xs">{STANCE_WORD[m.stance]}</span>
-        <span className="text-xs text-slate-500">{m.owner}</span>
+        <span className="text-xs">{m.type === "leading" ? "Leading" : "Lagging"}</span>
+        <StanceLine m={m} short />
         <span className="justify-self-end">
           <StatusPill status={m.status} />
         </span>
@@ -218,8 +218,21 @@ function BoardCallsPanel() {
   );
 }
 
+/** Status by quarter for all 12 (earlier quarters hatched where the store has no record). */
+function History() {
+  useFigures(["f:status-history"]);
+  return (
+    <Card title="Status history" className="h-full">
+      <div data-chart="status-history">
+        <StatusHistory />
+      </div>
+    </Card>
+  );
+}
+
 export const STRATEGY_SECTIONS = {
   S_CASCADE: Cascade,
+  S_HISTORY: History,
   S_TENSIONS: () => <TensionList />,
   S_POLICY: PolicyLinkage,
   S_BANDS: BandDesign,

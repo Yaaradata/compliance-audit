@@ -393,10 +393,23 @@ export function OptionCompare({ rows, options }: { rows: string[]; options: Comp
 const STANCE_WORD = { tighten: "Tighten", hold: "Hold", loosen: "Loosen", set: "Set appetite", new: "Not yet set" } as const;
 
 /** Read-only stance with any proposal; the only action adds it to the decision paper. */
-export function StanceLine({ m, compact }: { m: Measure; compact?: boolean }) {
+export function StanceLine({ m, compact, short }: { m: Measure; compact?: boolean; short?: boolean }) {
   const { state, dispatch } = useStore();
   const item = `stance:${m.id}`;
   const added = state.session.paper.includes(item);
+  if (short)
+    return (
+      <span className="text-xs text-slate-700">
+        {STANCE_WORD[m.stance]}
+        {m.proposal ? (
+          <span className="text-slate-500">
+            {" "}
+            · proposed <b className="font-semibold text-slate-900">{STANCE_WORD[m.proposal.stance]}</b>
+            {m.proposal.ai ? <span className="ml-0.5 text-violet-500">✦</span> : null}
+          </span>
+        ) : null}
+      </span>
+    );
   const text = (
     <span className="text-[13px] text-slate-700">
       Board stance <b className="font-semibold text-slate-900">{STANCE_WORD[m.stance]}</b>

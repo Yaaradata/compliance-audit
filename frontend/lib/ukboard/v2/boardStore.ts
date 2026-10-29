@@ -905,6 +905,14 @@ export function timeToThreshold(m: Measure): string {
 
 /* ── Consistency checks ──────────────────────────────────────────────── */
 
+/** Recorded history for a measure's sparkline, or null where the store holds none before Q3 2026. */
+export function historyOf(id: string): { values: number[]; span: string } | null {
+  if (id === "u-hltv" || id === "u-lcr") return { values: SERIES[id].map((p) => p.value), span: "6 quarters" };
+  if (id === "u-capacity") return { values: CAPACITY.queueAge.map((p) => p.value), span: "6 months" };
+  if (id === "u-detect") return { values: DETECTION_SERIES.map((p) => p.value), span: "6 months" };
+  return null;
+}
+
 /** Plan-pace marker for the lending-growth bullet bar (share of plan that should be lent by now). */
 export const planPacePct = () => Math.round(FIG.mortgages.pace * 100);
 

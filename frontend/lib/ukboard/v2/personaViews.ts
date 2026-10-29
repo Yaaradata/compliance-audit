@@ -48,13 +48,13 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         id: "strategy",
         label: "Strategy & appetite",
         title: "Strategy and risk appetite",
-        layout: [full("S_CASCADE"), row([6, "S_TENSIONS"], [6, "S_POLICY", "S_BANDS"])],
+        layout: [full("S_CASCADE"), row([6, "S_HISTORY"], [6, "S_TENSIONS"]), row([6, "S_POLICY"], [6, "S_BANDS"])],
       },
       {
         id: "top",
         label: "Top risks",
         title: "Top risks",
-        layout: [full("R_TOP_TABLE"), row([8, "R_CAPACITY"], [4, "R_FINCRIME_L2"]), row([4, "R_CREDIT"], [4, "R_LIQUIDITY"], [4, "R_CYBER"])],
+        layout: [full("R_CARDS"), row([8, "R_CAPACITY"], [4, "R_CYBER"])],
       },
       {
         id: "emerging",
