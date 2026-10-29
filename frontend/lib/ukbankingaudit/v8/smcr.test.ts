@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { precedentsSinceAttestation, unacknowledgedPrecedentRows } from "./smcrPrecedentAwareness.ts";
-import { standingAwarenessGaps } from "./smcrStanding.ts";
-import { rssEvidenceState } from "./smcrEvidence.ts";
+import { precedentsSinceAttestation, unacknowledgedPrecedentRows } from "./smcrPrecedentAwareness";
+import { standingAwarenessGaps } from "./smcrStanding";
+import { rssEvidenceState } from "./smcrEvidence";
 
 describe("smcrEvidence", () => {
   it("seeds attestationFreshness and issueAwareness as hollow", () => {
