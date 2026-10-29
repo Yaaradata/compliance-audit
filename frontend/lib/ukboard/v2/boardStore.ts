@@ -621,7 +621,7 @@ export const POLICIES = {
 };
 export const policiesTracked = () => POLICIES.total - POLICIES.untracked.length;
 
-/* ── Board calls (decisions as dial calls) ───────────────────────────── */
+/* ── Board calls (Tighten · Hold · Loosen decisions) ───────────────────────────── */
 
 export const FTB = { limitNow: 20, loosenTo: 22, tightenTo: 18 };
 export const ftbHeadroomM = (limit: number) => Math.round(((limit - hltvNow) / 100) * 4.0 * 1000);

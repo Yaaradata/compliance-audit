@@ -2,7 +2,7 @@
 
 /**
  * UK Board v2 — in-memory store (copied from the v1 store and adapted for three personas,
- * tabs, meeting notes, agent dials and the tuning lab). No browser storage.
+ * tabs, meeting notes, agent autonomy and the tuning lab). No browser storage.
  * Every human action writes an audit entry naming the person. Agents never act alone.
  */
 import { createContext, useContext, useMemo, useReducer, type ReactNode } from "react";

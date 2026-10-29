@@ -14,17 +14,6 @@ export type Direction = "higherIsWorse" | "lowerIsWorse";
 export type ObjectiveId = "O1" | "O2" | "O3" | "O4";
 export type Verdict = "room_to_grow" | "hold" | "fix_first" | "unverified";
 
-export interface Dial {
-  min: number;
-  max: number;
-  amber?: number;
-  red?: number;
-  actual: number;
-  /** Where the straight-line projection crosses amber (hollow tick). */
-  projection?: number;
-  unit: string;
-}
-
 export interface MetricMeta {
   unitId: string;
   /** Face name, at most 4 words. */
@@ -38,7 +27,6 @@ export interface MetricMeta {
   denominator: string;
   /** Change against Q2 2026 (or the previous run), from the existing delta fields. */
   delta?: { text: string; worse: boolean };
-  dial?: Dial;
   /** Projected to reach amber, in plain words (only where the data holds a projection). */
   projectionText?: string;
   /** Quarters until amber on the straight-line projection; used by the off-track rule. */
@@ -48,26 +36,7 @@ export interface MetricMeta {
 
 const t = THRESHOLDS;
 
-/** Dial ranges for the compact appetite dials (presentation only; values come from boardStore). */
-const DIAL_RANGE: Record<string, { min: number; max: number; unit: string }> = {
-  "u-capacity": { min: 0, max: 28, unit: " days" },
-  "u-lcr": { min: 110, max: 190, unit: "%" },
-  "u-growth": { min: 50, max: 100, unit: "%" },
-  "u-secfind": { min: 0, max: 3, unit: "" },
-  "u-detect": { min: 0, max: 40, unit: " min" },
-  "u-hltv": { min: 10, max: 22, unit: "%" },
-  "u-wholesale": { min: 0, max: 50, unit: "%" },
-  "u-cet1": { min: 10, max: 20, unit: "%" },
-  "u-ibs": { min: 0, max: 100, unit: "%" },
-  "u-climate": { min: 0, max: 14, unit: "%" },
-};
-
 const toMeta = (m: Measure): MetricMeta => {
-  const r = DIAL_RANGE[m.id];
-  const dial: Dial | undefined =
-    r && m.actual !== undefined
-      ? { ...r, amber: m.amber, red: m.limit, actual: m.actual, projection: m.projection && m.quartersToAmber !== undefined ? m.amber : undefined }
-      : undefined;
   return {
     unitId: m.id,
     name: m.name,
@@ -78,7 +47,6 @@ const toMeta = (m: Measure): MetricMeta => {
     value: m.value,
     denominator: m.comparator,
     delta: m.delta ? { text: deltaText(m.delta), worse: m.delta.worse } : undefined,
-    dial,
     projectionText: m.projection,
     quartersToAmber: m.quartersToAmber,
     owner: m.owner,
@@ -137,19 +105,19 @@ export interface Objective {
   name: string;
   /** Unit carrying the floor or tension state for the objective, if any. */
   floorBreach?: boolean;
-  /** Metric whose dial the tile shows. */
-  dialUnitId?: string;
-  dialLabel?: string;
-  /** Shown instead of a dial. */
+  /** Metric the tile is built on, with its short label. */
+  unitId?: string;
+  label?: string;
+  /** Shown when the tile has no single metric. */
   figure?: string;
   line: string;
   drawer: DrawerKey;
 }
 
 export const OBJECTIVES: Objective[] = [
-  { id: "O1", name: "Mortgage growth", dialUnitId: "u-hltv", dialLabel: "88% used", line: "£96m headroom, until Q2 2027", drawer: "objective:O1" },
+  { id: "O1", name: "Mortgage growth", unitId: "u-hltv", label: "88% used", line: "£96m headroom, until Q2 2027", drawer: "objective:O1" },
   { id: "O2", name: "Savings and onboarding", floorBreach: true, figure: "2 of 3 limits broken", line: "Customers transacting before checks", drawer: "objective:O2" },
-  { id: "O3", name: "Funding base", dialUnitId: "u-lcr", dialLabel: "LCR 162%", line: "Reaches amber next quarter", drawer: "objective:O3" },
+  { id: "O3", name: "Funding base", unitId: "u-lcr", label: "LCR 162%", line: "Reaches amber next quarter", drawer: "objective:O3" },
   { id: "O4", name: "Member safety", figure: "2 figures", line: "Not yet verified", drawer: "objective:O4" },
 ];
 

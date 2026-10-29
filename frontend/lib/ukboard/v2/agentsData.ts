@@ -170,9 +170,9 @@ export const TUNING = {
   alertsPerMonth: 39000,
   handlers: 63,
   options: [
-    { id: "A", dial: "Conservative", label: "Tight", caught: 94, extraAlerts: 2100, capacity: "Needs about 3 more handlers", view: "Lowest risk" },
-    { id: "B", dial: "Balanced", label: "Balanced", caught: 71, extraAlerts: 900, capacity: "Within current capacity", view: "Recommended" },
-    { id: "C", dial: "Growth", label: "Current", caught: 0, extraAlerts: 0, capacity: "—", view: "Breach continues" },
+    { id: "A", profile: "Conservative", label: "Tight", caught: 94, extraAlerts: 2100, capacity: "Needs about 3 more handlers", view: "Lowest risk" },
+    { id: "B", profile: "Balanced", label: "Balanced", caught: 71, extraAlerts: 900, capacity: "Within current capacity", view: "Recommended" },
+    { id: "C", profile: "Growth", label: "Current", caught: 0, extraAlerts: 0, capacity: "—", view: "Breach continues" },
   ],
   recommended: "B",
 };
