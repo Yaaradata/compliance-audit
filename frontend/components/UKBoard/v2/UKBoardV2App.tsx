@@ -1,20 +1,18 @@
 "use client";
 
 /**
- * UK Board v2 — board product shell. Header: product · persona switch · search · as-at date ·
- * committee countdown (computed) · board agent and notes (Board member).
+ * UK Board v2 — board product shell. Header: product · persona switch · search, then the
+ * tab bar.
  * The tab bar and every tab layout come from PERSONA_VIEWS (lib/ukboard/v2/personaViews.ts).
  * A persona switch replaces the tabs, opens that persona's default tab and closes the drawer;
  * the session audit trail is kept.
  */
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { NotebookPen } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { METRICS } from "@/lib/ukboard/v2/board";
 import { AGENTS } from "@/lib/ukboard/v2/agentsData";
-import { AS_AT_LABEL, daysToCommittee, FIG, OWNER_ROLES, PANEL_SOURCES } from "@/lib/ukboard/v2/boardStore";
+import { OWNER_ROLES, PANEL_SOURCES } from "@/lib/ukboard/v2/boardStore";
 import { PERSONA_VIEWS, type PersonaId, type TabView } from "@/lib/ukboard/v2/personaViews";
-import AskBoardAgent from "./AskBoardAgent";
 import BoardDrawer from "./BoardDrawer";
 import { DrawerContext } from "./drawerContext";
 import type { DrawerKey } from "./drawerKeys";
@@ -68,10 +66,9 @@ function Search({ onPick }: { onPick: (k: DrawerKey, el: HTMLElement) => void })
   );
 }
 
-function Header({ onOpen, onPersona, onAgent }: { onOpen: (k: DrawerKey, el?: HTMLElement | null) => void; onPersona: (p: PersonaId) => void; onAgent: () => void }) {
+function Header({ onOpen, onPersona }: { onOpen: (k: DrawerKey, el?: HTMLElement | null) => void; onPersona: (p: PersonaId) => void }) {
   const { state, dispatch } = useStore();
   const view = PERSONA_VIEWS[state.persona];
-  const board = state.persona === "board";
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
@@ -101,27 +98,6 @@ function Header({ onOpen, onPersona, onAgent }: { onOpen: (k: DrawerKey, el?: HT
         <div className="min-w-[180px] flex-1">
           <Search onPick={(k, el) => onOpen(k, el)} />
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
-          <span className="rounded-md border border-slate-200 px-2 py-1 font-medium text-slate-700">{AS_AT_LABEL}</span>
-          <button type="button" onClick={(e) => onOpen("sources", e.currentTarget)} className={headerBtn}>
-            Sources
-          </button>
-          <span className="rounded-md border border-slate-200 px-2 py-1 font-medium text-slate-700">
-            Board Risk Committee {FIG.dates.brc} · <Days /> days
-          </span>
-          {board ? (
-            <>
-              <button type="button" onClick={onAgent} className={`${headerBtn} text-violet-800`}>
-                <span className="text-violet-500" aria-hidden>✦</span>
-                Ask the board agent
-              </button>
-              <button type="button" onClick={(e) => onOpen("notes", e.currentTarget)} className={headerBtn}>
-                <NotebookPen className="h-3.5 w-3.5" aria-hidden />
-                My notes ({state.session.notes.length})
-              </button>
-            </>
-          ) : null}
-        </div>
       </div>
       <nav aria-label="Board tabs" className="mx-auto flex max-w-[1440px] items-center gap-1 overflow-x-auto border-t border-slate-100 px-6">
         {view.tabs.map((t) => (
@@ -139,15 +115,6 @@ function Header({ onOpen, onPersona, onAgent }: { onOpen: (k: DrawerKey, el?: HT
     </header>
   );
 }
-
-const noop = () => () => {};
-/** Days to committee from today's date, computed on the client (the page is prerendered). */
-function Days() {
-  const d = useSyncExternalStore(noop, () => daysToCommittee(), () => null);
-  return <span className="tabular-nums">{d ?? "–"}</span>;
-}
-
-const headerBtn = `flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 ${focus}`;
 
 /** Columns stack below 1280px so tables keep their width at 1024. */
 const SPAN = { 3: "xl:col-span-3", 4: "xl:col-span-4", 5: "xl:col-span-5", 6: "xl:col-span-6", 7: "xl:col-span-7", 8: "xl:col-span-8", 12: "xl:col-span-12" } as const;
@@ -190,14 +157,12 @@ function Page() {
   const { dispatch } = useStore();
   const view = PERSONA_VIEWS[state.persona];
   const tab = view.tabs.find((t) => t.id === state.tab) ?? view.tabs[0];
-  const [agent, setAgent] = useState(false);
   useEffect(() => {
     if (process.env.NODE_ENV === "development") installAudit(dispatch);
   }, [dispatch]);
   const onPersona = useCallback(
     (p: PersonaId) => {
       setKey(null);
-      setAgent(false);
       opener.current = null;
       dispatch({ type: "SET_PERSONA", persona: p });
     },
@@ -206,14 +171,13 @@ function Page() {
   return (
     <DrawerContext.Provider value={api}>
       <div className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
-        <Header onOpen={open} onPersona={onPersona} onAgent={() => setAgent(true)} />
+        <Header onOpen={open} onPersona={onPersona} />
         <main key={`${state.persona}-${tab.id}-${state.epoch}`} className="mx-auto max-w-[1440px] space-y-4 px-6 py-4">
           <PageHeader title={tab.title} meta={tab.meta} />
           <FigureRegistry tab={`${state.persona}-${tab.id}`}>
             <TabBody tab={tab} />
           </FigureRegistry>
         </main>
-        {agent && state.persona === "board" ? <AskBoardAgent onClose={() => setAgent(false)} /> : null}
         {key ? <BoardDrawer key={`${key}-${state.persona}`} drawerKey={key} onClose={close} /> : null}
       </div>
     </DrawerContext.Provider>
