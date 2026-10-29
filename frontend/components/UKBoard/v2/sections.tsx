@@ -422,7 +422,7 @@ function TuningLab() {
       <p className="pb-1 text-xs text-slate-500">Breaches caught of {TUNING.breaches} · extra alerts a month</p>
       {TUNING.options.map((o) => (
         <button key={o.id} type="button" disabled={!cro} aria-pressed={pick === o.id} onClick={() => setPick(o.id)} className={`block w-full text-left ${cro && pick === o.id ? "bg-slate-50" : ""} ${focus}`}>
-          <BarRows max={TUNING.breaches} rows={[{ label: `${o.id} · ${o.label}`, value: o.caught, display: `${o.caught} · +${fmt.n(o.extraAlerts)}`, tag: o.id === TUNING.recommended ? <AiTag label="Recommended" /> : undefined }]} />
+          <BarRows wide max={TUNING.breaches} rows={[{ label: `${o.id} · ${o.label}`, value: o.caught, display: `${o.caught} · +${fmt.n(o.extraAlerts)}`, tag: o.id === TUNING.recommended ? <AiTag label="Recommended" /> : undefined }]} />
         </button>
       ))}
       <p className="border-t border-slate-100 pt-2 text-xs text-slate-500">Nothing goes live without a named approver.</p>

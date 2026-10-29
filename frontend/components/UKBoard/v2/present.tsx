@@ -460,11 +460,12 @@ export function ChartCard({ id, title, right, children }: { id: string; title: s
 }
 
 /** Horizontal bars (themes, routes, tuning): label · bar · right-aligned number. */
-export function BarRows({ rows, max }: { rows: { label: string; value: number; display?: string; tag?: ReactNode }[]; max: number }) {
+/** `wide` gives the value column room for a pair such as "94 · +2,100" on one line. */
+export function BarRows({ rows, max, wide }: { rows: { label: string; value: number; display?: string; tag?: ReactNode }[]; max: number; wide?: boolean }) {
   return (
     <>
       {rows.map((r) => (
-        <div key={r.label} className="grid min-h-9 grid-cols-[minmax(120px,0.9fr)_minmax(0,1.4fr)_56px] items-center gap-3 border-t border-slate-100 py-1 text-[13px]">
+        <div key={r.label} className={`grid min-h-9 ${wide ? "grid-cols-[minmax(120px,0.9fr)_minmax(0,1.4fr)_112px]" : "grid-cols-[minmax(120px,0.9fr)_minmax(0,1.4fr)_56px]"} items-center gap-3 border-t border-slate-100 py-1 text-[13px]`}>
           <span className="text-slate-700">
             {r.label}
             {r.tag ? <span className="ml-1.5 align-middle">{r.tag}</span> : null}
@@ -472,7 +473,7 @@ export function BarRows({ rows, max }: { rows: { label: string; value: number; d
           <span className="h-2 rounded-full bg-slate-100">
             <span className="block h-2 rounded-full bg-slate-500" style={{ width: `${max ? (r.value / max) * 100 : 0}%` }} />
           </span>
-          <b className="text-right font-semibold tabular-nums text-slate-900">{r.display ?? r.value}</b>
+          <b className="whitespace-nowrap text-right font-semibold tabular-nums text-slate-900">{r.display ?? r.value}</b>
         </div>
       ))}
     </>

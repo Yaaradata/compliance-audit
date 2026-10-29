@@ -63,7 +63,7 @@ export const AGENTS: Agent[] = [
   {
     id: "clock",
     name: "Reporting Clock",
-    does: "Prepares report-or-not cases",
+    does: "Prepares reportable and not reportable cases",
     status: "running",
     checksThisWeek: 7,
     quarterCount: "2 events, 7 reporting routes",
@@ -181,7 +181,7 @@ export const ACTIVITY: { type: "CHECK" | "FLAG" | "DRAFT" | "APPROVED" | "REJECT
   { type: "CHECK", date: "27 Oct 2026", agentId: "appetite", line: "NSFR projected to reach amber" },
   { type: "CHECK", date: "27 Oct 2026", agentId: "fraudwatch", line: "Challenger detection model run on the parallel cohort" },
   { type: "FLAG", date: "26 Oct 2026", agentId: "clock", line: "Restriction breach logged; FCA and PRA opened" },
-  { type: "DRAFT", date: "26 Oct 2026", agentId: "clock", line: "Report-or-not cases prepared" },
+  { type: "DRAFT", date: "26 Oct 2026", agentId: "clock", line: "Reportable and not reportable cases prepared" },
   { type: "FLAG", date: "25 Oct 2026", agentId: "tuning", line: "97 of 112 breaches via the savings pot" },
   { type: "DRAFT", date: "24 Oct 2026", agentId: "capacity", line: "Resourcing paper drafted" },
   { type: "APPROVED", date: "23 Oct 2026", agentId: "clock", line: "Head of Compliance decided the rate-error case" },
