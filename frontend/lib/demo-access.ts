@@ -7,6 +7,8 @@
 
 export const DASHBOARDS: Record<string, string> = {
   "/UKBankingAudit": "uk-banking",
+  // UK Board is a separate product but shares the UK Banking audience and key.
+  "/UKBoard": "uk-banking",
   "/UK_Process_Audit": "uk-process",
   "/USBankingAudit": "us-banking",
   "/IndianBankingAudit": "indian-banking",

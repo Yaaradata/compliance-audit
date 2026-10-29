@@ -33,6 +33,13 @@ import {
   type UkBankingAuditVersion,
 } from "./ukBankingAuditVersions";
 import {
+  LATEST_UK_BOARD_VERSION,
+  UK_BOARD_PATHS,
+  UK_BOARD_VERSION_ORDER,
+  UK_BOARD_VERSION_SELECT_LABELS,
+  type UkBoardVersion,
+} from "./ukBoardVersions";
+import {
   LATEST_UK_PROCESS_AUDIT_VERSION,
   UK_PROCESS_AUDIT_PATHS,
   UK_PROCESS_AUDIT_VERSION_ORDER,
@@ -84,6 +91,13 @@ const REGION_OPTIONS: RegionOption[] = [
     icon: "🛡️",
     accentSoftClass: "bg-emerald-50 ring-emerald-100",
     href: UK_BANKING_PATHS[LATEST_UK_BANKING_VERSION],
+  },
+  {
+    id: "uk-board",
+    title: "UK Board",
+    icon: "🧭",
+    accentSoftClass: "bg-slate-50 ring-slate-200",
+    href: UK_BOARD_PATHS[LATEST_UK_BOARD_VERSION],
   },
   {
     id: "uk-process-audit",
@@ -233,6 +247,56 @@ function UKBankingAuditCard({
           {UK_BANKING_VERSION_ORDER.map((v) => (
             <option key={v} value={v}>
               {UK_BANKING_VERSION_SELECT_LABELS[v]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <CardTitle title={option.title} locked={locked} />
+      <p className="mt-1 text-center text-sm text-slate-500">Choose dashboard to continue</p>
+
+      <OpenDashboardButton
+        locked={locked}
+        nextPath={nextPath}
+        onOpen={() => router.push(nextPath)}
+      />
+    </div>
+  );
+}
+
+function UKBoardCard({
+  option,
+  locked,
+}: {
+  option: RegionOption;
+  locked: boolean;
+}) {
+  const router = useRouter();
+  const [version, setVersion] = useState<UkBoardVersion>(LATEST_UK_BOARD_VERSION);
+  const nextPath = UK_BOARD_PATHS[version];
+
+  return (
+    <div className={cardShellClass(locked)}>
+      <div className="relative mb-3">
+        <div className="flex justify-center">
+          <div
+            className={`flex h-14 w-14 items-center justify-center rounded-2xl ring-1 ${option.accentSoftClass}`}
+          >
+            <span className="text-2xl" aria-hidden>
+              {option.icon}
+            </span>
+          </div>
+        </div>
+        <select
+          id="uk-board-version"
+          value={version}
+          onChange={(e) => setVersion(e.target.value as UkBoardVersion)}
+          className="absolute right-0 top-0 h-7 w-[6.75rem] cursor-pointer rounded-md border border-slate-200 bg-slate-50/90 py-0 pl-2 pr-6 text-xs font-medium text-slate-600 outline-none transition hover:border-slate-300 hover:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-500/20"
+          aria-label="UK Board version"
+        >
+          {UK_BOARD_VERSION_ORDER.map((v) => (
+            <option key={v} value={v}>
+              {UK_BOARD_VERSION_SELECT_LABELS[v]}
             </option>
           ))}
         </select>
@@ -511,6 +575,9 @@ function RegionCard({
   }
   if (option.id === "uk-banking-audit") {
     return <UKBankingAuditCard option={option} locked={locked} />;
+  }
+  if (option.id === "uk-board") {
+    return <UKBoardCard option={option} locked={locked} />;
   }
   if (option.id === "srilanka-retail") {
     return <SrilankaRetailCard option={option} locked={locked} />;
