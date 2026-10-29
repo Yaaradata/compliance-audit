@@ -31,9 +31,10 @@ export interface ChartThreshold {
   label: string;
   tone?: ThresholdTone;
 }
+/** Amber trigger and appetite limit are told apart by weight and label, not colour. */
 const THRESHOLD_INK: Record<ThresholdTone, { stroke: string; text: string }> = {
-  amber: { stroke: "#d97706", text: "#b45309" },
-  red: { stroke: "#dc2626", text: "#b91c1c" },
+  amber: { stroke: "#94a3b8", text: "#64748b" },
+  red: { stroke: "#0f172a", text: "#334155" },
 };
 
 export default function LineChart({
@@ -75,7 +76,7 @@ export default function LineChart({
           const ink = THRESHOLD_INK[t.tone ?? "amber"];
           return (
             <g key={`${t.label}-${t.value}`}>
-              <line x1={`${x0}%`} x2={`${x1}%`} y1={y(t.value)} y2={y(t.value)} stroke={ink.stroke} strokeDasharray="4 3" />
+              <line x1={`${x0}%`} x2={`${x1}%`} y1={y(t.value)} y2={y(t.value)} stroke={ink.stroke} strokeDasharray="2 3" />
               <text x={`${x1}%`} y={y(t.value) - 4} fontSize={11} textAnchor="end" fill={ink.text}>
                 {t.label}
               </text>

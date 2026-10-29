@@ -46,6 +46,8 @@ interface Chart {
   title: string;
   points: { label: string; value: number }[];
   threshold?: { value: number; label: string };
+  /** Appetite limit, drawn as a second dotted line. */
+  limit?: { value: number; label: string };
   suffix?: string;
 }
 interface Content {
@@ -99,6 +101,12 @@ function driversFor(id: string): Row[] | undefined {
 }
 
 function trendFor(id: string): Chart | undefined {
+  const c = baseTrend(id);
+  const m = MEASURES.find((x) => x.id === id);
+  return c && m?.limit !== undefined && m.visualKind === "bullet" ? { ...c, limit: { value: m.limit, label: `limit ${m.limit}${m.unit ?? ""}` } } : c;
+}
+
+function baseTrend(id: string): Chart | undefined {
   const m = MEASURES.find((x) => x.id === id);
   if (id === "u-capacity") return { title: "Alert queue age (days)", points: CAPACITY.queueAge, threshold: { value: CAPACITY.queueAmber, label: `amber ${CAPACITY.queueAmber}` } };
   if (id === "u-detect") return { title: `${m?.name ?? id} · 6 months`, points: DETECTION_SERIES, threshold: m?.amber !== undefined ? { value: m.amber, label: `amber ${m.amber}${m.unit ?? ""}` } : undefined };
@@ -331,7 +339,7 @@ function EvidenceRows({ unitId }: { unitId?: string }) {
 function TrendChart({ chart }: { chart: Chart }) {
   return (
     <div data-chart="drawer-trend">
-      <LineChart title={chart.title} height={140} series={[{ name: chart.title, points: chart.points }]} threshold={chart.threshold} suffix={chart.suffix} />
+      <LineChart title={chart.title} height={140} series={[{ name: chart.title, points: chart.points }]} threshold={chart.threshold} thresholds={chart.limit ? [{ ...chart.limit, tone: "red" }] : undefined} suffix={chart.suffix} />
     </div>
   );
 }

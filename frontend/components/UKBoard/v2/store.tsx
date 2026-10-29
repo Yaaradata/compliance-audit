@@ -33,6 +33,8 @@ interface Session {
   attested: string[];
   /** Proposals sent to a risk owner (the owner decides). */
   proposals: string[];
+  /** Autonomy levels the Chair has proposed (drafted for committee; the live level is unchanged). */
+  autonomyProposals: Record<string, Autonomy>;
   clock: number;
 }
 
@@ -66,6 +68,7 @@ export type Action =
   | { type: "ESCALATE_EVENT"; eventId: string; decider: string }
   | { type: "ATTEST"; measureId: string }
   | { type: "PROPOSE_TO_OWNER"; item: string; owner: string }
+  | { type: "PROPOSE_AUTONOMY"; agentId: string; level: Autonomy }
   | { type: "RESET" };
 
 function seed(): Session {
@@ -86,6 +89,7 @@ function seed(): Session {
     escalated: [],
     attested: [],
     proposals: [],
+    autonomyProposals: {},
     clock: 0,
   };
 }
@@ -202,6 +206,9 @@ function reducer(state: State, a: Action): State {
       // Drafts a note to the named decider; nothing is sent to a regulator.
       if (s0.escalated.includes(a.eventId) || state.persona === "board") return state;
       return write({ escalated: [...s.escalated, a.eventId] }, entry(state, s, `escalation note drafted for ${a.decider}`, a.eventId, a.eventId));
+    case "PROPOSE_AUTONOMY":
+      if (state.persona !== "chair" || s0.autonomy[a.agentId] === a.level) return state;
+      return write({ autonomyProposals: { ...s.autonomyProposals, [a.agentId]: a.level } }, entry(state, s, `autonomy change proposed: ${a.level}`, a.agentId, `agent:${a.agentId}`));
     case "PROPOSE_TO_OWNER":
       if (s0.proposals.includes(a.item) || state.persona !== "cro") return state;
       return write({ proposals: [...s.proposals, a.item] }, entry(state, s, `proposal sent to ${a.owner}`, a.item, a.item));

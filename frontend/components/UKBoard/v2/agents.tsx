@@ -10,9 +10,9 @@ import { Lock } from "lucide-react";
 import { ACTIVITY, AGENTS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FINDINGS, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, TUNING, type Autonomy } from "@/lib/ukboard/v2/agentsData";
 import { agentFigures, ATTACK_SIGNALS, fmt, measure } from "@/lib/ukboard/v2/boardStore";
 import { useDrawer } from "./drawerContext";
-import { BarRows, Card, ChartCard, Chip, EventList, FlowPill, KpiTile, StatRow, Table, useFigures } from "./present";
+import { Card, EventList, FlowPill, KpiTile, StatRow, Table, useFigures } from "./present";
 import { useStore } from "./store";
-import { TradeoffPlot } from "./visuals";
+import { AutonomyLadder, TradeoffPlot } from "./visuals";
 import { AiTag, btn, btnPrimary, focus, Pill } from "./ui";
 
 /* ── Seed: Detection model (#7) scenario ─────────────────────────────── */
@@ -124,32 +124,42 @@ function AgentFindings() {
 function AgentAutonomy() {
   const { state, dispatch } = useStore();
   const chair = state.persona === "chair";
+  const agents = AGENTS.map((a) => ({ id: a.id, name: a.name, level: state.session.autonomy[a.id] ?? a.autonomy }));
   return (
-    <Card title="Agent autonomy" right={<span className="text-xs text-slate-500">{chair ? "Changes go to committee" : "Set by Risk Committee"}</span>}>
-      {AGENTS.map((a) => (
-        <span key={a.id} className="flex min-h-9 items-center justify-between gap-2 border-t border-slate-100 pl-[13px] text-[13px]">
-          <span className="flex items-center gap-1.5 text-slate-700">
-            <span className="text-violet-500" aria-hidden>
-              ✦
-            </span>
-            {a.name}
-          </span>
-          {chair ? (
-            <select aria-label={`${a.name} autonomy`} value={state.session.autonomy[a.id]} onChange={(e) => dispatch({ type: "SET_AUTONOMY", agentId: a.id, level: e.target.value as Autonomy })} className={`rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-xs font-semibold text-slate-800 ${focus}`}>
-              {AUTONOMY_ORDER.map((lv) => (
-                <option key={lv} value={lv}>
-                  {AUTONOMY_LABEL[lv]}
-                </option>
-              ))}
-              <option value="act" disabled>
-                Act (locked)
-              </option>
-            </select>
-          ) : (
-            <Chip>{AUTONOMY_LABEL[state.session.autonomy[a.id] ?? a.autonomy]}</Chip>
-          )}
-        </span>
-      ))}
+    <Card title="Agent autonomy" right={<span className="text-xs text-slate-500">{chair ? "Changes are drafted for committee" : "Set by Risk Committee"}</span>} className="h-full">
+      <div className="border-t border-slate-100 pt-2.5">
+        <AutonomyLadder
+          agents={agents}
+          renderChip={
+            chair
+              ? (a) => {
+                  const proposed = state.session.autonomyProposals[a.id];
+                  return (
+                    <span className="block rounded border border-violet-200 bg-violet-50 px-1.5 py-1 text-[11px] font-semibold leading-snug text-violet-800">
+                      ✦ {a.name}
+                      <select
+                        aria-label={`Change level for ${a.name}`}
+                        value={proposed ?? ""}
+                        onChange={(e) => dispatch({ type: "PROPOSE_AUTONOMY", agentId: a.id, level: e.target.value as Autonomy })}
+                        className={`mt-1 block w-full rounded border border-violet-200 bg-white px-1 py-0.5 text-[11px] font-normal text-slate-700 ${focus}`}
+                      >
+                        <option value="" disabled>
+                          {proposed ? `Proposed: ${AUTONOMY_LABEL[proposed]}` : "Change level"}
+                        </option>
+                        {AUTONOMY_ORDER.filter((lv) => lv !== a.level).map((lv) => (
+                          <option key={lv} value={lv}>
+                            Propose {AUTONOMY_LABEL[lv]}
+                          </option>
+                        ))}
+                      </select>
+                      {proposed ? <span className="mt-0.5 block font-normal text-violet-700">{`Drafted: ${AUTONOMY_LABEL[proposed]}`}</span> : null}
+                    </span>
+                  );
+                }
+              : undefined
+          }
+        />
+      </div>
     </Card>
   );
 }
@@ -211,16 +221,17 @@ const SCENARIOS: { id: Scenario; label: string }[] = [
   { id: "detect", label: `Detection model (#${DETECT_TRIAL.num})` },
 ];
 
+const OPTION_GRID = "grid min-h-8 grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))] items-center gap-2 border-t border-slate-100 py-1 text-xs";
+
 function AlertScenario({ cro }: { cro: boolean }) {
   const { state, dispatch } = useStore();
   const [pick, setPick] = useState(TUNING.recommended);
   const proposed = state.session.tuningProposal;
+  const within = TUNING.options.filter((o) => o.capacity === "Within current capacity").map((o) => o.extraAlerts);
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
-        <p className="text-xs text-slate-500">
-          {TUNING.proposal} · breaches caught of {fmt.n(TUNING.breaches)} · extra alerts a month
-        </p>
+        <p className="text-xs text-slate-500">{TUNING.proposal}</p>
         {cro ? (
           proposed ? (
             <FlowPill w="proposed" />
@@ -231,12 +242,41 @@ function AlertScenario({ cro }: { cro: boolean }) {
           )
         ) : null}
       </div>
-      {TUNING.options.map((o) => (
-        <button key={o.id} type="button" disabled={!cro || !!proposed} aria-pressed={pick === o.id} onClick={() => setPick(o.id)} className={`block w-full text-left ${cro && pick === o.id ? "bg-slate-50" : ""} ${focus}`}>
-          <BarRows wide max={TUNING.breaches} rows={[{ label: `${o.id} · ${o.label}`, value: o.caught, display: `${fmt.n(o.caught)} · +${fmt.n(o.extraAlerts)}`, tag: o.id === TUNING.recommended ? <AiTag label="Recommended" /> : undefined }]} />
-        </button>
-      ))}
-      <p className="border-t border-slate-100 pt-2 text-xs text-slate-500">
+      <div className="flex flex-wrap items-start gap-5 pt-1">
+        <TradeoffPlot
+          points={TUNING.options.map((o) => ({ id: o.id, label: `${o.id} · ${o.label}`, x: o.extraAlerts, y: o.caught, recommended: o.id === TUNING.recommended }))}
+          xMax={Math.max(...TUNING.options.map((o) => o.extraAlerts)) * 1.25}
+          yMax={TUNING.breaches}
+          xLabel="Extra alerts a month"
+          yLabel={`Caught of ${fmt.n(TUNING.breaches)}`}
+          zoneMaxX={within.length ? Math.max(...within) : undefined}
+          zoneLabel="Within current capacity"
+          fmtX={(v) => `+${fmt.n(v)}`}
+          fmtY={(v) => `${fmt.n(v)} caught`}
+        />
+        <div className="min-w-[240px] flex-1">
+          <div className={`${OPTION_GRID} !min-h-6 border-t-0 font-semibold uppercase tracking-wide text-slate-500`}>
+            <span>Option</span>
+            <span className="text-right">Caught</span>
+            <span className="text-right">Extra alerts</span>
+            <span>Capacity</span>
+          </div>
+          {TUNING.options.map((o) => (
+            <button key={o.id} type="button" disabled={!cro || !!proposed} aria-pressed={pick === o.id} onClick={() => setPick(o.id)} className={`block w-full text-left ${cro && pick === o.id ? "bg-slate-50" : ""} ${focus}`}>
+              <span className={OPTION_GRID}>
+                <span className="flex flex-wrap items-center gap-1 font-semibold text-slate-900">
+                  {o.id} · {o.label}
+                  {o.id === TUNING.recommended ? <AiTag label="Recommended" /> : null}
+                </span>
+                <b className="text-right tabular-nums text-slate-900">{fmt.n(o.caught)}</b>
+                <b className="text-right tabular-nums text-slate-900">{`+${fmt.n(o.extraAlerts)}`}</b>
+                <span className="text-slate-600">{o.capacity}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
         {TUNING.test} · {proposed ? `Option ${proposed} with the Risk Committee` : "Proposals go to the Risk Committee"}
       </p>
     </>
@@ -262,14 +302,29 @@ function DetectScenario({ cro, sent, onSend }: { cro: boolean; sent: boolean; on
           )
         ) : null}
       </div>
-      <p className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Median time to detect · scale to the appetite limit</p>
-      <BarRows
-        max={t.limitSec}
-        rows={t.options.map((o) => ({ label: o.label, value: o.medianSec, display: o.medianText, tag: o.id === t.recommended ? <AiTag label="Challenger" /> : undefined }))}
-      />
-      <p className="pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">False alerts vs current rules</p>
-      <BarRows max={Math.max(...t.options.map((o) => o.falseIndex))} rows={t.options.map((o) => ({ label: o.label, value: o.falseIndex, display: o.falseText }))} />
-      <p className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
+      <div className="flex flex-wrap items-start gap-5 pt-1">
+        <DetectionTradeoff />
+        <div className="min-w-[240px] flex-1">
+          <div className={`${OPTION_GRID} !min-h-6 border-t-0 font-semibold uppercase tracking-wide text-slate-500`}>
+            <span>Option</span>
+            <span className="text-right">Median</span>
+            <span className="text-right">False alerts</span>
+            <span />
+          </div>
+          {t.options.map((o) => (
+            <span key={o.id} className={OPTION_GRID}>
+              <span className="flex flex-wrap items-center gap-1 font-semibold text-slate-900">
+                {o.label}
+                {o.id === t.recommended ? <AiTag label="Challenger" /> : null}
+              </span>
+              <b className="text-right tabular-nums text-slate-900">{o.medianText}</b>
+              <b className="text-right tabular-nums text-slate-900">{o.falseText}</b>
+              <span />
+            </span>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
         <span>{sent ? `Proposal with ${t.owner} · nothing changes until a named approver signs off` : "Propose sends the challenger to the risk owner only; live rules do not change"}</span>
         <button type="button" onClick={(e) => open(`metric:${t.measureId}`, e.currentTarget)} className={btn}>
           Open measure #{t.num}
@@ -286,8 +341,8 @@ function TuningLab() {
   useFigures(["f:tuning"]);
   const cro = state.persona === "cro";
   return (
-    <ChartCard id="tuning" title="Tuning lab" right={<AiTag label="AI agent test" />}>
-      <div role="tablist" aria-label="Tuning scenario" className="mb-2 inline-flex overflow-hidden rounded-lg border border-slate-300">
+    <Card title="Tuning lab" right={<AiTag label="AI agent test" />} className="h-full">
+      <div role="tablist" aria-label="Tuning scenario" className="mb-2 mt-0.5 inline-flex overflow-hidden rounded-lg border border-slate-300">
         {SCENARIOS.map((s) => (
           <button
             key={s.id}
@@ -302,7 +357,7 @@ function TuningLab() {
         ))}
       </div>
       <div role="tabpanel">{tab === "alerts" ? <AlertScenario cro={cro} /> : <DetectScenario cro={cro} sent={detectSent} onSend={() => dispatch({ type: "PROPOSE_TO_OWNER", item: "tuning:u-detect", owner: DETECT_TRIAL.owner })} />}</div>
-    </ChartCard>
+    </Card>
   );
 }
 
