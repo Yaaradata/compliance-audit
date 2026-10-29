@@ -67,7 +67,7 @@ test("attestation, routes, policies, status changes", () => {
 test("figures compute from the data", () => {
   assert.equal(mortgageHeadroomM(), 96);
   assert.equal(ftbHeadroomM(22), 176);
-  assert.equal(deltaText(measure("u-hltv").delta), "▲ 0.3 pts");
+  assert.equal(deltaText(measure("u-hltv").delta), "▲ 1.5 pts");
   assert.equal(hltvSinceQ2_2025(), 1.5);
   assert.equal(consumerDuty().text, "2 of 4 outcomes amber · 9 of 12 measures in tolerance");
   assert.equal(BOARD_CALLS.length, 3);

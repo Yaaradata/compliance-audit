@@ -129,7 +129,7 @@ function reducer(state: State, a: Action): State {
     case "SET_PERSONA":
       return { ...state, persona: a.persona, tab: person(a.persona).defaultTab, filter: null };
     case "SET_TAB":
-      return { ...state, tab: a.tab };
+      return { ...state, tab: a.tab, filter: null };
     case "ACCEPT": {
       const d = DRAFTS[a.draftId];
       const cur = s0.drafts[a.draftId];
@@ -193,7 +193,7 @@ function reducer(state: State, a: Action): State {
       if (state.persona !== "board" || s0.deepDives.includes(a.topic)) return state;
       return write({ deepDives: [...s.deepDives, a.topic] }, entry(state, s, "deep dive requested from the CRO", a.topic, "deep-dive"));
     case "SELECT_CALL":
-      return { ...state, call: a.id, tab: "decisions" };
+      return { ...state, call: a.id };
     case "SET_FILTER":
       return { ...state, filter: a.objective };
     case "ADD_TO_PAPER":

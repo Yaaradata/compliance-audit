@@ -7,7 +7,7 @@
  * control, options, second-order effects and questions ✦, then the decision log.
  * Measure visuals render through MeasureVisual (visualKind); Decisions has none.
  */
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import {
   bandMedians,
   BOARD_CALLS,
@@ -17,6 +17,7 @@ import {
   MEASURES,
   OBJ_WORD,
   OBJECTIVE_LIST,
+  PANEL_SOURCES,
   objectiveStatus,
   policiesTracked,
   POLICIES,
@@ -27,7 +28,7 @@ import {
 import { TensionList, useFilteredMeasures } from "./appetite";
 import { MeasureVisual, OptionCompare, StanceLine, StatusHistory, type CompareOption } from "./visuals";
 import { useDrawer } from "./drawerContext";
-import { Card, LineItem, StatusPill, useFigures } from "./present";
+import { Card, LineItem, SourceLine, StatusPill, useFigures } from "./present";
 import { useStore } from "./store";
 import { AiTag, btn, focus, Pill } from "./ui";
 
@@ -130,72 +131,48 @@ function BandDesign() {
 
 /* ── Decisions ───────────────────────────────────────────────────────── */
 
-function BoardCallsPanel() {
+/** One board call: stance, options side by side, questions ✦ and the invitation. Shown in the 720px decision panel. */
+export function CallDetail({ id }: { id: string }) {
   const { state, dispatch } = useStore();
   const { open } = useDrawer();
-  const call = BOARD_CALLS.find((c) => c.id === state.call) ?? BOARD_CALLS[0];
+  const call = BOARD_CALLS.find((c) => c.id === id) ?? BOARD_CALLS[0];
   const m = measure(call.measureId);
   const invited = state.session.invited.includes(m.owner);
-  useFigures([`call:${call.id}`]);
+  const SUB = "text-[11px] font-semibold uppercase tracking-wide text-slate-500";
   return (
-    <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 xl:grid-cols-12">
-      <div className="xl:col-span-4">
-        <Card title="Board calls" right={<span className="text-xs text-slate-500">{BOARD_CALLS.length} calls</span>}>
-          {BOARD_CALLS.map((c) => {
-            const on = c.id === call.id;
-            const st = measure(c.measureId).status;
-            return (
-              <button key={c.id} type="button" aria-pressed={on} onClick={() => dispatch({ type: "SELECT_CALL", id: c.id })} className={`block w-full text-left ${on ? "bg-indigo-50" : "hover:bg-slate-50"} ${focus}`}>
-                <span className={`flex min-h-12 items-center justify-between gap-3 border-l-[3px] border-t border-t-slate-100 py-1.5 pl-2.5 pr-1 text-[13px] ${st === "red" ? "border-l-red-500" : st === "amber" ? "border-l-amber-500" : "border-l-transparent"}`}>
-                  <span className="min-w-0 leading-snug">
-                    <b className="font-semibold text-slate-900">{c.verb}</b> <span className="text-slate-800">{c.title}</span>
-                    <span className="block text-xs text-slate-500">
-                      {c.decider} · {c.due}
-                    </span>
-                  </span>
-                  <span className="text-indigo-700">›</span>
-                </span>
-              </button>
-            );
-          })}
-        </Card>
+    <>
+      <section className="border-b border-slate-100 py-3 text-xs text-slate-500">
+        Decider: {call.decider} · due {call.due} · Risk owner: {m.owner} ·{" "}
+        <button type="button" onClick={(e) => open(`metric:${m.id}`, e.currentTarget)} className={`rounded font-semibold text-indigo-700 hover:underline ${focus}`}>
+          {m.name} ›
+        </button>
+      </section>
+      <section className="border-b border-slate-100 py-3">
+        <p className={`pb-2 ${SUB}`}>Stance</p>
+        <StanceLine m={m} />
+      </section>
+      <section className="border-b border-slate-100 py-3">
+        <p className={`pb-2 ${SUB}`}>Options</p>
+        <OptionCompare rows={["Growth", "Risk", "Cost", "Time", "Second-order effect"]} options={compareOptions(call)} />
+      </section>
+      <section className="border-b border-slate-100 py-3">
+        <p className={`flex items-center justify-between pb-1 ${SUB}`}>
+          Questions to ask <AiTag label="Drafted" />
+        </p>
+        {call.questions.slice(0, 3).map((q) => (
+          <LineItem key={q} text={q} />
+        ))}
+      </section>
+      <section className="flex flex-wrap items-center gap-3 border-b border-slate-100 py-3">
+        <button type="button" disabled={invited} onClick={() => dispatch({ type: "INVITE_OWNER", role: m.owner })} className={btn}>
+          {invited ? `${m.owner} invited to present` : "Invite risk owner to present"}
+        </button>
+        <span className="text-xs text-slate-500">Adds the item to the committee agenda</span>
+      </section>
+      <div className="py-3">
+        <SourceLine src={PANEL_SOURCES.CALL} bare />
       </div>
-      <div className="flex min-w-0 flex-col gap-4 xl:col-span-8">
-        <Card
-          title={`${call.verb} ${call.title}`}
-          right={
-            <button type="button" onClick={(e) => open(`metric:${m.id}`, e.currentTarget)} className={`rounded text-xs font-semibold text-indigo-700 hover:underline ${focus}`}>
-              {m.name} ›
-            </button>
-          }
-        >
-          <p className="border-t border-slate-100 py-2 text-xs text-slate-500">
-            Decider: {call.decider} · due {call.due} · Risk owner: {m.owner}
-          </p>
-          <div className="border-t border-slate-100 py-2.5">
-            <StanceLine m={m} />
-          </div>
-        </Card>
-        <Card title="Options" className="pb-3">
-          <div className="border-t border-slate-100 pt-3">
-            <OptionCompare rows={["Growth", "Risk", "Cost", "Time", "Second-order effect"]} options={compareOptions(call)} />
-          </div>
-        </Card>
-        <div className="grid grid-cols-1 items-start gap-4">
-          <Card title="Questions to ask" right={<AiTag label="Drafted" />}>
-            {call.questions.slice(0, 3).map((q) => (
-              <LineItem key={q} text={q} />
-            ))}
-          </Card>
-        </div>
-        <div className="flex items-center gap-3">
-          <button type="button" disabled={invited} onClick={() => dispatch({ type: "INVITE_OWNER", role: m.owner })} className={btn}>
-            {invited ? `${m.owner} invited to present` : "Invite risk owner to present"}
-          </button>
-          <span className="text-xs text-slate-500">Adds the item to the committee agenda</span>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -215,12 +192,25 @@ function compareOptions(call: (typeof BOARD_CALLS)[number]): CompareOption[] {
 
 /** Status by quarter for all 12 (earlier quarters hatched where the store has no record). */
 function History() {
-  useFigures(["f:status-history"]);
+  const [shown, setShown] = useState(false);
+  useFigures(shown ? ["f:status-history"] : []);
   return (
-    <Card title="Status history" className="h-full">
-      <div data-chart="status-history">
-        <StatusHistory />
-      </div>
+    <Card
+      title="Status history"
+      className="h-full"
+      right={
+        <button type="button" aria-expanded={shown} onClick={() => setShown((v) => !v)} className={`rounded text-xs font-semibold text-indigo-700 hover:underline ${focus}`}>
+          {shown ? "Hide" : "Show"} ›
+        </button>
+      }
+    >
+      {shown ? (
+        <div data-chart="status-history">
+          <StatusHistory />
+        </div>
+      ) : (
+        <p className="border-t border-slate-100 py-2 text-xs text-slate-500">Status of the 12 by quarter, where the register has a record. Collapsed by default.</p>
+      )}
     </Card>
   );
 }
@@ -231,5 +221,4 @@ export const STRATEGY_SECTIONS = {
   S_TENSIONS: () => <TensionList />,
   S_POLICY: PolicyLinkage,
   S_BANDS: BandDesign,
-  D_CALLS: BoardCallsPanel,
 };

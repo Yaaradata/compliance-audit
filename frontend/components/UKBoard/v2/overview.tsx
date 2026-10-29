@@ -33,7 +33,7 @@ import {
 } from "@/lib/ukboard/v2/boardStore";
 import { useFilteredMeasures } from "./appetite";
 import { useDrawer } from "./drawerContext";
-import { Card, LineItem, LinkMore, rowRail, StatusPill, useFigures } from "./present";
+import { Card, LineItem, LinkMore, rowRail, SectionSource, StatusPill, useFigures } from "./present";
 import { useStore } from "./store";
 import { AiTag, focus, Pill } from "./ui";
 import { EventRouteMatrix, ProgressPace, StatusPips, StatusStrip } from "./visuals";
@@ -119,6 +119,9 @@ function Scorecard() {
           </button>
         );
       })}
+      <div className="md:col-span-2 xl:col-span-4">
+        <SectionSource />
+      </div>
     </div>
   );
 }
@@ -140,6 +143,9 @@ function AppetitePosition() {
       </span>
       <span className="rounded border border-amber-200 bg-white px-1.5 py-0.5 text-[11px] tabular-nums text-slate-700">
         <b className="text-slate-900">{`${a.attested} of ${a.total}`}</b> attested
+      </span>
+      <span className="basis-full">
+        <SectionSource />
       </span>
     </section>
   );
@@ -180,7 +186,7 @@ function TierColumn({ tier }: { tier: Tier }) {
         <TierRow key={m.id} m={m} />
       ))}
       {within ? (
-        <button type="button" onClick={() => go("strategy")} className={`flex min-h-9 w-full items-center border-t border-slate-100 text-left text-[13px] text-slate-600 hover:bg-slate-50 ${focus}`}>
+        <button type="button" onClick={() => go("appetite")} className={`flex min-h-9 w-full items-center border-t border-slate-100 text-left text-[13px] text-slate-600 hover:bg-slate-50 ${focus}`}>
           {within} within <span className="ml-1 font-semibold text-indigo-700">›</span>
         </button>
       ) : null}
@@ -192,16 +198,12 @@ function TierColumn({ tier }: { tier: Tier }) {
 /* ── Calls, exposure, tensions, since last board ─────────────────────── */
 
 function BoardCalls() {
-  const go = useGo();
-  const { state, dispatch } = useStore();
   const { open } = useDrawer();
-  // Only the Board member has a Decisions tab; Chair and CRO open the linked measure instead.
-  const board = state.persona === "board";
   useFigures(BOARD_CALLS.map((c) => `call:${c.id}`));
   return (
-    <Card title="Board calls" right={board ? <LinkMore onClick={() => go("decisions")} label="Decisions" /> : undefined} className="h-full">
+    <Card title="Board calls" right={<span className="text-xs text-slate-500">Open a call for options and effects</span>} className="h-full">
       {BOARD_CALLS.map((c) => (
-        <LineItem key={c.id} text={`${c.verb} ${c.title}`} detail={c.decider === "Board" ? c.due : `Chair · ${c.due}`} onClick={(el) => (board ? dispatch({ type: "SELECT_CALL", id: c.id }) : open(`metric:${c.measureId}`, el))} right={<span className="text-indigo-700">›</span>} />
+        <LineItem key={c.id} text={`${c.verb} ${c.title}`} detail={c.decider === "Board" ? c.due : `Chair · ${c.due}`} onClick={(el) => open(`call:${c.id}`, el)} right={<span className="text-indigo-700">›</span>} />
       ))}
     </Card>
   );
@@ -230,7 +232,7 @@ function Tensions() {
         <LineItem key={t.id} text={TENSION_SHORT[t.id] ?? `${t.a} vs ${t.b}`} right={<Pill tone={pill[t.state][0]} label={pill[t.state][1]} />} />
       ))}
       {agreed ? (
-        <button type="button" onClick={() => go("strategy")} className={`flex min-h-9 w-full items-center border-t border-slate-100 text-left text-[13px] text-slate-600 hover:bg-slate-50 ${focus}`}>
+        <button type="button" onClick={() => go("appetite")} className={`flex min-h-9 w-full items-center border-t border-slate-100 text-left text-[13px] text-slate-600 hover:bg-slate-50 ${focus}`}>
           {agreed} agreed <span className="ml-1 font-semibold text-indigo-700">›</span>
         </button>
       ) : null}

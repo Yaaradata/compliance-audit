@@ -24,11 +24,11 @@ import {
   type PipStatus,
 } from "@/lib/ukboard/v2/boardStore";
 import { ROUTES } from "@/lib/ukboard/v1/data";
+import { CHART, STATUS_INK, TIMELINE, TRADEOFF } from "./boardChartTheme";
 import { useStore } from "./store";
 import { AiTag, btn, btnPrimary } from "./ui";
 
 const INK = "#0f172a";
-const GREY = "#94a3b8";
 const BAND = "#e2e8f0";
 const BEYOND = "#cbd5e1";
 const TRACK = "#f8fafc";
@@ -41,7 +41,7 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
  * light grey from the amber trigger to the limit and darker beyond the limit; the actual value is an
  * ink bar; an optional marker (plan pace) is a hollow tick. The value is printed to the right.
  */
-export function BulletBar({ value, amber, limit, scale, lowerIsWorse, marker, display, width = 168, label }: { value: number; amber: number; limit: number; scale: [number, number]; lowerIsWorse?: boolean; marker?: number; display: string; width?: number; label: string }) {
+export function BulletBar({ value, amber, limit, scale, lowerIsWorse, marker, display, width = 168, label, status }: { value: number; amber: number; limit: number; scale: [number, number]; lowerIsWorse?: boolean; marker?: number; display: string; width?: number; label: string; status?: MeasureStatus }) {
   const [lo, hi] = scale;
   const x = (v: number) => r1(((Math.min(Math.max(v, lo), hi) - lo) / (hi - lo)) * width);
   const band = lowerIsWorse ? [x(limit), x(amber)] : [x(amber), x(limit)];
@@ -52,9 +52,9 @@ export function BulletBar({ value, amber, limit, scale, lowerIsWorse, marker, di
         <rect x={0} y={2} width={width} height={8} fill={TRACK} />
         <rect x={band[0]} y={2} width={band[1] - band[0]} height={8} fill={BAND} />
         <rect x={beyond[0]} y={2} width={beyond[1] - beyond[0]} height={8} fill={BEYOND} />
-        <rect x={0} y={4} width={x(value)} height={4} fill={INK} />
-        <line x1={x(amber)} x2={x(amber)} y1={1} y2={11} stroke="#64748b" strokeWidth={1} />
-        <line x1={x(limit)} x2={x(limit)} y1={0} y2={12} stroke={INK} strokeWidth={1.5} />
+        <rect x={0} y={4} width={x(value)} height={4} fill={status ? STATUS_INK[status] : INK} />
+        <line x1={x(amber)} x2={x(amber)} y1={1} y2={11} stroke={CHART.tick} strokeWidth={1} />
+        <line x1={x(limit)} x2={x(limit)} y1={0} y2={12} stroke={CHART.tick} strokeWidth={1.5} />
         {marker !== undefined ? <rect x={x(marker) - 1} y={0.5} width={2} height={11} fill="white" stroke={INK} strokeWidth={0.75} /> : null}
       </svg>
       <b className="whitespace-nowrap text-[13px] font-semibold tabular-nums text-slate-900">{display}</b>
@@ -130,7 +130,7 @@ export function MeasureVisual({ m, width = 168 }: { m: Measure; width?: number }
   const display = m.short ?? m.value;
   switch (m.visualKind) {
     case "bullet":
-      return <BulletBar value={m.actual!} amber={m.amber!} limit={m.limit!} scale={m.scale!} lowerIsWorse={m.direction === "lowerIsWorse"} marker={m.id === "u-growth" ? planPacePct() : undefined} display={display} width={width} label={`${m.name}: ${display}`} />;
+      return <BulletBar value={m.actual!} amber={m.amber!} limit={m.limit!} scale={m.scale!} lowerIsWorse={m.direction === "lowerIsWorse"} marker={m.id === "u-growth" ? planPacePct() : undefined} display={display} width={width} label={`${m.name}: ${display}`} status={m.status} />;
     case "pips":
       return <PipRow value={m.actual!} limit={m.limit!} display={display} label={`${m.name}: ${display}`} />;
     case "pipsStatus": {
@@ -147,10 +147,10 @@ export function MeasureVisual({ m, width = 168 }: { m: Measure; width?: number }
 /* ── Sparkline ───────────────────────────────────────────────────────── */
 
 /** Direction over time: 96×24, ink line, amber trigger dotted, last point marked, no axes. */
-export function Sparkline({ values, amber, label }: { values: number[]; amber?: number; label: string }) {
+export function Sparkline({ values, amber, limit, status, label }: { values: number[]; amber?: number; limit?: number; status?: MeasureStatus; label: string }) {
   const W = 96;
   const H = 24;
-  const all = amber !== undefined ? [...values, amber] : values;
+  const all = [...values, ...(amber !== undefined ? [amber] : []), ...(limit !== undefined ? [limit] : [])];
   const lo = Math.min(...all);
   const hi = Math.max(...all);
   const y = (v: number) => r1(H - 2 - ((v - lo) / (hi - lo || 1)) * (H - 4));
@@ -158,9 +158,10 @@ export function Sparkline({ values, amber, label }: { values: number[]; amber?: 
   const d = values.map((v, i) => `${i ? "L" : "M"} ${x(i)} ${y(v)}`).join(" ");
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} className="shrink-0">
-      {amber !== undefined ? <line x1={0} x2={W} y1={y(amber)} y2={y(amber)} stroke={GREY} strokeWidth={1} strokeDasharray="2 2" /> : null}
-      <path d={d} fill="none" stroke={INK} strokeWidth={1.5} />
-      <circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r={2.5} fill="white" stroke={INK} strokeWidth={1.5} />
+      {amber !== undefined ? <line x1={0} x2={W} y1={y(amber)} y2={y(amber)} stroke={CHART.amber} strokeWidth={1} strokeDasharray="3 2" /> : null}
+      {limit !== undefined ? <line x1={0} x2={W} y1={y(limit)} y2={y(limit)} stroke={CHART.limit} strokeWidth={1} strokeDasharray="3 2" /> : null}
+      <path d={d} fill="none" stroke={CHART.measure} strokeWidth={CHART.sparkWidth} />
+      <circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r={2.75} fill={status ? STATUS_INK[status] : CHART.measure} stroke="white" strokeWidth={1} />
     </svg>
   );
 }
@@ -265,7 +266,7 @@ const monthsOf = (d: string) => {
 };
 
 /** Dated future events on one line, Oct 2026 → Jul 2027, with today marked. */
-export function HorizonTimeline({ events, today }: { events: { date: string; label: string; tag?: string }[]; today: string }) {
+export function HorizonTimeline({ events, today }: { events: { date: string; label: string; tag?: string; kind?: "regulatory" | "board" }[]; today: string }) {
   const start = monthsOf("1 Oct");
   const end = monthsOf("31 Jul 2027");
   const at = (d: string) => `${((monthsOf(d) - start) / (end - start)) * 100}%`;
@@ -278,14 +279,14 @@ export function HorizonTimeline({ events, today }: { events: { date: string; lab
           {t.split(" ").slice(1).join(" ")}
         </span>
       ))}
-      <span className="absolute top-[56px] h-6 w-px -translate-x-1/2 bg-indigo-500" style={{ left: at(today) }} />
-      <span className="absolute top-[90px] -translate-x-1/2 text-[11px] font-semibold text-indigo-700" style={{ left: at(today) }}>
+      <span className="absolute top-[56px] h-6 w-0.5 -translate-x-1/2" style={{ left: at(today), background: TIMELINE.today }} />
+      <span className="absolute top-[90px] -translate-x-1/2 text-[11px] font-semibold" style={{ left: at(today), color: TIMELINE.today }}>
         Today
       </span>
       {events.map((e, i) => (
         <div key={e.label} className={`absolute w-36 -translate-x-1/2 text-center ${i % 2 ? "top-[96px]" : "top-0"}`} style={{ left: at(e.date) }}>
           {i % 2 ? null : <Label e={e} />}
-          <span className={`absolute left-1/2 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-slate-900 ${i % 2 ? "-top-[33px]" : "top-[63px]"}`} />
+          <span className={`absolute left-1/2 h-2.5 w-2.5 -translate-x-1/2 rounded-full ${i % 2 ? "-top-[33px]" : "top-[63px]"}`} style={{ background: TIMELINE[e.kind ?? "regulatory"] }} />
           {i % 2 ? <Label e={e} /> : null}
         </div>
       ))}
@@ -483,6 +484,8 @@ export interface TradeoffPoint {
   x: number;
   y: number;
   recommended?: boolean;
+  /** The setting in use today. */
+  current?: boolean;
 }
 
 /** Two outcomes traded off: one labelled dot per option; recommended outlined; optional shaded zone. */
@@ -497,8 +500,8 @@ export function TradeoffPlot({ points, xMax, yMax, xLabel, yLabel, invertY, zone
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${yLabel} against ${xLabel}: ${points.map((p) => `${p.label} ${fmtY(p.y)}, ${fmtX(p.x)}`).join("; ")}`} className="shrink-0 overflow-visible" data-chart="tradeoff">
       {zoneMaxX !== undefined ? (
         <>
-          <rect x={L} y={8} width={px(zoneMaxX) - L} height={H - B - 8} fill="#f1f5f9" />
-          <text x={L + 4} y={18} fontSize={9} fill="#64748b">
+          <rect x={L} y={8} width={px(zoneMaxX) - L} height={H - B - 8} fill={TRADEOFF.zone} opacity={TRADEOFF.zoneOpacity} />
+          <text x={L + 4} y={18} fontSize={9} fill="#15803d">
             {zoneLabel}
           </text>
         </>
@@ -516,7 +519,7 @@ export function TradeoffPlot({ points, xMax, yMax, xLabel, yLabel, invertY, zone
       </text>
       {points.map((p) => (
         <g key={p.id}>
-          <circle cx={px(p.x)} cy={py(p.y)} r={p.recommended ? 6 : 4.5} fill={INK} stroke={p.recommended ? "#6366f1" : "none"} strokeWidth={p.recommended ? 3 : 0} paintOrder="stroke" />
+          <circle cx={px(p.x)} cy={py(p.y)} r={p.recommended ? 6 : 4.5} fill={p.recommended ? TRADEOFF.recommended : p.current ? TRADEOFF.current : TRADEOFF.other} stroke={p.recommended ? "#c7d2fe" : "none"} strokeWidth={p.recommended ? 3 : 0} paintOrder="stroke" />
           <text x={px(p.x) + 9} y={py(p.y) + 3} fontSize={10} fontWeight={600} fill={INK}>
             {p.label}
           </text>

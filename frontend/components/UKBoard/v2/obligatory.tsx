@@ -31,7 +31,7 @@ import {
 } from "@/lib/ukboard/v2/boardStore";
 import { AttestationButton, ExceptionTree } from "./appetite";
 import { useDrawer } from "./drawerContext";
-import { BarRows, Card, ChartCard, Chip, FlowPill, LineItem, StatRow, StatusPill, Table, useFigures } from "./present";
+import { BarRows, Card, ChartCard, Chip, FlowPill, LineItem, StatRow, StatusPill, Table, useFigures, SectionSource } from "./present";
 import { useStore } from "./store";
 import { btn, focus, Pill } from "./ui";
 import { Check, Clock, HelpCircle } from "lucide-react";
@@ -79,6 +79,9 @@ function ZeroAppetiteCards() {
           </div>
         </section>
       ))}
+      <div className="md:col-span-2 xl:col-span-4">
+        <SectionSource />
+      </div>
     </div>
   );
 }
@@ -213,7 +216,7 @@ function RateRedress() {
         <ProgressPace actual={r.contacted} target={r.customers} text={`${fmt.nOfM(r.contacted, r.customers)} customers contacted · ${fmt.pct(rateErrorPct())}`} width={220} />
       </button>
       <StatRow label="Still to contact" value={fmt.n(r.customers - r.contacted)} comparator="customers" />
-      <StatRow label="Redress estimate" value={fmt.gbpK(r.redressK)} comparator={`by ${r.due}`} />
+      <StatRow label="Redress estimate" value={fmt.gbpK(r.redressK)} comparator={`by ${r.due} · owner estimate`} />
     </Card>
   );
 }
@@ -310,10 +313,10 @@ function OwnersWithEvidence() {
 }
 
 const MARK: Record<SignOffMark, { cls: string; word: string }> = {
-  on_time: { cls: "bg-slate-400", word: "On time" },
-  late: { cls: "bg-amber-500", word: "Late" },
-  missing: { cls: "border border-dashed border-slate-400 bg-white", word: "Missing" },
-  early: { cls: "bg-red-500", word: "Before data check" },
+  on_time: { cls: "bg-green-600/70", word: "On time" },
+  late: { cls: "bg-amber-600", word: "Late" },
+  missing: { cls: "border border-slate-400 bg-white", word: "Missing" },
+  early: { cls: "bg-red-600", word: "Before data check" },
 };
 
 function AttestationRecord() {
@@ -358,7 +361,7 @@ function AttestationRecord() {
 
 function LinesOfDefence() {
   const f = issuesFound();
-  const SHADE = ["bg-slate-700", "bg-slate-500", "bg-slate-400", "bg-slate-300"];
+  const SHADE = ["bg-indigo-600", "bg-teal-600", "bg-sky-500", "bg-slate-500"];
   useFigures(["f:found"]);
   return (
     <ChartCard id="lines-of-defence" title="Who found the issues" right={<Chip>{`${fmt.n(f.total)} issues`}</Chip>}>

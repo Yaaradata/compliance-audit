@@ -17,11 +17,14 @@ import {
   STATUS_WORD,
   thresholdCells,
   timeToThreshold,
+  SOURCES,
   type AttestState,
   type Delta,
   type Measure,
   type MeasureStatus,
+  type SourceId,
 } from "@/lib/ukboard/v2/boardStore";
+import { categorical } from "./boardChartTheme";
 import { useDrawer } from "./drawerContext";
 import { focus, Pill, type Tone } from "./ui";
 
@@ -85,6 +88,33 @@ export function AttestPill({ a }: { a: AttestState | "none" }) {
   return v ? <Pill tone={v[0]} outline={a !== "unconfirmed"} label={v[1]} /> : <span className="text-xs text-slate-400">—</span>;
 }
 
+/* ── Source footers ───────────────────────────────────────────────────── */
+
+export interface PanelSource {
+  ids: SourceId[];
+  note?: string;
+}
+/** Set by the tab body for each section; the first card inside renders it as a footer. */
+export const SourceCtx = createContext<PanelSource | null>(null);
+
+/** "Source: {source} · {cadence} · as at {date}" (11px, muted). */
+export function SourceLine({ src, bare }: { src: PanelSource; bare?: boolean }) {
+  const parts = src.ids.map((id) => `${SOURCES[id].name} · ${SOURCES[id].cadence.toLowerCase()} · as at ${SOURCES[id].asAt}`);
+  return (
+    <p className={`text-[11px] leading-snug text-slate-400 ${bare ? "" : "mt-auto border-t border-slate-100 pt-1.5"}`} data-source={src.ids.join(" ")}>
+      {src.ids.length > 1 ? "Sources: " : "Source: "}
+      {parts.join("; ")}
+      {src.note ? ` · ${src.note}` : ""}
+    </p>
+  );
+}
+
+/** For sections that are not a single card: renders the section's footer once. */
+export function SectionSource() {
+  const src = useContext(SourceCtx);
+  return src ? <SourceLine src={src} bare /> : null;
+}
+
 /* ── Page and cards ──────────────────────────────────────────────────── */
 
 export function PageHeader({ title, meta }: { title: string; meta?: string }) {
@@ -98,15 +128,24 @@ export function PageHeader({ title, meta }: { title: string; meta?: string }) {
 
 export function Card({ title, right, rail, children, className = "", id, flush }: { title?: string; right?: ReactNode; rail?: Tone; children: ReactNode; className?: string; id?: string; flush?: boolean }) {
   const railCls = rail === "red" || rail === "amber" ? `border-l-[3px] ${RAIL[rail]}` : "";
+  const src = useContext(SourceCtx);
   return (
-    <section id={id} className={`rounded-lg border border-slate-200 bg-white ${flush ? "" : "px-4 pb-3"} ${railCls} ${className}`}>
-      {title ? (
-        <div className={`flex h-10 items-center justify-between gap-3 ${flush ? "px-4" : ""}`}>
-          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-          {right}
+    <section id={id} className={`flex flex-col rounded-lg border border-slate-200 bg-white ${flush ? "" : "px-4 pb-2.5"} ${railCls} ${className}`}>
+      {/* Cards inside a card do not repeat the footer. */}
+      <SourceCtx.Provider value={null}>
+        {title ? (
+          <div className={`flex h-10 items-center justify-between gap-3 ${flush ? "px-4" : ""}`}>
+            <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+            {right}
+          </div>
+        ) : null}
+        {children}
+      </SourceCtx.Provider>
+      {src ? (
+        <div className={`mt-auto ${flush ? "px-4 pb-2.5" : ""} pt-2`}>
+          <SourceLine src={src} />
         </div>
       ) : null}
-      {children}
     </section>
   );
 }
@@ -443,14 +482,14 @@ export function ChartCard({ id, title, right, children }: { id: string; title: s
 export function BarRows({ rows, max, wide }: { rows: { label: string; value: number; display?: string; tag?: ReactNode }[]; max: number; wide?: boolean }) {
   return (
     <>
-      {rows.map((r) => (
+      {rows.map((r, i) => (
         <div key={r.label} className={`grid min-h-9 ${wide ? "grid-cols-[minmax(120px,0.9fr)_minmax(0,1.4fr)_112px]" : "grid-cols-[minmax(120px,0.9fr)_minmax(0,1.4fr)_56px]"} items-center gap-3 border-t border-slate-100 py-1 text-[13px]`}>
           <span className="text-slate-700">
             {r.label}
             {r.tag ? <span className="ml-1.5 align-middle">{r.tag}</span> : null}
           </span>
           <span className="h-2 rounded-full bg-slate-100">
-            <span className="block h-2 rounded-full bg-slate-500" style={{ width: `${max ? (r.value / max) * 100 : 0}%` }} />
+            <span className="block h-2 rounded-full" style={{ width: `${max ? (r.value / max) * 100 : 0}%`, background: categorical(i) }} />
           </span>
           <b className="whitespace-nowrap text-right font-semibold tabular-nums text-slate-900">{r.display ?? r.value}</b>
         </div>

@@ -19,6 +19,7 @@ import {
   FIG,
   fmt,
   historyOf,
+  measure,
   l2Visible,
   SMF_CERT,
   type Measure,
@@ -146,12 +147,14 @@ function CapacityChart() {
         title="Members and qualified handlers, indexed"
         height={180}
         directLabels
+        gap
+        status={measure("u-capacity").status}
         series={[
           { name: "Members", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: members[i] })) },
           { name: "Handlers", points: CAPACITY.quarters.map((q, i) => ({ label: q, value: handlers[i] })), dashed: true },
         ]}
       />
-      <StatRow label="Handlers to restore the ratio" value={`+${c.restoreNeeded}`} comparator={`about ${fmt.gbpM(c.restoreCostM)} a year · ${c.handlers} today`} />
+      <StatRow label="Handlers to restore the ratio" value={`+${c.restoreNeeded}`} comparator={`about ${fmt.gbpM(c.restoreCostM)} a year · owner estimate · ${c.handlers} today`} />
     </ChartCard>
   );
 }
@@ -175,12 +178,12 @@ function DetectionTrial() {
   const { open } = useDrawer();
   useFigures(["f:detect-trial"]);
   return (
-    <Card title="Detection model trial" right={<AiTag label="Fraud Watch agent" />} className="h-full">
+    <Card title="Detection backtest" right={<AiTag label="Fraud Watch agent" />} className="h-full">
       <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 pt-3">
         <DetectionTradeoff />
         <div className="min-w-[160px] flex-1 text-xs leading-relaxed text-slate-600">
-          <p>Challenger detects far faster on the parallel cohort, at the cost of more false alerts.</p>
-          <p className="mt-1">Proposals go to the risk owner; live rules do not change.</p>
+          <p>On historical data, the tested rule set detects far faster, at the cost of more false alerts.</p>
+          <p className="mt-1">Proposals go to the risk owner; rules in use do not change.</p>
           <button type="button" onClick={(e) => open("metric:u-detect", e.currentTarget)} className={`mt-2 rounded font-semibold text-indigo-700 hover:underline ${focus}`}>
             Detection trend ›
           </button>
@@ -247,9 +250,9 @@ function RegulatoryHorizon() {
   const today = useToday();
   useFigures(["f:horizon", "f:smf-cert"]);
   const events = [
-    { date: SMF_CERT.next, label: "Next SMF certification", tag: `${SMF_CERT.evidence} of ${SMF_CERT.smfs} with evidence` },
-    { date: FIG.dates.incidentRules, label: "Incident and third-party reporting rules", tag: "FCA · PRA" },
-    ...HORIZON_EXTRA.map((h) => ({ date: h.date, label: h.text, tag: h.tag })),
+    { date: SMF_CERT.next, label: "Next SMF certification", tag: `${SMF_CERT.evidence} of ${SMF_CERT.smfs} with evidence`, kind: "regulatory" as const },
+    { date: FIG.dates.incidentRules, label: "Incident and third-party reporting rules", tag: "FCA · PRA", kind: "regulatory" as const },
+    ...HORIZON_EXTRA.map((h) => ({ date: h.date, label: h.text, tag: h.tag, kind: "board" as const })),
   ];
   return (
     <Card title="Regulatory horizon" className="h-full">

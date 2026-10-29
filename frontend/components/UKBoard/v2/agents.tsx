@@ -10,7 +10,7 @@ import { Lock } from "lucide-react";
 import { ACTIVITY, AGENTS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FINDINGS, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, TUNING, type Autonomy } from "@/lib/ukboard/v2/agentsData";
 import { agentFigures, ATTACK_SIGNALS, fmt, measure } from "@/lib/ukboard/v2/boardStore";
 import { useDrawer } from "./drawerContext";
-import { Card, EventList, FlowPill, KpiTile, StatRow, Table, useFigures } from "./present";
+import { Card, EventList, FlowPill, KpiTile, StatRow, Table, useFigures, SectionSource } from "./present";
 import { useStore } from "./store";
 import { AutonomyLadder, TradeoffPlot } from "./visuals";
 import { AiTag, btn, btnPrimary, focus, Pill } from "./ui";
@@ -32,8 +32,8 @@ const leadingNumber = (v: string) => Number(v.replace(/[^\d.]/g, ""));
  */
 export const DETECT_TRIAL = (() => {
   const m = measure("u-detect");
-  const median = signal("Challenger model median");
-  const falseAlerts = signal("Challenger false alerts");
+  const median = signal("Tested rule set median (backtest)");
+  const falseAlerts = signal("Tested rule set false alerts (backtest)");
   const extraPct = leadingNumber(falseAlerts.value);
   return {
     measureId: m.id,
@@ -45,19 +45,19 @@ export const DETECT_TRIAL = (() => {
     extraPct,
     options: [
       { id: "current", label: "Current rules", medianSec: (m.actual ?? 0) * 60, medianText: m.value, falseIndex: 100, falseText: "Baseline" },
-      { id: "challenger", label: "Challenger model", medianSec: leadingNumber(median.value), medianText: median.value, falseIndex: 100 + extraPct, falseText: falseAlerts.value },
+      { id: "challenger", label: "Tested rule set (backtest)", medianSec: leadingNumber(median.value), medianText: median.value, falseIndex: 100 + extraPct, falseText: falseAlerts.value },
     ],
     recommended: "challenger",
   };
 })();
 
-/** Detection model trial as a trade-off: false alerts (right is worse) vs median time to detect (up is better). */
+/** Detection backtest as a trade-off: false alerts (right is worse) vs median time to detect (up is better). */
 export function DetectionTradeoff() {
   const t = DETECT_TRIAL;
   const toMin = (sec: number) => Math.round((sec / 60) * 100) / 100;
   return (
     <TradeoffPlot
-      points={t.options.map((o) => ({ id: o.id, label: o.label, x: o.falseIndex - 100, y: toMin(o.medianSec), recommended: o.id === t.recommended }))}
+      points={t.options.map((o) => ({ id: o.id, label: o.label.replace(" (backtest)", ""), x: o.falseIndex - 100, y: toMin(o.medianSec), recommended: o.id === t.recommended, current: o.id === "current" }))}
       xMax={Math.max(10, t.extraPct * 1.5)}
       yMax={toMin(t.amberSec)}
       invertY
@@ -88,6 +88,9 @@ function AgentTiles() {
       {tiles.map(([l, v, c]) => (
         <KpiTile key={l} label={l} value={v} comparator={c} pill={<AiTag label="" />} />
       ))}
+      <div className="col-span-full">
+        <SectionSource />
+      </div>
     </div>
   );
 }
@@ -244,7 +247,7 @@ function AlertScenario({ cro }: { cro: boolean }) {
       </div>
       <div className="flex flex-wrap items-start gap-5 pt-1">
         <TradeoffPlot
-          points={TUNING.options.map((o) => ({ id: o.id, label: `${o.id} · ${o.label}`, x: o.extraAlerts, y: o.caught, recommended: o.id === TUNING.recommended }))}
+          points={TUNING.options.map((o) => ({ id: o.id, label: `${o.id} · ${o.label}`, x: o.extraAlerts, y: o.caught, recommended: o.id === TUNING.recommended, current: o.label === "Current" }))}
           xMax={Math.max(...TUNING.options.map((o) => o.extraAlerts)) * 1.25}
           yMax={TUNING.breaches}
           xLabel="Extra alerts a month"
@@ -290,7 +293,7 @@ function DetectScenario({ cro, sent, onSend }: { cro: boolean; sent: boolean; on
     <>
       <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
         <p className="text-xs text-slate-500">
-          Current rules vs challenger model · {t.cohort} · risk owner {t.owner}
+          Current rules vs tested rule set · backtest on {t.cohort} · risk owner {t.owner}
         </p>
         {cro ? (
           sent ? (
@@ -315,7 +318,7 @@ function DetectScenario({ cro, sent, onSend }: { cro: boolean; sent: boolean; on
             <span key={o.id} className={OPTION_GRID}>
               <span className="flex flex-wrap items-center gap-1 font-semibold text-slate-900">
                 {o.label}
-                {o.id === t.recommended ? <AiTag label="Challenger" /> : null}
+                {o.id === t.recommended ? <AiTag label="Tested" /> : null}
               </span>
               <b className="text-right tabular-nums text-slate-900">{o.medianText}</b>
               <b className="text-right tabular-nums text-slate-900">{o.falseText}</b>
@@ -325,7 +328,7 @@ function DetectScenario({ cro, sent, onSend }: { cro: boolean; sent: boolean; on
         </div>
       </div>
       <p className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
-        <span>{sent ? `Proposal with ${t.owner} · nothing changes until a named approver signs off` : "Propose sends the challenger to the risk owner only; live rules do not change"}</span>
+        <span>{sent ? `Proposal with ${t.owner} · nothing changes until a named approver signs off` : "Propose sends the tested rule set to the risk owner only; rules in use do not change"}</span>
         <button type="button" onClick={(e) => open(`metric:${t.measureId}`, e.currentTarget)} className={btn}>
           Open measure #{t.num}
         </button>

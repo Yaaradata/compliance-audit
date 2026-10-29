@@ -176,7 +176,6 @@ export const CULTURE: Stat[] = [
   { label: "Speak-up cases", value: "9", against: "this quarter · Q2 5", tone: "amber" },
   { label: "Days to close", value: "34", against: "median", tone: "grey" },
   { label: "Safe to speak up", value: "78%", against: "of staff · target 80%", tone: "amber" },
-  { label: "Retaliation cases", value: "0", against: "this quarter", tone: "green" },
 ];
 
 /* ── 5.4 Policy tensions (AI-found) ─────────────────────────────────── */

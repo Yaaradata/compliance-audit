@@ -29,7 +29,7 @@ All figures come from the UK Board data module (`lib/ukboard/v1/data.ts`, read o
 
 | Value | Ties to |
 |---|---|
-| 8 agents; 46 checks this week (41 + 5 from the Fraud Watch agent) | Computed by `totalChecks()` |
+| 8 agents; 2 checks this week (CHECK entries in the activity log, week from 26 Oct) | Computed by `checksThisWeek()` |
 | 5 drafts waiting | The 5 queued drafts still at "AI draft" (computed) |
 | 0 actions without approval | Product rule: no agent action without a named person |
 | Model risk review 30 Sep 2026; 2 of 9 models past validation | "2 of 9" is existing data; the review date is new |
@@ -83,7 +83,7 @@ Every board figure is now held once in `boardStore.ts` (reading `v1/data.ts`, `b
 |---|---|---|
 | Posture | 5 within · 2 heading for amber · 2 amber · 1 red · 2 unconfirmed | Computed from the 12 measure statuses (replaces "8 within") |
 | Consumer Duty (measure #4) | Amber: 2 of 4 outcomes amber · 9 of 12 measures in tolerance | Outcomes 3/3, 3/3, 2/3, 1/3; replaces the earlier "4 of 4 within" |
-| High-LTV vs Q2 | ▲ 0.3 pts (17.3% → 17.6%) | The 1.5 pts is Q2 2025 → Q3 2026, not vs Q2 |
+| High-LTV change | ▲ 1.5 pts (16.1% → 17.6%), labelled vs Q2 2025 | Shown since Q2 2025 at the board's request; vs Q2 2026 it is 0.3 pts |
 | Mortgage headroom | £96m before the appetite limit (20%) | (20% − 17.6%) × £4.0bn; before amber would be £36m |
 | Arrears 3m+ | 0.42% | Existing data (6,100 of 1,452,000) |
 | Dates | Measures as at 30 Sep 2026 · evidence to 26 Oct 2026 · pack v2 locked 15 Oct | Briefing meta reads "evidence to 26 Oct" |
@@ -91,7 +91,7 @@ Every board figure is now held once in `boardStore.ts` (reading `v1/data.ts`, `b
 | Low-EPC lending | Emerging tier | Moved from Top |
 | Owners | Monitoring: Data owner (payments) · Consumer Duty: Chief Customer Officer · CET1: Chief Financial Officer · service disruption: Chief Operating Officer · low-EPC: Chief Credit Officer | Head of Compliance now holds no board measure |
 | Sign-off | 60 owner-months: 54 on time · 3 late · 2 missing · 1 early | Computed from the strip |
-| Agents | 8 · 46 checks this week · 6 findings this quarter · 5 drafts with the CRO · 0 without approval | Computed |
+| Agents | 8 · 2 checks this week · 6 findings this quarter · 5 drafts with the CRO · 0 without approval | Computed |
 
 ## C-suite redesign (one component library, roles only)
 
@@ -103,7 +103,7 @@ Every board figure is now held once in `boardStore.ts` (reading `v1/data.ts`, `b
 | Accountable owners | 8 roles; measures 3/3/2/1/1/1/0/1 = 12 | Computed (`ownerRows`) |
 | Reporting routes decided | 1 of 7 | Computed from v1 routes |
 | Days to Board Risk Committee | Computed from today's date (15 Dec 2026) | Live clock; measures as at 30 Sep 2026 |
-| High-LTV vs Q2 | ▲ 0.3 pts (17.3% → 17.6%) | Kept per Pass 0; 1.5 pts is since Q2 2025 |
+| High-LTV change | ▲ 1.5 pts vs Q2 2025 | Replaces ▲ 0.3 pts vs Q2 2026 |
 | Enforcement themes | Restriction (FCA final notice · 2024), controls not scaling (FCA final notice · 2025), monitoring gap (notice unconfirmed) | No firm names; the monitoring record is unverified |
 | Consumer Duty measure value | 2 of 4 outcomes amber (9 of 12 measures on Customers) | Computed |
 | Restriction runs | Jul 38 · Aug 71 · Sep 112 | v1 restriction history |
@@ -127,6 +127,16 @@ Seeds added in `boardStore.ts` for this rebuild. Everything else is computed by 
 | Policy linkage | 41 of 46 policies linked to a board measure; 5 untracked | Seed (`POLICIES`) |
 | Not yet measured | Agent-initiated payments (Head of Payments (proposed)); synthetic-voice impersonation (Head of Fraud) | Seed (`EMERGING_UNMEASURED`) |
 | Next SMF certification | 31 Jan 2027; 6 of 9 SMFs with evidence | Seed (`SMF_CERT`) |
-| AI agents | 8 agents (Fraud Watch agent added: tests detection rules on parallel cohorts, Head of Fraud, Propose); 46 checks this week (5 from Fraud Watch) | `agentsData.ts` |
+| AI agents | 8 agents (Fraud Watch agent: backtests detection rules on historical data, Head of Fraud, Propose); 2 checks this week from the activity log | `agentsData.ts` |
 | Detection model tuning | Current rules 12 min median vs challenger 40 sec; challenger false alerts +6% on the parallel cohort | `ATTACK_SIGNALS`, `measure("u-detect")` |
 | Decision log stance | Hold · Hold · Loosen · Hold · Tighten (rate-error record has no stance) | Seed (`DECISION_HISTORY`) |
+
+## Data sources and removals
+
+Every panel names its feed (`SOURCES` and `PANEL_SOURCES` in `boardStore.ts`; each measure carries `source`). Board measures are as at 30 Sep 2026; operational feeds (transaction monitoring, fraud, security, signals, regulatory log, agent log) to 28 Oct 2026; board papers to 26 Oct 2026.
+
+| Removed | Why |
+|---|---|
+| Retaliation cases (culture card) | No connected source produces it |
+| Per-agent checks this week (agent drawer) | Replaced by the one weekly count from the activity log |
+| Live, parallel-cohort and challenger wording | Tuning and detection figures are backtests on historical data |

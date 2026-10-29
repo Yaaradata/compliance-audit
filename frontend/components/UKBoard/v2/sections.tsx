@@ -425,7 +425,7 @@ function TuningLab() {
           <BarRows wide max={TUNING.breaches} rows={[{ label: `${o.id} · ${o.label}`, value: o.caught, display: `${o.caught} · +${fmt.n(o.extraAlerts)}`, tag: o.id === TUNING.recommended ? <AiTag label="Recommended" /> : undefined }]} />
         </button>
       ))}
-      <p className="border-t border-slate-100 pt-2 text-xs text-slate-500">Nothing goes live without a named approver.</p>
+      <p className="border-t border-slate-100 pt-2 text-xs text-slate-500">Nothing takes effect without a named approver.</p>
     </ChartCard>
   );
 }
@@ -1236,7 +1236,7 @@ function PackChecklist() {
   const ordered = [...PACK_ITEMS].sort((a, b) => Number(!!b.removal) - Number(!!a.removal));
   return (
     <Card title="Pack checklist" right={<Chip>{`${latest.itemIds.length} of ${PACK_ITEMS.length} items · v${latest.version} ${latest.state}`}</Chip>}>
-      <div className="max-h-[252px] overflow-y-auto">
+      <div>
         {ordered.map((i) => {
           const inPack = latest.itemIds.includes(i.itemId);
           return (

@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { NotebookPen } from "lucide-react";
 import { METRICS } from "@/lib/ukboard/v2/board";
 import { AGENTS } from "@/lib/ukboard/v2/agentsData";
-import { AS_AT_LABEL, daysToCommittee, FIG, OWNER_ROLES } from "@/lib/ukboard/v2/boardStore";
+import { AS_AT_LABEL, daysToCommittee, FIG, OWNER_ROLES, PANEL_SOURCES } from "@/lib/ukboard/v2/boardStore";
 import { PERSONA_VIEWS, type PersonaId, type TabView } from "@/lib/ukboard/v2/personaViews";
 import AskBoardAgent from "./AskBoardAgent";
 import BoardDrawer from "./BoardDrawer";
@@ -20,8 +20,7 @@ import { DrawerContext } from "./drawerContext";
 import type { DrawerKey } from "./drawerKeys";
 import { StoreProvider, useStore } from "./store";
 import { installAudit } from "./audit";
-import { StrategyStrip } from "./appetite";
-import { FigureRegistry, PageHeader } from "./present";
+import { FigureRegistry, PageHeader, SourceCtx } from "./present";
 import { renderSection } from "./sections";
 import { focus } from "./ui";
 
@@ -104,6 +103,9 @@ function Header({ onOpen, onPersona, onAgent }: { onOpen: (k: DrawerKey, el?: HT
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
           <span className="rounded-md border border-slate-200 px-2 py-1 font-medium text-slate-700">{AS_AT_LABEL}</span>
+          <button type="button" onClick={(e) => onOpen("sources", e.currentTarget)} className={headerBtn}>
+            Sources
+          </button>
           <span className="rounded-md border border-slate-200 px-2 py-1 font-medium text-slate-700">
             Board Risk Committee {FIG.dates.brc} · <Days /> days
           </span>
@@ -160,7 +162,8 @@ function TabBody({ tab }: { tab: TabView }) {
               {c.sections.map((id, k) => (
                 // The last section in a column stretches, so cards in a row end level.
                 <div key={id} data-section={id} className={k === c.sections.length - 1 ? "flex flex-1 flex-col [&>section]:flex-1" : undefined}>
-                  {renderSection(id)}
+                  {/* Every panel names its feed; the card inside renders the footer. */}
+                  <SourceCtx.Provider value={PANEL_SOURCES[id] ?? null}>{renderSection(id)}</SourceCtx.Provider>
                 </div>
               ))}
             </div>
@@ -206,7 +209,6 @@ function Page() {
         <Header onOpen={open} onPersona={onPersona} onAgent={() => setAgent(true)} />
         <main key={`${state.persona}-${tab.id}-${state.epoch}`} className="mx-auto max-w-[1440px] space-y-4 px-6 py-4">
           <PageHeader title={tab.title} meta={tab.meta} />
-          {state.persona === "board" && tab.id !== "overview" ? <StrategyStrip /> : null}
           <FigureRegistry tab={`${state.persona}-${tab.id}`}>
             <TabBody tab={tab} />
           </FigureRegistry>

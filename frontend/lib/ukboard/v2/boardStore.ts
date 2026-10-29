@@ -10,7 +10,7 @@
  * moved to Level 2; attestation 8 · 3 due · 1 unconfirmed; detection-time series seeded.
  */
 import { CAPACITY, EVENTS, FIRM, HORIZON, KRI_DETAIL, PACK_ITEMS, PEOPLE, RESTRICTION, ROUTES, SERIES, THRESHOLDS } from "../v1/data";
-import { AGENTS, FINDINGS, QUEUE, totalChecks } from "./agentsData";
+import { AGENTS, checksThisWeek, FINDINGS, QUEUE } from "./agentsData";
 import { ISSUES_FOUND, JOURNEYS, SIGNOFF_HISTORY, type SignOffMark } from "./boardMemberData";
 
 /* ── Number formats ──────────────────────────────────────────────────── */
@@ -36,11 +36,95 @@ export type AttestState = "attested" | "due" | "unconfirmed";
 /** One visual form per kind of fact (§3): every measure renders through this switch. */
 export type VisualKind = "bullet" | "pips" | "pipsStatus" | "zero" | "unconfirmed";
 
+/* ── Data sources (what the bank connects) ───────────────────────────── */
+
+export type SourceId = "RAS" | "TRE" | "LEN" | "SAV" | "FCR" | "FRD" | "SEC" | "CUS" | "SIG" | "REG" | "PUB" | "GOV" | "PPL" | "AGT";
+export interface SourceRef {
+  id: SourceId;
+  cadence: string;
+  asAt: string;
+}
+/** Every figure on screen comes from one of these feeds; cards show the source, cadence and as-at date. */
+export const SOURCES: Record<SourceId, { name: string; system: string; takes: string; cadence: string; asAt: string }> = {
+  RAS: { name: "Risk appetite register", system: "Risk appetite and risk register (GRC tool or the CRO's workbook)", takes: "Appetite statements, the 12 measures, amber triggers and limits, risk and control owners, policy-to-control mapping, control tests, issues and actions, attestations, SMF certification, MI distribution lists", cadence: "Monthly", asAt: "30 Sep 2026" },
+  TRE: { name: "Treasury and finance MI", system: "Treasury and finance MI (liquidity and capital returns)", takes: "LCR, NSFR, wholesale funding, CET1", cadence: "Monthly", asAt: "30 Sep 2026" },
+  LEN: { name: "Mortgage origination", system: "Mortgage origination and servicing", takes: "Lending vs plan, high-LTV share, loans above 4.5× income, arrears, cost of risk, EPC band at origination", cadence: "Monthly", asAt: "30 Sep 2026" },
+  SAV: { name: "Core banking (savings)", system: "Core banking (savings)", takes: "Balances, members, account openings by route", cadence: "Monthly", asAt: "30 Sep 2026" },
+  FCR: { name: "Transaction monitoring", system: "Transaction monitoring and case management; screening logs; onboarding restriction checks; SAR log", takes: "Alert queue age, alerts cleared in target, handlers, members per handler, screening coverage, restriction breaches by route, SAR timeliness", cadence: "Daily", asAt: "28 Oct 2026" },
+  FRD: { name: "Fraud platform logs", system: "Fraud platform logs", takes: "Detection time, automated attempts and block rate", cadence: "Daily", asAt: "28 Oct 2026" },
+  SEC: { name: "Vulnerability scanner and red-team reports", system: "Vulnerability scanner and red-team and penetration-test reports", takes: "Critical findings open over 30 days, patch timeliness, red-team and blue-team results", cadence: "Weekly and per exercise", asAt: "28 Oct 2026" },
+  CUS: { name: "Complaints and Consumer Duty MI", system: "Complaints system, contact-centre MI, Financial Ombudsman data, Consumer Duty MI", takes: "Complaints and themes, ombudsman uphold rate, call wait, Consumer Duty outcome measures, vulnerable-customer exceptions, redress progress", cadence: "Monthly", asAt: "30 Sep 2026" },
+  SIG: { name: "Customer-signals platform", system: "Customer-signals platform (complaint text, social posts)", takes: "Emerging themes such as account-frozen mentions", cadence: "Daily", asAt: "28 Oct 2026" },
+  REG: { name: "Compliance breach log", system: "Compliance breach and regulatory log", takes: "Reportable events, routes, clocks, deciders, read-across, open regulator requests", cadence: "As logged", asAt: "28 Oct 2026" },
+  PUB: { name: "FCA final notices", system: "FCA public final notices", takes: "Enforcement themes", cadence: "As published", asAt: "28 Oct 2026" },
+  GOV: { name: "Board and committee papers", system: "Board and committee papers", takes: "Pack items removed or downgraded, agenda, decision log, board stances", cadence: "Per meeting", asAt: "26 Oct 2026" },
+  PPL: { name: "Speak-up log and staff survey", system: "Speak-up log and annual staff survey (aggregates only)", takes: "Speak-up cases, days to close, safe to speak up", cadence: "Quarterly and annual", asAt: "30 Sep 2026" },
+  AGT: { name: "Agent activity log", system: "Agent activity log", takes: "Agent findings, drafts, approvals, autonomy levels, backtest results", cadence: "Continuous log", asAt: "28 Oct 2026" },
+};
+export const sourceRef = (id: SourceId): SourceRef => ({ id, cadence: SOURCES[id].cadence, asAt: SOURCES[id].asAt });
+
+/** Panel sources, keyed by section id; `note` names a projection method or an estimate. */
+export const PANEL_SOURCES: Record<string, { ids: SourceId[]; note?: string }> = {
+  O_SCORECARD: { ids: ["RAS", "LEN", "SAV"] },
+  O_POSTURE: { ids: ["RAS"], note: "heading for amber is a projection: 6-month trend" },
+  O_TOP: { ids: ["RAS", "LEN", "TRE", "FCR", "SEC"], note: "projection: 6-month trend" },
+  O_EMERGING: { ids: ["RAS", "FRD", "LEN"], note: "projection: 6-month trend" },
+  O_OBLIGATORY: { ids: ["RAS", "FCR", "CUS", "REG"] },
+  O_CALLS: { ids: ["GOV"] },
+  O_EXPOSURE: { ids: ["REG"] },
+  O_SINCE: { ids: ["GOV", "REG"] },
+  M_TABLE: { ids: ["RAS"], note: "each row's feed is shown when opened · time to threshold is a projection: 6-month trend" },
+  M_TABLE_CRO: { ids: ["RAS"], note: "each row's feed is shown when opened · time to threshold is a projection: 6-month trend" },
+  R_CAPACITY: { ids: ["FCR", "SAV"], note: "handler cost: owner estimate" },
+  R_CYBER: { ids: ["SEC"] },
+  E_TRIAL: { ids: ["AGT", "FRD"], note: "backtest on historical data" },
+  E_UNMEASURED: { ids: ["RAS"] },
+  E_HORIZON: { ids: ["REG", "RAS"] },
+  S_TENSIONS: { ids: ["RAS", "GOV"] },
+  S_POLICY: { ids: ["RAS"] },
+  S_HISTORY: { ids: ["RAS"] },
+  OB_CARDS: { ids: ["FCR", "CUS", "REG", "RAS"] },
+  OB_REPORTABLE: { ids: ["REG"] },
+  OB_RESTRICTION: { ids: ["FCR"] },
+  OB_SCREENING: { ids: ["FCR"] },
+  OB_DUTY: { ids: ["CUS"] },
+  OB_VULN: { ids: ["CUS"] },
+  OB_REDRESS: { ids: ["CUS"], note: "redress: owner estimate" },
+  OB_ENFORCEMENT: { ids: ["PUB"] },
+  AC_OWNERS: { ids: ["RAS"] },
+  AC_SIGHT: { ids: ["RAS", "CUS"] },
+  AC_HEATMAP: { ids: ["RAS"] },
+  AC_DEFENCE: { ids: ["RAS"] },
+  AC_CULTURE: { ids: ["PPL"] },
+  AC_REMOVED: { ids: ["GOV"] },
+  DECISION_LOG: { ids: ["GOV"] },
+  A_TILES: { ids: ["AGT"] },
+  A_FINDINGS: { ids: ["AGT"] },
+  A_AUTONOMY: { ids: ["AGT"] },
+  A_ROSTER: { ids: ["AGT"] },
+  A_RULES: { ids: ["AGT"] },
+  A_TUNING: { ids: ["AGT"], note: "backtest on historical data · capacity: owner estimate" },
+  A_ACTIVITY: { ids: ["AGT"] },
+  C_AGENDA: { ids: ["GOV"] },
+  C_PACK: { ids: ["GOV"] },
+  C_WAITING: { ids: ["AGT"] },
+  P_PAPER: { ids: ["GOV"] },
+  P_TIERS: { ids: ["RAS"], note: "heading for amber is a projection: 6-month trend" },
+  ESCALATION: { ids: ["RAS"] },
+  R_QUEUE: { ids: ["RAS", "REG", "AGT"] },
+  R_DEADLINES: { ids: ["GOV", "REG"] },
+  R_CLOCKS_DUE: { ids: ["REG"] },
+  R_PACK: { ids: ["GOV"] },
+  CALL: { ids: ["GOV", "RAS"], note: "effects are projections: 6-month trend · costs: owner estimate" },
+};
+
 export interface Delta {
   value: number;
   unit: "pts" | "days" | "";
   worse: boolean;
   dp?: number;
+  /** Comparison period when it is not Q2 2026. */
+  since?: string;
 }
 
 /** Level 2 metric under a board measure. */
@@ -92,6 +176,8 @@ export interface Measure {
   isNew?: boolean;
   /** How the measure is drawn: bullet bar, pip row, zero counter or unconfirmed placeholder. */
   visualKind: VisualKind;
+  /** Feed the measure's value comes from. */
+  source: SourceRef;
   /** Natural scale for a bullet bar (no normalising). */
   scale?: [number, number];
 }
@@ -101,13 +187,13 @@ export interface Measure {
 const t = THRESHOLDS;
 const hltvSeries = SERIES["u-hltv"];
 const hltvNow = hltvSeries[hltvSeries.length - 1].value;
-const hltvQ2 = hltvSeries[hltvSeries.length - 2].value;
 const handlersNow = CAPACITY.handlers[CAPACITY.handlers.length - 1];
 const LINKED = { tested: "30 Sep", result: "linked" as const };
 
 export const MEASURES: Measure[] = [
   {
     id: "u-growth",
+    source: sourceRef("LEN"),
     visualKind: "bullet", scale: [50, 100],
     num: 1,
     name: "Lending growth vs plan",
@@ -139,6 +225,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-hltv",
+    source: sourceRef("LEN"),
     visualKind: "bullet", scale: [10, 25],
     num: 2,
     name: "High-LTV share of new lending",
@@ -154,7 +241,7 @@ export const MEASURES: Measure[] = [
     unit: "%",
     status: "within",
     projection: "amber by Q2 2027",
-    delta: { value: Math.round((hltvNow - hltvQ2) * 10) / 10, unit: "pts", worse: true },
+    delta: { value: Math.round((hltvNow - hltvSeries[0].value) * 10) / 10, unit: "pts", worse: true, since: "Q2 2025" },
     owner: "Chief Credit Officer",
     objectives: ["O1"],
     statement: "Grow first-time-buyer lending within high-LTV and affordability limits",
@@ -171,6 +258,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-lcr",
+    source: sourceRef("TRE"),
     visualKind: "bullet", scale: [100, 200],
     num: 3,
     name: "Liquidity coverage (LCR)",
@@ -203,6 +291,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-cet1",
+    source: sourceRef("TRE"),
     visualKind: "bullet", scale: [10, 20],
     num: 4,
     name: "CET1 ratio",
@@ -233,6 +322,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-capacity",
+    source: sourceRef("FCR"),
     visualKind: "bullet", scale: [0, 28],
     num: 5,
     name: "Alert queue age",
@@ -264,6 +354,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-secfind",
+    source: sourceRef("SEC"),
     visualKind: "pips",
     num: 6,
     name: "Critical security findings open over 30 days",
@@ -297,6 +388,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-detect",
+    source: sourceRef("FRD"),
     visualKind: "bullet", scale: [0, 40],
     num: 7,
     name: "Time to detect a coordinated automated attack",
@@ -317,7 +409,7 @@ export const MEASURES: Measure[] = [
     objectives: ["O2", "O3"],
     statement: "Detect automated attacks in minutes, not hours",
     stance: "new",
-    proposal: { stance: "set", text: "Set the band after the challenger-model trial", proposer: "Head of Fraud" },
+    proposal: { stance: "set", text: "Set the band after the detection backtest", proposer: "Head of Fraud" },
     l2: [
       { name: "Bot-driven attempts", value: "▲ 3×", threshold: "since Q2", status: "amber" },
       { name: "Attempts blocked", value: "99.2%", threshold: "of attempts", status: "within" },
@@ -330,6 +422,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-climate",
+    source: sourceRef("LEN"),
     visualKind: "bullet", scale: [0, 12],
     num: 8,
     name: "Lending to least-efficient homes (EPC F–G)",
@@ -359,6 +452,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-restriction",
+    source: sourceRef("FCR"),
     visualKind: "zero",
     num: 9,
     name: "Customer restriction breaches",
@@ -386,6 +480,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-screening",
+    source: sourceRef("FCR"),
     visualKind: "unconfirmed",
     num: 10,
     name: "Monitoring and sanctions screening coverage",
@@ -411,6 +506,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-cd",
+    source: sourceRef("CUS"),
     visualKind: "pipsStatus",
     num: 11,
     name: "Consumer Duty outcomes",
@@ -437,6 +533,7 @@ export const MEASURES: Measure[] = [
   },
   {
     id: "u-notify",
+    source: sourceRef("REG"),
     visualKind: "pipsStatus",
     num: 12,
     name: "Regulatory notifications on time",
@@ -635,7 +732,7 @@ export const BOARD_CALLS = [
     due: "8 Dec",
     measureId: "u-capacity",
     options: [
-      { option: "Restore capacity", growth: "Campaign goes ahead", risk: "Queue below amber", cost: "+13 handlers · about £0.8m a year", time: "about 10 weeks", recommended: true },
+      { option: "Restore capacity", growth: "Campaign goes ahead", risk: "Queue below amber", cost: "+13 handlers · about £0.8m a year · owner estimate", time: "about 10 weeks", recommended: true },
       { option: "Pace growth", growth: "−£300m inflow vs plan", risk: "Queue below amber", cost: "None", time: "about 6 weeks" },
     ],
     effects: ["Restore → capacity lands after the campaign starts", "Pace → savings plan missed by about £300m"],
@@ -706,8 +803,8 @@ export const CYBER_EXERCISES = [
 export const ATTACK_SIGNALS = [
   { label: "Bot-driven attempts", value: "▲ 3×", note: "since Q2" },
   { label: "Attempts blocked", value: "99.2%", note: "login and payment" },
-  { label: "Challenger model median", value: "40 sec", note: "vs 12 min today" },
-  { label: "Challenger false alerts", value: "+6%", note: "parallel cohort" },
+  { label: "Tested rule set median (backtest)", value: "40 sec", note: "vs 12 min today" },
+  { label: "Tested rule set false alerts (backtest)", value: "+6%", note: "historical data" },
 ];
 /** Seeded monthly median detection time (minutes), rising towards the 15-minute amber trigger. */
 export const DETECTION_SERIES = [
@@ -807,7 +904,7 @@ export const issuesFound = () => ({ ...ISSUES_FOUND, firstPct: Math.round((ISSUE
 export const journeysWithoutOwner = () => ({ n: JOURNEYS.filter((j) => !j.riskOwner).length, of: JOURNEYS.length });
 
 export function agentFigures(waitingDrafts: number) {
-  return { agents: AGENTS.length, checksThisWeek: totalChecks(), findings: FINDINGS.length, drafts: waitingDrafts, queue: QUEUE.length, withoutApproval: 0, packHoursWas: 41, packHours: 9 };
+  return { agents: AGENTS.length, checksThisWeek: checksThisWeek(), findings: FINDINGS.length, drafts: waitingDrafts, queue: QUEUE.length, withoutApproval: 0, packHoursWas: 41, packHours: 9 };
 }
 
 export const mortgageHeadroomM = () => ftbHeadroomM(measure("u-hltv").limit!);
@@ -871,7 +968,7 @@ export function daysToCommittee(now: Date = new Date()): number {
   const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.max(0, Math.round((brc - today) / 86_400_000));
 }
-export const AS_AT_LABEL = "As at 30 Sep";
+export const AS_AT_LABEL = "Board measures as at 30 Sep 2026 · operational feeds to 28 Oct";
 
 export const SINCE_LAST_BOARD: { date: string; text: string; tag?: string; rail: "red" | "amber" | "grey"; drawer: string; ai?: boolean }[] = [
   { date: "26 Oct", text: "Restriction breach logged", rail: "red", drawer: "event:e-r03" },
@@ -931,6 +1028,7 @@ export function validateBoardStore(): string[] {
   const errs: string[] = [];
   const kinds: Record<string, VisualKind> = { "u-growth": "bullet", "u-hltv": "bullet", "u-lcr": "bullet", "u-cet1": "bullet", "u-capacity": "bullet", "u-secfind": "pips", "u-detect": "bullet", "u-climate": "bullet", "u-restriction": "zero", "u-screening": "unconfirmed", "u-cd": "pipsStatus", "u-notify": "pipsStatus" };
   for (const m of MEASURES) {
+    if (!m.source || !SOURCES[m.source.id]) errs.push(`${m.id} has no source`);
     if (m.visualKind !== kinds[m.id]) errs.push(`${m.id} visualKind ${m.visualKind}, expected ${kinds[m.id]}`);
     if (m.visualKind === "bullet" && !(m.scale && m.actual !== undefined && m.amber !== undefined && m.limit !== undefined)) errs.push(`${m.id} bullet needs scale, actual, amber and limit`);
   }

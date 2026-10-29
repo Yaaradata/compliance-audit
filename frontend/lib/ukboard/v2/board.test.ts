@@ -19,11 +19,11 @@ test("board headline set: 12 metrics, daysToBrc fixed at 49 from the demo date",
 });
 
 import { plain } from "./boardTabs";
-import { AGENTS, QUEUE, totalChecks, TUNING } from "./agentsData";
+import { AGENTS, checksThisWeek, QUEUE, TUNING } from "./agentsData";
 
 test("agent data ties out", () => {
   assert.equal(AGENTS.length, 8);
-  assert.equal(totalChecks(), 46);
+  assert.equal(checksThisWeek(), 2);
   assert.equal(QUEUE.length, 5);
   assert.equal(((2100 / TUNING.alertsPerMonth) * 100).toFixed(1), "5.4");
   assert.equal(((900 / TUNING.alertsPerMonth) * 100).toFixed(1), "2.3");
@@ -36,9 +36,9 @@ test("plain words replace board jargon", () => {
 
 import { PERSONA_VIEWS, sectionsOf } from "./personaViews";
 
-test("board 8 tabs, chair 4, CRO 5; no section repeats within a persona", () => {
+test("board 5 tabs, chair 3, CRO 4; no section repeats within a persona", () => {
   for (const [id, v] of Object.entries(PERSONA_VIEWS)) {
-    assert.equal(v.tabs.length, { board: 8, chair: 4, cro: 5 }[id], id);
+    assert.equal(v.tabs.length, { board: 5, chair: 3, cro: 4 }[id], id);
     assert.ok(v.tabs.some((t) => t.id === v.defaultTab), `${id} default tab`);
     const all = v.tabs.flatMap(sectionsOf);
     assert.deepEqual(all.filter((s, i) => all.indexOf(s) !== i), [], `${id} repeats`);

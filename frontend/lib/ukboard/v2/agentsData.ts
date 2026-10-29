@@ -14,7 +14,6 @@ export interface Agent {
   name: string;
   does: string;
   status: "running" | "waiting" | "paused";
-  checksThisWeek: number;
   quarterCount: string;
   finding: string;
   accountable: string;
@@ -29,7 +28,6 @@ export const AGENTS: Agent[] = [
     name: "Appetite Watch",
     does: "Checks 12 measures daily",
     status: "running",
-    checksThisWeek: 12,
     quarterCount: "12 measures watched",
     finding: "Stable funding reaches amber next quarter",
     accountable: "Chief Risk Officer",
@@ -41,7 +39,6 @@ export const AGENTS: Agent[] = [
     name: "Board Pack",
     does: "Checks nothing is dropped",
     status: "waiting",
-    checksThisWeek: 6,
     quarterCount: "13 qualifying items checked",
     finding: "1 qualifying item removed with no reason",
     accountable: "Company Secretary",
@@ -53,7 +50,6 @@ export const AGENTS: Agent[] = [
     name: "Growth & Capacity",
     does: "Compares growth with capacity",
     status: "waiting",
-    checksThisWeek: 7,
     quarterCount: "6 quarters compared",
     finding: "Campaign in 6 weeks, no resourcing decision",
     accountable: "Head of Financial Crime",
@@ -65,7 +61,6 @@ export const AGENTS: Agent[] = [
     name: "Reporting Clock",
     does: "Prepares reportable and not reportable cases",
     status: "running",
-    checksThisWeek: 7,
     quarterCount: "2 events, 7 reporting routes",
     finding: "2 events, 1 of 7 routes decided",
     accountable: "Head of Compliance",
@@ -77,7 +72,6 @@ export const AGENTS: Agent[] = [
     name: "Enforcement Read-across",
     does: "Matches fines to our measures",
     status: "running",
-    checksThisWeek: 3,
     quarterCount: "3 fines matched",
     finding: "2 fines touch our restriction and monitoring",
     accountable: "Head of Compliance",
@@ -89,7 +83,6 @@ export const AGENTS: Agent[] = [
     name: "Financial-Crime Tuning",
     does: "Tests tighter alert rules",
     status: "waiting",
-    checksThisWeek: 6,
     quarterCount: "1 test, 10,000 accounts",
     finding: "Savings pot sits outside the restriction block",
     accountable: "Head of Financial Crime",
@@ -101,7 +94,6 @@ export const AGENTS: Agent[] = [
     name: "Customer Signals",
     does: "Reads complaints and social posts for emerging harm",
     status: "running",
-    checksThisWeek: 0,
     quarterCount: "63 complaints flagged",
     finding: "63 complaints mention 'account frozen' after the restriction block",
     accountable: "Chief Customer Officer",
@@ -111,11 +103,10 @@ export const AGENTS: Agent[] = [
   {
     id: "fraudwatch",
     name: "Fraud Watch agent",
-    does: "Tests detection rules on parallel cohorts",
+    does: "Backtests detection rules on historical data",
     status: "running",
-    checksThisWeek: 5,
-    quarterCount: "1 challenger model, 1 parallel cohort",
-    finding: "Challenger model detects in 40 sec vs 12 min today",
+    quarterCount: "1 rule set backtested on historical data",
+    finding: "Tested rule set detects in 40 sec vs 12 min today (backtest)",
     accountable: "Head of Fraud",
     autonomy: "propose",
     draftIds: [],
@@ -152,7 +143,7 @@ export const QUEUE: { draftId: string; agentId: string; title: string; reason: s
 export const FIXED_RULES = [
   "Never decides",
   "Never sends anything to a regulator",
-  "Never changes a live limit or rule",
+  "Never changes a limit or rule in use",
   "Every action logged and signed off by a named person",
 ];
 
@@ -166,11 +157,11 @@ export const MODEL_OVERSIGHT = {
 export const TUNING = {
   proposal: "Extend the high-risk customer check to the new savings pot",
   breaches: 97,
-  test: "4 weeks · two matched groups of 5,000 new accounts",
+  test: "Backtest on historical data · 4 weeks · two matched groups of 5,000 new accounts",
   alertsPerMonth: 39000,
   handlers: 63,
   options: [
-    { id: "A", profile: "Conservative", label: "Tight", caught: 94, extraAlerts: 2100, capacity: "Needs about 3 more handlers", view: "Lowest risk" },
+    { id: "A", profile: "Conservative", label: "Tight", caught: 94, extraAlerts: 2100, capacity: "About 3 more handlers (owner estimate)", view: "Lowest risk" },
     { id: "B", profile: "Balanced", label: "Balanced", caught: 71, extraAlerts: 900, capacity: "Within current capacity", view: "Recommended" },
     { id: "C", profile: "Growth", label: "Current", caught: 0, extraAlerts: 0, capacity: "—", view: "Breach continues" },
   ],
@@ -179,7 +170,7 @@ export const TUNING = {
 
 export const ACTIVITY: { type: "CHECK" | "FLAG" | "DRAFT" | "APPROVED" | "REJECTED"; date: string; agentId: string; line: string }[] = [
   { type: "CHECK", date: "27 Oct 2026", agentId: "appetite", line: "NSFR projected to reach amber" },
-  { type: "CHECK", date: "27 Oct 2026", agentId: "fraudwatch", line: "Challenger detection model run on the parallel cohort" },
+  { type: "CHECK", date: "27 Oct 2026", agentId: "fraudwatch", line: "Detection rule set backtested on historical data" },
   { type: "FLAG", date: "26 Oct 2026", agentId: "clock", line: "Restriction breach logged; FCA and PRA opened" },
   { type: "DRAFT", date: "26 Oct 2026", agentId: "clock", line: "Reportable and not reportable cases prepared" },
   { type: "FLAG", date: "25 Oct 2026", agentId: "tuning", line: "97 of 112 breaches via the savings pot" },
@@ -189,5 +180,8 @@ export const ACTIVITY: { type: "CHECK" | "FLAG" | "DRAFT" | "APPROVED" | "REJECT
   { type: "CHECK", date: "14 Oct 2026", agentId: "readacross", line: "3 enforcement cases matched" },
 ];
 
-export const totalChecks = () => AGENTS.reduce((a, g) => a + g.checksThisWeek, 0);
+/** Week of the latest operational feed (Monday 26 Oct 2026); checks are counted from the activity log. */
+const WEEK_START = new Date("26 Oct 2026");
+const WEEK_END = new Date("2 Nov 2026");
+export const checksThisWeek = () => ACTIVITY.filter((x) => x.type === "CHECK" && new Date(x.date) >= WEEK_START && new Date(x.date) < WEEK_END).length;
 export const agentName = (id: string) => AGENTS.find((a) => a.id === id)?.name ?? id;
