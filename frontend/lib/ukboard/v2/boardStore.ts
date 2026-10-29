@@ -67,11 +67,13 @@ export const sourceRef = (id: SourceId): SourceRef => ({ id, cadence: SOURCES[id
 export const PANEL_SOURCES: Record<string, { ids: SourceId[]; note?: string }> = {
   O_SCORECARD: { ids: ["RAS", "LEN", "SAV"] },
   O_POSTURE: { ids: ["RAS"], note: "heading for amber is a projection: 6-month trend" },
+  O_POSTURE_B: { ids: ["RAS"], note: "heading for amber is a projection: 6-month trend" },
+  O_CALLS_B: { ids: ["GOV"] },
   O_TOP: { ids: ["RAS", "LEN", "TRE", "FCR", "SEC"], note: "projection: 6-month trend" },
   O_EMERGING: { ids: ["RAS", "FRD", "LEN"], note: "projection: 6-month trend" },
   O_OBLIGATORY: { ids: ["RAS", "FCR", "CUS", "REG"] },
   O_CALLS: { ids: ["GOV"] },
-  O_EXPOSURE: { ids: ["REG"] },
+  O_EXPOSURE: { ids: ["REG"], note: "● decided · ◐ pending · Now = immediately · ASAP = as soon as practicable · Period = within the reporting period" },
   O_SINCE: { ids: ["GOV", "REG"] },
   M_TABLE: { ids: ["RAS"], note: "each row's feed is shown when opened · time to threshold is a projection: 6-month trend" },
   M_TABLE_CRO: { ids: ["RAS"], note: "each row's feed is shown when opened · time to threshold is a projection: 6-month trend" },
@@ -1002,6 +1004,11 @@ export function timeToThreshold(m: Measure): string {
 
 /* ── Consistency checks ──────────────────────────────────────────────── */
 
+/** Cumulative mortgage lending, Jan–Sep 2026, £bn (Mortgage origination, monthly). Ends at FIG.mortgages.lentBn. */
+export const MORTGAGE_YTD = [0.3, 0.62, 0.95, 1.28, 1.6, 1.93, 2.25, 2.57, 2.9];
+/** Plan pace: a straight line to the £4.0bn annual plan, by month (Jan = 1). */
+export const mortgagePlanAt = (month: number) => Math.round(((FIG.mortgages.planBn * month) / 12) * 100) / 100;
+
 /** Recorded history for a measure's sparkline, or null where the store holds none before Q3 2026. */
 export function historyOf(id: string): { values: number[]; span: string } | null {
   if (id === "u-hltv" || id === "u-lcr") return { values: SERIES[id].map((p) => p.value), span: "6 quarters" };
@@ -1026,6 +1033,7 @@ export function pipsOf(m: Measure): { items: { label: string; status: PipStatus 
 
 export function validateBoardStore(): string[] {
   const errs: string[] = [];
+  if (MORTGAGE_YTD[MORTGAGE_YTD.length - 1] !== FIG.mortgages.lentBn) errs.push("mortgage lending to date does not end at the lent figure");
   const kinds: Record<string, VisualKind> = { "u-growth": "bullet", "u-hltv": "bullet", "u-lcr": "bullet", "u-cet1": "bullet", "u-capacity": "bullet", "u-secfind": "pips", "u-detect": "bullet", "u-climate": "bullet", "u-restriction": "zero", "u-screening": "unconfirmed", "u-cd": "pipsStatus", "u-notify": "pipsStatus" };
   for (const m of MEASURES) {
     if (!m.source || !SOURCES[m.source.id]) errs.push(`${m.id} has no source`);

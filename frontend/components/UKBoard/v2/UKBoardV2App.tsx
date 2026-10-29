@@ -120,24 +120,25 @@ function Header({ onOpen, onPersona }: { onOpen: (k: DrawerKey, el?: HTMLElement
 const SPAN = { 3: "xl:col-span-3", 4: "xl:col-span-4", 5: "xl:col-span-5", 6: "xl:col-span-6", 7: "xl:col-span-7", 8: "xl:col-span-8", 12: "xl:col-span-12" } as const;
 
 function TabBody({ tab }: { tab: TabView }) {
+  const compact = !!tab.compact;
   return (
-    <>
+    <div className={compact ? "space-y-3" : "space-y-4"}>
       {tab.layout.map((row, i) => (
-        <div key={i} className="grid grid-cols-1 items-stretch gap-x-6 gap-y-4 xl:grid-cols-12">
+        <div key={i} className={`grid grid-cols-1 xl:grid-cols-12 ${compact ? "items-start gap-3" : "items-stretch gap-x-6 gap-y-4"}`}>
           {row.cols.map((c, j) => (
-            <div key={j} className={`flex min-w-0 flex-col gap-4 ${SPAN[c.span]}`}>
+            <div key={j} className={`flex min-w-0 flex-col ${compact ? "gap-3" : "gap-4"} ${SPAN[c.span]}`}>
               {c.sections.map((id, k) => (
-                // The last section in a column stretches, so cards in a row end level.
-                <div key={id} data-section={id} className={k === c.sections.length - 1 ? "flex flex-1 flex-col [&>section]:flex-1" : undefined}>
-                  {/* Every panel names its feed; the card inside renders the footer. */}
-                  <SourceCtx.Provider value={PANEL_SOURCES[id] ?? null}>{renderSection(id)}</SourceCtx.Provider>
+                // The last section in a column stretches, so cards in a row end level (not on compact tabs).
+                <div key={id} data-section={id} className={!compact && k === c.sections.length - 1 ? "flex flex-1 flex-col [&>section]:flex-1" : undefined}>
+                  {/* Every panel names its feed; the card inside renders the footer, or the ⓘ on compact tabs. */}
+                  <SourceCtx.Provider value={PANEL_SOURCES[id] ? { ...PANEL_SOURCES[id], tooltip: compact } : null}>{renderSection(id)}</SourceCtx.Provider>
                 </div>
               ))}
             </div>
           ))}
         </div>
       ))}
-    </>
+    </div>
   );
 }
 

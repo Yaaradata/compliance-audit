@@ -93,9 +93,27 @@ export function AttestPill({ a }: { a: AttestState | "none" }) {
 export interface PanelSource {
   ids: SourceId[];
   note?: string;
+  /** Show the source as an ⓘ tooltip in the card header instead of a footer (compact tabs). */
+  tooltip?: boolean;
 }
 /** Set by the tab body for each section; the first card inside renders it as a footer. */
 export const SourceCtx = createContext<PanelSource | null>(null);
+
+/** The source line as plain text (footer and tooltip share it). */
+export function sourceText(src: PanelSource) {
+  const parts = src.ids.map((id) => `${SOURCES[id].name} · ${SOURCES[id].cadence.toLowerCase()} · as at ${SOURCES[id].asAt}`);
+  return `${src.ids.length > 1 ? "Sources: " : "Source: "}${parts.join("; ")}${src.note ? ` · ${src.note}` : ""}`;
+}
+
+/** ⓘ with the source line on hover and focus. */
+export function InfoTip({ src }: { src: PanelSource }) {
+  const text = sourceText(src);
+  return (
+    <span tabIndex={0} title={text} aria-label={text} data-source={src.ids.join(" ")} className={`inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center rounded-full border border-slate-300 text-[10px] font-semibold leading-none text-slate-400 hover:text-slate-600 ${focus}`}>
+      i
+    </span>
+  );
+}
 
 /** "Source: {source} · {cadence} · as at {date}" (11px, muted). */
 export function SourceLine({ src, bare }: { src: PanelSource; bare?: boolean }) {
@@ -112,7 +130,7 @@ export function SourceLine({ src, bare }: { src: PanelSource; bare?: boolean }) 
 /** For sections that are not a single card: renders the section's footer once. */
 export function SectionSource() {
   const src = useContext(SourceCtx);
-  return src ? <SourceLine src={src} bare /> : null;
+  return src && !src.tooltip ? <SourceLine src={src} bare /> : null;
 }
 
 /* ── Page and cards ──────────────────────────────────────────────────── */
@@ -135,13 +153,16 @@ export function Card({ title, right, rail, children, className = "", id, flush }
       <SourceCtx.Provider value={null}>
         {title ? (
           <div className={`flex h-10 items-center justify-between gap-3 ${flush ? "px-4" : ""}`}>
-            <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+              {title}
+              {src?.tooltip ? <InfoTip src={src} /> : null}
+            </h2>
             {right}
           </div>
         ) : null}
         {children}
       </SourceCtx.Provider>
-      {src ? (
+      {src && !src.tooltip ? (
         <div className={`mt-auto ${flush ? "px-4 pb-2.5" : ""} pt-2`}>
           <SourceLine src={src} />
         </div>

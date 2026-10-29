@@ -307,6 +307,8 @@ function Label({ e }: { e: { date: string; label: string; tag?: string } }) {
 
 export type RouteCell = { status: "decided" | "pending"; clock: string; action?: ReactNode } | null;
 const CLOCK_SHORT: Record<string, string> = { "Within the reporting period": "Reporting period" };
+/** One word per cell on the compact Overview (the legend is in the card's ⓘ). */
+const CLOCK_WORD: Record<string, string> = { Immediately: "Now", "As soon as practicable": "ASAP", "Within the reporting period": "Period" };
 
 /** Events × routes: ● decided, ◐ pending (clock underneath), — not applicable. */
 export function RouteMatrix({ rows, cols, compact }: { rows: { key: string; event: ReactNode; cells: RouteCell[]; rail?: "red" | "amber" }[]; cols: string[]; compact?: boolean }) {
@@ -323,7 +325,7 @@ export function RouteMatrix({ rows, cols, compact }: { rows: { key: string; even
         ))}
       </div>
       {rows.map((r) => (
-        <div key={r.key} className={`${grid} min-h-12 border-l-[3px] border-t border-t-slate-100 py-1 pl-2 ${r.rail === "red" ? "border-l-red-500" : r.rail === "amber" ? "border-l-amber-500" : "border-l-transparent"}`} style={tpl}>
+        <div key={r.key} className={`${grid} ${compact ? "min-h-10" : "min-h-12"} border-l-[3px] border-t border-t-slate-100 py-1 pl-2 ${r.rail === "red" ? "border-l-red-500" : r.rail === "amber" ? "border-l-amber-500" : "border-l-transparent"}`} style={tpl}>
           <span className="min-w-0">{r.event}</span>
           {r.cells.map((c, i) => (
             <span key={i} className="text-center leading-tight">
@@ -334,7 +336,7 @@ export function RouteMatrix({ rows, cols, compact }: { rows: { key: string; even
                     aria-label={c.status}
                     className={`mx-auto block h-3 w-3 rounded-full border-[1.5px] border-slate-900 ${c.status === "decided" ? "bg-slate-900" : "bg-[linear-gradient(90deg,#0f172a_50%,#fff_50%)]"}`}
                   />
-                  {c.status === "pending" ? <span className="block text-[11px] text-slate-500">{CLOCK_SHORT[c.clock] ?? c.clock}</span> : null}
+                  {compact ? <span className="block text-[11px] text-slate-500">{CLOCK_WORD[c.clock] ?? c.clock}</span> : c.status === "pending" ? <span className="block text-[11px] text-slate-500">{CLOCK_SHORT[c.clock] ?? c.clock}</span> : null}
                   {c.action ? <span className="mt-1 block">{c.action}</span> : null}
                 </>
               ) : (
@@ -344,7 +346,7 @@ export function RouteMatrix({ rows, cols, compact }: { rows: { key: string; even
           ))}
         </div>
       ))}
-      <p className="border-t border-slate-100 pt-1.5 text-xs text-slate-500">{compact ? "● decided · ◐ pending" : "● decided · ◐ pending, clock shown · — no route"}</p>
+      {compact ? null : <p className="border-t border-slate-100 pt-1.5 text-xs text-slate-500">● decided · ◐ pending, clock shown · — no route</p>}
     </div>
   );
 }
@@ -573,7 +575,7 @@ export function EventRouteMatrix({ detail, compact, action }: { detail?: (e: (ty
     rail: e.breached ? ("red" as const) : undefined,
     event: (
       <span className="block leading-snug">
-        <b className="font-semibold text-slate-900">{e.event}</b>
+        <b className="font-semibold text-slate-900">{compact ? e.event.split(",")[0] : e.event}</b>
         {compact ? null : <span className="block text-xs text-slate-500">{detail ? detail(e) : `Found ${e.found} · ${e.decider}`}</span>}
       </span>
     ),

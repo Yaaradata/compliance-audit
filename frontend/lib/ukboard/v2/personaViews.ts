@@ -18,6 +18,8 @@ export interface TabView {
   title: string;
   /** Optional meta line, at most 10 words. */
   meta?: string;
+  /** One-screen summary: sources as ⓘ tooltips, 12px gaps, cards end at their last row. */
+  compact?: boolean;
   layout: Layout;
 }
 
@@ -42,7 +44,8 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         id: "overview",
         label: "Overview",
         title: "Board risk summary",
-        layout: [full("O_SCORECARD"), full("O_POSTURE"), row([4, "O_TOP"], [4, "O_EMERGING"], [4, "O_OBLIGATORY"]), row([5, "O_CALLS"], [7, "O_EXPOSURE"]), full("O_SINCE")],
+        compact: true,
+        layout: [full("O_SCORECARD"), full("O_POSTURE_B"), row([4, "O_TOP"], [4, "O_OBLIGATORY"], [4, "O_EMERGING", "O_CALLS_B"]), row([7, "O_EXPOSURE"], [5, "O_SINCE"])],
       },
       {
         id: "appetite",
