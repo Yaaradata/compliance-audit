@@ -511,24 +511,20 @@ export interface TradeoffPoint {
   current?: boolean;
 }
 
-/** Two outcomes traded off: one labelled dot per option; recommended outlined; optional shaded zone. */
-export function TradeoffPlot({ points, xMax, yMax, xLabel, yLabel, invertY, zoneMaxX, zoneLabel, fmtX = String, fmtY = String }: { points: TradeoffPoint[]; xMax: number; yMax: number; xLabel: string; yLabel: string; invertY?: boolean; zoneMaxX?: number; zoneLabel?: string; fmtX?: (v: number) => string; fmtY?: (v: number) => string }) {
-  const W = 240;
+/** Approximate rendered text widths, per character, for the two label sizes in the plot. */
+const CHAR_W_LABEL = 5.6;
+const CHAR_W_SUB = 4.6;
+
+/** Two outcomes traded off: one labelled dot per option; recommended outlined. */
+export function TradeoffPlot({ points, xMax, yMax, xLabel, yLabel, invertY, fmtX = String, fmtY = String }: { points: TradeoffPoint[]; xMax: number; yMax: number; xLabel: string; yLabel: string; invertY?: boolean; fmtX?: (v: number) => string; fmtY?: (v: number) => string }) {
+  const W = 300;
   const H = 160;
   const L = 34;
   const B = 26;
   const px = (v: number) => r1(L + (v / xMax) * (W - L - 10));
   const py = (v: number) => r1(invertY ? 8 + (v / yMax) * (H - B - 8) : H - B - (v / yMax) * (H - B - 8));
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${yLabel} against ${xLabel}: ${points.map((p) => `${p.label} ${fmtY(p.y)}, ${fmtX(p.x)}`).join("; ")}`} className="shrink-0 overflow-visible" data-chart="tradeoff">
-      {zoneMaxX !== undefined ? (
-        <>
-          <rect x={L} y={8} width={px(zoneMaxX) - L} height={H - B - 8} fill={TRADEOFF.zone} opacity={TRADEOFF.zoneOpacity} />
-          <text x={L + 4} y={18} fontSize={9} fill="#15803d">
-            {zoneLabel}
-          </text>
-        </>
-      ) : null}
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${yLabel} against ${xLabel}: ${points.map((p) => `${p.label} ${fmtY(p.y)}, ${fmtX(p.x)}`).join("; ")}`} className="h-auto max-w-full shrink-0" data-chart="tradeoff">
       <line x1={L} x2={W - 6} y1={H - B} y2={H - B} stroke={BEYOND} />
       <line x1={L} x2={L} y1={6} y2={H - B} stroke={BEYOND} />
       <text x={L} y={H - 8} fontSize={9} fill="#64748b">
@@ -540,17 +536,28 @@ export function TradeoffPlot({ points, xMax, yMax, xLabel, yLabel, invertY, zone
       <text x={8} y={H / 2} fontSize={9} fill="#64748b" transform={`rotate(-90 8 ${H / 2})`} textAnchor="middle">
         {yLabel}
       </text>
-      {points.map((p) => (
-        <g key={p.id}>
-          <circle cx={px(p.x)} cy={py(p.y)} r={p.recommended ? 6 : 4.5} fill={p.recommended ? TRADEOFF.recommended : p.current ? TRADEOFF.current : TRADEOFF.other} stroke={p.recommended ? "#c7d2fe" : "none"} strokeWidth={p.recommended ? 3 : 0} paintOrder="stroke" />
-          <text x={px(p.x) + 9} y={py(p.y) + 3} fontSize={10} fontWeight={600} fill={INK}>
-            {p.label}
-          </text>
-          <text x={px(p.x) + 9} y={py(p.y) + 14} fontSize={9} fill="#64748b">
-            {fmtY(p.y)} · {fmtX(p.x)}
-          </text>
-        </g>
-      ))}
+      {points.map((p) => {
+        const cx = px(p.x);
+        const cy = py(p.y);
+        const detail = `${fmtY(p.y)} · ${fmtX(p.x)}`;
+        // Keep labels inside the plot: flip left near the right edge, lift above the dot near the x-axis.
+        const flip = cx + 9 + Math.max(p.label.length * CHAR_W_LABEL, detail.length * CHAR_W_SUB) > W;
+        const lift = cy + 16 > H - B;
+        const textX = flip ? cx - 9 : cx + 9;
+        const anchor = flip ? "end" : "start";
+        const labelY = lift ? cy - 18 : cy + 3;
+        return (
+          <g key={p.id}>
+            <circle cx={cx} cy={cy} r={p.recommended ? 6 : 4.5} fill={p.recommended ? TRADEOFF.recommended : p.current ? TRADEOFF.current : TRADEOFF.other} stroke={p.recommended ? "#c7d2fe" : "none"} strokeWidth={p.recommended ? 3 : 0} paintOrder="stroke" />
+            <text x={textX} y={labelY} textAnchor={anchor} fontSize={10} fontWeight={600} fill={INK}>
+              {p.label}
+            </text>
+            <text x={textX} y={labelY + 11} textAnchor={anchor} fontSize={9} fill="#64748b">
+              {detail}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }

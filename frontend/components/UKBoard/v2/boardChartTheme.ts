@@ -34,7 +34,7 @@ export const STATUS_INK: Record<MeasureStatus, string> = {
 export const CATEGORICAL = ["#4F46E5", "#0D9488", "#0EA5E9", "#64748B"] as const;
 export const categorical = (i: number) => CATEGORICAL[i % CATEGORICAL.length];
 
-export const TRADEOFF = { current: "#64748B", recommended: "#4F46E5", other: "#0D9488", zone: "#16A34A", zoneOpacity: 0.1 } as const;
+export const TRADEOFF = { current: "#64748B", recommended: "#4F46E5", other: "#0D9488" } as const;
 
 export const TIMELINE = { regulatory: "#4F46E5", board: "#0D9488", today: "#2563EB" } as const;
 

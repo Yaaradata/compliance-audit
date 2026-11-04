@@ -5,7 +5,7 @@
  * Agents prepare, draft, test and propose to an owner. They never decide, file, contact a
  * regulator or change a live limit. Chart budget for this tab: tuning bars only.
  */
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { ACTIVITY, AGENTS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FINDINGS, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, TUNING, type Autonomy } from "@/lib/ukboard/v2/agentsData";
 import { agentFigures, ATTACK_SIGNALS, fmt, measure } from "@/lib/ukboard/v2/boardStore";
@@ -224,13 +224,45 @@ const SCENARIOS: { id: Scenario; label: string }[] = [
   { id: "detect", label: `Detection model (#${DETECT_TRIAL.num})` },
 ];
 
-const OPTION_GRID = "grid min-h-8 grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))] items-center gap-2 border-t border-slate-100 py-1 text-xs";
+/** One option: a single headline number, an optional bar to the total, and short supporting lines. */
+function OptionCard({ title, tag, value, unit, share, details, selected, onSelect }: { title: string; tag?: ReactNode; value: string; unit: string; share?: number; details: string[]; selected: boolean; onSelect?: () => void }) {
+  const body = (
+    <>
+      <span className="flex min-h-5 flex-wrap items-center justify-between gap-1 text-xs font-semibold text-slate-900">
+        {title}
+        {tag}
+      </span>
+      <span className="mt-2 block text-2xl font-bold leading-none tabular-nums text-slate-900">
+        {value} <span className="text-xs font-medium text-slate-500">{unit}</span>
+      </span>
+      {share !== undefined ? (
+        <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
+          <span className={`block h-full rounded-full ${selected ? "bg-indigo-600" : "bg-slate-400"}`} style={{ width: `${share * 100}%` }} />
+        </span>
+      ) : null}
+      <span className="mt-2 block space-y-0.5 text-xs text-slate-600">
+        {details.map((d) => (
+          <span key={d} className="block">
+            {d}
+          </span>
+        ))}
+      </span>
+    </>
+  );
+  const frame = `flex w-full flex-col justify-start rounded-lg border p-3 text-left ${selected ? "border-indigo-500 bg-indigo-50/40 ring-1 ring-indigo-500" : "border-slate-200 bg-white"}`;
+  if (!onSelect) return <div className={frame}>{body}</div>;
+  return (
+    <button type="button" aria-pressed={selected} onClick={onSelect} className={`${frame} hover:border-indigo-300 ${focus}`}>
+      {body}
+    </button>
+  );
+}
 
 function AlertScenario({ cro }: { cro: boolean }) {
   const { state, dispatch } = useStore();
   const [pick, setPick] = useState(TUNING.recommended);
   const proposed = state.session.tuningProposal;
-  const within = TUNING.options.filter((o) => o.capacity === "Within current capacity").map((o) => o.extraAlerts);
+  const chosen = proposed ?? (cro ? pick : null);
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
@@ -245,41 +277,22 @@ function AlertScenario({ cro }: { cro: boolean }) {
           )
         ) : null}
       </div>
-      <div className="flex flex-wrap items-start gap-5 pt-1">
-        <TradeoffPlot
-          points={TUNING.options.map((o) => ({ id: o.id, label: `${o.id} · ${o.label}`, x: o.extraAlerts, y: o.caught, recommended: o.id === TUNING.recommended, current: o.label === "Current" }))}
-          xMax={Math.max(...TUNING.options.map((o) => o.extraAlerts)) * 1.25}
-          yMax={TUNING.breaches}
-          xLabel="Extra alerts a month"
-          yLabel={`Caught of ${fmt.n(TUNING.breaches)}`}
-          zoneMaxX={within.length ? Math.max(...within) : undefined}
-          zoneLabel="Within current capacity"
-          fmtX={(v) => `+${fmt.n(v)}`}
-          fmtY={(v) => `${fmt.n(v)} caught`}
-        />
-        <div className="min-w-[240px] flex-1">
-          <div className={`${OPTION_GRID} !min-h-6 border-t-0 font-semibold uppercase tracking-wide text-slate-500`}>
-            <span>Option</span>
-            <span className="text-right">Caught</span>
-            <span className="text-right">Extra alerts</span>
-            <span>Capacity</span>
-          </div>
-          {TUNING.options.map((o) => (
-            <button key={o.id} type="button" disabled={!cro || !!proposed} aria-pressed={pick === o.id} onClick={() => setPick(o.id)} className={`block w-full text-left ${cro && pick === o.id ? "bg-slate-50" : ""} ${focus}`}>
-              <span className={OPTION_GRID}>
-                <span className="flex flex-wrap items-center gap-1 font-semibold text-slate-900">
-                  {o.id} · {o.label}
-                  {o.id === TUNING.recommended ? <AiTag label="Recommended" /> : null}
-                </span>
-                <b className="text-right tabular-nums text-slate-900">{fmt.n(o.caught)}</b>
-                <b className="text-right tabular-nums text-slate-900">{`+${fmt.n(o.extraAlerts)}`}</b>
-                <span className="text-slate-600">{o.capacity}</span>
-              </span>
-            </button>
-          ))}
-        </div>
+      <div className="grid gap-2 pt-1 sm:grid-cols-3">
+        {TUNING.options.map((o) => (
+          <OptionCard
+            key={o.id}
+            title={`${o.id} · ${o.label}`}
+            tag={o.id === TUNING.recommended ? <AiTag label="Recommended" /> : undefined}
+            value={fmt.n(o.caught)}
+            unit={`of ${fmt.n(TUNING.breaches)} caught`}
+            share={o.caught / TUNING.breaches}
+            details={[`+${fmt.n(o.extraAlerts)} alerts a month`, ...(o.capacity === "—" ? [] : [o.capacity])]}
+            selected={chosen === o.id}
+            onSelect={cro && !proposed ? () => setPick(o.id) : undefined}
+          />
+        ))}
       </div>
-      <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
+      <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500">
         {TUNING.test} · {proposed ? `Option ${proposed} with the Risk Committee` : "Proposals go to the Risk Committee"}
       </p>
     </>
@@ -293,7 +306,7 @@ function DetectScenario({ cro, sent, onSend }: { cro: boolean; sent: boolean; on
     <>
       <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
         <p className="text-xs text-slate-500">
-          Current rules vs tested rule set · backtest on {t.cohort} · risk owner {t.owner}
+          Backtest on {t.cohort} · risk owner {t.owner}
         </p>
         {cro ? (
           sent ? (
@@ -305,29 +318,20 @@ function DetectScenario({ cro, sent, onSend }: { cro: boolean; sent: boolean; on
           )
         ) : null}
       </div>
-      <div className="flex flex-wrap items-start gap-5 pt-1">
-        <DetectionTradeoff />
-        <div className="min-w-[240px] flex-1">
-          <div className={`${OPTION_GRID} !min-h-6 border-t-0 font-semibold uppercase tracking-wide text-slate-500`}>
-            <span>Option</span>
-            <span className="text-right">Median</span>
-            <span className="text-right">False alerts</span>
-            <span />
-          </div>
-          {t.options.map((o) => (
-            <span key={o.id} className={OPTION_GRID}>
-              <span className="flex flex-wrap items-center gap-1 font-semibold text-slate-900">
-                {o.label}
-                {o.id === t.recommended ? <AiTag label="Tested" /> : null}
-              </span>
-              <b className="text-right tabular-nums text-slate-900">{o.medianText}</b>
-              <b className="text-right tabular-nums text-slate-900">{o.falseText}</b>
-              <span />
-            </span>
-          ))}
-        </div>
+      <div className="grid gap-2 pt-1 sm:grid-cols-2">
+        {t.options.map((o) => (
+          <OptionCard
+            key={o.id}
+            title={o.label}
+            tag={o.id === t.recommended ? <AiTag label="Tested" /> : undefined}
+            value={o.medianText}
+            unit="median detection"
+            details={[`${o.falseText} false alerts`]}
+            selected={o.id === t.recommended}
+          />
+        ))}
       </div>
-      <p className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
+      <p className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
         <span>{sent ? `Proposal with ${t.owner} · nothing changes until a named approver signs off` : "Propose sends the tested rule set to the risk owner only; rules in use do not change"}</span>
         <button type="button" onClick={(e) => open(`metric:${t.measureId}`, e.currentTarget)} className={btn}>
           Open measure #{t.num}
@@ -345,7 +349,7 @@ function TuningLab() {
   const cro = state.persona === "cro";
   return (
     <Card title="Tuning lab" right={<AiTag label="AI agent test" />} className="h-full">
-      <div role="tablist" aria-label="Tuning scenario" className="mb-2 mt-0.5 inline-flex overflow-hidden rounded-lg border border-slate-300">
+      <div role="tablist" aria-label="Tuning scenario" className="mb-2 mt-0.5 flex w-fit overflow-hidden rounded-lg border border-slate-300">
         {SCENARIOS.map((s) => (
           <button
             key={s.id}
