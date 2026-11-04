@@ -316,9 +316,9 @@ export function LineItem({ text, detail, rail, right, onClick }: { text: string;
   );
 }
 
-export function EventList({ title, right, items }: { title: string; right?: ReactNode; items: { date: string; text: string; tag?: string; rail?: Tone; drawer?: string }[] }) {
+export function EventList({ title, right, items, showAll }: { title: string; right?: ReactNode; items: { date: string; text: string; tag?: string; rail?: Tone; drawer?: string }[]; showAll?: boolean }) {
   const { open } = useDrawer();
-  const [shown, more] = useCollapse(items, 5);
+  const [shown, more] = useCollapse(items, showAll ? items.length : 5);
   return (
     <Card title={title} right={right}>
       {shown.map((e) => {

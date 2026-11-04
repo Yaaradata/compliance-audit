@@ -3,7 +3,7 @@
  * 16 words and the ask as 2–3 facts. Every figure is computed from the store; the waiting-draft count
  * comes from the session (drafts the CRO has not yet approved).
  */
-import { QUEUE, FINDINGS, TUNING } from "./agentsData";
+import { QUEUE, FINDINGS } from "./agentsData";
 import { attestationThisMonth, BOARD_CALLS, FIG, journeysWithoutOwner, MEASURES, REPORTABLE_EVENTS, routesDecided, rollupTotals, type MeasureStatus } from "./boardStore";
 import { ROUTES } from "../v1/data";
 import type { PersonaId } from "./personaViews";
@@ -33,7 +33,6 @@ export function headlineOf(persona: PersonaId, tab: string, waitingDrafts: numbe
   const restriction = REPORTABLE_EVENTS[0];
   const rRoutes = ROUTES.filter((x) => x.eventId === restriction.id);
   const rDecided = rRoutes.filter((x) => x.status === "decided").length;
-  const option = TUNING.options.find((o) => o.id === TUNING.recommended)!;
   const packIn = FIG.pack.items - FIG.escalation.removedFromPack;
   const key = `${persona}:${tab}`;
   const H: Record<string, Headline> = {
@@ -72,7 +71,7 @@ export function headlineOf(persona: PersonaId, tab: string, waitingDrafts: numbe
     "cro:actions": { status: "red", line: `${rRoutes.length - rDecided} regulator cases to send now; ${waitingDrafts} drafts need your approval.` },
     "cro:risk": { status: "amber", line: `${r.offTrack} metrics below the board measures are off track; ${r.l3Red} controls are red.` },
     "cro:reporting": { status: "red", line: `Restriction breach: ${rDecided} of ${rRoutes.length} routes decided; read-across ${restriction.readAcross.toLowerCase()}.` },
-    "cro:agents": { status: "within", line: `Option ${option.id} catches ${option.caught} of ${TUNING.breaches} breaches within current capacity.` },
+    "cro:agents": { status: "within", line: "Agents draft and flag; none acted without approval." },
   };
   return H[key] ?? null;
 }

@@ -9,7 +9,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { CAPACITY, DRAFTS, EVENTS, PACK_ITEMS, RESTRICTION, ROUTES } from "@/lib/ukboard/v1/data";
-import { ACTIVITY, AGENTS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FINDINGS, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, TUNING, type Autonomy } from "@/lib/ukboard/v2/agentsData";
+import { ACTIVITY, AGENTS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FINDINGS, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, type Autonomy } from "@/lib/ukboard/v2/agentsData";
 import { CULTURE, D1_OPTIONS, D2_BOARD_ASKS, D3_OPTIONS, DUE_FOR_REVIEW, ISSUES_FOUND, JOURNEYS, REGULATOR_RELATIONSHIP, SIGNOFF_HISTORY, SIGNOFF_MONTHS, TENSIONS, type SignOffMark } from "@/lib/ukboard/v2/boardMemberData";
 import {
   agentFigures,
@@ -393,40 +393,6 @@ function AgentRoster() {
         ],
       }))}
     />
-  );
-}
-
-function TuningLab() {
-  const { state, dispatch } = useStore();
-  const [pick, setPick] = useState(TUNING.recommended);
-  useFigures(["f:tuning"]);
-  const cro = state.persona === "cro";
-  return (
-    <ChartCard
-      id="tuning"
-      title="Tuning lab"
-      right={
-        cro ? (
-          state.session.tuningProposal ? (
-            <FlowPill w="proposed" />
-          ) : (
-            <button type="button" onClick={() => dispatch({ type: "PROPOSE_TUNING", optionId: pick })} className={btnPrimary}>
-              Propose option {pick}
-            </button>
-          )
-        ) : (
-          <AiTag label="AI agent test" />
-        )
-      }
-    >
-      <p className="pb-1 text-xs text-slate-500">Breaches caught of {TUNING.breaches} · extra alerts a month</p>
-      {TUNING.options.map((o) => (
-        <button key={o.id} type="button" disabled={!cro} aria-pressed={pick === o.id} onClick={() => setPick(o.id)} className={`block w-full text-left ${cro && pick === o.id ? "bg-slate-50" : ""} ${focus}`}>
-          <BarRows wide max={TUNING.breaches} rows={[{ label: `${o.id} · ${o.label}`, value: o.caught, display: `${o.caught} · +${fmt.n(o.extraAlerts)}`, tag: o.id === TUNING.recommended ? <AiTag label="Recommended" /> : undefined }]} />
-        </button>
-      ))}
-      <p className="border-t border-slate-100 pt-2 text-xs text-slate-500">Nothing takes effect without a named approver.</p>
-    </ChartCard>
   );
 }
 
@@ -1297,7 +1263,6 @@ const SECTIONS: Record<string, () => ReactNode> = {
   AUTONOMY: AgentAutonomy,
   RULES: Rules,
   ROSTER: AgentRoster,
-  TUNING: TuningLab,
   ACTIVITY: Activity,
   DECISION_LOG: DecisionLog,
   EXCEPTIONS: Exceptions,

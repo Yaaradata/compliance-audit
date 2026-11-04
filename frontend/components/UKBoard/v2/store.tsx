@@ -2,7 +2,7 @@
 
 /**
  * UK Board v2 — in-memory store (copied from the v1 store and adapted for three personas,
- * tabs, meeting notes, agent autonomy and the tuning lab). No browser storage.
+ * tabs, meeting notes and agent autonomy). No browser storage.
  * Every human action writes an audit entry naming the person. Agents never act alone.
  */
 import { createContext, useContext, useMemo, useReducer, type ReactNode } from "react";
@@ -20,7 +20,6 @@ interface Session {
   manifestVersions: ManifestVersion[];
   notes: { id: string; text: string; from: string }[];
   autonomy: Record<string, Autonomy>;
-  tuningProposal: string | null;
   returned: string[];
   deepDives: string[];
   /** Items added to the decision paper (stance proposals); never changes a band. */
@@ -59,7 +58,6 @@ export type Action =
   | { type: "RETURN_TO_CRO"; draftId: string }
   | { type: "SAVE_NOTE"; text: string; from: string }
   | { type: "SET_AUTONOMY"; agentId: string; level: Autonomy }
-  | { type: "PROPOSE_TUNING"; optionId: string }
   | { type: "REQUEST_DEEP_DIVE"; topic: string }
   | { type: "SET_FILTER"; objective: string | null }
   | { type: "SELECT_CALL"; id: string }
@@ -81,7 +79,6 @@ function seed(): Session {
     manifestVersions: MANIFEST_VERSIONS,
     notes: [],
     autonomy: Object.fromEntries(AGENTS.map((a) => [a.id, a.autonomy])),
-    tuningProposal: null,
     returned: [],
     deepDives: [],
     paper: [],
@@ -185,9 +182,6 @@ function reducer(state: State, a: Action): State {
       const agent = AGENTS.find((g) => g.id === a.agentId);
       return write({ autonomy: { ...s.autonomy, [a.agentId]: a.level } }, entry(state, s, `autonomy ${a.level} proposed to committee`, agent?.name ?? a.agentId, `agent:${a.agentId}`));
     }
-    case "PROPOSE_TUNING":
-      if (s0.tuningProposal) return state;
-      return write({ tuningProposal: a.optionId }, entry(state, s, `tuning option ${a.optionId} proposed to the Risk Committee`, "Financial-crime tuning lab", "agent:tuning"));
     case "REQUEST_DEEP_DIVE":
       // Board members request; the CRO prepares. Logged against the board member.
       if (state.persona !== "board" || s0.deepDives.includes(a.topic)) return state;

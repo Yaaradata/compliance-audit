@@ -70,7 +70,7 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
         id: "ai",
         label: "AI agents",
         title: "AI agents",
-        layout: [row([6, "A_FINDINGS", "A_RULES"], [6, "A_TUNING", "A_AUTONOMY"]), full("A_ROSTER")],
+        layout: [row([6, "A_FINDINGS"], [6, "A_AUTONOMY", "A_RULES"]), full("A_ROSTER")],
       },
     ],
   },
@@ -103,7 +103,7 @@ export const PERSONA_VIEWS: Record<PersonaId, PersonaView> = {
       { id: "actions", label: "My actions", title: "My actions", layout: [row([8, "R_QUEUE"], [4, "R_DEADLINES", "R_CLOCKS_DUE", "P_PAPER"]), full("R_PACK")] },
       { id: "risk", label: "Risk & roll-up", title: "Risk and roll-up", layout: [full("M_TABLE_CRO"), row([8, "AC_OWNERS"], [4, "ESCALATION", "S_POLICY"]), full("S_TENSIONS")] },
       { id: "reporting", label: "Regulatory reporting", title: "Regulatory reporting", layout: [full("OB_REPORTABLE"), row([6, "OB_RESTRICTION"], [6, "OB_ENFORCEMENT", "E_HORIZON"])] },
-      { id: "agents", label: "AI agents", title: "AI agents", layout: [row([6, "A_AUTONOMY", "A_ROSTER"], [6, "A_TUNING", "A_ACTIVITY"])] },
+      { id: "agents", label: "AI agents", title: "AI agents", layout: [row([6, "A_AUTONOMY", "A_ROSTER"], [6, "A_ACTIVITY"])] },
     ],
   },
 };

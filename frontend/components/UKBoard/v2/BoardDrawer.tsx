@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { ASSURANCE_VERDICTS, CAPACITY, CONTRIBUTORS, DRAFTS, EVENTS, HORIZON, KRI_DETAIL, RESTRICTION, ROUTES, SERIES, TENSION_PAIR, TM_RUNS, UNITS } from "@/lib/ukboard/v1/data";
 import { CHECK_ORDER } from "@/lib/ukboard/v1/selectors";
-import { AGENTS, QUEUE, TUNING } from "@/lib/ukboard/v2/agentsData";
+import { AGENTS, QUEUE } from "@/lib/ukboard/v2/agentsData";
 import {
   APPETITE_STATEMENTS,
   attestationOf,
@@ -259,8 +259,6 @@ function content(key: DrawerKey, persona: string, session: ReturnType<typeof use
         evidenceUnitId: "u-horizon",
         refs: ["u-horizon"],
       };
-    case "tuning":
-      return { title: "Tuning lab", ownerRole: "Head of Financial Crime", position: TUNING.options.map((o) => ({ label: `${o.id} · ${o.label}`, value: `${o.caught} of ${TUNING.breaches}`, comparator: `+${fmt.n(o.extraAlerts)} alerts` })), drafts: [], refs: ["agent:tuning"] };
     case "notes":
       return { title: "My notes", ownerRole: "Board member", position: [], body: <NotesBody />, drafts: [], refs: ["notes"] };
   }

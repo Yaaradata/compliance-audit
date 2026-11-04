@@ -108,7 +108,6 @@ export const PANEL_SOURCES: Record<string, { ids: SourceId[]; note?: string }> =
   A_AUTONOMY: { ids: ["AGT"] },
   A_ROSTER: { ids: ["AGT"] },
   A_RULES: { ids: ["AGT"] },
-  A_TUNING: { ids: ["AGT"], note: "backtest on historical data · capacity: owner estimate" },
   A_ACTIVITY: { ids: ["AGT"] },
   C_AGENDA: { ids: ["GOV"] },
   C_PACK: { ids: ["GOV"] },

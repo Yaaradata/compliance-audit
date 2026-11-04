@@ -1,19 +1,18 @@
 "use client";
 
 /**
- * UK Board v2 — AI agents tab: tiles, findings, autonomy, roster, fixed rules and the tuning lab.
+ * UK Board v2 — AI agents tab: tiles, findings, autonomy, roster and fixed rules.
  * Agents prepare, draft, test and propose to an owner. They never decide, file, contact a
- * regulator or change a live limit. Chart budget for this tab: tuning bars only.
+ * regulator or change a live limit.
  */
-import { useState, type ReactNode } from "react";
 import { Lock } from "lucide-react";
-import { ACTIVITY, AGENTS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FINDINGS, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, TUNING, type Autonomy } from "@/lib/ukboard/v2/agentsData";
+import { ACTIVITY, AGENTS, agentName, AUTONOMY_LABEL, AUTONOMY_ORDER, FINDINGS, FIXED_RULES, MODEL_OVERSIGHT, QUEUE, type Autonomy } from "@/lib/ukboard/v2/agentsData";
 import { agentFigures, ATTACK_SIGNALS, fmt, measure } from "@/lib/ukboard/v2/boardStore";
 import { useDrawer } from "./drawerContext";
-import { Card, EventList, FlowPill, KpiTile, StatRow, Table, useFigures, SectionSource } from "./present";
+import { Card, EventList, KpiTile, StatRow, Table, useFigures, SectionSource } from "./present";
 import { useStore } from "./store";
 import { AutonomyLadder, TradeoffPlot } from "./visuals";
-import { AiTag, btn, btnPrimary, focus, Pill } from "./ui";
+import { AiTag, focus, Pill } from "./ui";
 
 /* ── Seed: Detection model (#7) scenario ─────────────────────────────── */
 
@@ -21,7 +20,7 @@ const signal = (label: string) => ATTACK_SIGNALS.find((s) => s.label === label)!
 const leadingNumber = (v: string) => Number(v.replace(/[^\d.]/g, ""));
 
 /**
- * Seed for the second tuning-lab scenario: current detection rules vs the challenger model on the
+ * Seed for the detection trade-off: current detection rules vs the challenger model on the
  * parallel cohort, for board measure #7 (time to detect a coordinated automated attack).
  * Values come from ATTACK_SIGNALS and the u-detect measure; nothing is typed in twice.
  * - current: median detection time today (measure actual, minutes), false alerts as the baseline;
@@ -213,159 +212,7 @@ function Rules() {
 }
 
 function Activity() {
-  return <EventList title="Agent activity" right={<AiTag />} items={ACTIVITY.map((e) => ({ date: e.date.replace(" 2026", ""), text: `${agentName(e.agentId)}: ${e.line}`, tag: e.type.charAt(0) + e.type.slice(1).toLowerCase() }))} />;
-}
-
-/* ── Tuning lab: two scenarios ───────────────────────────────────────── */
-
-type Scenario = "alerts" | "detect";
-const SCENARIOS: { id: Scenario; label: string }[] = [
-  { id: "alerts", label: "Alert tuning" },
-  { id: "detect", label: `Detection model (#${DETECT_TRIAL.num})` },
-];
-
-/** One option: a single headline number, an optional bar to the total, and short supporting lines. */
-function OptionCard({ title, tag, value, unit, share, details, selected, onSelect }: { title: string; tag?: ReactNode; value: string; unit: string; share?: number; details: string[]; selected: boolean; onSelect?: () => void }) {
-  const body = (
-    <>
-      <span className="flex min-h-5 flex-wrap items-center justify-between gap-1 text-xs font-semibold text-slate-900">
-        {title}
-        {tag}
-      </span>
-      <span className="mt-2 block text-2xl font-bold leading-none tabular-nums text-slate-900">
-        {value} <span className="text-xs font-medium text-slate-500">{unit}</span>
-      </span>
-      {share !== undefined ? (
-        <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-          <span className={`block h-full rounded-full ${selected ? "bg-indigo-600" : "bg-slate-400"}`} style={{ width: `${share * 100}%` }} />
-        </span>
-      ) : null}
-      <span className="mt-2 block space-y-0.5 text-xs text-slate-600">
-        {details.map((d) => (
-          <span key={d} className="block">
-            {d}
-          </span>
-        ))}
-      </span>
-    </>
-  );
-  const frame = `flex w-full flex-col justify-start rounded-lg border p-3 text-left ${selected ? "border-indigo-500 bg-indigo-50/40 ring-1 ring-indigo-500" : "border-slate-200 bg-white"}`;
-  if (!onSelect) return <div className={frame}>{body}</div>;
-  return (
-    <button type="button" aria-pressed={selected} onClick={onSelect} className={`${frame} hover:border-indigo-300 ${focus}`}>
-      {body}
-    </button>
-  );
-}
-
-function AlertScenario({ cro }: { cro: boolean }) {
-  const { state, dispatch } = useStore();
-  const [pick, setPick] = useState(TUNING.recommended);
-  const proposed = state.session.tuningProposal;
-  const chosen = proposed ?? (cro ? pick : null);
-  return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
-        <p className="text-xs text-slate-500">{TUNING.proposal}</p>
-        {cro ? (
-          proposed ? (
-            <FlowPill w="proposed" />
-          ) : (
-            <button type="button" onClick={() => dispatch({ type: "PROPOSE_TUNING", optionId: pick })} className={btnPrimary}>
-              Propose option {pick}
-            </button>
-          )
-        ) : null}
-      </div>
-      <div className="grid gap-2 pt-1 sm:grid-cols-3">
-        {TUNING.options.map((o) => (
-          <OptionCard
-            key={o.id}
-            title={`${o.id} · ${o.label}`}
-            tag={o.id === TUNING.recommended ? <AiTag label="Recommended" /> : undefined}
-            value={fmt.n(o.caught)}
-            unit={`of ${fmt.n(TUNING.breaches)} caught`}
-            share={o.caught / TUNING.breaches}
-            details={[`+${fmt.n(o.extraAlerts)} alerts a month`, ...(o.capacity === "—" ? [] : [o.capacity])]}
-            selected={chosen === o.id}
-            onSelect={cro && !proposed ? () => setPick(o.id) : undefined}
-          />
-        ))}
-      </div>
-      <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500">
-        {TUNING.test} · {proposed ? `Option ${proposed} with the Risk Committee` : "Proposals go to the Risk Committee"}
-      </p>
-    </>
-  );
-}
-
-function DetectScenario({ cro, sent, onSend }: { cro: boolean; sent: boolean; onSend: () => void }) {
-  const t = DETECT_TRIAL;
-  const { open } = useDrawer();
-  return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
-        <p className="text-xs text-slate-500">
-          Backtest on {t.cohort} · risk owner {t.owner}
-        </p>
-        {cro ? (
-          sent ? (
-            <FlowPill w="proposed" />
-          ) : (
-            <button type="button" onClick={onSend} className={btnPrimary}>
-              Propose to {t.owner}
-            </button>
-          )
-        ) : null}
-      </div>
-      <div className="grid gap-2 pt-1 sm:grid-cols-2">
-        {t.options.map((o) => (
-          <OptionCard
-            key={o.id}
-            title={o.label}
-            tag={o.id === t.recommended ? <AiTag label="Tested" /> : undefined}
-            value={o.medianText}
-            unit="median detection"
-            details={[`${o.falseText} false alerts`]}
-            selected={o.id === t.recommended}
-          />
-        ))}
-      </div>
-      <p className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
-        <span>{sent ? `Proposal with ${t.owner} · nothing changes until a named approver signs off` : "Propose sends the tested rule set to the risk owner only; rules in use do not change"}</span>
-        <button type="button" onClick={(e) => open(`metric:${t.measureId}`, e.currentTarget)} className={btn}>
-          Open measure #{t.num}
-        </button>
-      </p>
-    </>
-  );
-}
-
-function TuningLab() {
-  const { state, dispatch } = useStore();
-  const [tab, setTab] = useState<Scenario>("alerts");
-  const detectSent = state.session.proposals.includes("tuning:u-detect");
-  useFigures(["f:tuning"]);
-  const cro = state.persona === "cro";
-  return (
-    <Card title="Tuning lab" right={<AiTag label="AI agent test" />} className="h-full">
-      <div role="tablist" aria-label="Tuning scenario" className="mb-2 mt-0.5 flex w-fit overflow-hidden rounded-lg border border-slate-300">
-        {SCENARIOS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === s.id}
-            onClick={() => setTab(s.id)}
-            className={`border-l border-slate-300 px-3 py-1.5 text-xs font-semibold first:border-l-0 ${tab === s.id ? "bg-slate-900 text-white" : "bg-white text-slate-700 hover:bg-slate-50"} ${focus}`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel">{tab === "alerts" ? <AlertScenario cro={cro} /> : <DetectScenario cro={cro} sent={detectSent} onSend={() => dispatch({ type: "PROPOSE_TO_OWNER", item: "tuning:u-detect", owner: DETECT_TRIAL.owner })} />}</div>
-    </Card>
-  );
+  return <EventList title="Agent activity" right={<AiTag />} showAll items={ACTIVITY.map((e) => ({ date: e.date.replace(" 2026", ""), text: `${agentName(e.agentId)}: ${e.line}`, tag: e.type.charAt(0) + e.type.slice(1).toLowerCase() }))} />;
 }
 
 export const AGENT_SECTIONS = {
@@ -374,6 +221,5 @@ export const AGENT_SECTIONS = {
   A_AUTONOMY: AgentAutonomy,
   A_ROSTER: AgentRoster,
   A_RULES: Rules,
-  A_TUNING: TuningLab,
   A_ACTIVITY: Activity,
 };
