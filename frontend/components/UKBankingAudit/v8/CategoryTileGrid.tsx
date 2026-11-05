@@ -6,7 +6,6 @@ import { DomainDrillPanel } from "./DomainDrillPanel";
 import { PathToGreenDrawer, type PathTarget } from "./PathToGreenDrawer";
 import { RagBadge } from "./FirmPostureSummary";
 import { RAG_STYLES } from "./ragTokens";
-import { RatingTrendChip } from "./RatingTrendChip";
 import { PreviousAndNow, RatingTrend } from "./TrendCharts";
 import type { RagStatus, RiskDomainV4 } from "./types";
 import { useRiskState } from "./useRiskStore";
@@ -82,12 +81,18 @@ function TileHeader({ tile }: { tile: CategoryTileView }) {
   return (
     <div className="flex items-start justify-between gap-2">
       <span className="text-[13px] font-bold leading-tight text-slate-900">{tile.label}</span>
-      <span className="flex shrink-0 items-center gap-1">
+      {tile.colour === "green" ? (
+        <span className="sr-only">Green</span>
+      ) : (
         <RagBadge status={tile.colour.toUpperCase() as RagStatus} />
-        <RatingTrendChip trend={tile.trend} />
-      </span>
+      )}
     </div>
   );
+}
+
+/** The trend line already shows a steady rating, so words appear only when it moved. */
+function RatingMove({ tile }: { tile: CategoryTileView }) {
+  return tile.trend.direction === "flat" ? null : <PreviousAndNow points={tile.history} />;
 }
 
 /** A green tile needs little: its name, its line, one row of numbers. */
@@ -97,7 +102,7 @@ function GreenTileBody({ tile }: { tile: CategoryTileView }) {
       <div className="mt-auto">
         <RatingTrend points={tile.history} />
       </div>
-      <PreviousAndNow points={tile.history} />
+      <RatingMove tile={tile} />
       <p className="whitespace-nowrap text-[10.5px] text-slate-500">
         Controls <span className="font-semibold text-slate-900">{tile.criticalPct}%</span> · Sev-1/2{" "}
         <span className="font-semibold text-slate-900">{tile.sevOneTwo}</span>
@@ -122,7 +127,7 @@ function FlaggedTileBody({ tile }: { tile: CategoryTileView }) {
         </div>
         <RatingTrend points={tile.history} heightClass="h-12" />
       </div>
-      <PreviousAndNow points={tile.history} />
+      <RatingMove tile={tile} />
       <p className="text-[11.5px] leading-snug text-slate-700">{tile.why}</p>
     </>
   );
