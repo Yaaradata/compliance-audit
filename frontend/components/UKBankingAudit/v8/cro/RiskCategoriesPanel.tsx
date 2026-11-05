@@ -15,7 +15,7 @@ type Props = {
  */
 export function RiskCategoriesPanel({ domains, expandedId, onToggle }: Props) {
   return (
-    <section className="rounded-2xl border border-slate-200/90 bg-white p-3 shadow-sm sm:p-4">
+    <section className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
       <CategoryTileGrid
         domains={domains}
         expandedId={expandedId}

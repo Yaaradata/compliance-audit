@@ -29,8 +29,8 @@ function ProvenanceIcon({ derivation, basis }: { derivation: ChangeRow["derivati
 /** Only what moved since the last review, most material first. */
 export function WhatChangedFromLastReview({ items, onOpenEvidence, onShowAll }: Props) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-base font-bold text-slate-900">What Changed from Last Review</h2>
+    <section className="h-full rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+      <h2 className="mb-3 text-base font-bold text-slate-900">What Changed from Last Review</h2>
       {items.length === 0 ? (
         <p className="py-8 text-center text-sm text-slate-500">No material changes since the last review.</p>
       ) : (

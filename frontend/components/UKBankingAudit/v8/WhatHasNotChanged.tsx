@@ -10,8 +10,8 @@ import { RAG_STYLES } from "./ragTokens";
  */
 export function WhatHasNotChanged({ rows }: { rows: StandingRow[] }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-base font-bold text-slate-900">What Has Not Changed</h2>
+    <section className="h-full rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+      <h2 className="mb-3 text-base font-bold text-slate-900">What Has Not Changed</h2>
       {rows.length === 0 ? (
         <p className="py-8 text-center text-sm text-slate-500">
           No domain has held a non-green status for more than two cycles.

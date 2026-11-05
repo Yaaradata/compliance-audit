@@ -6,7 +6,9 @@ import {
   buildCategoryTiles,
   buildControlStrip,
   buildFirmBanner,
+  buildGlanceTrends,
   buildIncidentStrip,
+  buildRatingHistory,
   buildRedSpotlight,
   buildRiskAppetiteStrip,
   buildWhatChanged,
@@ -24,6 +26,50 @@ const NOV = "2026-11";
 function withRule(rule: FirmAggregationRule): EngineData {
   return { ...V8_ENGINE_DATA, config: { ...V8_ENGINE_DATA.config, firmAggregationRule: rule } };
 }
+
+describe("trend lines", () => {
+  const colours = (entity: string) => buildRatingHistory(entity, NOV).map((p) => `${p.label} ${p.colour}`);
+
+  it("shows previous and current ratings by month", () => {
+    assert.deepEqual(colours("credit").slice(-3), ["Sep green", "Oct amber", "Nov green"]);
+    assert.deepEqual(colours("cyber"), ["Jun green", "Jul green", "Aug red", "Sep red", "Oct red", "Nov red"]);
+    assert.deepEqual(buildFirmBanner(NOV).history.slice(-2).map((p) => p.colour), ["red", "red"]);
+  });
+
+  it("agrees with the trend chip on the previous month", () => {
+    for (const tile of buildCategoryTiles(NOV)) {
+      assert.equal(tile.history.at(-2)?.colour, tile.trend.prevColour, tile.label);
+      assert.equal(tile.history.at(-1)?.colour, tile.colour, tile.label);
+    }
+  });
+
+  it("ends each Risk at a Glance line on the figure in its strip", () => {
+    const trends = buildGlanceTrends(NOV);
+    const appetite = buildRiskAppetiteStrip(NOV);
+    const controls = buildControlStrip(NOV);
+    const incidents = buildIncidentStrip(NOV);
+    assert.equal(trends.appetite.series.at(-1)?.value, appetite.red + appetite.amber);
+    assert.equal(trends.controls.series.at(-1)?.value, controls.pct);
+    assert.equal(trends.controls.series.at(-2)?.value, controls.prevPct);
+    assert.equal(trends.incidents.series.at(-1)?.value, incidents.sevOne + incidents.sevTwo);
+    assert.equal(trends.controls.lowest[0].label, controls.worstLabel);
+    assert.equal(trends.incidents.top[0].title, incidents.topTitle);
+  });
+
+  it("lists categories with metrics outside appetite, reds first", () => {
+    const { flagged } = buildGlanceTrends(NOV).appetite;
+    assert.deepEqual(flagged.map((c) => [c.categoryId, c.red, c.amber]), [["cyber", 2, 1], ["fincrime", 0, 5]]);
+  });
+
+  it("works out each gauge from the records", () => {
+    const trends = buildGlanceTrends(NOV);
+    assert.equal(trends.appetite.withinPct, 84); // 42 of 50 metrics
+    assert.equal(trends.appetite.categoriesClearPct, 78); // 7 of 9 categories
+    assert.equal(trends.controls.categoriesClearPct, 78); // 7 of 9 categories
+    assert.equal(trends.incidents.withPathPct, 33); // 1 of 3 incidents
+    assert.equal(trends.incidents.controlsWorkedPct, 25); // 1 of 4 linked controls
+  });
+});
 
 describe("board subtitle", () => {
   it("states the number of risks and the cadence from config", () => {

@@ -6,12 +6,14 @@ import {
   boardSubtitle,
   buildControlStrip,
   buildFirmBanner,
+  buildGlanceTrends,
   buildIncidentStrip,
   buildRedSpotlight,
   buildRiskAppetiteStrip,
   buildWhatChanged,
   buildWhatHasNotChanged,
 } from "@/lib/ukbankingaudit/v8/boardView";
+import { buildWhatMoved } from "@/lib/ukbankingaudit/v8/controlsIncidentsView";
 import { RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
 import { buildTopLineTiles, type TopLineTile } from "@/lib/ukbankingaudit/v8/croReportView";
 import { runBoardDetectors } from "@/lib/ukbankingaudit/v8/detectors";
@@ -48,6 +50,10 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
   const appetiteStrip = buildRiskAppetiteStrip(period, data);
   const controlStrip = buildControlStrip(period, data);
   const incidentStrip = buildIncidentStrip(period, data);
+  const glanceTrends = buildGlanceTrends(period, data);
+  const spotlightRows = buildRedSpotlight(period, 100, data);
+  const topAppetite = spotlightRows.find((row) => row.kind === "ram");
+  const topMove = buildWhatMoved(period, data)[0];
 
   const toggle = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
   const onOpenEvidence = (ref: string) => openDrawer?.(v8RefKind(ref), ref, "croBoard");
@@ -60,7 +66,7 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
   return (
     <BoardRoleContext.Provider value="second-line">
     <JurisdictionContext.Provider value="UK">
-    <div className="space-y-6">
+    <div className="space-y-5">
       <style>{`
         @keyframes ukV4SlideDown {
           from { opacity: 0; transform: translateY(-8px); }
@@ -118,13 +124,25 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
         appetite={appetiteStrip}
         controls={controlStrip}
         incidents={incidentStrip}
+        trends={glanceTrends}
+        keyPoints={{
+          appetite: topAppetite ? `${topAppetite.name}: ${topAppetite.measure}.` : null,
+          controls: topMove ? `${topMove.text.replace(" — ", ". ")}.` : null,
+          incidents: glanceTrends.incidents.top[0]
+            ? `${glanceTrends.incidents.top[0].severity}: ${glanceTrends.incidents.top[0].title}.`
+            : null,
+        }}
+        thresholds={{
+          amber: data.config.categoryRatingRule.amberThreshold,
+          red: data.config.categoryRatingRule.redThreshold,
+        }}
         onOpenAppetite={() => setActiveScreen?.("riskAppetite")}
         onOpenControls={() => setActiveScreen?.("controlsIncidents")}
         onOpenIncidents={() => setActiveScreen?.("controlsIncidents")}
       />
 
       <RedSpotlight
-        rows={buildRedSpotlight(period, 100, data)}
+        rows={spotlightRows}
         onShowAll={() => setActiveScreen?.("riskAppetite")}
         onOpenPath={(row) =>
           setPathTarget({
@@ -136,9 +154,10 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
         }
       />
 
-      <WhatChangedFromLastReview items={buildWhatChanged(period, data)} onOpenEvidence={onOpenEvidence} onShowAll={() => setActiveScreen?.("controlsIncidents")} />
-
-      <WhatHasNotChanged rows={buildWhatHasNotChanged(period, data)} />
+      <div className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-2">
+        <WhatChangedFromLastReview items={buildWhatChanged(period, data)} onOpenEvidence={onOpenEvidence} onShowAll={() => setActiveScreen?.("controlsIncidents")} />
+        <WhatHasNotChanged rows={buildWhatHasNotChanged(period, data)} />
+      </div>
 
       {pathTarget ? <PathToGreenDrawer target={pathTarget} onClose={() => setPathTarget(null)} /> : null}
     </div>

@@ -24,6 +24,12 @@ import { DOMAIN_EVIDENCE } from "./riskDomainsV8";
 import type { ControlResult, PathToGreenRecord, Period, RAM, RatingColour } from "./types";
 import { buildStillnessRows } from "./whatChangedV8";
 
+/** One month on a rating trend line. */
+export type RatingPoint = { period: Period; label: string; colour: RatingColour };
+
+/** One month on a figure trend line. */
+export type TrendPoint = { period: Period; label: string; value: number };
+
 export type TrendView = Trend & {
   /** Tile tooltip, for example "Oct: GREEN → Nov: AMBER". */
   tooltip: string;
@@ -36,6 +42,7 @@ export type FirmBannerView = {
   trend: TrendView;
   ruleDescription: string;
   drivingCategories: DrivingCategory[];
+  history: RatingPoint[];
   /** Green categories with a critical control test lacking evidence this cycle. */
   assuranceGapCategoryIds: string[];
   assuranceText: string;
@@ -56,6 +63,7 @@ export type CategoryTileView = {
   label: string;
   colour: RatingColour;
   trend: TrendView;
+  history: RatingPoint[];
   why: string;
   ramRed: number;
   ramAmber: number;
@@ -90,6 +98,26 @@ function trendView(entity: string, period: Period, data: EngineData): TrendView 
     tooltip: `${trend.prevPeriodLabel}: ${prev} → ${periodLabel(period)}: ${now}`,
     chipText: trend.direction === "flat" ? `also ${prev} in ${trend.prevPeriodLabel}` : `was ${prev} in ${trend.prevPeriodLabel}`,
   };
+}
+
+function periodsWithReadings(period: Period, data: EngineData): Period[] {
+  return data.config.periods.filter((p) => p <= period && data.ramValues.some((v) => v.period === p));
+}
+
+/** Rating by month: the recorded rating where there is one, else recalculated. This month is always live. */
+export function buildRatingHistory(
+  entity: string,
+  period: Period = V8_ENGINE_DATA.config.currentPeriod,
+  data: EngineData = V8_ENGINE_DATA,
+): RatingPoint[] {
+  return periodsWithReadings(period, data).map((p) => {
+    const recorded = data.snapshots.find((s) => s.entity === entity && s.period === p)?.colour;
+    return {
+      period: p,
+      label: periodLabel(p),
+      colour: p === period ? currentColour(entity, p, data) : (recorded ?? currentColour(entity, p, data)),
+    };
+  });
 }
 
 function categoryOfPath(path: PathToGreenRecord, data: EngineData): string | undefined {
@@ -138,6 +166,7 @@ export function buildCategoryTile(
     label: categoryLabel(categoryId, data.config),
     colour: rating.colour,
     trend: trendView(categoryId, period, data),
+    history: buildRatingHistory(categoryId, period, data),
     why: rating.why,
     ramRed: statuses.filter((s) => s === "red").length,
     ramAmber: statuses.filter((s) => s === "amber").length,
@@ -178,6 +207,7 @@ export function buildFirmBanner(
     trend: trendView("firm", period, data),
     ruleDescription: posture.ruleDescription,
     drivingCategories: posture.drivingCategories,
+    history: buildRatingHistory("firm", period, data),
     assuranceGapCategoryIds: gaps,
     assuranceText:
       gaps.length === 1
@@ -312,6 +342,99 @@ export function buildIncidentStrip(
     topTitle: top?.title ?? null,
     topId: top?.id ?? null,
     topCategoryId: top?.categoryId ?? null,
+  };
+}
+
+export type GlanceTrends = {
+  appetite: {
+    /** Metrics red or amber, by month. */
+    series: TrendPoint[];
+    flagged: { categoryId: string; label: string; red: number; amber: number }[];
+    /** % of metrics green. */
+    withinPct: number;
+    /** % of categories with every metric green. */
+    categoriesClearPct: number;
+  };
+  controls: {
+    series: TrendPoint[];
+    lowest: { categoryId: string; label: string; pct: number }[];
+    /** % of categories with every critical control effective. */
+    categoriesClearPct: number;
+  };
+  incidents: {
+    /** Sev-1 and Sev-2 open or raised, by month. */
+    series: TrendPoint[];
+    prevSevOne: number;
+    prevSevTwo: number;
+    top: { id: string; severity: string; title: string }[];
+    /** % of the board's incidents with a path to green. Null when there are none. */
+    withPathPct: number | null;
+    /** % of controls linked to those incidents that worked. Null when none are linked. */
+    controlsWorkedPct: number | null;
+  };
+};
+
+function percent(part: number, whole: number): number {
+  return whole === 0 ? 0 : Math.round((part / whole) * 100);
+}
+
+/** The six-month lines and the two rows that matter most on each Risk at a Glance card. */
+export function buildGlanceTrends(
+  period: Period = V8_ENGINE_DATA.config.currentPeriod,
+  data: EngineData = V8_ENGINE_DATA,
+): GlanceTrends {
+  const periods = periodsWithReadings(period, data);
+  const point = (p: Period, value: number): TrendPoint => ({ period: p, label: periodLabel(p), value });
+  const previous = boardIncidents(previousPeriod(period, data.config), data);
+  const severityRank = (a: { level: number; date: string }, b: { level: number; date: string }) =>
+    a.level - b.level || b.date.localeCompare(a.date);
+  const appetiteNow = buildRiskAppetiteStrip(period, data);
+  const categoryCount = data.config.riskTaxonomy.length;
+  const controlPcts = data.config.riskTaxonomy.map((node) => computeControlEffectiveness(node.id, period, data).pct);
+  const incidentsNow = boardIncidents(period, data);
+  const linksNow = data.links.filter((link) => incidentsNow.some((i) => i.id === link.incidentId));
+  const withPath = incidentsNow.filter((i) =>
+    data.pathsToGreen.some((path) => path.targetType === "incident" && path.targetId === i.id),
+  );
+
+  return {
+    appetite: {
+      withinPct: percent(appetiteNow.green, appetiteNow.total),
+      categoriesClearPct: percent(appetiteNow.byCategory.filter((c) => c.red + c.amber === 0).length, categoryCount),
+      series: periods.map((p) => {
+        const strip = buildRiskAppetiteStrip(p, data);
+        return point(p, strip.red + strip.amber);
+      }),
+      flagged: appetiteNow.byCategory
+        .filter((c) => c.red + c.amber > 0)
+        .sort((a, b) => b.red - a.red || b.amber - a.amber)
+        .map(({ categoryId, label, red, amber }) => ({ categoryId, label, red, amber })),
+    },
+    controls: {
+      categoriesClearPct: percent(controlPcts.filter((pct) => pct === 100).length, categoryCount),
+      series: periods.flatMap((p) => {
+        const pct = firmEffectivePct(p, data);
+        return pct === null ? [] : [point(p, pct)];
+      }),
+      lowest: data.config.riskTaxonomy
+        .map((node) => ({
+          categoryId: node.id,
+          label: categoryLabel(node.id, data.config),
+          pct: computeControlEffectiveness(node.id, period, data).pct,
+        }))
+        .sort((a, b) => a.pct - b.pct),
+    },
+    incidents: {
+      withPathPct: incidentsNow.length === 0 ? null : percent(withPath.length, incidentsNow.length),
+      controlsWorkedPct:
+        linksNow.length === 0 ? null : percent(linksNow.filter((l) => l.controlWorked === "worked").length, linksNow.length),
+      series: periods.map((p) => point(p, boardIncidents(p, data).length)),
+      prevSevOne: previous.filter((i) => i.level === 1).length,
+      prevSevTwo: previous.filter((i) => i.level === 2).length,
+      top: [...incidentsNow]
+        .sort(severityRank)
+        .map((i) => ({ id: i.id, severity: `Sev-${i.level}`, title: i.title })),
+    },
   };
 }
 

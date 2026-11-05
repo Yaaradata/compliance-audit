@@ -5,6 +5,7 @@ import type { FirmBannerView } from "@/lib/ukbankingaudit/v8/boardView";
 import type { StatusEvidence } from "@/lib/ukbankingaudit/v8/types";
 import { RAG_STYLES } from "./ragTokens";
 import { RatingTrendChip } from "./RatingTrendChip";
+import { PreviousAndNow, RatingTrend } from "./TrendCharts";
 import type { RagStatus } from "./types";
 
 /** RAG status of the target a StatusEvidence row describes (sub-category if set, else domain). */
@@ -45,7 +46,8 @@ export function FirmPostureBanner({
 }) {
   const rag = RAG_STYLES[banner.colour];
   return (
-    <div className={`rounded-xl border-[1.5px] p-5 ${rag.bg} ${rag.border}`}>
+    <div className={`grid gap-x-6 gap-y-3 rounded-2xl border-[1.5px] p-4 sm:grid-cols-[minmax(0,1fr)_15rem] ${rag.bg} ${rag.border}`}>
+      <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className={`h-3.5 w-3.5 rounded-full ${rag.dot}`} />
         <span className={`text-[11px] font-bold uppercase tracking-widest ${rag.text}`}>
@@ -89,6 +91,11 @@ export function FirmPostureBanner({
           </button>
         </p>
       ) : null}
+      </div>
+      <div className="min-w-0 self-center">
+        <RatingTrend points={banner.history} heightClass="h-14" />
+        <PreviousAndNow points={banner.history} />
+      </div>
     </div>
   );
 }
