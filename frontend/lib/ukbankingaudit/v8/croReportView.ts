@@ -284,6 +284,8 @@ export type CroReportView = {
     tolerance: string;
     owner: string;
     cause: string;
+    /** First planned action on the path to green. */
+    response: string | null;
     path: string;
     secondLine: string;
     committee: string;
@@ -484,6 +486,7 @@ export function buildCroReport(
           tolerance: row.toleranceText,
           owner: row.path?.owner ?? row.owner,
           cause: row.path?.cause ?? "No path to green",
+          response: row.path?.actions[0] ?? null,
           path: row.path ? `${formatDate(row.path.targetDate)}${overdue ? " (overdue)" : ""}` : "None",
           secondLine: row.path ? SECOND_LINE[row.path.secondLineVerdict] : "None",
           committee: row.path ? committeeText(row.path, overdue) : "None",

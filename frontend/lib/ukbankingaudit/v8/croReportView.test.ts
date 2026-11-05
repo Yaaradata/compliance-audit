@@ -131,6 +131,8 @@ describe("CRO report", () => {
     const kyc = report.appetite.find((a) => a.id === "RAM-FC-02");
     assert.equal(kyc?.path, "31 Oct 2026 (overdue)");
     assert.equal(kyc?.committee, "Delay accepted by Board Risk Committee, 12 Oct 2026");
+    assert.equal(kyc?.response, "Stand up a dedicated refresh team");
+    assert.ok(report.appetite.every((a) => a.response), "every metric outside appetite has a proposed action");
   });
 
   it("states what the committee is asked to decide or note", () => {

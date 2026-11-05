@@ -3,8 +3,8 @@ import { formatDate } from "@/lib/ukbankingaudit/v8/boardView";
 import type { CroReportView, ReportHorizonRow } from "@/lib/ukbankingaudit/v8/croReportView";
 
 /**
- * The CRO Report as a classic board paper: cover block, decisions first, narrative,
- * risk appetite position, then a detailed appendix for the record.
+ * The CRO Report in UK board paper form: cover block, decisions first, the CRO's
+ * overview, principal risks against appetite, emerging risks, then an appendix.
  *
  * Self-contained CSS. On screen the paper fills the window. In print and PDF each
  * section is one A4 sheet, and a sheet that overflows adds a page rather than clipping.
@@ -37,6 +37,7 @@ export const REPORT_CSS = `
 .cr-numbered li { padding: 0 0 1.2mm 0.5mm; }
 .cr-plain { margin: 0; padding: 0 0 0 4mm; list-style: disc; }
 .cr-plain li { padding: 0 0 1mm 0; }
+.cr-signoff { margin: 2mm 0 0; font-weight: 700; color: #1b2a41; }
 .cr-decisions { margin-bottom: 4mm; padding: 2.5mm 3mm 1.5mm; border: 0.3mm solid #1b2a41; }
 .cr-decisions h2 { margin: 0 0 1.5mm; font-size: 9.5pt; font-weight: 700; color: #1b2a41; }
 .cr-table { width: 100%; border-collapse: collapse; font-size: 8pt; line-height: 1.28; }
@@ -206,7 +207,7 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
           </div>
         ) : null}
 
-        <h2 className="cr-h1">Executive summary</h2>
+        <h2 className="cr-h1">Chief Risk Officer&apos;s overview</h2>
         <div className="cr-kpis">
           {headline.map((tile) => (
             <div key={tile.id} className="cr-kpi">
@@ -226,18 +227,19 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
             </li>
           ))}
         </ol>
+        <p className="cr-signoff">{report.preparedBy}</p>
       </Sheet>
 
       <Sheet report={report} page={2}>
         <h2 className="cr-h1">1. Risk profile</h2>
         <p className="cr-lead">
-          Firm risk posture is <Rag colour={report.firmColour} /> ({report.firmTrend}). Rule: {report.firmRule}
+          The risk profile against Board-approved risk appetite is <Rag colour={report.firmColour} /> ({report.firmTrend}). Rule: {report.firmRule}
           {report.drivers.length > 0 ? `. Driven by ${report.drivers.join(" and ")}` : ""}.
         </p>
         <table className="cr-table">
           <thead>
             <tr>
-              <th style={{ width: "24%" }}>Level-1 risk</th>
+              <th style={{ width: "24%" }}>Principal risk</th>
               <th style={{ width: "8%" }}>Rating</th>
               <th style={{ width: "10%" }}>Since last review</th>
               <th className="num" style={{ width: "8%" }}>RAMs red / amber</th>
@@ -272,7 +274,7 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
             <tr>
               <th style={{ width: "24%" }}>Item</th>
               <th style={{ width: "17%" }}>Position</th>
-              <th>Cause and management response</th>
+              <th>Cause and proposed action</th>
               <th style={{ width: "15%" }}>Owner</th>
               <th style={{ width: "10%" }}>Target</th>
             </tr>
@@ -287,7 +289,7 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
                 <td>{row.measure.replace(/\bSev(\d)\b/, "Sev-$1")}</td>
                 <td>
                   {row.cause ?? "No path to green"}
-                  {row.response ? <div className="cr-muted cr-small">Response: {row.response}</div> : null}
+                  {row.response ? <div className="cr-muted cr-small">Action: {row.response}</div> : null}
                 </td>
                 <td>{row.owner}</td>
                 <td className="nowrap">
@@ -310,11 +312,11 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
       </Sheet>
 
       <Sheet report={report} page={3}>
-        <h2 className="cr-h1">2. Risk appetite</h2>
+        <h2 className="cr-h1">2. Risk appetite position</h2>
         <p className="cr-lead">
           Of {report.appetiteTotals.total} risk appetite metrics, {report.appetiteTotals.green} are green,{" "}
-          {report.appetiteTotals.amber} amber and {report.appetiteTotals.red} red. Red and amber metrics follow; Appendix A
-          lists all of them.
+          {report.appetiteTotals.amber} amber and {report.appetiteTotals.red} red. Metrics outside appetite follow, with the
+          proposed action for each; Appendix A lists all of them.
         </p>
         <table className="cr-table">
           <thead>
@@ -324,7 +326,7 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
               <th className="num" style={{ width: "9%" }}>Value</th>
               <th className="num" style={{ width: "6%" }}>Limit</th>
               <th className="num" style={{ width: "7%" }}>Tolerance</th>
-              <th style={{ width: "20%" }}>Cause</th>
+              <th style={{ width: "22%" }}>Cause and proposed action</th>
               <th style={{ width: "10%" }}>Path to green</th>
               <th>Second line and committee</th>
             </tr>
@@ -340,7 +342,10 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
                 <td className="num cr-strong">{row.value}</td>
                 <td className="num">{row.limit}</td>
                 <td className="num">{row.tolerance}</td>
-                <td>{row.cause}</td>
+                <td>
+                  {row.cause}
+                  {row.response ? <div className="cr-muted cr-small">Action: {row.response}</div> : null}
+                </td>
                 <td>{row.path}</td>
                 <td>
                   {row.secondLine}
@@ -386,7 +391,7 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
         <table className="cr-table">
           <thead>
             <tr>
-              <th style={{ width: "34%" }}>Level-1 risk</th>
+              <th style={{ width: "34%" }}>Principal risk</th>
               <th className="num" style={{ width: "11%" }}>This period</th>
               <th className="num" style={{ width: "11%" }}>Previous</th>
               <th>Critical controls effective</th>
@@ -460,7 +465,7 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
       </Sheet>
 
       <Sheet report={report} page={5}>
-        <h2 className="cr-h1">4. Horizon scanning</h2>
+        <h2 className="cr-h1">4. Horizon scanning and emerging risks</h2>
         <h3 className="cr-h2" style={{ marginTop: 0 }}>Regulatory</h3>
         <HorizonTable rows={report.horizon.regulatory} />
         <h3 className="cr-h2">Industry events</h3>
