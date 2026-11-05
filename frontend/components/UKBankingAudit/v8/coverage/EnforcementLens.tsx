@@ -26,44 +26,45 @@ type Props = {
  * Sixth lens — reuses the reg-change lineage layout with enforcement notices as root nodes.
  * Traversal: Precedent → mechanism tags → CRSA → GSR → controls.
  */
+const LineageRow = ({
+  label,
+  ids,
+  onClickId,
+  count,
+}: {
+  label: string;
+  ids: string[];
+  onClickId?: (id: string) => void;
+  count?: number;
+}) => (
+  <div className="rounded-md border border-slate-200 bg-white p-3">
+    <div className="mb-1.5 flex items-center justify-between">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
+      <span className="text-[10px] font-bold text-slate-700">{count ?? ids.length}</span>
+    </div>
+    {ids.length === 0 ? (
+      <p className="text-[10px] italic text-slate-400">— no impact</p>
+    ) : (
+      <div className="flex flex-wrap gap-1">
+        {ids.map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onClickId?.(id)}
+            className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] hover:border-indigo-200 hover:bg-indigo-50"
+          >
+            {id}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
 export function EnforcementLens({ notices, openDrawer }: Props) {
   const [pickedId, setPickedId] = useState(notices[0]?.id ?? null);
   const item = useMemo(() => notices.find((n) => n.id === pickedId), [notices, pickedId]);
 
-  const LineageRow = ({
-    label,
-    ids,
-    onClickId,
-    count,
-  }: {
-    label: string;
-    ids: string[];
-    onClickId?: (id: string) => void;
-    count?: number;
-  }) => (
-    <div className="rounded-md border border-slate-200 bg-white p-3">
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
-        <span className="text-[10px] font-bold text-slate-700">{count ?? ids.length}</span>
-      </div>
-      {ids.length === 0 ? (
-        <p className="text-[10px] italic text-slate-400">— no impact</p>
-      ) : (
-        <div className="flex flex-wrap gap-1">
-          {ids.map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onClickId?.(id)}
-              className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] hover:border-indigo-200 hover:bg-indigo-50"
-            >
-              {id}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 
   if (!notices.length) {
     return (

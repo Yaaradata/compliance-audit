@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment -- untyped screen carried from v7; typing it is out of scope */
 // @ts-nocheck
 'use client';
 
@@ -571,8 +572,8 @@ const XLSXLayoutPreview = ({ rows }) => {
 // QuarterlyReportGenerator — modal launched from the cockpit's top-right.
 export const QuarterlyReportGenerator = ({ cycle, onClose }) => {
   const [exportStatus, setExportStatus] = useState(null);
+  const rows = useMemo(() => (cycle ? buildExportRows(cycle) : []), [cycle?.id]);
   if (!cycle) return null;
-  const rows = useMemo(() => buildExportRows(cycle), [cycle.id]);
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-start justify-center p-6 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl my-8">
@@ -592,7 +593,7 @@ export const QuarterlyReportGenerator = ({ cycle, onClose }) => {
         <div className="p-6 space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="text-[11px] text-slate-600">
-              Preview renders the CRSA in Sridhar's exact column layout. Export delivers an .xlsx with one sheet per area.
+              Preview renders the CRSA in the firm&apos;s column layout. Export delivers an .xlsx with one sheet per area.
             </div>
             <CRSAExportButton cycle={cycle} rows={rows} onStatus={setExportStatus} />
           </div>
@@ -609,7 +610,7 @@ export const QuarterlyReportGenerator = ({ cycle, onClose }) => {
           <XLSXLayoutPreview rows={rows} />
 
           <div className="text-[10px] text-slate-400 text-center">
-            22-column layout mirrors the source CRSA Questions sheet schema. Round-trip fidelity (ingest → regenerate exactly the firm's CRSA) lands in Pass 8.
+            22-column layout mirrors the source CRSA Questions sheet schema. Round-trip fidelity (ingest → regenerate exactly the firm&apos;s CRSA) lands in Pass 8.
           </div>
         </div>
       </div>
@@ -2004,6 +2005,35 @@ export const ForwardCoverageLens = ({ openDrawer }) => {
 };
 
 // CRSA Coverage Lens — same forward rendering keyed on GSR rows.
+const Bucket = ({ filterFn, label, tone, all, drillToGSR }) => {
+  const rows = all.filter(filterFn);
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <div className={`text-3xl font-bold ${bandText(tone)}`}>{rows.length}</div>
+          <div className="text-xs text-slate-500">{label}</div>
+        </div>
+        <span className={`h-3 w-3 rounded-full ${bandDot(tone)}`} />
+      </div>
+      <div className="space-y-1">
+        {rows.slice(0, 12).map(g => (
+          <button key={g.id} onClick={() => drillToGSR(g.id)}
+            className="w-full text-left px-2 py-1.5 text-xs hover:bg-slate-50 rounded">
+            <div className="flex items-center gap-1.5">
+              <RACMRefBadge racmRef={g.racmRef} size="xs" />
+              {g.thinCoverageFlag && <span title="Thin coverage" className="text-amber-600 text-xs">⚠</span>}
+            </div>
+            <div className="text-[10px] text-slate-600 truncate mt-0.5">{(g.controlIds || []).length} controls · {g.currentEvidenceCompletenessPct}% evidence</div>
+          </button>
+        ))}
+        {rows.length > 12 && <p className="text-[10px] text-slate-400 italic px-2">+{rows.length - 12} more</p>}
+        {rows.length === 0 && <p className="text-[11px] text-slate-400 italic px-2 py-1">No requirements in this bucket.</p>}
+      </div>
+    </div>
+  );
+};
+
 export const CRSACoverageLens = ({ openDrawer, setSelectedGSRId, setActiveScreen }) => {
   const all = groupSetRequirements || [];
   const drillToGSR = (gsrId) => {
@@ -2018,34 +2048,6 @@ export const CRSACoverageLens = ({ openDrawer, setSelectedGSRId, setActiveScreen
       setActiveScreen && setActiveScreen("perRequirementAttestation");
     }
   };
-  const Bucket = ({ filterFn, label, tone }) => {
-    const rows = all.filter(filterFn);
-    return (
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <div className={`text-3xl font-bold ${bandText(tone)}`}>{rows.length}</div>
-            <div className="text-xs text-slate-500">{label}</div>
-          </div>
-          <span className={`h-3 w-3 rounded-full ${bandDot(tone)}`} />
-        </div>
-        <div className="space-y-1">
-          {rows.slice(0, 12).map(g => (
-            <button key={g.id} onClick={() => drillToGSR(g.id)}
-              className="w-full text-left px-2 py-1.5 text-xs hover:bg-slate-50 rounded">
-              <div className="flex items-center gap-1.5">
-                <RACMRefBadge racmRef={g.racmRef} size="xs" />
-                {g.thinCoverageFlag && <span title="Thin coverage" className="text-amber-600 text-xs">⚠</span>}
-              </div>
-              <div className="text-[10px] text-slate-600 truncate mt-0.5">{(g.controlIds || []).length} controls · {g.currentEvidenceCompletenessPct}% evidence</div>
-            </button>
-          ))}
-          {rows.length > 12 && <p className="text-[10px] text-slate-400 italic px-2">+{rows.length - 12} more</p>}
-          {rows.length === 0 && <p className="text-[11px] text-slate-400 italic px-2 py-1">No requirements in this bucket.</p>}
-        </div>
-      </div>
-    );
-  };
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-100">
@@ -2053,11 +2055,11 @@ export const CRSACoverageLens = ({ openDrawer, setSelectedGSRId, setActiveScreen
         <p className="text-[11px] text-slate-500">Same coverage logic, keyed on CRSA Group Set Requirements rather than Obligations.  Click a row to open the Per-Requirement Attestation View.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-        <Bucket label="Multi-control coverage" tone="green"
+        <Bucket all={all} drillToGSR={drillToGSR} label="Multi-control coverage" tone="green"
           filterFn={g => (g.controlIds || []).length >= 2 && !g.thinCoverageFlag} />
-        <Bucket label="Single-control coverage" tone="amber"
+        <Bucket all={all} drillToGSR={drillToGSR} label="Single-control coverage" tone="amber"
           filterFn={g => (g.controlIds || []).length === 1 && !g.thinCoverageFlag} />
-        <Bucket label="Thin / uncovered" tone="red"
+        <Bucket all={all} drillToGSR={drillToGSR} label="Thin / uncovered" tone="red"
           filterFn={g => g.thinCoverageFlag || (g.controlIds || []).length === 0} />
       </div>
     </div>
@@ -2180,7 +2182,7 @@ export const CoverageGapPanel = ({ setSelectedGSRId, setActiveScreen }) => {
           <span className="text-amber-900 text-sm">of {total} requirements covered by a single weak control or thin-coverage flag</span>
         </div>
         <p className="text-[11px] text-amber-900 mt-2 leading-relaxed">
-          Coverage-gap surfacing is the regulator-credible analysis that no competitor offers — it's the OBL-OCC-2023-17-005 / VO-C005 pattern from the US build, applied here against the UK CRSA's 70-requirement universe.
+          Requirements that rest on a single weak control or carry a thin-coverage flag, so a failure there has no backstop.
         </p>
       </div>
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -2220,30 +2222,31 @@ export const CoverageGapPanel = ({ setSelectedGSRId, setActiveScreen }) => {
 };
 
 // Reg-change Impact Lineage — pick a horizon item, see lineage downstream.
+const LineageRow = ({ label, ids, onClickId, count }) => (
+  <div className="rounded-md border border-slate-200 bg-white p-3">
+    <div className="flex items-center justify-between mb-1.5">
+      <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">{label}</span>
+      <span className="text-[10px] text-slate-700 font-bold">{count ?? (ids || []).length}</span>
+    </div>
+    {(ids || []).length === 0 ? (
+      <p className="text-[10px] text-slate-400 italic">— no impact</p>
+    ) : (
+      <div className="flex flex-wrap gap-1">
+        {ids.map(id => (
+          <button key={id} onClick={() => onClickId && onClickId(id)}
+            className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200">
+            {id}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
 export const RegChangeImpactLineage = ({ openDrawer }) => {
   const items = horizonScanItems || [];
   const [pickedId, setPickedId] = useState(items[0]?.id || null);
   const item = items.find(i => i.id === pickedId);
-  const LineageRow = ({ label, ids, onClickId, count }) => (
-    <div className="rounded-md border border-slate-200 bg-white p-3">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">{label}</span>
-        <span className="text-[10px] text-slate-700 font-bold">{count ?? (ids || []).length}</span>
-      </div>
-      {(ids || []).length === 0 ? (
-        <p className="text-[10px] text-slate-400 italic">— no impact</p>
-      ) : (
-        <div className="flex flex-wrap gap-1">
-          {ids.map(id => (
-            <button key={id} onClick={() => onClickId && onClickId(id)}
-              className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200">
-              {id}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">

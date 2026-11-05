@@ -155,7 +155,7 @@ const PATH_TO_GREEN: Record<string, PathToGreen> = {
       },
     ],
     lastUpdate: {
-      text: "Recruited 6 L2 analysts; backlog down 220 w/w",
+      text: "Recruited 6 L2 analysts; backlog down 220 week on week",
       at: "2026-11-07",
       source: "email",
     },
@@ -396,7 +396,7 @@ const PATH_TO_GREEN: Record<string, PathToGreen> = {
       },
     ],
     lastUpdate: {
-      text: "Recruited 6 L2 analysts; backlog down 220 w/w",
+      text: "Recruited 6 L2 analysts; backlog down 220 week on week",
       at: "2026-11-07",
       source: "email",
     },

@@ -50,7 +50,7 @@ function TrendBadge({ trendWoW }: { trendWoW: number }) {
   return (
     <span className={`text-[11px] font-semibold ${worse ? "text-rose-600" : "text-emerald-600"}`}>
       {worse ? "↗" : "↘"} {worse ? "+" : ""}
-      {trendWoW}% w/w
+      {trendWoW}% week on week
     </span>
   );
 }
@@ -125,7 +125,7 @@ export function FraudLossPanel() {
               value={formatGBP(posture.appReimbursementExposureGBP)}
             />
             <StatTile
-              label="Types trending up w/w"
+              label="Types trending up week on week"
               size="xs"
               value={`${risingCount} of ${posture.rows.length}`}
             />

@@ -174,7 +174,7 @@ function NotConnected({ domain }: Props) {
   return (
     <div className="rounded-[10px] border border-dashed border-violet-300 bg-violet-50/40 p-4">
       <div className="inline-flex items-center rounded-full border border-violet-300 bg-violet-100 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-violet-800">
-        Exposure lens · Preview — data not yet connected
+        Client Risk View · Preview — data not yet connected
       </div>
 
       <p className="mt-3 text-[13px] font-medium leading-snug text-slate-800">

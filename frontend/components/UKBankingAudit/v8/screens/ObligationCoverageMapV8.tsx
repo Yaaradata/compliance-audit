@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment -- untyped screen carried from v7; typing it is out of scope */
 // @ts-nocheck
 'use client';
 
