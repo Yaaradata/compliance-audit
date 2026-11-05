@@ -1,14 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { boardSubtitle, buildFirmBanner } from "@/lib/ukbankingaudit/v8/boardView";
+import {
+  boardSubtitle,
+  buildControlStrip,
+  buildFirmBanner,
+  buildIncidentStrip,
+  buildRedSpotlight,
+  buildRiskAppetiteStrip,
+  buildWhatChanged,
+  buildWhatHasNotChanged,
+} from "@/lib/ukbankingaudit/v8/boardView";
 import { RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
 import { runBoardDetectors } from "@/lib/ukbankingaudit/v8/detectors";
-import { WHAT_CHANGED_V6 } from "@/lib/ukbankingaudit/v8/whatChangedV8";
 import { personas } from "@/components/UKBankingAudit/ukTraceRuntime";
 import { BoardRoleContext } from "./boardRoleContext";
 import { RegulatoryLandscapePanel } from "./RegulatoryLandscapePanel";
 import { FirmRiskPosturePanel } from "./cro/FirmRiskPosturePanel";
+import { RedSpotlight } from "./cro/RedSpotlight";
+import { RiskAtAGlance } from "./cro/RiskAtAGlance";
 import { RiskCategoriesPanel } from "./cro/RiskCategoriesPanel";
 import { JurisdictionContext } from "./jurisdictionContext";
 import { WhatChangedFromLastReview } from "./WhatChangedFromLastReview";
@@ -24,6 +34,10 @@ export function CROBoardViewV8({ openDrawer }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const signals = runBoardDetectors("UK");
   const persona = personas.find((p: { id: string }) => p.id === "cro");
+
+  const appetiteStrip = buildRiskAppetiteStrip();
+  const controlStrip = buildControlStrip();
+  const incidentStrip = buildIncidentStrip();
 
   const toggle = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
   const onOpenEvidence = (ref: string) => openDrawer?.(v8RefKind(ref), ref, "croBoard");
@@ -75,9 +89,20 @@ export function CROBoardViewV8({ openDrawer }: Props) {
         </div>
       </div>
 
-      <WhatChangedFromLastReview items={WHAT_CHANGED_V6} onOpenEvidence={onOpenEvidence} />
+      <RiskAtAGlance
+        appetite={appetiteStrip}
+        controls={controlStrip}
+        incidents={incidentStrip}
+        onOpenAppetite={() => setExpandedId(appetiteStrip.focusCategoryId)}
+        onOpenControls={() => setExpandedId(controlStrip.worstCategoryId)}
+        onOpenIncidents={() => setExpandedId(incidentStrip.topCategoryId)}
+      />
 
-      <WhatHasNotChanged />
+      <RedSpotlight rows={buildRedSpotlight()} />
+
+      <WhatChangedFromLastReview items={buildWhatChanged()} onOpenEvidence={onOpenEvidence} />
+
+      <WhatHasNotChanged rows={buildWhatHasNotChanged()} />
     </div>
     </JurisdictionContext.Provider>
     </BoardRoleContext.Provider>

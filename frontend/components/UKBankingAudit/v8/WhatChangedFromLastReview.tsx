@@ -1,55 +1,57 @@
 "use client";
 
-import type { ChangeRowV6 } from "@/lib/ukbankingaudit/v8/whatChangedV8";
-import { ClaimLine } from "./ClaimLine";
+import type { ChangeRow } from "@/lib/ukbankingaudit/v8/boardView";
 import { RAG_STYLES } from "./ragTokens";
 
 type Props = {
-  items: ChangeRowV6[];
+  items: ChangeRow[];
   onOpenEvidence?: (ref: string) => void;
 };
 
-/** v6 What Changed — each row's derivation is an evidence-bound claim, never a bare confidence %. */
+/** How a line was produced: solid dot for a rule, hollow dot for a model. */
+function ProvenanceIcon({ derivation, basis }: { derivation: ChangeRow["derivation"]; basis: string }) {
+  const tip = `${derivation === "RULE" ? "Rule" : "LLM"}: ${basis}`;
+  return (
+    <span title={tip} aria-label={tip} role="img" className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+      <span
+        className={
+          derivation === "RULE"
+            ? "h-1.5 w-1.5 rounded-full bg-slate-700"
+            : "h-1.5 w-1.5 rounded-full border border-slate-500 bg-transparent"
+        }
+      />
+    </span>
+  );
+}
+
+/** Only what moved since the last review: at most 6 lines, most material first. */
 export function WhatChangedFromLastReview({ items, onOpenEvidence }: Props) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <header className="mb-4">
-        <h2 className="text-base font-bold text-slate-900">What Changed from Last Review</h2>
-      </header>
-
+      <h2 className="mb-4 text-base font-bold text-slate-900">What Changed from Last Review</h2>
       {items.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-500">
-          No material changes since the last review.
-        </p>
+        <p className="py-8 text-center text-sm text-slate-500">No material changes since the last review.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-2">
           {items.map((item) => {
-            const band =
-              item.status === "RED" ? "red" : item.status === "AMBER" ? "amber" : "green";
-            const rag = RAG_STYLES[band];
+            const rag = RAG_STYLES[item.colour];
             return (
               <li
                 key={item.id}
-                className={`rounded-r-lg border-l-[3px] bg-stone-50/80 py-2.5 pl-3.5 pr-3 ${rag.rail}`}
+                className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-r-lg border-l-[3px] bg-stone-50/80 py-2 pl-3 pr-3 ${rag.rail}`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="flex-1 text-[13px] leading-relaxed text-slate-700">{item.text}</p>
-                  <span
-                    className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold ${rag.bg} ${rag.text}`}
-                  >
-                    {item.domainName}
-                  </span>
-                </div>
-                <div className="mt-1.5">
-                  <ClaimLine
-                    derivation={item.derivation}
-                    evidenceRef={item.evidenceRef}
-                    onOpenEvidence={onOpenEvidence}
-                  >
-                    {item.derivation === "RULE" ? "Rule" : "LLM"} · {item.text} · evidence{" "}
-                    {item.evidenceRef} · {item.detectionVersion}
-                  </ClaimLine>
-                </div>
+                <ProvenanceIcon derivation={item.derivation} basis={item.basis} />
+                <p className="min-w-0 flex-1 basis-64 text-[13px] leading-snug text-slate-700">{item.text}</p>
+                <button
+                  type="button"
+                  onClick={() => onOpenEvidence?.(item.evidenceRef)}
+                  className="font-mono text-[10px] text-indigo-700 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-900"
+                >
+                  {item.evidenceRef}
+                </button>
+                <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold ${rag.bg} ${rag.text}`}>
+                  {item.categoryLabel}
+                </span>
               </li>
             );
           })}

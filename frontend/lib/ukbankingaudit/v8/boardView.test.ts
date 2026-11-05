@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { boardSubtitle, buildCategoryTile, buildCategoryTiles, buildFirmBanner } from "./boardView";
+import {
+  boardSubtitle,
+  buildCategoryTile,
+  buildCategoryTiles,
+  buildControlStrip,
+  buildFirmBanner,
+  buildIncidentStrip,
+  buildRedSpotlight,
+  buildRiskAppetiteStrip,
+  buildWhatChanged,
+  buildWhatHasNotChanged,
+} from "./boardView";
+import { getDerivation } from "./derivations";
 import { V8_ENGINE_DATA, type EngineData } from "./engine";
 import type { FirmAggregationRule } from "./config";
 
@@ -116,5 +128,106 @@ describe("category tiles", () => {
     const tiles = buildCategoryTiles(NOV);
     assert.equal(tiles.reduce((n, t) => n + t.ramRed, 0), 2);
     assert.equal(tiles.reduce((n, t) => n + t.ramAmber, 0), 6);
+  });
+});
+
+describe("risk at a glance", () => {
+  it("adds up to the tiles and the metric count", () => {
+    const strip = buildRiskAppetiteStrip(NOV);
+    assert.deepEqual([strip.green, strip.amber, strip.red, strip.total], [42, 6, 2, 50]);
+    const tiles = buildCategoryTiles(NOV);
+    for (const row of strip.byCategory) {
+      const tile = tiles.find((t) => t.categoryId === row.categoryId);
+      assert.equal(row.red, tile?.ramRed, row.categoryId);
+      assert.equal(row.amber, tile?.ramAmber, row.categoryId);
+    }
+    assert.equal(strip.focusCategoryId, "cyber");
+  });
+
+  it("reports firm-wide control effectiveness and the lowest category", () => {
+    const strip = buildControlStrip(NOV);
+    assert.equal(strip.pct, 94);
+    assert.equal(strip.prevPct, 96);
+    assert.equal(strip.direction, "down");
+    assert.equal(strip.worstCategoryId, "fincrime");
+    assert.equal(strip.worstPct, buildCategoryTile("fincrime", NOV).criticalPct);
+  });
+
+  it("counts the same incidents as the tiles, excluding Sev-3", () => {
+    const strip = buildIncidentStrip(NOV);
+    const tileTotal = buildCategoryTiles(NOV).reduce((n, t) => n + t.sevOneTwo, 0);
+    assert.equal(strip.sevOne + strip.sevTwo, tileTotal);
+    assert.deepEqual([strip.sevOne, strip.sevTwo, strip.cadenceWord], [1, 2, "month"]);
+    assert.equal(strip.topId, "INC-2026-041");
+  });
+});
+
+describe("red spotlight", () => {
+  it("lists the 5 most material items with owner, dates and governance", () => {
+    const rows = buildRedSpotlight(NOV);
+    assert.deepEqual(rows.map((r) => r.id), ["RAM-CY-01", "RAM-CY-02", "AML-C002", "CY-C001", "INC-2026-041"]);
+    assert.equal(rows[0].measure, "3 open vs tolerance 2 open");
+    assert.equal(rows[0].targetDate, "2026-11-13");
+    assert.equal(rows[0].secondLine, "2nd line accepted");
+    assert.equal(rows[0].committee, "Accepted by Board Risk Committee, 12 Oct 2026");
+    assert.equal(rows[2].measure, "Test result: not effective, 3 Nov 2026");
+    assert.equal(rows[4].measure, "Sev1 · open");
+  });
+
+  it("flags a missing path to green", () => {
+    const rows = buildRedSpotlight(NOV, 5, { ...V8_ENGINE_DATA, pathsToGreen: [] });
+    assert.ok(rows.every((r) => !r.hasPath && r.committee === null));
+  });
+});
+
+describe("what changed", () => {
+  const rows = buildWhatChanged(NOV);
+
+  it("has at most 6 lines and no repeated sentences", () => {
+    assert.ok(rows.length <= 6);
+    assert.equal(new Set(rows.map((r) => r.text)).size, rows.length);
+  });
+
+  it("lists exactly what moved, most material first", () => {
+    assert.deepEqual(rows.map((r) => r.text), [
+      "New Sev1: Exploit attempt on unpatched perimeter vulnerability",
+      "Closure pack signed; 3 critical vulnerabilities still open",
+      "AML-C002 retested 3 Nov 2026: not effective. Disposition control under capacity stress.",
+      "New Sev2: Cross-border structuring alerts past disposition SLA",
+      "Credit Risk AMBER → GREEN: Portfolio delinquency 2.3% vs limit 2.5%",
+    ]);
+  });
+
+  it("gives every line an evidence reference that opens a drawer entry", () => {
+    for (const row of rows) {
+      assert.ok(row.evidenceRef, row.id);
+      if (row.id === "cyber-closure") continue;
+      assert.notEqual(getDerivation(row.evidenceRef).missing, true, row.evidenceRef);
+    }
+  });
+
+  it("never lists a Sev-3 incident", () => {
+    assert.ok(!rows.some((r) => /Sev3/.test(r.text)));
+  });
+});
+
+describe("what has not changed", () => {
+  const rows = buildWhatHasNotChanged(NOV);
+
+  it("keeps the three standing items, longest first", () => {
+    assert.deepEqual(rows.map((r) => r.id), [
+      "standing-fincrime",
+      "tolerance-RA-FINCRIME-2025-004",
+      "standing-cyber",
+    ]);
+    assert.ok(rows[2].text.startsWith("Cyber & Information Security"));
+  });
+
+  it("shows target, overdue flag and committee decision", () => {
+    assert.equal(rows[0].targetDate, "2026-10-31");
+    assert.equal(rows[0].overdue, true);
+    assert.equal(rows[0].committee, "Delay accepted by Board Risk Committee, 12 Oct 2026");
+    assert.equal(rows[2].targetDate, "2026-11-13");
+    assert.equal(rows[2].overdue, false);
   });
 });
