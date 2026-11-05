@@ -22,7 +22,7 @@ import type {
   RiskBand,
 } from "./exposureTypes";
 
-const AS_OF = "2026-07-10";
+const AS_OF = "2026-11-05";
 const NO_DATA_CAVEAT = "Client-level exposure data not connected for this domain.";
 
 function bands(

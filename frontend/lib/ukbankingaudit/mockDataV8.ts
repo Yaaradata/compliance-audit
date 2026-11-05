@@ -2,7 +2,8 @@
  * UK Banking Audit v8 — v6 mock graph plus v8-only operational overlays.
  * Does not edit mockDataV2 (shared by v2–v6).
  */
-import mockDataV6 from "@/lib/ukbankingaudit/mockDataV6";
+import mockDataV6Shared from "@/lib/ukbankingaudit/mockDataV6";
+import { refreshSharedData } from "@/lib/ukbankingaudit/v8/dateRefresh";
 import {
   ALERT_TIER_APPETITES,
   EDD_PAST_DUE_APPETITE,
@@ -14,6 +15,9 @@ import {
   buildSanctionsScreeningMetricsV8,
 } from "@/lib/ukbankingaudit/v8/mlroOperationalData";
 import { TM_INVESTIGATIONS_SAR_CONVERSION } from "@/lib/ukbankingaudit/v8/exposureData";
+
+/** Shared graph on the v8 reporting clock. The shared file itself is not edited. */
+const mockDataV6 = refreshSharedData(mockDataV6Shared);
 
 type PersonaDisplay = {
   label: string;

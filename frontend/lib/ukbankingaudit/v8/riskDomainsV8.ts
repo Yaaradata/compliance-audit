@@ -17,10 +17,12 @@
  */
 import type { RagStatus, RiskDomainV4 } from "../riskDomainTypes";
 import {
-  RISK_DOMAINS_V4 as RISK_DOMAINS_V4_BASE,
-  CRSA_DATA,
+  RISK_DOMAINS_V4 as RISK_DOMAINS_V4_SHARED,
+  CRSA_DATA as CRSA_DATA_SHARED,
   computeFirmPostureV4,
+  getDomainNarrative as getDomainNarrativeShared,
 } from "../riskDomainsV4";
+import { refreshSharedData, refreshText } from "./dateRefresh";
 import type {
   Accountability,
   FailureMechanism,
@@ -29,6 +31,27 @@ import type {
   StatusHistory,
 } from "./types";
 import { getFraudPosture } from "./fraudData";
+
+/**
+ * Shared domains on the v8 reporting clock, without the "RED UNTIL" display
+ * string: v8 target dates live on PathToGreenRecord (data/pathsToGreen.ts).
+ */
+export const RISK_DOMAINS_V8_BASE: RiskDomainV4[] = refreshSharedData(RISK_DOMAINS_V4_SHARED).map(
+  (domain) => {
+    const copy = { ...domain };
+    delete copy.deadline;
+    return copy;
+  },
+);
+const RISK_DOMAINS_V4_BASE = RISK_DOMAINS_V8_BASE;
+const CRSA_DATA = refreshSharedData(CRSA_DATA_SHARED);
+
+export const FIRM_POSTURE_V4 = computeFirmPostureV4(RISK_DOMAINS_V8_BASE);
+
+/** Shared narrative with v8 dates applied. */
+export function getDomainNarrative(domain: RiskDomainV4): string {
+  return refreshText(getDomainNarrativeShared(domain));
+}
 
 /**
  * Fraud is a peer of AML/sanctions in UK financial crime and was missing
@@ -161,7 +184,7 @@ export const DOMAIN_EVIDENCE: StatusEvidence[] = [
   {
     domainId: "climate",
     artefactId: "EVID-CLIMATE-SS319-2026",
-    artefactTs: "2026-05-20T00:00:00.000Z",
+    artefactTs: "2026-09-15T00:00:00.000Z",
     expectedCadenceDays: 365,
     cadenceSource: "register",
     sourceSystem: "ClimateRiskRegister",
@@ -170,7 +193,7 @@ export const DOMAIN_EVIDENCE: StatusEvidence[] = [
   {
     domainId: "market",
     artefactId: "EVID-MARKET-VAR-2026",
-    artefactTs: "2026-06-15T00:00:00.000Z",
+    artefactTs: "2026-10-11T00:00:00.000Z",
     expectedCadenceDays: 90,
     cadenceSource: "register",
     sourceSystem: "MarketRiskRegister",
@@ -179,7 +202,7 @@ export const DOMAIN_EVIDENCE: StatusEvidence[] = [
   {
     domainId: "opsres",
     artefactId: "EVID-OPSRES-ITT-2026",
-    artefactTs: "2026-04-30T00:00:00.000Z",
+    artefactTs: "2026-08-26T00:00:00.000Z",
     expectedCadenceDays: 180,
     cadenceSource: "register",
     sourceSystem: "OpResRegister",
@@ -188,7 +211,7 @@ export const DOMAIN_EVIDENCE: StatusEvidence[] = [
   {
     domainId: "credit",
     artefactId: "EVID-CREDIT-VALIDATION-2026",
-    artefactTs: "2026-06-05T00:00:00.000Z",
+    artefactTs: "2026-10-01T00:00:00.000Z",
     expectedCadenceDays: 90,
     cadenceSource: "human-confirmed",
     sourceSystem: "CreditModelGov",
@@ -197,7 +220,7 @@ export const DOMAIN_EVIDENCE: StatusEvidence[] = [
   {
     domainId: "liquidity",
     artefactId: "EVID-LIQ-LCR-2026-06",
-    artefactTs: "2026-06-28T00:00:00.000Z",
+    artefactTs: "2026-10-24T00:00:00.000Z",
     expectedCadenceDays: 30,
     cadenceSource: "human-confirmed",
     sourceSystem: "TreasuryALM",
@@ -206,7 +229,7 @@ export const DOMAIN_EVIDENCE: StatusEvidence[] = [
   {
     domainId: "regulatory",
     artefactId: "EVID-REG-FINDINGS-2026-Q2",
-    artefactTs: "2026-06-20T00:00:00.000Z",
+    artefactTs: "2026-10-16T00:00:00.000Z",
     expectedCadenceDays: 90,
     cadenceSource: "human-confirmed",
     sourceSystem: "RegChangeRegister",
@@ -215,20 +238,20 @@ export const DOMAIN_EVIDENCE: StatusEvidence[] = [
   {
     domainId: "cyber",
     artefactId: "EVID-CYBER-CLOSURE-2026-07",
-    artefactTs: "2026-07-02T00:00:00.000Z",
+    artefactTs: "2026-10-28T00:00:00.000Z",
     expectedCadenceDays: 30,
     cadenceSource: "human-confirmed",
     sourceSystem: "InfoSecClosurePack",
     sha256: "cbe70000000000000000000000000000000000000000000000000closure07",
     confirmedBy: "Head of InfoSec",
-    confirmedAt: "2026-07-02T16:40:00.000Z",
+    confirmedAt: "2026-10-28T16:40:00.000Z",
   },
 ];
 
 /** Twelve monthly review cycles, newest LAST. Shared by every domain history. */
 export const REVIEW_DATES: readonly string[] = [
-  "2025-07-31", "2025-08-31", "2025-09-30", "2025-10-31", "2025-11-30", "2025-12-31",
-  "2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30", "2026-05-31", "2026-06-30",
+  "2025-11-30", "2025-12-31", "2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30",
+  "2026-05-31", "2026-06-30", "2026-07-31", "2026-08-31", "2026-09-30", "2026-10-31",
 ];
 
 function buildHistory(domainId: string, statuses: readonly RagStatus[]): StatusHistory {
@@ -253,7 +276,8 @@ const R: RagStatus = "RED";
  * v4 "stable / +5" record legible as a seven-month-old unresolved amber.
  */
 export const DOMAIN_HISTORY: StatusHistory[] = [
-  buildHistory("credit", [G, G, G, G, G, G, G, G, G, G, G, G]),
+  // October amber matches the delinquency RAM above its limit that month (data/rams.ts).
+  buildHistory("credit", [G, G, G, G, G, G, G, G, G, G, G, A]),
   buildHistory("market", [G, G, G, G, G, G, G, G, G, G, G, G]),
   buildHistory("liquidity", [G, G, G, G, G, G, G, G, G, G, G, G]),
   buildHistory("conduct", [G, G, G, G, G, G, G, G, G, G, G, G]),
@@ -266,7 +290,7 @@ export const DOMAIN_HISTORY: StatusHistory[] = [
 
 /**
  * Open risk acceptance for fincrime. Approved for 90 days by the Banking
- * Proposition Board on 2026-01-31 and never re-approved. As of 2026-07-10 the
+ * Proposition Board on 2026-05-29 and never re-approved. As of 2026-11-05 the
  * position has stood 160 days against 90 approved — roughly two months past
  * expiry (see acceptanceElapsedDays).
  */
@@ -275,7 +299,7 @@ export const RISK_ACCEPTANCES: RiskAcceptance[] = [
     id: "RA-FINCRIME-2025-004",
     domainId: "fincrime",
     committee: "Banking Proposition Board",
-    acceptedAt: "2026-01-31",
+    acceptedAt: "2026-05-29",
     approvedDurationDays: 90,
     rationale:
       "Periodic KYC refresh backlog on high-risk relationships tolerated pending the core-banking migration and a dedicated remediation team.",

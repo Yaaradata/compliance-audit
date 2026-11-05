@@ -28,7 +28,7 @@ export type ResolvedDerivation = DerivationRecord & {
   missing?: boolean;
 };
 
-const EVALUATED_AT = "2026-07-10T00:00:00.000Z";
+const EVALUATED_AT = "2026-11-05T00:00:00.000Z";
 
 const UK_COUNT = PRECEDENTS.filter((p) => p.jurisdiction === "UK").length;
 const UK_VERIFIED = PRECEDENTS.filter((p) => p.jurisdiction === "UK" && p.confidence === "verified").length;
@@ -44,7 +44,7 @@ const STATIC: Record<string, DerivationRecord> = {
     inputs: [
       { label: "Records in corpus", value: String(UK_COUNT) },
       { label: "Jurisdiction", value: "UK" },
-      { label: "Last curated", value: "2026-07-10" },
+      { label: "Last curated", value: "2026-11-05" },
     ],
     output: `${UK_COUNT} UK records. ${UK_VERIFIED} verified, ${UK_PROBABLE} probable, ${UK_UNVERIFIED} unverified.`,
     version: "precedent-corpus@1.0.0",

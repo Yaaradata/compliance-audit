@@ -151,7 +151,7 @@ const FRAUD_POSTURE: FraudPosture = {
   geographicConcentration: GEOGRAPHIC_CONCENTRATION,
   geographicConcentrationSourceLabel:
     "Geographic concentration · client-configurable placeholder (source to confirm)",
-  asOf: "2026-07-10",
+  asOf: "2026-11-05",
   sourceLabel: "Fraud Operations / Finance (source to confirm)",
 };
 

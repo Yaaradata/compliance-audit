@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getDomainNarrative } from "@/lib/ukbankingaudit/riskDomainsV4";
+import { getDomainNarrative } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
 import { getOwnershipState } from "@/lib/ukbankingaudit/v8/ownershipData";
 import { matchPrecedents } from "@/lib/ukbankingaudit/v8/precedentCorpus";
 import {

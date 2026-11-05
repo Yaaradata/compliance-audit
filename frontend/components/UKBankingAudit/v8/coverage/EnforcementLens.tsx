@@ -68,7 +68,7 @@ export function EnforcementLens({ notices, openDrawer }: Props) {
   if (!notices.length) {
     return (
       <p className="text-sm text-slate-500">
-        No enforcement notices in the last 12 months reach controls you own.
+        No enforcement notices in the last 18 months reach controls you own.
       </p>
     );
   }

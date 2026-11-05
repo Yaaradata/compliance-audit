@@ -16,15 +16,15 @@ export type OwnershipTrail = {
 };
 
 /** Matches the product's existing as-of date. */
-export const AS_OF = "2026-07-23";
+export const AS_OF = "2026-11-05";
 
 export const OWNERSHIP_TRAIL: OwnershipTrail[] = [
-  { domainId: "credit", lastRecordedStep: "2026-06-18", stepType: "attestation", stepRef: "EV-RS-Q2-CRO-004" },
-  { domainId: "liquidity", lastRecordedStep: "2026-05-29", stepType: "decision", stepRef: "EV-RS-Q2-CFO-002" },
-  { domainId: "conduct", lastRecordedStep: "2026-04-02", stepType: "attestation", stepRef: "EV-RS-Q1-SMF16-007" },
-  { domainId: "fincrime", lastRecordedStep: "2026-07-09", stepType: "escalation", stepRef: "EV-RS-Q2-MLRO-011" },
-  { domainId: "cyber", lastRecordedStep: "2026-07-14", stepType: "escalation", stepRef: "EV-RS-Q2-SMF24-003" },
-  { domainId: "regulatory", lastRecordedStep: "2026-01-16", stepType: "challenge", stepRef: "EV-RS-Q4-SMF16-001" },
+  { domainId: "credit", lastRecordedStep: "2026-10-01", stepType: "attestation", stepRef: "EV-RS-Q2-CRO-004" },
+  { domainId: "liquidity", lastRecordedStep: "2026-09-11", stepType: "decision", stepRef: "EV-RS-Q2-CFO-002" },
+  { domainId: "conduct", lastRecordedStep: "2026-07-16", stepType: "attestation", stepRef: "EV-RS-Q1-SMF16-007" },
+  { domainId: "fincrime", lastRecordedStep: "2026-10-22", stepType: "escalation", stepRef: "EV-RS-Q2-MLRO-011" },
+  { domainId: "cyber", lastRecordedStep: "2026-10-27", stepType: "escalation", stepRef: "EV-RS-Q2-SMF24-003" },
+  { domainId: "regulatory", lastRecordedStep: "2026-05-01", stepType: "challenge", stepRef: "EV-RS-Q4-SMF16-001" },
   { domainId: "market", lastRecordedStep: null, stepType: null, stepRef: null },
   { domainId: "climate", lastRecordedStep: null, stepType: null, stepRef: null },
   { domainId: "opsres", lastRecordedStep: null, stepType: null, stepRef: null },

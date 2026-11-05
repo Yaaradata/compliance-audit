@@ -260,19 +260,19 @@ export type SystemHealth = {
 };
 
 /** As-of for window filters — aligns with board pack demo date. */
-export const SYSTEM_HEALTH_AS_OF = "2026-07-10";
+export const SYSTEM_HEALTH_AS_OF = "2026-11-05";
 
 export const SYSTEM_HEALTH_WINDOWS: SystemHealthWindow[] = [
   {
     id: "last_month",
     label: "Last month",
-    from: "2026-06-10",
+    from: "2026-10-06",
     to: SYSTEM_HEALTH_AS_OF,
   },
   {
     id: "last_3_months",
     label: "Last 3 months",
-    from: "2026-04-10",
+    from: "2026-08-06",
     to: SYSTEM_HEALTH_AS_OF,
   },
 ];
@@ -322,8 +322,8 @@ export const TM_SYSTEM_HEALTH: SystemHealth = {
   windows: SYSTEM_HEALTH_WINDOWS,
   outages: [
     {
-      start: "2026-06-22T08:10:00Z",
-      end: "2026-06-22T14:25:00Z",
+      start: "2026-10-18T08:10:00Z",
+      end: "2026-10-18T14:25:00Z",
       durationMinutes: 375,
       alertsOrItemsMissed: 1840,
       backfilled: false,
@@ -331,8 +331,8 @@ export const TM_SYSTEM_HEALTH: SystemHealth = {
       escalationRef: "ESC-TM-2026-0611",
     },
     {
-      start: "2026-05-03T02:00:00Z",
-      end: "2026-05-03T03:40:00Z",
+      start: "2026-08-29T02:00:00Z",
+      end: "2026-08-29T03:40:00Z",
       durationMinutes: 100,
       alertsOrItemsMissed: 410,
       backfilled: true,
@@ -344,14 +344,14 @@ export const TM_SYSTEM_HEALTH: SystemHealth = {
     {
       id: "TM-DQ-2026-014",
       description: "Scenario parameter drift on cross-border cash structuring rules after May release.",
-      detectedDate: "2026-06-18",
+      detectedDate: "2026-10-14",
       status: "open",
       impact: "Elevated false-negative risk on structuring typology until re-tuned.",
     },
     {
       id: "TM-DQ-2026-009",
       description: "Incomplete customer risk-tier feed for 0.4% of retail book overnight batch.",
-      detectedDate: "2026-05-12",
+      detectedDate: "2026-09-07",
       status: "closed",
       impact: "Temporary under-scoring; reprocessed same day.",
     },
@@ -367,8 +367,8 @@ export const TXN_SCREENING_SYSTEM_HEALTH: SystemHealth = {
   windows: SYSTEM_HEALTH_WINDOWS,
   outages: [
     {
-      start: "2026-06-28T11:00:00Z",
-      end: "2026-06-28T12:15:00Z",
+      start: "2026-10-24T11:00:00Z",
+      end: "2026-10-24T12:15:00Z",
       durationMinutes: 75,
       alertsOrItemsMissed: 22600,
       backfilled: true,
@@ -376,8 +376,8 @@ export const TXN_SCREENING_SYSTEM_HEALTH: SystemHealth = {
       escalationRef: "ESC-SCF-2026-0221",
     },
     {
-      start: "2026-04-19T16:40:00Z",
-      end: "2026-04-19T18:05:00Z",
+      start: "2026-08-15T16:40:00Z",
+      end: "2026-08-15T18:05:00Z",
       durationMinutes: 85,
       alertsOrItemsMissed: 18400,
       backfilled: true,
@@ -389,7 +389,7 @@ export const TXN_SCREENING_SYSTEM_HEALTH: SystemHealth = {
     {
       id: "TXN-DQ-2026-007",
       description: "BIC/IBAN normalisation gap dropped secondary-field matches on SEPA instant rails.",
-      detectedDate: "2026-06-30",
+      detectedDate: "2026-10-26",
       status: "open",
       impact: "Partial match coverage on instant payments until patch.",
     },
@@ -405,8 +405,8 @@ export const NAME_SCREENING_SYSTEM_HEALTH: SystemHealth = {
   windows: SYSTEM_HEALTH_WINDOWS,
   outages: [
     {
-      start: "2026-07-02T09:30:00Z",
-      end: "2026-07-02T11:00:00Z",
+      start: "2026-10-28T09:30:00Z",
+      end: "2026-10-28T11:00:00Z",
       durationMinutes: 90,
       alertsOrItemsMissed: 312,
       backfilled: false,
@@ -414,8 +414,8 @@ export const NAME_SCREENING_SYSTEM_HEALTH: SystemHealth = {
       escalationRef: "ESC-NSC-2026-0092",
     },
     {
-      start: "2026-05-21T21:00:00Z",
-      end: "2026-05-21T21:45:00Z",
+      start: "2026-09-16T21:00:00Z",
+      end: "2026-09-16T21:45:00Z",
       durationMinutes: 45,
       alertsOrItemsMissed: 88,
       backfilled: true,
@@ -427,14 +427,14 @@ export const NAME_SCREENING_SYSTEM_HEALTH: SystemHealth = {
     {
       id: "NAME-DQ-2026-004",
       description: "Transliteration dictionary lag for Cyrillic PEPs after OFSI list refresh.",
-      detectedDate: "2026-06-12",
+      detectedDate: "2026-10-08",
       status: "mitigated",
       impact: "Elevated FP rate; fuzzy thresholds temporarily tightened.",
     },
     {
       id: "NAME-DQ-2026-011",
       description: "Onboarding batch skipped adverse-media overlay for 47 high-risk corporates.",
-      detectedDate: "2026-07-05",
+      detectedDate: "2026-10-31",
       status: "open",
       impact: "Name screen completed without adverse-media layer for that cohort.",
     },
@@ -536,17 +536,17 @@ export const OFSI_FREEZE_REPORTS_V8: SanctionsOfsiReporting = {
     {
       id: "OFSI-FRZ-2026-041",
       daysLate: 0,
-      dueDate: "2026-04-15",
-      submittedDate: "2026-04-14",
+      dueDate: "2026-08-11",
+      submittedDate: "2026-08-10",
     },
     {
       id: "OFSI-FRZ-2026-052",
       daysLate: 2,
-      dueDate: "2026-04-20",
-      submittedDate: "2026-04-22",
+      dueDate: "2026-08-16",
+      submittedDate: "2026-08-18",
     },
   ],
-  lastSubmitted: "2026-04-22",
+  lastSubmitted: "2026-08-18",
   sourceLabel: SOURCE_SANCTIONS_TEAM,
 };
 
@@ -560,11 +560,11 @@ export const OFSI_BLOCK_REPORTS_V8: SanctionsOfsiReporting = {
     {
       id: "OFSI-BLK-2026-018",
       daysLate: 0,
-      dueDate: "2026-04-18",
-      submittedDate: "2026-04-17",
+      dueDate: "2026-08-14",
+      submittedDate: "2026-08-13",
     },
   ],
-  lastSubmitted: "2026-04-17",
+  lastSubmitted: "2026-08-13",
   sourceLabel: SOURCE_SANCTIONS_TEAM,
 };
 
@@ -585,8 +585,8 @@ export const SANCTIONS_LIST_UPDATES_V8: SanctionsListUpdate[] = [
     id: "lst-ofsi-consolidated",
     listName: "OFSI Consolidated List",
     regulator: "OFSI",
-    publishedAt: "2026-04-28T09:00:00Z",
-    ingestedAt: "2026-04-28T14:20:00Z",
+    publishedAt: "2026-08-24T09:00:00Z",
+    ingestedAt: "2026-08-24T14:20:00Z",
     lagHours: 5.3,
     appetiteHours: 6,
     redThresholdHours: 24,
@@ -597,8 +597,8 @@ export const SANCTIONS_LIST_UPDATES_V8: SanctionsListUpdate[] = [
     id: "lst-un-consolidated",
     listName: "UN Security Council Consolidated List",
     regulator: "UN",
-    publishedAt: "2026-04-26T12:00:00Z",
-    ingestedAt: "2026-04-27T06:30:00Z",
+    publishedAt: "2026-08-22T12:00:00Z",
+    ingestedAt: "2026-08-23T06:30:00Z",
     lagHours: 18.5,
     appetiteHours: 12,
     redThresholdHours: 48,
@@ -609,8 +609,8 @@ export const SANCTIONS_LIST_UPDATES_V8: SanctionsListUpdate[] = [
     id: "lst-eu-consolidated",
     listName: "EU Consolidated Financial Sanctions List",
     regulator: "EU",
-    publishedAt: "2026-04-25T08:00:00Z",
-    ingestedAt: "2026-04-25T11:45:00Z",
+    publishedAt: "2026-08-21T08:00:00Z",
+    ingestedAt: "2026-08-21T11:45:00Z",
     lagHours: 3.8,
     appetiteHours: 12,
     redThresholdHours: 48,
@@ -681,7 +681,7 @@ export function buildSanctionsScreeningMetricsV8(base: SanctionsBase) {
       nonComplianceWaivers:
         (base.reportingStatus as { nonComplianceWaivers?: unknown } | undefined)?.nonComplianceWaivers ?? {
           open: 0,
-          lastClosed: "2026-02-10",
+          lastClosed: "2026-06-08",
         },
     },
     listUpdates,

@@ -40,8 +40,9 @@ export type CoverageGapRow = {
   severity: string;
 };
 
-const AS_OF_DEFAULT = "2026-04-30";
-const TWELVE_MONTHS_MS = 365 * 86_400_000;
+const AS_OF_DEFAULT = "2026-11-05";
+/** Window is 18 months so the live queue keeps every notice since May 2025. */
+const ENFORCEMENT_WINDOW_MS = 548 * 86_400_000;
 
 /** v6 demo applicability — extends horizon status with not_assessed. */
 const ENFORCEMENT_APPLICABILITY: Record<string, EnforcementApplicabilityStatus> = {
@@ -110,7 +111,7 @@ export function buildEnforcementNotices(input: {
 }): EnforcementNoticeItem[] {
   const jurisdiction = input.jurisdiction ?? "UK";
   const asOf = input.asOf ?? AS_OF_DEFAULT;
-  const cutoff = Date.parse(`${asOf}T00:00:00.000Z`) - TWELVE_MONTHS_MS;
+  const cutoff = Date.parse(`${asOf}T00:00:00.000Z`) - ENFORCEMENT_WINDOW_MS;
 
   const items: EnforcementNoticeItem[] = [];
   for (const precedent of PRECEDENTS) {

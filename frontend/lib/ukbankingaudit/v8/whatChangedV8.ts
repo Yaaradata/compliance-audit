@@ -32,14 +32,14 @@ export type ChangeRowV6 = {
   evaluatedAt: string;
 };
 
-const EVALUATED_AT = "2026-07-10T00:00:00.000Z";
+const EVALUATED_AT = "2026-11-05T00:00:00.000Z";
 
 const STATUS_RANK: Record<RagStatus, number> = { GREEN: 0, AMBER: 1, RED: 2 };
 
 const ROWS: ChangeRowV6[] = [
   {
     id: "cyber-closure",
-    text: "Cyber remediation closure pack signed by Head of InfoSec and CTO ahead of the 18-Jul target.",
+    text: "Cyber remediation closure pack signed by Head of InfoSec and CTO ahead of the 13-Nov target.",
     domainId: "cyber",
     domainName: "Cyber & Information Security",
     status: "RED",
@@ -56,7 +56,7 @@ const ROWS: ChangeRowV6[] = [
     domainName: "Fraud & Financial Crime",
     status: "AMBER",
     derivation: "RULE",
-    basis: "KRI threshold comparison, KRI-FC-016, 2026-07-01",
+    basis: "KRI threshold comparison, KRI-FC-016, 2026-10-27",
     detectionVersion: "kri-threshold@1.0.0",
     evidenceRef: "KRI-FC-016",
     evaluatedAt: EVALUATED_AT,
@@ -87,12 +87,12 @@ const ROWS: ChangeRowV6[] = [
   },
   {
     id: "liquidity-lcr",
-    text: "LCR reported at 148% against the 100% regulatory minimum on the June return.",
+    text: "LCR reported at 148% against the 100% regulatory minimum on the October return.",
     domainId: "liquidity",
     domainName: "Liquidity & Funding",
     status: "GREEN",
     derivation: "RULE",
-    basis: "KRI threshold comparison, LCR June regulatory return",
+    basis: "KRI threshold comparison, LCR October regulatory return",
     detectionVersion: "kri-threshold@1.0.0",
     evidenceRef: "EVID-LIQ-LCR-2026-06",
     evaluatedAt: EVALUATED_AT,

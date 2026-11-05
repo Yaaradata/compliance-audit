@@ -10,7 +10,7 @@ import { matchPrecedents } from "../precedentCorpus";
 import { primaryPrecedent, rankPrecedents } from "../precedentRank";
 import { DOMAIN_ACCOUNTABILITY, RISK_DOMAINS_V4 } from "../riskDomainsV8";
 
-export const EVALUATED_AT = "2026-07-10T00:00:00.000Z";
+export const EVALUATED_AT = "2026-11-05T00:00:00.000Z";
 export const NOW_MS = Date.parse(EVALUATED_AT);
 export const DAY_MS = 86_400_000;
 

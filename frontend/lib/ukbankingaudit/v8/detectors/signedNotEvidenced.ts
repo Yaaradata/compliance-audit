@@ -6,7 +6,7 @@
  * so completion is asserted, not evidenced), while the domain is still open.
  *
  * The v4 mock data contains this: the RED cyber tile reads "Remediation in
- * flight — closure pack signed by Head of InfoSec and CTO. Target: 18-Jul."
+ * flight — closure pack signed by Head of InfoSec and CTO. Target: 13-Nov."
  * Signed, in flight, before the target, with no test artefact.
  */
 import { RISK_DOMAINS_V4 } from "../riskDomainsV8";
