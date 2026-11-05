@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDate, type StandingRow } from "@/lib/ukbankingaudit/v8/boardView";
+import { CappedList } from "./CappedList";
 import { RAG_STYLES } from "./ragTokens";
 
 /**
@@ -17,6 +18,7 @@ export function WhatHasNotChanged({ rows }: { rows: StandingRow[] }) {
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
+          <CappedList inList>
           {rows.map((row) => {
             const rag = RAG_STYLES[row.colour];
             return (
@@ -49,6 +51,7 @@ export function WhatHasNotChanged({ rows }: { rows: StandingRow[] }) {
               </li>
             );
           })}
+          </CappedList>
         </ul>
       )}
     </section>

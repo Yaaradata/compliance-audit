@@ -10,6 +10,7 @@ import {
 } from "./crsaAttestation";
 import { CADENCE_FEASIBILITY_CHECKS, MLRO_SCREENING_CLAIMS } from "./mlroSignals";
 import { CONTROLS, CONTROL_TESTS } from "./data/controls";
+import { HORIZON_ITEMS } from "./data/horizon";
 import { INCIDENTS, INCIDENT_CONTROL_LINKS } from "./data/incidents";
 import { RAMS, RAM_VALUES } from "./data/rams";
 import { PRECEDENTS } from "./precedentCorpus";
@@ -319,6 +320,22 @@ function kriBreach(domainId: string): DerivationRecord {
 /** Resolve a derivation id. Always returns a record — missing entries are flagged. */
 /** v8 risk records (incidents, control tests, metrics) shown as the basis of a board line. */
 function riskRecord(id: string): DerivationRecord | null {
+  const horizon = HORIZON_ITEMS.find((h) => h.id === id);
+  if (horizon) {
+    return {
+      kind: "RULE",
+      question: horizon.title,
+      method: "External item added to the horizon scan from a published source.",
+      inputs: [
+        { label: "Source", value: horizon.source },
+        { label: "Date", value: horizon.date },
+        { label: "Link", value: horizon.sourceUrl || "None" },
+      ],
+      output: horizon.summary,
+      version: "horizon-scan@1.0.0",
+      evaluatedAt: EVALUATED_AT,
+    };
+  }
   const path = getRiskState().data.pathsToGreen.find((p) => p.id === id);
   if (path) {
     return {

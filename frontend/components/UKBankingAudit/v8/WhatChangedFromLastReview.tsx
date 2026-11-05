@@ -1,11 +1,13 @@
 "use client";
 
 import type { ChangeRow } from "@/lib/ukbankingaudit/v8/boardView";
+import { CappedList } from "./CappedList";
 import { RAG_STYLES } from "./ragTokens";
 
 type Props = {
   items: ChangeRow[];
   onOpenEvidence?: (ref: string) => void;
+  onShowAll?: () => void;
 };
 
 /** How a line was produced: solid dot for a rule, hollow dot for a model. */
@@ -24,8 +26,8 @@ function ProvenanceIcon({ derivation, basis }: { derivation: ChangeRow["derivati
   );
 }
 
-/** Only what moved since the last review: at most 6 lines, most material first. */
-export function WhatChangedFromLastReview({ items, onOpenEvidence }: Props) {
+/** Only what moved since the last review, most material first. */
+export function WhatChangedFromLastReview({ items, onOpenEvidence, onShowAll }: Props) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="mb-4 text-base font-bold text-slate-900">What Changed from Last Review</h2>
@@ -33,6 +35,7 @@ export function WhatChangedFromLastReview({ items, onOpenEvidence }: Props) {
         <p className="py-8 text-center text-sm text-slate-500">No material changes since the last review.</p>
       ) : (
         <ul className="flex flex-col gap-2">
+          <CappedList onShowAll={onShowAll} inList>
           {items.map((item) => {
             const rag = RAG_STYLES[item.colour];
             return (
@@ -55,6 +58,7 @@ export function WhatChangedFromLastReview({ items, onOpenEvidence }: Props) {
               </li>
             );
           })}
+          </CappedList>
         </ul>
       )}
     </section>

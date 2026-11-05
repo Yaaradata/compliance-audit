@@ -1,0 +1,242 @@
+/**
+ * Top-line summary and CRO Report content. Every figure comes from the same builders
+ * the Board View uses, so the report cannot drift from the screen. Sentences come from
+ * a deterministic template: v8 makes no outbound calls.
+ */
+import mockDataV8 from "../mockDataV8";
+import {
+  buildCategoryTiles,
+  buildControlStrip,
+  buildFirmBanner,
+  buildIncidentStrip,
+  buildRedSpotlight,
+  committeeText,
+  formatDate,
+} from "./boardView";
+import { categoryLabel } from "./config";
+import { buildCategoryEffectiveness, buildIncidentRows, buildWhatMoved } from "./controlsIncidentsView";
+import { HORIZON_ITEMS } from "./data/horizon";
+import {
+  boardIncidents,
+  periodLabel,
+  selectMaterialItems,
+  V8_ENGINE_DATA,
+  type EngineData,
+} from "./engine";
+import { buildEnforcementNotices } from "./enforcementCoverage";
+import { buildRamRows } from "./riskAppetiteView";
+import type { Period } from "./types";
+
+export type SummarySentence = { text: string; cites: string[] };
+
+function pluralise(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+/** Five or six plain sentences. Each carries the record ids it rests on. */
+export function buildTopLineSummary(
+  period: Period = V8_ENGINE_DATA.config.currentPeriod,
+  data: EngineData = V8_ENGINE_DATA,
+): SummarySentence[] {
+  const banner = buildFirmBanner(period, data);
+  const material = selectMaterialItems(period, 100, data);
+  const sentences: SummarySentence[] = [];
+
+  const colour = banner.colour.toUpperCase();
+  const prev = banner.trend.prevColour?.toUpperCase();
+  const move = !prev
+    ? "with no earlier review to compare"
+    : banner.trend.direction === "flat"
+      ? `unchanged from ${banner.trend.prevPeriodLabel}`
+      : `${banner.trend.direction === "worse" ? "worse" : "better"} than ${prev} in ${banner.trend.prevPeriodLabel}`;
+  const drivers = banner.drivingCategories.map((c) => c.label).join(" and ");
+  const reds = material.filter((m) => m.kind === "ram");
+  sentences.push({
+    text: `Firm risk posture is ${colour}, ${move}${drivers ? `, driven by ${drivers}` : ""}.`,
+    cites: reds.slice(0, 1).map((m) => m.id),
+  });
+
+  sentences.push(
+    reds.length > 0
+      ? {
+          text: `${pluralise(reds.length, "risk appetite metric")} ${reds.length === 1 ? "is" : "are"} out of tolerance: ${reds
+            .slice(0, 2)
+            .map((m) => `${m.name} (${m.detail})`)
+            .join("; ")}.`,
+          cites: reds.slice(0, 2).map((m) => m.id),
+        }
+      : { text: "No risk appetite metric is out of tolerance.", cites: [] },
+  );
+
+  const controls = buildControlStrip(period, data);
+  const direction =
+    controls.prevPct === null || controls.direction === "flat"
+      ? "unchanged"
+      : `${controls.direction} from ${controls.prevPct}%`;
+  const moves = buildWhatMoved(period, data);
+  sentences.push({
+    text: `Critical controls are ${controls.pct}% effective, ${direction}; the lowest is ${controls.worstLabel} at ${controls.worstPct}%.`,
+    cites: moves.slice(0, 2).map((m) => m.controlId),
+  });
+
+  if (moves[0]) {
+    sentences.push({ text: `${moves[0].text.replace(" — ", ". ")}`, cites: [moves[0].controlId] });
+  }
+
+  const incidents = buildIncidentStrip(period, data);
+  const incidentIds = boardIncidents(period, data)
+    .sort((a, b) => a.level - b.level || b.date.localeCompare(a.date))
+    .map((i) => i.id);
+  sentences.push(
+    incidentIds.length > 0
+      ? {
+          text: `${pluralise(incidents.sevOne, "Sev-1 incident")} and ${pluralise(incidents.sevTwo, "Sev-2 incident")} are open or new this ${incidents.cadenceWord}, led by: ${incidents.topTitle}.`,
+          cites: incidentIds.slice(0, 2),
+        }
+      : { text: `No Sev-1 or Sev-2 incidents are open or new this ${incidents.cadenceWord}.`, cites: [] },
+  );
+
+  const event = HORIZON_ITEMS.filter((h) => h.type === "industry").sort((a, b) => b.date.localeCompare(a.date))[0];
+  if (event) {
+    sentences.push({ text: `On the horizon: ${event.title} (${event.source}).`, cites: [event.id] });
+  }
+  return sentences;
+}
+
+export type ReportHorizonRow = { id: string; kind: string; title: string; source: string; date: string; summary: string };
+
+export type CroReportView = {
+  periodText: string;
+  asOfText: string;
+  summary: SummarySentence[];
+  firmColour: string;
+  firmTrend: string;
+  firmRule: string;
+  drivers: string[];
+  assurance: string;
+  ratings: { id: string; label: string; colour: string; trend: string; why: string; path: string | null }[];
+  appetite: {
+    id: string;
+    name: string;
+    categoryLabel: string;
+    colour: string;
+    measure: string;
+    cause: string;
+    path: string;
+    secondLine: string;
+    committee: string;
+  }[];
+  appetiteTotals: { green: number; amber: number; red: number; total: number };
+  controlsPct: number;
+  controlsPrevPct: number | null;
+  controlCategories: { id: string; label: string; pct: number; prevPct: number | null }[];
+  moves: string[];
+  incidents: { id: string; date: string; severity: string; title: string; category: string; status: string; controls: string }[];
+  spotlightCount: number;
+  horizon: { regulatory: ReportHorizonRow[]; industry: ReportHorizonRow[]; emerging: ReportHorizonRow[] };
+};
+
+const SECOND_LINE = { accepted: "Accepted", challenged: "Challenged", pending: "Pending" };
+
+function periodText(period: Period): string {
+  return `${periodLabel(period)} ${period.slice(0, 4)}`;
+}
+
+/** Enforcement queue from the v8 mock graph, so the report needs no screen runtime. */
+function regulatoryRows(): ReportHorizonRow[] {
+  const { groupSetRequirements } = mockDataV8 as unknown as {
+    groupSetRequirements: Parameters<typeof buildEnforcementNotices>[0]["groupSetRequirements"];
+  };
+  return buildEnforcementNotices({ groupSetRequirements })
+    .filter((n) => n.applicabilityStatus === "not_assessed")
+    .sort((a, b) => b.ageDays - a.ageDays)
+    .map((n) => ({
+      id: n.id,
+      kind: "Enforcement",
+      title: n.precedent.respondent,
+      source: n.regulatorBody,
+      date: formatDate(n.publishedDate),
+      summary: `${n.ageDays} days not assessed. ${n.precedent.hook}`,
+    }));
+}
+
+export function buildCroReport(
+  period: Period = V8_ENGINE_DATA.config.currentPeriod,
+  data: EngineData = V8_ENGINE_DATA,
+): CroReportView {
+  const banner = buildFirmBanner(period, data);
+  const controls = buildControlStrip(period, data);
+  const rows = buildRamRows(period, data);
+  const horizonRow = (type: "industry" | "emerging"): ReportHorizonRow[] =>
+    HORIZON_ITEMS.filter((h) => h.type === type).map((h) => ({
+      id: h.id,
+      kind: type === "industry" ? "Industry event" : "Emerging risk",
+      title: h.title,
+      source: h.source,
+      date: formatDate(h.date),
+      summary: h.summary,
+    }));
+
+  return {
+    periodText: periodText(period),
+    asOfText: formatDate(data.config.asOf),
+    summary: buildTopLineSummary(period, data),
+    firmColour: banner.colour,
+    firmTrend: banner.trend.chipText,
+    firmRule: banner.ruleDescription,
+    drivers: banner.drivingCategories.map((c) => c.label),
+    assurance: banner.assuranceText,
+    ratings: buildCategoryTiles(period, data).map((tile) => ({
+      id: tile.categoryId,
+      label: tile.label,
+      colour: tile.colour,
+      trend: tile.trend.tooltip,
+      why: tile.why,
+      path: tile.path ? `${tile.path.targetLabel} · ${tile.path.owner}` : null,
+    })),
+    appetite: rows
+      .filter((row) => row.status !== "green")
+      .map((row) => {
+        const overdue = !!row.path && row.path.targetDate < data.config.asOf;
+        return {
+          id: row.id,
+          name: row.name,
+          categoryLabel: categoryLabel(row.categoryId, data.config),
+          colour: row.status,
+          measure: `${row.valueText} vs limit ${row.limitText}, tolerance ${row.toleranceText}`,
+          cause: row.path?.cause ?? "No path to green",
+          path: row.path ? `${formatDate(row.path.targetDate)}${overdue ? " (overdue)" : ""}` : "None",
+          secondLine: row.path ? SECOND_LINE[row.path.secondLineVerdict] : "None",
+          committee: row.path ? committeeText(row.path, overdue) : "None",
+        };
+      }),
+    appetiteTotals: {
+      green: rows.filter((r) => r.status === "green").length,
+      amber: rows.filter((r) => r.status === "amber").length,
+      red: rows.filter((r) => r.status === "red").length,
+      total: rows.length,
+    },
+    controlsPct: controls.pct,
+    controlsPrevPct: controls.prevPct,
+    controlCategories: buildCategoryEffectiveness(period, data).map((c) => ({
+      id: c.categoryId,
+      label: c.label,
+      pct: c.pct,
+      prevPct: c.prevPct,
+    })),
+    moves: buildWhatMoved(period, data).map((m) => m.text),
+    incidents: buildIncidentRows(data)
+      .filter((i) => boardIncidents(period, data).some((b) => b.id === i.id))
+      .map((i) => ({
+        id: i.id,
+        date: formatDate(i.date),
+        severity: i.severity,
+        title: i.title,
+        category: i.categoryLabel,
+        status: i.status,
+        controls: i.links.map((l) => `${l.controlId}: ${l.worked}`).join(", "),
+      })),
+    spotlightCount: buildRedSpotlight(period, 100, data).length,
+    horizon: { regulatory: regulatoryRows(), industry: horizonRow("industry"), emerging: horizonRow("emerging") },
+  };
+}

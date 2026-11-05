@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDate, type SpotlightRow } from "@/lib/ukbankingaudit/v8/boardView";
+import { CappedList } from "../CappedList";
 
 const KIND_LABEL: Record<SpotlightRow["kind"], string> = {
   ram: "Risk appetite",
@@ -19,7 +20,15 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 /** The few items that matter most this period, ranked by the rating engine. */
-export function RedSpotlight({ rows, onOpenPath }: { rows: SpotlightRow[]; onOpenPath: (row: SpotlightRow) => void }) {
+export function RedSpotlight({
+  rows,
+  onOpenPath,
+  onShowAll,
+}: {
+  rows: SpotlightRow[];
+  onOpenPath: (row: SpotlightRow) => void;
+  onShowAll: () => void;
+}) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="mb-4 text-base font-bold text-slate-900">Red Spotlight</h2>
@@ -27,6 +36,7 @@ export function RedSpotlight({ rows, onOpenPath }: { rows: SpotlightRow[]; onOpe
         <p className="py-6 text-center text-sm text-slate-500">Nothing is outside appetite this period.</p>
       ) : (
         <ol className="flex flex-col gap-3">
+          <CappedList onShowAll={onShowAll} inList>
           {rows.map((row) => (
             <li key={row.id} className="rounded-r-lg border-l-[3px] border-l-red-500 bg-stone-50/80 py-3 pl-3.5 pr-3">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -63,6 +73,7 @@ export function RedSpotlight({ rows, onOpenPath }: { rows: SpotlightRow[]; onOpe
               ) : null}
             </li>
           ))}
+          </CappedList>
         </ol>
       )}
     </section>

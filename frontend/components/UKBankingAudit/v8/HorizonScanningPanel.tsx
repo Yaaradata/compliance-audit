@@ -15,6 +15,7 @@ import {
 } from "@/lib/ukbankingaudit/v8/horizonSignals";
 import { matchPrecedents, resolvePrecedent } from "@/lib/ukbankingaudit/v8/precedentCorpus";
 import type { BoardSignal, HorizonItem, Precedent } from "@/lib/ukbankingaudit/v8/types";
+import { CappedList } from "./CappedList";
 import { HorizonCard } from "./HorizonCard";
 import { useJurisdiction } from "./jurisdictionContext";
 import { RegulatoryLandscapeCard } from "./RegulatoryLandscapeCard";
@@ -153,6 +154,7 @@ export function HorizonScanningPanel({ signals, expandedId, onClearDomain }: Pro
             </div>
           ) : null}
 
+          <CappedList key={`${tab}-${expandedId ?? "firm"}`}>
           {showRegulatory
             ? precedentSignals.map((signal) => (
                 <RegulatoryLandscapeCard
@@ -270,6 +272,7 @@ export function HorizonScanningPanel({ signals, expandedId, onClearDomain }: Pro
                 );
               })
             : null}
+          </CappedList>
         </div>
       </div>
 

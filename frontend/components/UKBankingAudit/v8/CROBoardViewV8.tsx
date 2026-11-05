@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   boardSubtitle,
@@ -12,6 +13,7 @@ import {
   buildWhatHasNotChanged,
 } from "@/lib/ukbankingaudit/v8/boardView";
 import { RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
+import { buildTopLineSummary } from "@/lib/ukbankingaudit/v8/croReportView";
 import { runBoardDetectors } from "@/lib/ukbankingaudit/v8/detectors";
 import { personas } from "@/components/UKBankingAudit/ukTraceRuntime";
 import { BoardRoleContext } from "./boardRoleContext";
@@ -19,6 +21,7 @@ import { HorizonScanningPanel } from "./HorizonScanningPanel";
 import { FirmRiskPosturePanel } from "./cro/FirmRiskPosturePanel";
 import { PathToGreenDrawer, type PathTarget } from "./PathToGreenDrawer";
 import { RedSpotlight } from "./cro/RedSpotlight";
+import { TopLineSummary } from "./cro/TopLineSummary";
 import { useRiskState } from "./useRiskStore";
 import { RiskAtAGlance } from "./cro/RiskAtAGlance";
 import { RiskCategoriesPanel } from "./cro/RiskCategoriesPanel";
@@ -38,6 +41,7 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
   const signals = runBoardDetectors("UK");
   const persona = personas.find((p: { id: string }) => p.id === "cro");
 
+  const router = useRouter();
   const { data } = useRiskState();
   const period = data.config.currentPeriod;
   const [pathTarget, setPathTarget] = useState<PathTarget | null>(null);
@@ -61,7 +65,7 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
         .uk-v4-slide-down-mid { animation: ukV4SlideDown 0.25s ease; }
         .uk-v4-slide-down-fast { animation: ukV4SlideDown 0.2s ease; }
       `}</style>
-      <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
             {persona?.label ?? "CRO (SMF4)"}
@@ -70,7 +74,16 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
             {boardSubtitle(data)}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => router.push("/UKBankingAudit/v8/report")}
+          className="rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+        >
+          Generate CRO Report
+        </button>
       </div>
+
+      <TopLineSummary sentences={buildTopLineSummary(period, data)} onOpenEvidence={onOpenEvidence} />
 
       <div className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-12 xl:gap-6">
         <div className="min-w-0 space-y-5 xl:col-span-8">
@@ -106,7 +119,8 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
       />
 
       <RedSpotlight
-        rows={buildRedSpotlight(period, 5, data)}
+        rows={buildRedSpotlight(period, 100, data)}
+        onShowAll={() => setActiveScreen?.("riskAppetite")}
         onOpenPath={(row) =>
           setPathTarget({
             targetType: row.kind === "ram" ? "ram" : row.kind === "control" ? "control" : "incident",
@@ -117,7 +131,7 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
         }
       />
 
-      <WhatChangedFromLastReview items={buildWhatChanged(period, data)} onOpenEvidence={onOpenEvidence} />
+      <WhatChangedFromLastReview items={buildWhatChanged(period, data)} onOpenEvidence={onOpenEvidence} onShowAll={() => setActiveScreen?.("controlsIncidents")} />
 
       <WhatHasNotChanged rows={buildWhatHasNotChanged(period, data)} />
 
