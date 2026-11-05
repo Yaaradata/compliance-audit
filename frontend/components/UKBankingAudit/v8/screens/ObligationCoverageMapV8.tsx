@@ -1,9 +1,12 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment -- untyped screen carried from v7; typing it is out of scope */
 // @ts-nocheck
 'use client';
 
 import { useMemo, useState } from 'react';
 import {
   groupSetRequirements,
+  obligations,
+  smfHolders,
 } from '@/components/UKBankingAudit/ukTraceRuntime';
 import {
   ForwardCoverageLens,
@@ -18,6 +21,8 @@ import {
 } from '@/components/UKBankingAudit/v8/coverage';
 import { buildEnforcementNotices } from '@/lib/ukbankingaudit/v8/enforcementCoverage';
 import { v8RefKind } from '@/lib/ukbankingaudit/v8/refRouter';
+import { MajorGapsCard } from '@/components/UKBankingAudit/v8/coverage/MajorGapsCard';
+import { buildMajorGaps, rcsaCycleNote } from '@/lib/ukbankingaudit/v8/rcsaCoverageView';
 
 /** v6-only lens catalog — sixth enforcement tab; shared _shared COVERAGE_LENSES untouched. */
 const COVERAGE_LENSES_V6 = [
@@ -32,6 +37,8 @@ const COVERAGE_LENSES_V6 = [
 export function ObligationCoverageMapV8({ openDrawer, setActiveScreen, setSelectedGSRId }) {
   const [activeLens, setActiveLens] = useState('forward');
 
+  const majorGaps = useMemo(() => buildMajorGaps(obligations || [], smfHolders || []), []);
+
   const enforcementNotices = useMemo(
     () => buildEnforcementNotices({ groupSetRequirements: groupSetRequirements || [] }),
     [],
@@ -41,8 +48,9 @@ export function ObligationCoverageMapV8({ openDrawer, setActiveScreen, setSelect
     <div className="space-y-5">
       <div className="flex items-end justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Cross-persona shared screen</div>
-          <h1 className="text-2xl font-bold text-slate-900 mt-0.5">Obligation Coverage Map</h1>
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Reference</div>
+          <h1 className="text-2xl font-bold text-slate-900 mt-0.5">RCSA Coverage</h1>
+          <p className="mt-1 text-xs font-medium text-slate-500">{rcsaCycleNote()}</p>
           <p className="text-sm text-slate-600 mt-1">Forward and reverse traversal of the regulation → obligation → CRSA requirement → control graph.  Pick a lens.</p>
         </div>
       </div>
@@ -51,6 +59,8 @@ export function ObligationCoverageMapV8({ openDrawer, setActiveScreen, setSelect
         notices={enforcementNotices}
         onOpenEvidence={(ref) => openDrawer?.(v8RefKind(ref), ref, 'coverageMap')}
       />
+
+      <MajorGapsCard rows={majorGaps} onOpenObligation={(id) => openDrawer?.('obligation', id, 'coverageMap')} />
 
       {/* Lens tabs */}
       <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto">

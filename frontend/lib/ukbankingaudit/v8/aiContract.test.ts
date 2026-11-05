@@ -52,7 +52,7 @@ describe("aiContract", () => {
         confidence: 0.97,
         modelId: "test",
         modelVersion: "1.0.0",
-        generatedAt: "2026-07-10T00:00:00.000Z",
+        generatedAt: "2026-11-05T00:00:00.000Z",
         severity: "high",
       },
     ];

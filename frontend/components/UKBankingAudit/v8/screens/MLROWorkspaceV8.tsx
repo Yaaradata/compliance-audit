@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment -- untyped screen carried from v7; typing it is out of scope */
 // @ts-nocheck
 'use client';
 
@@ -30,11 +31,12 @@ import { FraudLossPanel } from '@/components/UKBankingAudit/v8/mlro/FraudLossPan
 import { LensToggle } from '@/components/UKBankingAudit/v8/LensToggle';
 
 const MLRO_WALKTHROUGH_LINE =
-  'Walk-through line: alert backlog rising → capacity stress is the why → AML.01.05.02 evidence completeness degrading is the consequence on the CRSA.';
+  'How to read this: alert backlog rising → capacity stress is the why → AML.01.05.02 evidence completeness degrading is the consequence on the CRSA.';
 
 /**
- * v8 MLRO Workspace — two tabs (Operational Dashboard, Client Risk View).
+ * v8 Financial Crime Workspace — Operational Dashboard (assurance / exposure lenses).
  * FraudLossPanel is a widget on the Operational Dashboard, not a third tab.
+ * Router id remains mlroWorkspace; persona id remains smf17.
  *
  * Operational Dashboard layout (12-col zones):
  *   A — full-width posture strip
@@ -42,12 +44,11 @@ const MLRO_WALKTHROUGH_LINE =
  *   C — 7/5 Sanctions + Training
  */
 export function MLROWorkspaceV8({ openDrawer, setActiveScreen, setSelectedGSRId }) {
+  const [lens, setLens] = useState(MLRO_DASHBOARD_LENSES[0].id);
   const persona = personas.find((p) => p.id === 'smf17');
   if (!persona) return <EmptyState message="MLRO persona not configured." />;
 
   const fincrimeDomain = RISK_DOMAINS_V4.find((d) => d.id === 'fincrime');
-
-  const [lens, setLens] = useState(MLRO_DASHBOARD_LENSES[0].id);
 
   const fcKRIs = (kris || []).filter((k) => {
     const r = (risks || []).find((rr) => rr.id === k.riskId);

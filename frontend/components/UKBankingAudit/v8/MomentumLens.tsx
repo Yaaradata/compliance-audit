@@ -5,7 +5,7 @@
  * Observed = solid (stated); projection = dotted (inferred). No chart library.
  */
 import { useState } from "react";
-import { RISK_DOMAINS_V4 as BASE_DOMAINS } from "@/lib/ukbankingaudit/riskDomainsV4";
+import { RISK_DOMAINS_V8_BASE as BASE_DOMAINS } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
 import { REVIEW_DATES } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
 import { AS_OF, getOwnershipState } from "@/lib/ukbankingaudit/v8/ownershipData";
 import {

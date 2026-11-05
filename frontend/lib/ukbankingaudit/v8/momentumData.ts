@@ -6,7 +6,7 @@
  * current KRI value on riskDomainsV4. Projection is deterministic least-squares
  * over the trailing three periods only — no ML (PRA SS1/23 model governance).
  */
-import { RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/riskDomainsV4";
+import { RISK_DOMAINS_V8_BASE as RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
 import { REVIEW_DATES } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
 
 export type KriHistory = {

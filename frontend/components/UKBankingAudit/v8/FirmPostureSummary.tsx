@@ -1,8 +1,11 @@
 "use client";
 
 import { DOMAIN_EVIDENCE, RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
+import type { FirmBannerView } from "@/lib/ukbankingaudit/v8/boardView";
 import type { StatusEvidence } from "@/lib/ukbankingaudit/v8/types";
 import { RAG_STYLES } from "./ragTokens";
+import { RatingTrendChip } from "./RatingTrendChip";
+import { PreviousAndNow, RatingTrend } from "./TrendCharts";
 import type { RagStatus } from "./types";
 
 /** RAG status of the target a StatusEvidence row describes (sub-category if set, else domain). */
@@ -20,9 +23,6 @@ const UNEVIDENCED_GREEN = DOMAIN_EVIDENCE.filter(
   (e) => e.cadenceSource === "human-confirmed" && e.artefactId === null && statusOfEvidence(e) === "GREEN",
 ).length;
 
-const GREEN_DOMAINS = RISK_DOMAINS_V4.filter((d) => d.status === "GREEN").length;
-const TOTAL_DOMAINS = RISK_DOMAINS_V4.length;
-
 export function RagBadge({ status }: { status: RagStatus }) {
   const band = status === "RED" ? "red" : status === "AMBER" ? "amber" : "green";
   const rag = RAG_STYLES[band];
@@ -36,28 +36,66 @@ export function RagBadge({ status }: { status: RagStatus }) {
 }
 
 export function FirmPostureBanner({
-  status,
-  narrative,
+  banner,
+  onOpenCategory,
+  onOpenAssurance,
 }: {
-  status: RagStatus;
-  narrative: string;
+  banner: FirmBannerView;
+  onOpenCategory: (categoryId: string) => void;
+  onOpenAssurance: () => void;
 }) {
-  const band = status === "RED" ? "red" : status === "AMBER" ? "amber" : "green";
-  const rag = RAG_STYLES[band];
+  const rag = RAG_STYLES[banner.colour];
   return (
-    <div className={`rounded-xl border-[1.5px] p-5 ${rag.bg} ${rag.border}`}>
-      <div className="mb-2.5 flex items-center gap-3">
+    <div className={`grid gap-x-6 gap-y-3 rounded-2xl border-[1.5px] p-4 sm:grid-cols-[minmax(0,1fr)_15rem] ${rag.bg} ${rag.border}`}>
+      <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className={`h-3.5 w-3.5 rounded-full ${rag.dot}`} />
         <span className={`text-[11px] font-bold uppercase tracking-widest ${rag.text}`}>
           Firm Risk Posture
         </span>
-        <span className={`text-2xl font-extrabold tracking-tight ${rag.text}`}>{status}</span>
+        <span className={`text-2xl font-extrabold tracking-tight ${rag.text}`}>
+          {banner.colour.toUpperCase()}
+        </span>
+        <RatingTrendChip trend={banner.trend} showText />
       </div>
-      <p className="max-w-4xl text-sm leading-relaxed text-slate-700">{narrative}</p>
-      <p className="mt-2 max-w-4xl text-[13px] font-semibold text-slate-600">
-        {GREEN_DOMAINS} of {TOTAL_DOMAINS} domains GREEN · {UNEVIDENCED_GREEN} of those have no evidence
-        artefact within cadence.
-      </p>
+      <p className="mt-1.5 text-xs text-slate-500">Rule: {banner.ruleDescription}</p>
+
+      {banner.drivingCategories.length > 0 ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-[13px] font-semibold text-slate-700">Driven by:</span>
+          {banner.drivingCategories.map((category) => {
+            const chip = RAG_STYLES[category.colour];
+            return (
+              <button
+                key={category.categoryId}
+                type="button"
+                onClick={() => onOpenCategory(category.categoryId)}
+                className={`rounded-full border bg-white px-2.5 py-1 text-xs font-semibold transition hover:shadow-sm ${chip.border} ${chip.text}`}
+              >
+                {category.label} — {category.colour.toUpperCase()}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {banner.assuranceGapCategoryIds.length > 0 ? (
+        <p className="mt-3 text-[13px] font-semibold text-slate-600">
+          Assurance:{" "}
+          <button
+            type="button"
+            onClick={onOpenAssurance}
+            className="font-semibold text-indigo-700 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-900"
+          >
+            {banner.assuranceText}
+          </button>
+        </p>
+      ) : null}
+      </div>
+      <div className="min-w-0 self-center">
+        <RatingTrend points={banner.history} heightClass="h-14" />
+        <PreviousAndNow points={banner.history} />
+      </div>
     </div>
   );
 }

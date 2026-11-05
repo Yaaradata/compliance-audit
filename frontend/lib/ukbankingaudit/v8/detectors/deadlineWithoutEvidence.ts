@@ -8,7 +8,7 @@
  *
  * v4's cyber tile carries `deadline: "RED UNTIL 18-JUL"` — a display string that
  * nothing evaluates. Here it is evaluated, honestly: with the evaluation clock at
- * 2026-07-10 the 18-Jul deadline has NOT passed, so this detector is silent. A
+ * 2026-11-05 the 13-Nov deadline has NOT passed, so this detector is silent. A
  * pack that names its own blind spot is more credible than one that claims to see
  * everything.
  */

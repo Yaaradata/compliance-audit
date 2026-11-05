@@ -52,7 +52,7 @@ export type CadenceFeasibilityCheck = {
 export const UK_RULE_CONFIG_CHANGES: UkRuleConfigChange[] = [
   {
     ruleId: "TM-R17",
-    ts: "2026-03-03T09:41:00Z",
+    ts: "2026-06-29T09:41:00Z",
     diff: "threshold £250k → £1m",
     direction: "less-sensitive",
     approver: "A. Whitfield",
@@ -61,7 +61,7 @@ export const UK_RULE_CONFIG_CHANGES: UkRuleConfigChange[] = [
   },
   {
     ruleId: "TM-R42",
-    ts: "2026-02-12T14:20:00Z",
+    ts: "2026-06-10T14:20:00Z",
     diff: "model uplift v2.3 → v2.4 (quarterly recalibration)",
     direction: "more-sensitive",
     approver: "M. Chen",
@@ -208,7 +208,7 @@ export const MLRO_SCREENING_CLAIMS: ScreeningDenominatorClaim[] = [
     coveragePct: 99.94,
     listName: "HM Treasury Consolidated List (full extract)",
     populationLabel: "1,284,732 outbound and inbound payment messages",
-    asOfDate: "2026-04-30",
+    asOfDate: "2026-08-26",
     populationDefined: true,
   },
   {
@@ -217,7 +217,7 @@ export const MLRO_SCREENING_CLAIMS: ScreeningDenominatorClaim[] = [
     coveragePct: null,
     listName: null,
     populationLabel: null,
-    asOfDate: "2026-04-30",
+    asOfDate: "2026-08-26",
     populationDefined: false,
   },
   {
@@ -226,7 +226,7 @@ export const MLRO_SCREENING_CLAIMS: ScreeningDenominatorClaim[] = [
     coveragePct: 99.9,
     listName: "HM Treasury Consolidated List",
     populationLabel: "active customer population",
-    asOfDate: "2026-04-30",
+    asOfDate: "2026-08-26",
     populationDefined: false,
   },
 ];

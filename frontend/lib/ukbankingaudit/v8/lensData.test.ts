@@ -27,7 +27,7 @@ import {
 } from "@/lib/ukbankingaudit/v8/momentumData";
 
 test("ownership states at AS_OF match the seeded trail ages", () => {
-  assert.equal(AS_OF, "2026-07-23");
+  assert.equal(AS_OF, "2026-11-05");
   assert.equal(OWNERSHIP_TRAIL.length, 9);
 
   const expect: Record<string, { state: string; days: number | null }> = {

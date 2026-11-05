@@ -39,7 +39,7 @@ test("a valid disposition writes { actorId, reason, ts }", () => {
 
 test("accept requires both a reason and an expiry", () => {
   assert.equal(recordDisposition({ ...base, kind: "accept", expiry: "" }).ok, false);
-  assert.equal(recordDisposition({ ...base, kind: "accept", expiry: "2026-12-31" }).ok, true);
+  assert.equal(recordDisposition({ ...base, kind: "accept", expiry: "2027-04-28" }).ok, true);
 });
 
 test("internal audit may never acknowledge", () => {

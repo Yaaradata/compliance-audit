@@ -1,6 +1,6 @@
 "use client";
 
-import { CRSA_DATA } from "@/lib/ukbankingaudit/riskDomainsV4";
+import { CRSA_DATA } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
 import { RAG_STYLES } from "./ragTokens";
 import type { CrsaControl } from "./types";
 

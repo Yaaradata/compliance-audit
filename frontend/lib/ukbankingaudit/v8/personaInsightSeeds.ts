@@ -11,7 +11,7 @@ import type { AIInsightV6 } from "./aiContract";
 
 export const PERSONA_INSIGHT_MINIMUM = 5;
 
-const GENERATED_AT = "2026-07-10T00:00:00.000Z";
+const GENERATED_AT = "2026-11-05T00:00:00.000Z";
 
 export const V6_PERSONA_INSIGHTS = [
   // ── CRO (SMF4) ─────────────────────────────────────────────────────────
@@ -20,10 +20,10 @@ export const V6_PERSONA_INSIGHTS = [
     type: "appetite_headroom",
     title: "Liquidity remains compliant but internal headroom narrowed",
     summary:
-      "June LCR is 148%, above the 100% regulatory minimum. The management buffer has narrowed for three consecutive reviews, so the next Board pack should distinguish regulatory compliance from internal appetite headroom.",
+      "October LCR is 148%, above the 100% regulatory minimum. The management buffer has narrowed for three consecutive reviews, so the next Board pack should distinguish regulatory compliance from internal appetite headroom.",
     derivation: "RULE",
     confidenceBand: "high",
-    confidenceBasis: "June LCR return compared with the internal management-buffer trend.",
+    confidenceBasis: "October LCR return compared with the internal management-buffer trend.",
     severity: "medium",
     modelId: "liquidity-headroom",
     modelVersion: "1.0.0",
@@ -36,12 +36,12 @@ export const V6_PERSONA_INSIGHTS = [
       {
         type: "evidence",
         id: "EVID-LIQ-LCR-2026-06",
-        label: "June 2026 LCR regulatory return",
+        label: "October 2026 LCR regulatory return",
       },
     ],
     counterfactual:
       "If the management buffer returns to its Q1 level, escalation remains unnecessary despite the unchanged regulatory floor.",
-    inputsNotSeen: ["July wholesale funding execution", "Latest deposit concentration forecast"],
+    inputsNotSeen: ["November wholesale funding execution", "Latest deposit concentration forecast"],
     humanActionStatus: "review_at_next_board",
     independenceLineage: {
       inputsFromLOD1: true,

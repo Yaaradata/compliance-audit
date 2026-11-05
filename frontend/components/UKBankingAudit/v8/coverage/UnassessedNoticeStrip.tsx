@@ -19,7 +19,7 @@ export function UnassessedNoticeStrip({ notices, onOpenEvidence }: Props) {
   const summary = unassessedNoticeSummary(notices);
   if (summary.totalReaching === 0) return null;
 
-  const copy = `${summary.totalReaching} enforcement notice${summary.totalReaching === 1 ? "" : "s"} published in the last 12 months reach controls you own. ${summary.unassessedCount} have never been assessed for applicability. Oldest: ${summary.oldestDays} days.`;
+  const copy = `${summary.totalReaching} enforcement notice${summary.totalReaching === 1 ? "" : "s"} published in the last 18 months reach controls you own. ${summary.unassessedCount} have never been assessed for applicability. Oldest: ${summary.oldestDays} days.`;
 
   return (
     <section className="rounded-xl border border-rose-200 bg-rose-50/50 p-4 shadow-sm">

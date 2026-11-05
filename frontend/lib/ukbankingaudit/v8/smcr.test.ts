@@ -17,7 +17,7 @@ describe("smcrPrecedentAwareness", () => {
     const rows = precedentsSinceAttestation({
       smfId: "SMF4-MARK-X",
       smfFunction: "SMF4",
-      lastAttestationDate: "2026-04-23",
+      lastAttestationDate: "2026-08-19",
       accountableControlIds: [],
     });
     assert.ok(rows.length >= 4);
@@ -30,8 +30,8 @@ describe("smcrStanding", () => {
     const gaps = standingAwarenessGaps({
       smfId: "SMF17-PRIYA-PATEL",
       smfFunction: "SMF17",
-      lastAttestationDate: "2026-03-31",
-      nextAttestationDue: "2026-06-29",
+      lastAttestationDate: "2026-07-27",
+      nextAttestationDue: "2026-10-25",
       trail: [],
       issues: [
         {

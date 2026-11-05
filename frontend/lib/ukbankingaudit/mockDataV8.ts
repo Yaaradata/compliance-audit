@@ -1,8 +1,9 @@
 /**
- * UK Banking Audit v8 — v7 mock graph plus v8-only operational overlays.
- * Does not edit mockDataV2 (shared by v2–v6) or mockDataV7.
+ * UK Banking Audit v8 — v6 mock graph plus v8-only operational overlays.
+ * Does not edit mockDataV2 (shared by v2–v6).
  */
-import mockDataV7 from "@/lib/ukbankingaudit/mockDataV7";
+import mockDataV6Shared from "@/lib/ukbankingaudit/mockDataV6";
+import { refreshSharedData } from "@/lib/ukbankingaudit/v8/dateRefresh";
 import {
   ALERT_TIER_APPETITES,
   EDD_PAST_DUE_APPETITE,
@@ -15,13 +16,68 @@ import {
 } from "@/lib/ukbankingaudit/v8/mlroOperationalData";
 import { TM_INVESTIGATIONS_SAR_CONVERSION } from "@/lib/ukbankingaudit/v8/exposureData";
 
-const amlAlertTiersByWeek = buildAmlAlertTiersByWeek(mockDataV7.amlAlertsByWeek);
+/** Shared graph on the v8 reporting clock. The shared file itself is not edited. */
+const mockDataV6 = refreshSharedData(mockDataV6Shared);
+
+type PersonaDisplay = {
+  label: string;
+  smfDesignation: string;
+};
+
+/**
+ * v8-only persona label overlay. Ids stay smf17 / mlroWorkspace (router keys).
+ * v6 keeps "MLRO (SMF17)" via mockDataV6.
+ */
+const PERSONA_DISPLAY: Record<string, PersonaDisplay> = {
+  smf17: {
+    label: "Head of Financial Crime (SMF17)",
+    smfDesignation: "SMF17",
+  },
+};
+
+const personas = (mockDataV6.personas || []).map(
+  (p: { id: string; label?: string; smfDesignation?: string | null }) => {
+    const display = PERSONA_DISPLAY[p.id];
+    if (!display) return p;
+    return {
+      ...p,
+      label: display.label,
+      smfDesignation: display.smfDesignation,
+    };
+  },
+);
+
+type NavItem = { id: string; label: string; screen: string; visibleForPersonas: string[] };
+
+const relabelledNavigation: NavItem[] = (mockDataV6.navigationItems || [])
+  .filter((n: NavItem) => n.screen !== "coverageMap")
+  .map((n: NavItem) => {
+    if (n.screen !== "mlroWorkspace") return n;
+    return { ...n, label: "Financial Crime Workspace" };
+  });
+
+/** v8-only tabs, placed after each persona's own workspace. */
+const V8_TABS: NavItem[] = [
+  { id: "nav-risk-appetite", label: "Risk Appetite", screen: "riskAppetite", visibleForPersonas: ["cro", "smf16", "smf17"] },
+  { id: "nav-controls-incidents", label: "Controls & Incidents", screen: "controlsIncidents", visibleForPersonas: ["cro", "smf16", "smf17"] },
+];
+
+const firstSharedTab = relabelledNavigation.findIndex((n) => n.screen === "monitoringReportBuilder");
+const navigationItems: NavItem[] = [
+  ...relabelledNavigation.slice(0, firstSharedTab),
+  ...V8_TABS,
+  ...relabelledNavigation.slice(firstSharedTab),
+];
+
+const amlAlertTiersByWeek = buildAmlAlertTiersByWeek(mockDataV6.amlAlertsByWeek);
 const sanctionsScreeningMetrics = buildSanctionsScreeningMetricsV8(
-  mockDataV7.sanctionsScreeningMetrics,
+  mockDataV6.sanctionsScreeningMetrics,
 );
 
 export default {
-  ...mockDataV7,
+  ...mockDataV6,
+  personas,
+  navigationItems,
   /** v8-only: EDD past-due appetite / source for Operational Dashboard. */
   eddPastDueAppetite: EDD_PAST_DUE_APPETITE,
   /** v8-only: L1/L2/L3 split of amlAlertsByWeek (tier backlogs sum to openBacklog). */

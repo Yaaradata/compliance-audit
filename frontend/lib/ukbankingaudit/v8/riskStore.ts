@@ -1,0 +1,187 @@
+/**
+ * v8 local risk state, shared across tabs for the session. Path to green saves and
+ * incident links land here, so the engine re-rates every screen from the same records.
+ * Local only: nothing is sent anywhere.
+ */
+import { V8_ENGINE_DATA, type EngineData } from "./engine";
+import type { AuditEntry } from "./dispositions";
+import type { HorizonItem, IncidentControlLink, PathToGreenRecord, SmfRef } from "./types";
+
+export type RiskTrailEvent = {
+  timestamp: string;
+  eventType: "decision" | "escalation" | "acknowledgement";
+  label: string;
+  evidenceId: string;
+  /** The SMF whose Reasonable Steps Trail this belongs on. */
+  smf: SmfRef;
+};
+
+export type RiskState = {
+  data: EngineData;
+  trail: RiskTrailEvent[];
+  /** "Relevant to us?" answers on Horizon Scanning, by horizon item id. */
+  relevance: Record<string, HorizonItem["relevance"]>;
+  /** Investigation decisions recorded on Horizon Scanning, by signal id. */
+  dispositions: Record<string, AuditEntry[]>;
+};
+
+const INITIAL: RiskState = { data: V8_ENGINE_DATA, trail: [], relevance: {}, dispositions: {} };
+
+const STORAGE_KEY = "uk-banking-audit-v8-risk-state";
+
+/** The parts a user can change. Seed records are never stored. */
+type StoredState = Pick<RiskState, "trail" | "relevance" | "dispositions"> & {
+  pathsToGreen: EngineData["pathsToGreen"];
+  links: EngineData["links"];
+};
+
+function loadStored(): RiskState {
+  if (typeof window === "undefined") return INITIAL;
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return INITIAL;
+    const stored = JSON.parse(raw) as StoredState;
+    return {
+      data: { ...V8_ENGINE_DATA, pathsToGreen: stored.pathsToGreen, links: stored.links },
+      trail: stored.trail,
+      relevance: stored.relevance,
+      dispositions: stored.dispositions,
+    };
+  } catch {
+    return INITIAL;
+  }
+}
+
+function saveStored(next: RiskState): void {
+  if (typeof window === "undefined") return;
+  try {
+    const stored: StoredState = {
+      pathsToGreen: next.data.pathsToGreen,
+      links: next.data.links,
+      trail: next.trail,
+      relevance: next.relevance,
+      dispositions: next.dispositions,
+    };
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // Storage can be blocked. The session still works, it just will not survive a reload.
+  }
+}
+
+let state: RiskState = loadStored();
+const listeners = new Set<() => void>();
+
+function setState(next: RiskState): void {
+  state = next;
+  saveStored(next);
+  for (const listener of listeners) listener();
+}
+
+export function getRiskState(): RiskState {
+  return state;
+}
+
+export function getInitialRiskState(): RiskState {
+  return INITIAL;
+}
+
+export function subscribeRisk(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function resetRiskStore(): void {
+  setState(INITIAL);
+}
+
+function categoryIdOf(path: Pick<PathToGreenRecord, "targetType" | "targetId">, data: EngineData) {
+  if (path.targetType === "ram") return data.rams.find((r) => r.id === path.targetId)?.categoryId;
+  if (path.targetType === "control") return data.controls.find((c) => c.id === path.targetId)?.categoryId;
+  return data.incidents.find((i) => i.id === path.targetId)?.categoryId;
+}
+
+/** Items in a category with no allocated SMF sit with the CRO, who oversees all of them. */
+function accountableSmf(path: PathToGreenRecord, data: EngineData): SmfRef {
+  if (path.targetType === "control") {
+    const own = data.controls.find((c) => c.id === path.targetId)?.smf;
+    if (own) return own;
+  }
+  const categoryId = categoryIdOf(path, data);
+  return (
+    data.rams.find((r) => r.categoryId === categoryId && r.smf)?.smf ??
+    data.controls.find((c) => c.categoryId === categoryId && c.smf)?.smf ??
+    "SMF4"
+  );
+}
+
+/** What a save means for SM&CR evidence. Pure, so the mapping can be tested directly. */
+export function trailEventsForSave(
+  previous: PathToGreenRecord | undefined,
+  next: PathToGreenRecord,
+  smf: SmfRef,
+  timestamp: string,
+): RiskTrailEvent[] {
+  const base = { timestamp, evidenceId: next.id, smf };
+  const events: RiskTrailEvent[] = [];
+  if (next.secondLineVerdict !== previous?.secondLineVerdict) {
+    const who = next.secondLineReviewer ? ` by ${next.secondLineReviewer}` : "";
+    if (next.secondLineVerdict === "challenged") {
+      events.push({ ...base, eventType: "escalation", label: `Path to green for ${next.targetId} challenged${who}` });
+    }
+    if (next.secondLineVerdict === "accepted") {
+      events.push({ ...base, eventType: "acknowledgement", label: `Path to green for ${next.targetId} accepted${who}` });
+    }
+  }
+  if (next.committeeDecision !== previous?.committeeDecision && next.committeeDecision !== "pending") {
+    const decision = next.committeeDecision.replace("_", " ");
+    events.push({
+      ...base,
+      eventType: next.committeeDecision === "sent_back" ? "escalation" : "decision",
+      label: `${next.committee} decision on ${next.targetId}: ${decision}`,
+    });
+  }
+  if (events.length === 0) {
+    events.push({ ...base, eventType: "decision", label: `Path to green for ${next.targetId} updated by ${next.owner}` });
+  }
+  return events;
+}
+
+/** Record the "Relevant to us?" answer for a horizon item. */
+export function setHorizonRelevance(itemId: string, relevance: HorizonItem["relevance"]): void {
+  setState({ ...state, relevance: { ...state.relevance, [itemId]: relevance } });
+}
+
+/** Record an investigation decision against a signal. */
+export function addDisposition(entry: AuditEntry): void {
+  const existing = state.dispositions[entry.signalId] ?? [];
+  setState({ ...state, dispositions: { ...state.dispositions, [entry.signalId]: [...existing, entry] } });
+}
+
+/** Add or replace an incident's link to a control; the engine re-rates from it. */
+export function linkIncidentToControl(link: IncidentControlLink, now: string = new Date().toISOString()): void {
+  const { data, trail } = state;
+  const links = [
+    ...data.links.filter((l) => !(l.incidentId === link.incidentId && l.controlId === link.controlId)),
+    link,
+  ];
+  const smf = data.controls.find((c) => c.id === link.controlId)?.smf ?? "SMF4";
+  const event: RiskTrailEvent = {
+    timestamp: now,
+    eventType: link.controlWorked === "failed" ? "escalation" : "decision",
+    label: `${link.incidentId} linked to control ${link.controlId}: ${link.controlWorked}`,
+    evidenceId: link.incidentId,
+    smf,
+  };
+  setState({ ...state, data: { ...data, links }, trail: [event, ...trail] });
+}
+
+/** Add or replace a path to green, and record the save on the trail. */
+export function savePathToGreen(record: PathToGreenRecord, now: string = new Date().toISOString()): void {
+  const { data, trail } = state;
+  const previous = data.pathsToGreen.find((p) => p.id === record.id);
+  const pathsToGreen = previous
+    ? data.pathsToGreen.map((p) => (p.id === record.id ? record : p))
+    : [...data.pathsToGreen, record];
+  const events = trailEventsForSave(previous, record, accountableSmf(record, data), now);
+  setState({ ...state, data: { ...data, pathsToGreen }, trail: [...events, ...trail] });
+}

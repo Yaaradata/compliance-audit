@@ -9,7 +9,12 @@ import {
   SIGNED_WITHOUT_PACK,
 } from "./crsaAttestation";
 import { CADENCE_FEASIBILITY_CHECKS, MLRO_SCREENING_CLAIMS } from "./mlroSignals";
+import { CONTROLS, CONTROL_TESTS } from "./data/controls";
+import { HORIZON_ITEMS } from "./data/horizon";
+import { INCIDENTS, INCIDENT_CONTROL_LINKS } from "./data/incidents";
+import { RAMS, RAM_VALUES } from "./data/rams";
 import { PRECEDENTS } from "./precedentCorpus";
+import { getRiskState } from "./riskStore";
 
 export type DerivationKind = "RULE" | "LLM";
 
@@ -28,7 +33,7 @@ export type ResolvedDerivation = DerivationRecord & {
   missing?: boolean;
 };
 
-const EVALUATED_AT = "2026-07-10T00:00:00.000Z";
+const EVALUATED_AT = "2026-11-05T00:00:00.000Z";
 
 const UK_COUNT = PRECEDENTS.filter((p) => p.jurisdiction === "UK").length;
 const UK_VERIFIED = PRECEDENTS.filter((p) => p.jurisdiction === "UK" && p.confidence === "verified").length;
@@ -44,7 +49,7 @@ const STATIC: Record<string, DerivationRecord> = {
     inputs: [
       { label: "Records in corpus", value: String(UK_COUNT) },
       { label: "Jurisdiction", value: "UK" },
-      { label: "Last curated", value: "2026-07-10" },
+      { label: "Last curated", value: "2026-11-05" },
     ],
     output: `${UK_COUNT} UK records. ${UK_VERIFIED} verified, ${UK_PROBABLE} probable, ${UK_UNVERIFIED} unverified.`,
     version: "precedent-corpus@1.0.0",
@@ -313,9 +318,107 @@ function kriBreach(domainId: string): DerivationRecord {
 }
 
 /** Resolve a derivation id. Always returns a record — missing entries are flagged. */
+/** v8 risk records (incidents, control tests, metrics) shown as the basis of a board line. */
+function riskRecord(id: string): DerivationRecord | null {
+  const horizon = HORIZON_ITEMS.find((h) => h.id === id);
+  if (horizon) {
+    return {
+      kind: "RULE",
+      question: horizon.title,
+      method: "External item added to the horizon scan from a published source.",
+      inputs: [
+        { label: "Source", value: horizon.source },
+        { label: "Date", value: horizon.date },
+        { label: "Link", value: horizon.sourceUrl || "None" },
+      ],
+      output: horizon.summary,
+      version: "horizon-scan@1.0.0",
+      evaluatedAt: EVALUATED_AT,
+    };
+  }
+  const path = getRiskState().data.pathsToGreen.find((p) => p.id === id);
+  if (path) {
+    return {
+      kind: "RULE",
+      question: `Path to green for ${path.targetId}`,
+      method: "First line plan, second line view and committee decision, as recorded on this path to green.",
+      inputs: [
+        { label: "Cause", value: path.cause },
+        { label: "Owner", value: path.owner },
+        { label: "Target date", value: path.targetDate },
+        { label: "2nd line", value: path.secondLineVerdict },
+        { label: "Committee", value: `${path.committee}: ${path.committeeDecision.replace("_", " ")}` },
+      ],
+      output: path.actions.join(" ") || "No actions recorded.",
+      version: "path-to-green@1.0.0",
+      evaluatedAt: EVALUATED_AT,
+    };
+  }
+  const incident = INCIDENTS.find((i) => i.id === id);
+  if (incident) {
+    return {
+      kind: "RULE",
+      question: incident.title,
+      method: "Incident register entry, with each linked control and whether it worked.",
+      inputs: [
+        { label: "Severity", value: incident.severity },
+        { label: "Date", value: incident.date },
+        { label: "Status", value: incident.status },
+        { label: "Owner", value: incident.owner },
+        ...INCIDENT_CONTROL_LINKS.filter((l) => l.incidentId === id).map((l) => ({
+          label: `Control ${l.controlId}`,
+          value: l.controlWorked,
+        })),
+      ],
+      output: incident.impact,
+      version: "incident-register@1.0.0",
+      evaluatedAt: EVALUATED_AT,
+    };
+  }
+  const test = CONTROL_TESTS.find((t) => t.evidenceId === id);
+  if (test) {
+    const control = CONTROLS.find((c) => c.id === test.controlId);
+    return {
+      kind: "RULE",
+      question: `${test.controlId}: ${control?.name ?? "Control test"}`,
+      method: "Control test result recorded by the second line.",
+      inputs: [
+        { label: "Result", value: test.result.replace("_", " ") },
+        { label: "Date", value: test.date },
+        { label: "Tester", value: test.tester },
+      ],
+      output: test.reason,
+      version: "control-test@1.0.0",
+      evaluatedAt: EVALUATED_AT,
+    };
+  }
+  const ram = RAMS.find((r) => r.id === id);
+  if (ram) {
+    const values = RAM_VALUES.filter((v) => v.ramId === id);
+    return {
+      kind: "RULE",
+      question: ram.name,
+      method: "Metric value compared with its limit (amber) and tolerance (red).",
+      inputs: [
+        { label: "Limit", value: `${ram.limit} ${ram.unit}` },
+        { label: "Tolerance", value: `${ram.tolerance} ${ram.unit}` },
+        { label: "Owner", value: ram.owner },
+        ...values.map((v) => ({ label: v.period, value: `${v.value} ${ram.unit}` })),
+      ],
+      output: `Latest value ${values.at(-1)?.value ?? "not recorded"} ${ram.unit}.`,
+      version: "ram-threshold@1.0.0",
+      evaluatedAt: EVALUATED_AT,
+    };
+  }
+  return null;
+}
+
 export function getDerivation(id: string): ResolvedDerivation {
   const staticHit = STATIC[id];
   if (staticHit) return { id, ...staticHit };
+
+  const risk = riskRecord(id);
+  if (risk) return { id, ...risk };
 
   if (id.startsWith("LLM-CLAIM-")) {
     return { id, ...llmClaim(id.slice("LLM-CLAIM-".length)) };

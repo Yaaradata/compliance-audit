@@ -19,6 +19,7 @@ export function v8RefKind(ref: string): V8RefKind {
   if (/^APPETITE-BREACH-/.test(ref)) return "derivation";
   if (/^EVID-/.test(ref)) return "statusEvidence";
   if (/^[A-Z]{3,4}\.\d{2}\.\d{2}\.\d{2}$/.test(ref)) return "crsaRef";
+  if (/^(EV-CT-|INC-|RAM-|RATING-)/.test(ref)) return "derivation"; // v8 risk records
   if (/^EV-/.test(ref)) return "evidence"; // real v2 record
   if (/^KRI-/.test(ref)) return "kri";
   if (/^[A-Z]{2,4}-C\d{3}$/.test(ref)) return "control";

@@ -21,6 +21,9 @@ export const BOARD_SIGNAL_TITLES = [
   "Breach Without a Plan",
   "Accountability Orphan",
   "Deadline Without Evidence",
+  "Enforcement Notice",
+  "Industry Event",
+  "Emerging Risk",
 ] as const;
 
 export type BoardSignalTitle = (typeof BOARD_SIGNAL_TITLES)[number];
@@ -125,4 +128,115 @@ export type BoardSignal = {
   alternativeExplanation: string;   // hand-authored per detector. NEVER generated.
   trigger: string;                  // the predicate, in readable form
   claims?: BoardClaim[];            // present only on split (LLM + RULE) signals
+};
+
+// ─── v8 risk model: appetite, controls, incidents, paths to green, horizon ───
+
+/** Month key, for example "2026-11". */
+export type Period = string;
+export type RatingColour = "green" | "amber" | "red";
+export type SmfRef = "SMF2" | "SMF4" | "SMF5" | "SMF16" | "SMF17" | "SMF24";
+export type CommitteeName = "Board Risk Committee" | "Executive Risk Committee";
+
+/** Risk appetite metric. `limit` is the amber threshold, `tolerance` the red one. */
+export type RAM = {
+  id: string;
+  name: string;
+  categoryId: string;
+  unit: string;
+  limit: number;
+  tolerance: number;
+  direction: "higherIsWorse" | "lowerIsWorse";
+  zeroTolerance: boolean;
+  /** First-line risk owner. */
+  owner: string;
+  /** Accountable SMF. Absent where the domain has no allocated SMF. */
+  smf?: SmfRef;
+};
+
+export type RAMValue = { ramId: string; period: Period; value: number };
+
+export type ControlResult = "effective" | "partially_effective" | "not_effective";
+
+export type RatedControl = {
+  id: string;
+  name: string;
+  categoryId: string;
+  tier: "critical" | "secondary";
+  testFrequency: "monthly" | "quarterly";
+  owner: string;
+  smf?: SmfRef;
+};
+
+export type ControlTest = {
+  controlId: string;
+  date: string;
+  result: ControlResult;
+  tester: string;
+  /** null means the test has no evidence artefact this cycle. */
+  evidenceId: string | null;
+  reason: string;
+};
+
+export type Incident = {
+  id: string;
+  date: string;
+  title: string;
+  /** Client label, mapped to `level` by config severityLabels. */
+  severity: string;
+  level: 1 | 2 | 3;
+  categoryId: string;
+  impact: string;
+  owner: string;
+  status: "open" | "closed";
+};
+
+export type IncidentControlLink = {
+  incidentId: string;
+  controlId: string;
+  controlWorked: "worked" | "failed" | "partial";
+};
+
+export type RatingDriver = { type: "ram" | "control" | "incident"; id: string; label: string };
+
+export type RatingSnapshot = {
+  /** Category id, or "firm". */
+  entity: string;
+  period: Period;
+  colour: RatingColour;
+  drivers: RatingDriver[];
+};
+
+/**
+ * Governed path to green for one red or amber item. Named Record because
+ * pathToGreen.ts already exports the older PathToGreen remediation plan shape.
+ */
+export type PathToGreenRecord = {
+  id: string;
+  targetType: "ram" | "control" | "incident";
+  targetId: string;
+  cause: string;
+  actions: string[];
+  owner: string;
+  targetDate: string;
+  horizon: "1m" | "3m" | "6m" | "12m";
+  secondLineVerdict: "pending" | "accepted" | "challenged";
+  secondLineReviewer: string | null;
+  secondLineComment: string | null;
+  committee: CommitteeName;
+  committeeDecision: "pending" | "accepted" | "sent_back" | "bring_forward";
+  decisionDate: string | null;
+};
+
+export type HorizonItem = {
+  id: string;
+  type: "regulatory" | "industry" | "emerging";
+  title: string;
+  source: string;
+  sourceUrl: string;
+  date: string;
+  summary: string;
+  relevance: "not_assessed" | "yes" | "no";
+  categoryId: string;
+  owner?: string;
 };

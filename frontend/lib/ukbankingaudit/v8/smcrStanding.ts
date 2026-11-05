@@ -75,7 +75,7 @@ export function standingAwarenessGaps(input: {
     lastAttestationDate: input.lastAttestationDate,
     nextAttestationDue: input.nextAttestationDue,
   });
-  const asOf = input.asOf ?? "2026-04-30";
+  const asOf = input.asOf ?? "2026-08-26";
   const asOfMs = Date.parse(`${asOf}T00:00:00.000Z`);
   const ownedCrsas = new Set(crsaRefForSmf(input.smfFunction));
   const gaps: StandingAwarenessGap[] = [];

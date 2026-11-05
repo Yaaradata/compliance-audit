@@ -30,7 +30,7 @@ function baseSignal(overrides: Partial<BoardSignal>): BoardSignal {
     derivation: "RULE",
     confidence: { level: "high", basis: "artefactId is null on an armed domain" },
     detectionVersion: "green-without-evidence@1.0.0",
-    evaluatedAt: "2026-07-10T00:00:00.000Z",
+    evaluatedAt: "2026-11-05T00:00:00.000Z",
     accountability: {
       regime: "UK",
       smf: "SMF17",
