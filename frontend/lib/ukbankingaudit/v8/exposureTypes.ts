@@ -26,9 +26,12 @@ export type ExposureCount = {
   sourceLabel: string; // "KYC system · CRR module" — provenance, STATED
 };
 
+export type ExitCandidateDivision = "corporate" | "sme" | "private" | "cross-division";
+
 export type ExitCandidateCluster = {
   id: string;
   label: string; // "Trade-finance / MENA corridor"
+  division: ExitCandidateDivision;
   highRiskWeightPct: number; // this cluster's share of the high band
   contributionToBreachPct: number; // how much of the appetite breach it drives
   clientCount: number;

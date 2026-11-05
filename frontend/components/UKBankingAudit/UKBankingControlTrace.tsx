@@ -1328,7 +1328,7 @@ const ExpandSampleButton = ({ lineId, currentMode, onExpand }) => (
 function screenBackLabel(screen, variant) {
   switch (screen) {
     case "mlroWorkspace":
-      return variant === "v7" ? "Financial Crime Workspace" : "MLRO Workspace";
+      return variant === "v7" || variant === "v8" ? "Financial Crime Workspace" : "MLRO Workspace";
     case "crsaCycleCockpit":
       return "CRSA Cycle Cockpit";
     case "controlUniverse":

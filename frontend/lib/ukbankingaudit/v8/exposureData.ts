@@ -111,54 +111,56 @@ export const TM_INVESTIGATIONS_SAR_CONVERSION = {
   sourceLabel: "Transaction Monitoring · SAR conversion tracker",
 };
 
+/**
+ * Fincrime exit clusters — Saurabh's division classification.
+ * legacy-pre-2022-kyc removed (too firm-specific). Remaining contributions were
+ * 27+22+19+15+11 = 94; renormalised proportionally to sum to 100 (29/23/20/16/12).
+ */
 const FINCRIME_EXIT_CANDIDATES: ExitCandidateCluster[] = [
   {
     id: "trade-finance-mena",
     label: "Trade-finance / MENA corridor",
+    division: "corporate",
     highRiskWeightPct: 4.1,
-    contributionToBreachPct: 27,
+    contributionToBreachPct: 29,
     clientCount: 109,
     note: "Correspondent exposure concentrated in higher-risk trade corridors.",
   },
   {
     id: "correspondent-banking",
     label: "Correspondent banking",
+    division: "corporate",
     highRiskWeightPct: 3.3,
-    contributionToBreachPct: 22,
+    contributionToBreachPct: 23,
     clientCount: 88,
     note: "Nested correspondent relationships with limited beneficial-ownership visibility.",
   },
   {
     id: "cash-intensive-smes",
     label: "High-value cash-intensive SMEs",
+    division: "sme",
     highRiskWeightPct: 2.8,
-    contributionToBreachPct: 19,
+    contributionToBreachPct: 20,
     clientCount: 76,
     note: "Cash-intensive turnover profile elevates source-of-funds risk.",
   },
   {
     id: "complex-ownership-spv",
     label: "Complex ownership structures / offshore SPVs",
+    division: "cross-division",
     highRiskWeightPct: 2.2,
-    contributionToBreachPct: 15,
+    contributionToBreachPct: 16,
     clientCount: 60,
     note: "Layered ownership obscures ultimate beneficial owner.",
   },
   {
     id: "pep-adjacent-private-banking",
     label: "PEP-adjacent private banking relationships",
+    division: "private",
     highRiskWeightPct: 1.6,
-    contributionToBreachPct: 11,
+    contributionToBreachPct: 12,
     clientCount: 44,
     note: "Elevated PEP-adjacency increases enhanced due diligence burden.",
-  },
-  {
-    id: "legacy-pre-2022-kyc",
-    label: "Legacy onboarding pre-2022 KYC standard",
-    highRiskWeightPct: 1.0,
-    contributionToBreachPct: 6,
-    clientCount: 24,
-    note: "Onboarded under a since-superseded CDD standard; refresh in the backlog.",
   },
 ];
 
@@ -237,6 +239,7 @@ const CREDIT_EXPOSURE = available({
     {
       id: "cre-regional-offices",
       label: "Commercial real estate — regional offices",
+      division: "corporate",
       highRiskWeightPct: 6.2,
       contributionToBreachPct: 31,
       clientCount: 48,
@@ -245,6 +248,7 @@ const CREDIT_EXPOSURE = available({
     {
       id: "leveraged-lending-sub-ig",
       label: "Leveraged lending / sub-investment grade",
+      division: "corporate",
       highRiskWeightPct: 4.4,
       contributionToBreachPct: 24,
       clientCount: 22,
@@ -253,6 +257,7 @@ const CREDIT_EXPOSURE = available({
     {
       id: "single-large-corporate-gcc",
       label: "Single large corporate group (GCC)",
+      division: "corporate",
       highRiskWeightPct: 3.9,
       contributionToBreachPct: 21,
       clientCount: 1,
@@ -261,6 +266,7 @@ const CREDIT_EXPOSURE = available({
     {
       id: "uk-residential-btl",
       label: "UK residential BTL portfolio landlords",
+      division: "sme",
       highRiskWeightPct: 2.6,
       contributionToBreachPct: 14,
       clientCount: 63,
@@ -269,6 +275,7 @@ const CREDIT_EXPOSURE = available({
     {
       id: "trade-finance-importer-set",
       label: "Trade-finance to concentrated importer set",
+      division: "corporate",
       highRiskWeightPct: 1.9,
       contributionToBreachPct: 10,
       clientCount: 31,
@@ -337,6 +344,7 @@ const LIQUIDITY_EXPOSURE = available({
     {
       id: "single-corporate-depositor",
       label: "Single corporate depositor >3% liabilities",
+      division: "corporate",
       highRiskWeightPct: 4.0,
       contributionToBreachPct: 34,
       clientCount: 1,
@@ -345,6 +353,7 @@ const LIQUIDITY_EXPOSURE = available({
     {
       id: "short-dated-wholesale",
       label: "Short-dated wholesale funding cluster",
+      division: "corporate",
       highRiskWeightPct: 3.1,
       contributionToBreachPct: 26,
       clientCount: 12,
@@ -353,6 +362,7 @@ const LIQUIDITY_EXPOSURE = available({
     {
       id: "non-operational-fi-deposits",
       label: "Non-operational FI deposits",
+      division: "corporate",
       highRiskWeightPct: 2.4,
       contributionToBreachPct: 21,
       clientCount: 9,
@@ -361,6 +371,7 @@ const LIQUIDITY_EXPOSURE = available({
     {
       id: "brokered-deposit-channel",
       label: "Concentrated brokered-deposit channel",
+      division: "cross-division",
       highRiskWeightPct: 1.3,
       contributionToBreachPct: 19,
       clientCount: 5,
@@ -431,6 +442,7 @@ const CONDUCT_EXPOSURE = available({
     {
       id: "vulnerable-arrears-journeys",
       label: "Vulnerable customers — arrears journeys",
+      division: "cross-division",
       highRiskWeightPct: 4.2,
       contributionToBreachPct: 35,
       clientCount: 1900,
@@ -439,6 +451,7 @@ const CONDUCT_EXPOSURE = available({
     {
       id: "older-digital-only",
       label: "Older customers — digital-only servicing",
+      division: "cross-division",
       highRiskWeightPct: 2.9,
       contributionToBreachPct: 24,
       clientCount: 3400,
@@ -447,6 +460,7 @@ const CONDUCT_EXPOSURE = available({
     {
       id: "low-income-high-cost",
       label: "Low-income — high-cost products",
+      division: "cross-division",
       highRiskWeightPct: 2.4,
       contributionToBreachPct: 21,
       clientCount: 2600,
@@ -455,6 +469,7 @@ const CONDUCT_EXPOSURE = available({
     {
       id: "bereaved-account-transitions",
       label: "Recently bereaved — account transitions",
+      division: "cross-division",
       highRiskWeightPct: 1.5,
       contributionToBreachPct: 20,
       clientCount: 480,
@@ -523,6 +538,7 @@ const OPSRES_EXPOSURE = available({
     {
       id: "single-cloud-6-ibs",
       label: "Single cloud provider underpinning 6 IBS",
+      division: "cross-division",
       highRiskWeightPct: 5.0,
       contributionToBreachPct: 38,
       clientCount: 6,
@@ -531,6 +547,7 @@ const OPSRES_EXPOSURE = available({
     {
       id: "core-banking-no-substitute",
       label: "Core-banking platform (no substitute)",
+      division: "cross-division",
       highRiskWeightPct: 3.4,
       contributionToBreachPct: 27,
       clientCount: 1,
@@ -539,6 +556,7 @@ const OPSRES_EXPOSURE = available({
     {
       id: "payments-processor-spof",
       label: "Payments processor single dependency",
+      division: "cross-division",
       highRiskWeightPct: 2.2,
       contributionToBreachPct: 21,
       clientCount: 1,
@@ -547,6 +565,7 @@ const OPSRES_EXPOSURE = available({
     {
       id: "kyc-screening-saas",
       label: "KYC/screening SaaS single vendor",
+      division: "cross-division",
       highRiskWeightPct: 1.4,
       contributionToBreachPct: 14,
       clientCount: 1,
@@ -615,6 +634,7 @@ const MARKET_EXPOSURE = available({
     {
       id: "rates-single-tenor",
       label: "Rates desk — single tenor bucket",
+      division: "cross-division",
       highRiskWeightPct: 3.6,
       contributionToBreachPct: 40,
       clientCount: 1,
@@ -623,6 +643,7 @@ const MARKET_EXPOSURE = available({
     {
       id: "fx-options-vega",
       label: "FX options — concentrated vega",
+      division: "cross-division",
       highRiskWeightPct: 2.4,
       contributionToBreachPct: 33,
       clientCount: 1,
@@ -631,6 +652,7 @@ const MARKET_EXPOSURE = available({
     {
       id: "credit-spread-single-name",
       label: "Credit-spread single-name cluster",
+      division: "cross-division",
       highRiskWeightPct: 1.9,
       contributionToBreachPct: 27,
       clientCount: 1,
@@ -690,6 +712,7 @@ const CLIMATE_EXPOSURE = available({
     {
       id: "oil-gas-upstream",
       label: "Oil & gas upstream lending",
+      division: "corporate",
       highRiskWeightPct: 2.8,
       contributionToBreachPct: 41,
       clientCount: 22,
@@ -698,6 +721,7 @@ const CLIMATE_EXPOSURE = available({
     {
       id: "coal-adjacent-industrials",
       label: "Coal-adjacent industrials",
+      division: "corporate",
       highRiskWeightPct: 1.9,
       contributionToBreachPct: 28,
       clientCount: 14,
@@ -706,6 +730,7 @@ const CLIMATE_EXPOSURE = available({
     {
       id: "carbon-intensive-manufacturing",
       label: "Carbon-intensive manufacturing",
+      division: "corporate",
       highRiskWeightPct: 1.4,
       contributionToBreachPct: 21,
       clientCount: 30,
@@ -714,6 +739,7 @@ const CLIMATE_EXPOSURE = available({
     {
       id: "commercial-property-poor-epc",
       label: "Commercial property — poor EPC",
+      division: "corporate",
       highRiskWeightPct: 0.7,
       contributionToBreachPct: 10,
       clientCount: 11,
