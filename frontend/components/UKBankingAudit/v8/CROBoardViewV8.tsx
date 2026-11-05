@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FIRM_POSTURE_V4 } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
+import { boardSubtitle, buildFirmBanner } from "@/lib/ukbankingaudit/v8/boardView";
 import { RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
 import { runBoardDetectors } from "@/lib/ukbankingaudit/v8/detectors";
 import { WHAT_CHANGED_V6 } from "@/lib/ukbankingaudit/v8/whatChangedV8";
@@ -47,7 +47,7 @@ export function CROBoardViewV8({ openDrawer }: Props) {
             {persona?.label ?? "CRO (SMF4)"}
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Firm-level risk posture across {RISK_DOMAINS_V4.length} UK CRO categories. Ten-minute board read.
+            {boardSubtitle()}
           </p>
         </div>
       </div>
@@ -55,8 +55,8 @@ export function CROBoardViewV8({ openDrawer }: Props) {
       <div className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-12 xl:gap-6">
         <div className="min-w-0 space-y-5 xl:col-span-8">
           <FirmRiskPosturePanel
-            status={FIRM_POSTURE_V4.firmStatus}
-            narrative={FIRM_POSTURE_V4.narrative}
+            banner={buildFirmBanner()}
+            onOpenCategory={setExpandedId}
           />
           <RiskCategoriesPanel
             domains={RISK_DOMAINS_V4}

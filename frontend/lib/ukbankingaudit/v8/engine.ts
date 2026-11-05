@@ -407,6 +407,13 @@ function beyondTolerance({ ram, value }: RamReading): number {
   return Math.abs(value - ram.tolerance) / Math.max(Math.abs(ram.tolerance), 1);
 }
 
+/** Sev-1 and Sev-2 incidents the board sees: still open, or raised in this period. */
+export function boardIncidents(period: Period, data: EngineData = V8_ENGINE_DATA): Incident[] {
+  return data.incidents
+    .filter((i) => i.level <= 2 && i.date <= periodEnd(period))
+    .filter((i) => i.status === "open" || i.date.startsWith(period));
+}
+
 /**
  * Ranked: red metrics by distance beyond tolerance, failed critical controls, open
  * or in-period Sev-1 then Sev-2 incidents, then the biggest category rating moves.
@@ -444,9 +451,7 @@ export function selectMaterialItems(
       pathToGreen: pathFor("control", control.id, data),
     }));
 
-  const incidents: MaterialItem[] = data.incidents
-    .filter((i) => i.level <= 2 && i.date <= periodEnd(period))
-    .filter((i) => i.status === "open" || i.date.startsWith(period))
+  const incidents: MaterialItem[] = boardIncidents(period, data)
     .sort((a, b) => a.level - b.level || b.date.localeCompare(a.date))
     .map((incident) => ({
       kind: "incident",
