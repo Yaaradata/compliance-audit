@@ -4,7 +4,7 @@
  * Local only: nothing is sent anywhere.
  */
 import { V8_ENGINE_DATA, type EngineData } from "./engine";
-import type { PathToGreenRecord, SmfRef } from "./types";
+import type { IncidentControlLink, PathToGreenRecord, SmfRef } from "./types";
 
 export type RiskTrailEvent = {
   timestamp: string;
@@ -93,6 +93,24 @@ export function trailEventsForSave(
     events.push({ ...base, eventType: "decision", label: `Path to green for ${next.targetId} updated by ${next.owner}` });
   }
   return events;
+}
+
+/** Add or replace an incident's link to a control; the engine re-rates from it. */
+export function linkIncidentToControl(link: IncidentControlLink, now: string = new Date().toISOString()): void {
+  const { data, trail } = state;
+  const links = [
+    ...data.links.filter((l) => !(l.incidentId === link.incidentId && l.controlId === link.controlId)),
+    link,
+  ];
+  const smf = data.controls.find((c) => c.id === link.controlId)?.smf ?? "SMF4";
+  const event: RiskTrailEvent = {
+    timestamp: now,
+    eventType: link.controlWorked === "failed" ? "escalation" : "decision",
+    label: `${link.incidentId} linked to control ${link.controlId}: ${link.controlWorked}`,
+    evidenceId: link.incidentId,
+    smf,
+  };
+  setState({ data: { ...data, links }, trail: [event, ...trail] });
 }
 
 /** Add or replace a path to green, and record the save on the trail. */

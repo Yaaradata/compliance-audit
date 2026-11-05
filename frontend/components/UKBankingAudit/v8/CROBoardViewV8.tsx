@@ -77,6 +77,7 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
           <FirmRiskPosturePanel
             banner={buildFirmBanner(period, data)}
             onOpenCategory={setExpandedId}
+            onOpenAssurance={() => setActiveScreen?.("controlsIncidents")}
           />
           <RiskCategoriesPanel
             domains={RISK_DOMAINS_V4}
@@ -100,8 +101,8 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
         controls={controlStrip}
         incidents={incidentStrip}
         onOpenAppetite={() => setActiveScreen?.("riskAppetite")}
-        onOpenControls={() => setExpandedId(controlStrip.worstCategoryId)}
-        onOpenIncidents={() => setExpandedId(incidentStrip.topCategoryId)}
+        onOpenControls={() => setActiveScreen?.("controlsIncidents")}
+        onOpenIncidents={() => setActiveScreen?.("controlsIncidents")}
       />
 
       <RedSpotlight

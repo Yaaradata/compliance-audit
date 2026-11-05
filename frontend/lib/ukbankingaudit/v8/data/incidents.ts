@@ -4,7 +4,7 @@ import type { Incident, IncidentControlLink } from "../types";
 export const INCIDENTS: Incident[] = [
   {
     id: "INC-2026-041",
-    date: "2026-11-02",
+    date: "2026-11-04",
     title: "Exploit attempt on unpatched perimeter vulnerability",
     severity: "Sev1",
     level: 1,

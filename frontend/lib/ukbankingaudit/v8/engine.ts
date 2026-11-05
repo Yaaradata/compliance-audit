@@ -174,6 +174,8 @@ export type ControlChange = {
   to: ControlResult | null;
   date: string | null;
   reason: string;
+  /** Set when a linked incident, not a test, changed the result. */
+  incidentId: string | null;
 };
 
 export type ControlEffectiveness = {
@@ -213,6 +215,7 @@ export function computeControlEffectiveness(
         to: now?.result ?? null,
         date: now?.date ?? null,
         reason: now?.reason ?? "No test result on record.",
+        incidentId: now?.incidentId ?? null,
       },
     ];
   });

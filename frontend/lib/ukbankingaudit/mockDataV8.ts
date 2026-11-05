@@ -57,6 +57,7 @@ const relabelledNavigation: NavItem[] = (mockDataV6.navigationItems || []).map((
 /** v8-only tabs, placed after each persona's own workspace. */
 const V8_TABS: NavItem[] = [
   { id: "nav-risk-appetite", label: "Risk Appetite", screen: "riskAppetite", visibleForPersonas: ["cro", "smf16", "smf17"] },
+  { id: "nav-controls-incidents", label: "Controls & Incidents", screen: "controlsIncidents", visibleForPersonas: ["cro", "smf16", "smf17"] },
 ];
 
 const firstSharedTab = relabelledNavigation.findIndex((n) => n.screen === "monitoringReportBuilder");

@@ -93,11 +93,6 @@ export function RiskAtAGlance({
           <span className="mt-2 text-xs text-slate-600">
             Lowest: {controls.worstLabel} at {controls.worstPct}%
           </span>
-          {controls.evidenceWarnings.map((warning) => (
-            <span key={warning} className="mt-2 text-[11px] font-medium text-amber-800">
-              ⚠ {warning}
-            </span>
-          ))}
         </StripCard>
 
         <StripCard title="Incidents" onClick={onOpenIncidents}>

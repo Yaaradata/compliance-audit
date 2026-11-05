@@ -506,10 +506,10 @@ export function buildWhatChanged(
       const test = data.controlTests.find((t) => t.controlId === change.controlId && t.date === change.date);
       row(change.to === "effective" ? 5 : 3, {
         id: `control-${change.controlId}`,
-        text: `${change.controlId} retested${when}: ${result}. ${change.reason}`,
+        text: `${change.controlId} ${change.incidentId ? "re-rated" : "retested"}${when}: ${result}. ${change.reason}`,
         categoryId: node.id,
         basis: "Latest control test compared with the previous period",
-        evidenceRef: test?.evidenceId ?? change.controlId,
+        evidenceRef: change.incidentId ?? test?.evidenceId ?? change.controlId,
       });
     }
   }

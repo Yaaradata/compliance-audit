@@ -37,12 +37,13 @@ export function RagBadge({ status }: { status: RagStatus }) {
 export function FirmPostureBanner({
   banner,
   onOpenCategory,
+  onOpenAssurance,
 }: {
   banner: FirmBannerView;
   onOpenCategory: (categoryId: string) => void;
+  onOpenAssurance: () => void;
 }) {
   const rag = RAG_STYLES[banner.colour];
-  const firstGap = banner.assuranceGapCategoryIds[0];
   return (
     <div className={`rounded-xl border-[1.5px] p-5 ${rag.bg} ${rag.border}`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -81,7 +82,7 @@ export function FirmPostureBanner({
           Assurance:{" "}
           <button
             type="button"
-            onClick={() => onOpenCategory(firstGap)}
+            onClick={onOpenAssurance}
             className="font-semibold text-indigo-700 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-900"
           >
             {banner.assuranceText}
