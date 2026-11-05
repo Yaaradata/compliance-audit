@@ -24,24 +24,39 @@ const SECOND_LINE: Record<TilePathView["secondLine"], { icon: string; className:
   pending: { icon: "…", className: "bg-slate-200 text-slate-600", label: "2nd line review pending" },
 };
 
-const COLUMNS: Record<number, string> = {
-  1: "sm:grid-cols-1",
-  2: "sm:grid-cols-2",
-  3: "sm:grid-cols-3",
-  4: "sm:grid-cols-2 lg:grid-cols-4",
+/** Every row shares one 4-column grid, so tile edges line up from row to row. */
+const GRID = "grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4";
+/** A red or amber tile takes half a row, or all of it when it is alone. */
+const FLAGGED_SPAN = { half: "sm:col-span-2", full: "sm:col-span-2 lg:col-span-4" };
+/** The summary tile fills whatever a last green row leaves empty. */
+const SUMMARY_SPAN: Record<number, string> = {
+  1: "lg:col-span-1",
+  2: "sm:col-span-2 lg:col-span-2",
+  3: "lg:col-span-3",
 };
 
-/** Splits tiles into full rows of at most `size`, so no row ends in an empty gap. */
-function evenRows<T>(items: T[], size: number): T[][] {
-  const rowCount = Math.ceil(items.length / size);
+function chunk<T>(items: T[], size: number): T[][] {
   const rows: T[][] = [];
-  let start = 0;
-  for (let row = 0; row < rowCount; row += 1) {
-    const length = Math.ceil((items.length - start) / (rowCount - row));
-    rows.push(items.slice(start, start + length));
-    start += length;
-  }
+  for (let start = 0; start < items.length; start += size) rows.push(items.slice(start, start + size));
   return rows;
+}
+
+/** Fills the end of the last green row with what those tiles add up to. */
+function WithinAppetiteTile({ tiles, total, span }: { tiles: CategoryTileView[]; total: number; span: number }) {
+  const improved = tiles.filter((tile) => tile.trend.direction === "better");
+  return (
+    <div className={`flex flex-col justify-center rounded-[10px] bg-slate-50 px-3 py-2.5 ${SUMMARY_SPAN[span]}`}>
+      <div className="text-2xl font-extrabold leading-none tracking-tight text-slate-900">
+        {tiles.length} of {total}
+      </div>
+      <p className="mt-1 text-[11.5px] leading-snug text-slate-600">categories within appetite</p>
+      {improved.length > 0 ? (
+        <p className="mt-1 text-[10.5px] leading-snug text-slate-500">
+          Improved since {improved[0].trend.prevPeriodLabel}: {improved.map((tile) => tile.label).join(", ")}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function PathToGreenChip({ path, onOpen }: { path: TilePathView | null; onOpen: (path: TilePathView) => void }) {
@@ -95,14 +110,17 @@ function RatingMove({ tile }: { tile: CategoryTileView }) {
   return tile.trend.direction === "flat" ? null : <PreviousAndNow points={tile.history} />;
 }
 
-/** A green tile needs little: its name, its line, one row of numbers. */
+/**
+ * A green tile needs little: its name, its line, one row of numbers. The space under
+ * the name is kept on every tile, so all the trend lines sit at the same height.
+ */
 function GreenTileBody({ tile }: { tile: CategoryTileView }) {
   return (
     <>
-      <div className="mt-auto">
-        <RatingTrend points={tile.history} />
+      <div className="min-h-4">
+        <RatingMove tile={tile} />
       </div>
-      <RatingMove tile={tile} />
+      <RatingTrend points={tile.history} />
       <p className="whitespace-nowrap text-[10.5px] text-slate-500">
         Controls <span className="font-semibold text-slate-900">{tile.criticalPct}%</span> · Sev-1/2{" "}
         <span className="font-semibold text-slate-900">{tile.sevOneTwo}</span>
@@ -158,10 +176,11 @@ export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
     }
   }, [expandedId]);
 
-  const rows = [
-    ...evenRows(sorted.filter(({ tile }) => tile.colour !== "green"), 3),
-    ...evenRows(sorted.filter(({ tile }) => tile.colour === "green"), 4),
-  ];
+  const flaggedRows = chunk(sorted.filter(({ tile }) => tile.colour !== "green"), 2);
+  const greens = sorted.filter(({ tile }) => tile.colour === "green");
+  const greenRows = chunk(greens, 4);
+  const rows = [...flaggedRows, ...greenRows];
+  const emptyCells = (4 - (greens.length % 4)) % 4;
 
   return (
     <div>
@@ -171,7 +190,7 @@ export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
           const open = row.find(({ tile }) => tile.categoryId === expandedId);
           return (
             <Fragment key={row[0].tile.categoryId}>
-              <div className={`grid grid-cols-1 gap-2.5 ${COLUMNS[row.length]}`}>
+              <div className={GRID}>
                 {row.map(({ tile }) => {
                   const rag = RAG_STYLES[tile.colour];
                   const green = tile.colour === "green";
@@ -190,7 +209,9 @@ export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
                         }
                       }}
                       className={`flex cursor-pointer flex-col gap-1.5 rounded-[10px] border px-3 py-2.5 transition-shadow hover:shadow-md ${
-                        green ? "border-slate-200 bg-white" : `${rag.bg} ${rag.border}`
+                        green
+                          ? "border-slate-200 bg-white"
+                          : `${rag.bg} ${rag.border} ${row.length === 1 ? FLAGGED_SPAN.full : FLAGGED_SPAN.half}`
                       } ${expanded ? "ring-2 ring-indigo-400" : ""}`}
                     >
                       <TileHeader tile={tile} />
@@ -211,6 +232,9 @@ export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
                     </div>
                   );
                 })}
+                {emptyCells > 0 && row === greenRows.at(-1) ? (
+                  <WithinAppetiteTile tiles={greens.map(({ tile }) => tile)} total={sorted.length} span={emptyCells} />
+                ) : null}
               </div>
               {open ? (
                 <div ref={drillRef}>
