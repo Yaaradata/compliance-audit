@@ -5,6 +5,7 @@
 import { categoryLabel, V8_CONFIG } from "./config";
 import type { EnforcementNoticeItem } from "./enforcementCoverage";
 import { getAccountability } from "./riskDomainsV8";
+import { precedentsSinceAttestation } from "./smcrPrecedentAwareness";
 import type { BoardSignal, HorizonItem, Precedent } from "./types";
 
 type SignalFields = {
@@ -66,6 +67,48 @@ export function horizonItemToSignal(item: HorizonItem): BoardSignal {
     precedent: null,
     trigger: `External ${type === "industry" ? "industry event" : "emerging risk"} added to the horizon scan`,
   });
+}
+
+export function precedentToSignal(precedent: Precedent): BoardSignal {
+  return externalSignal({
+    id: `read-across-${precedent.id}`,
+    title: "Enforcement Notice",
+    domainId: precedent.domainScope[0] ?? "regulatory",
+    observed: `${precedent.regulator} notice to ${precedent.respondent}`,
+    soWhat: precedent.hook,
+    metricValue: precedent.noticeDate,
+    metricLabel: "notice date",
+    precedent,
+    trigger: "Notice published since an SMF's last attestation and touching controls they own",
+  });
+}
+
+type ReadAcrossHolder = {
+  id: string;
+  smfFunction: string;
+  lastAttestationDate: string;
+  accountableControlIds: string[];
+};
+
+/**
+ * Enforcement read-across from Reasonable Steps, so both screens show one population.
+ * Notices already in the applicability queue are left out, and unverified ones never appear.
+ */
+export function readAcrossPrecedents(holders: ReadAcrossHolder[], queuedIds: ReadonlySet<string>): Precedent[] {
+  const seen = new Map<string, Precedent>();
+  for (const holder of holders) {
+    const rows = precedentsSinceAttestation({
+      smfId: holder.id,
+      smfFunction: holder.smfFunction,
+      lastAttestationDate: holder.lastAttestationDate,
+      accountableControlIds: holder.accountableControlIds,
+    });
+    for (const { precedent } of rows) {
+      if (precedent.confidence === "unverified" || queuedIds.has(precedent.id)) continue;
+      seen.set(precedent.id, precedent);
+    }
+  }
+  return [...seen.values()].sort((a, b) => b.noticeDate.localeCompare(a.noticeDate));
 }
 
 export function noticeToSignal(notice: EnforcementNoticeItem): BoardSignal {

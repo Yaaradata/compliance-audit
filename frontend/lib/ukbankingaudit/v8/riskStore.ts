@@ -55,6 +55,10 @@ function categoryIdOf(path: Pick<PathToGreenRecord, "targetType" | "targetId">, 
 
 /** Items in a category with no allocated SMF sit with the CRO, who oversees all of them. */
 function accountableSmf(path: PathToGreenRecord, data: EngineData): SmfRef {
+  if (path.targetType === "control") {
+    const own = data.controls.find((c) => c.id === path.targetId)?.smf;
+    if (own) return own;
+  }
   const categoryId = categoryIdOf(path, data);
   return (
     data.rams.find((r) => r.categoryId === categoryId && r.smf)?.smf ??

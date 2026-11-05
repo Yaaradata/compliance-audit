@@ -161,16 +161,26 @@ const CATEGORIES: CategoryRows[] = [
   },
 ];
 
+/** Controls whose accountable SMF, on the SMF record, differs from their category's. */
+const SMF_OVERRIDES: Record<string, SmfRef> = {
+  "WP-C001": "SMF24",
+  "WP-C003": "SMF24",
+  "VO-C005": "SMF24",
+};
+
 export const CONTROLS: RatedControl[] = CATEGORIES.flatMap(({ categoryId, owner, smf, critical, secondary }) => {
-  const build = (tier: RatedControl["tier"]) => ([id, name, frequency]: Row): RatedControl => ({
-    id,
-    name,
-    categoryId,
-    tier,
-    testFrequency: frequency ?? "monthly",
-    owner,
-    ...(smf ? { smf } : {}),
-  });
+  const build = (tier: RatedControl["tier"]) => ([id, name, frequency]: Row): RatedControl => {
+    const accountable = SMF_OVERRIDES[id] ?? smf;
+    return {
+      id,
+      name,
+      categoryId,
+      tier,
+      testFrequency: frequency ?? "monthly",
+      owner,
+      ...(accountable ? { smf: accountable } : {}),
+    };
+  };
   return [...critical.map(build("critical")), ...secondary.map(build("secondary"))];
 });
 

@@ -1,13 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { groupSetRequirements } from "@/components/UKBankingAudit/ukTraceRuntime";
+import { groupSetRequirements, smfHolders } from "@/components/UKBankingAudit/ukTraceRuntime";
 import { formatDate } from "@/lib/ukbankingaudit/v8/boardView";
 import { categoryLabel } from "@/lib/ukbankingaudit/v8/config";
 import { HORIZON_ITEMS } from "@/lib/ukbankingaudit/v8/data/horizon";
 import type { AuditEntry, DispositionKind } from "@/lib/ukbankingaudit/v8/dispositions";
 import { buildEnforcementNotices } from "@/lib/ukbankingaudit/v8/enforcementCoverage";
-import { horizonItemToSignal, noticeToSignal } from "@/lib/ukbankingaudit/v8/horizonSignals";
+import {
+  horizonItemToSignal,
+  noticeToSignal,
+  precedentToSignal,
+  readAcrossPrecedents,
+} from "@/lib/ukbankingaudit/v8/horizonSignals";
 import { matchPrecedents, resolvePrecedent } from "@/lib/ukbankingaudit/v8/precedentCorpus";
 import type { BoardSignal, HorizonItem, Precedent } from "@/lib/ukbankingaudit/v8/types";
 import { HorizonCard } from "./HorizonCard";
@@ -79,11 +84,15 @@ export function HorizonScanningPanel({ signals, expandedId, onClearDomain }: Pro
   const notices = useMemo(
     () =>
       buildEnforcementNotices({ groupSetRequirements })
-        .filter((n) => n.applicabilityStatus === "not_assessed")
+        .filter((n) => n.applicabilityStatus !== "completed")
         .sort((a, b) => b.ageDays - a.ageDays),
     [],
   );
   const queue = notices.filter((n) => inScope(n.precedent.domainScope[0] ?? "regulatory"));
+  const readAcross = useMemo(
+    () => readAcrossPrecedents(smfHolders, new Set(notices.map((n) => n.id))),
+    [notices],
+  ).filter((p) => inScope(p.domainScope[0] ?? "regulatory"));
   const industry = HORIZON_ITEMS.filter((h) => h.type === "industry" && inScope(h.categoryId));
   const emerging = HORIZON_ITEMS.filter((h) => h.type === "emerging" && inScope(h.categoryId));
 
@@ -91,7 +100,7 @@ export function HorizonScanningPanel({ signals, expandedId, onClearDomain }: Pro
   const showIndustry = tab === "all" || tab === "industry";
   const showEmerging = tab === "all" || tab === "emerging";
   const nothingToShow =
-    (!showRegulatory || (precedentSignals.length === 0 && queue.length === 0)) &&
+    (!showRegulatory || (precedentSignals.length === 0 && queue.length === 0 && readAcross.length === 0)) &&
     (!showIndustry || industry.length === 0) &&
     (!showEmerging || emerging.length === 0);
 
@@ -168,7 +177,27 @@ export function HorizonScanningPanel({ signals, expandedId, onClearDomain }: Pro
                     source={notice.regulatorBody}
                     sourceUrl={notice.precedent.sourceUrl || undefined}
                     date={formatDate(notice.publishedDate)}
-                    summary={`${notice.ageDays} days not assessed. ${notice.precedent.hook}`}
+                    summary={`${notice.ageDays} days ${notice.applicabilityStatus === "in_progress" ? "with assessment in progress" : "not assessed"}. ${notice.precedent.hook}`}
+                    categoryLabel={categoryLabel(signal.domainId)}
+                    onInvestigate={() => openDrawer(signal, null)}
+                    onAccept={() => openDrawer(signal, "accept")}
+                  />
+                );
+              })
+            : null}
+
+          {showRegulatory
+            ? readAcross.map((precedent) => {
+                const signal = precedentToSignal(precedent);
+                return (
+                  <HorizonCard
+                    key={precedent.id}
+                    kicker="Enforcement read-across"
+                    title={precedent.respondent}
+                    source={precedent.regulator}
+                    sourceUrl={precedent.sourceUrl || undefined}
+                    date={formatDate(precedent.noticeDate)}
+                    summary={precedent.hook}
                     categoryLabel={categoryLabel(signal.domainId)}
                     onInvestigate={() => openDrawer(signal, null)}
                     onAccept={() => openDrawer(signal, "accept")}

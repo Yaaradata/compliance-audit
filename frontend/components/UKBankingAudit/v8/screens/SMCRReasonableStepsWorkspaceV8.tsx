@@ -26,6 +26,9 @@ import { useBoardRole } from '@/components/UKBankingAudit/v8/boardRoleContext';
 import { recordAcknowledgement } from '@/lib/ukbankingaudit/v8/dispositions';
 import { v8RefKind } from '@/lib/ukbankingaudit/v8/refRouter';
 import { useRiskState } from '@/components/UKBankingAudit/v8/useRiskStore';
+import { PathToGreenDrawer } from '@/components/UKBankingAudit/v8/PathToGreenDrawer';
+import { MyIncidentsCard, MyRiskAppetiteCard, OwnedControlsList } from '@/components/UKBankingAudit/v8/smcr/SmfRiskCards';
+import { buildRssTrend, buildSmfRiskView, ramForAppetiteBreach } from '@/lib/ukbankingaudit/v8/reasonableStepsView';
 
 export function SMCRReasonableStepsWorkspaceV8({ variant = 'v2', selectedSMFId, setSelectedSMFId, smfTrails, pendingDecisionId, setPendingDecisionId, decisionRationale, setDecisionRationale, captureSMFDecision, openDrawer, setActiveScreen, setSelectedPackId }) {
   const ui = getUkAuditUi(variant === 'v4' || variant === 'v6' || variant === 'v8' ? 'v3' : variant);
@@ -34,7 +37,13 @@ export function SMCRReasonableStepsWorkspaceV8({ variant = 'v2', selectedSMFId, 
   const boardRole = useBoardRole();
   const live = smfTrails[selectedSMFId];
 
-  const { trail: riskTrail } = useRiskState();
+  const { trail: riskTrail, data: riskData } = useRiskState();
+  const [pathTarget, setPathTarget] = useState(null);
+  const [showControls, setShowControls] = useState(false);
+  const riskView = useMemo(
+    () => (smf ? buildSmfRiskView(smf.smfFunction, smf.accountableControlIds, riskData.config.currentPeriod, riskData) : null),
+    [smf, riskData],
+  );
 
   const mergedTrail = useMemo(
     () => [
@@ -73,6 +82,7 @@ export function SMCRReasonableStepsWorkspaceV8({ variant = 'v2', selectedSMFId, 
 
   if (!smf || !live) return <EmptyState message="Select an SMF." />;
   const rss = live.rss;
+  const rssTrend = buildRssTrend(smf.smfFunction, rss.score, riskData.config.currentPeriod, riskData);
   const rssComponents = ui.rssComponents;
 
   return (
@@ -101,6 +111,11 @@ export function SMCRReasonableStepsWorkspaceV8({ variant = 'v2', selectedSMFId, 
             <div className={`text-4xl font-bold ${bandText(rss.band)}`}>{rss.score}</div>
             <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">RSS</div>
             <StatusBadge tone={rss.band} label={rss.band.toUpperCase()} size="xs" />
+            {rssTrend ? (
+              <div className={`mt-1 text-[11px] font-semibold ${rssTrend.direction === "worse" ? "text-red-700" : rssTrend.direction === "better" ? "text-emerald-700" : "text-slate-500"}`}>
+                {rssTrend.text}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -140,15 +155,24 @@ export function SMCRReasonableStepsWorkspaceV8({ variant = 'v2', selectedSMFId, 
                 <div className="text-lg font-bold text-slate-900">{smf.accountableProcessIds.length}</div>
                 <div className="text-[10px] text-slate-500">Processes</div>
               </div>
-              <div className="p-2 bg-slate-50 rounded">
+              <button
+                type="button"
+                aria-expanded={showControls}
+                disabled={smf.accountableControlIds.length === 0}
+                onClick={() => setShowControls((open) => !open)}
+                className="p-2 bg-slate-50 rounded hover:bg-slate-100 disabled:hover:bg-slate-50"
+              >
                 <div className="text-lg font-bold text-slate-900">{smf.accountableControlIds.length}</div>
-                <div className="text-[10px] text-slate-500">Controls</div>
-              </div>
+                <div className="text-[10px] text-slate-500">
+                  Controls{smf.accountableControlIds.length > 0 ? (showControls ? " ▴" : " ▾") : ""}
+                </div>
+              </button>
               <div className="p-2 bg-slate-50 rounded">
                 <div className="text-lg font-bold text-slate-900">{smf.accountableObligationIds.length}</div>
                 <div className="text-[10px] text-slate-500">Obligations</div>
               </div>
             </div>
+            {showControls && riskView && riskView.controls.length > 0 ? <OwnedControlsList rows={riskView.controls} /> : null}
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -188,7 +212,19 @@ export function SMCRReasonableStepsWorkspaceV8({ variant = 'v2', selectedSMFId, 
                           <div className="text-sm text-slate-900">{target?.title || target?.metric || target?.name || "—"}</div>
                           <div className="text-xs text-slate-500 mt-0.5">Raised {a.raisedDate}</div>
                         </div>
-                        <button onClick={() => setPendingDecisionId(isExpanded ? null : a.targetId)}
+                        <button onClick={() => {
+                            const ramId = a.targetType === "appetite_breach" ? ramForAppetiteBreach(a.targetId) : null;
+                            if (ramId) {
+                              setPathTarget({
+                                targetType: "ram",
+                                targetId: ramId,
+                                label: target?.metric || a.targetId,
+                                owner: riskData.rams.find((r) => r.id === ramId)?.owner,
+                              });
+                              return;
+                            }
+                            setPendingDecisionId(isExpanded ? null : a.targetId);
+                          }}
                           className="px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 rounded-md flex-shrink-0">
                           {isExpanded ? "Cancel" : "Capture decision"}
                         </button>
@@ -214,6 +250,15 @@ export function SMCRReasonableStepsWorkspaceV8({ variant = 'v2', selectedSMFId, 
               )}
             </div>
           </div>
+
+          {riskView && riskView.rams.length > 0 ? (
+            <MyRiskAppetiteCard
+              rows={riskView.rams}
+              onOpenPath={(row) => setPathTarget({ targetType: "ram", targetId: row.id, label: row.name, owner: row.owner })}
+            />
+          ) : null}
+
+          {riskView && riskView.incidents.length > 0 ? <MyIncidentsCard rows={riskView.incidents} /> : null}
 
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100">
@@ -265,6 +310,7 @@ export function SMCRReasonableStepsWorkspaceV8({ variant = 'v2', selectedSMFId, 
           </button>
         </div>
       </div>
+      {pathTarget ? <PathToGreenDrawer target={pathTarget} onClose={() => setPathTarget(null)} /> : null}
     </div>
   );
 }
