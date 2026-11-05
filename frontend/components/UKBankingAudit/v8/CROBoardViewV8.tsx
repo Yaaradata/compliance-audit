@@ -127,7 +127,7 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
         trends={glanceTrends}
         keyPoints={{
           appetite: topAppetite ? `${topAppetite.name}: ${topAppetite.measure}.` : null,
-          controls: topMove ? `${topMove.text.replace(" — ", ". ")}.` : null,
+          controls: topMove ? `${topMove.text.replace(" — ", ". ").replace(/\.$/, "")}.` : null,
           incidents: glanceTrends.incidents.top[0]
             ? `${glanceTrends.incidents.top[0].severity}: ${glanceTrends.incidents.top[0].title}.`
             : null,
