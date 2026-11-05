@@ -33,7 +33,7 @@ import {
   openEnforcementNotices,
   readAcrossPrecedents,
 } from "./horizonSignals";
-import { buildMajorGaps, rcsaCycleNote, type MajorGapRow } from "./rcsaCoverageView";
+import { buildMajorGaps, rcsaCycleNote } from "./rcsaCoverageView";
 import { getRiskState, type RiskState } from "./riskStore";
 import { HORIZON_ITEMS } from "./data/horizon";
 import {
@@ -43,7 +43,7 @@ import {
   V8_ENGINE_DATA,
   type EngineData,
 } from "./engine";
-import { buildRamRows, type RamRow } from "./riskAppetiteView";
+import { buildRamRows } from "./riskAppetiteView";
 import type { PathToGreenRecord, Period, RatingColour } from "./types";
 
 export type SummarySentence = { text: string; cites: string[] };
@@ -297,10 +297,8 @@ export type CroReportView = {
   standing: StandingRow[];
   overdueTests: OverdueTest[];
   evidenceWarnings: string[];
-  /** Appendix A: every metric on the Risk Appetite tab. */
-  metricRegister: RamRow[];
-  /** Appendix B: the RCSA Coverage major gaps tracker. */
-  majorGaps: MajorGapRow[];
+  /** One line from the RCSA Coverage major gaps tracker. */
+  gapSummary: string;
   rcsaNote: string;
   preparedBy: string;
   nextReview: string;
@@ -422,6 +420,13 @@ function regulatoryRows(dispositions: RiskState["dispositions"], asOf: string): 
 
 const RELEVANCE_WORDS = { not_assessed: "Not assessed", yes: "Yes", no: "No" };
 
+/** "8 obligations have coverage gaps, 3 with no mapped control (DISP 1.6, ...)". */
+function summariseMajorGaps(gaps: { citation: string; coverage: string }[]): string {
+  const uncovered = gaps.filter((gap) => gap.coverage === "Uncovered").map((gap) => gap.citation);
+  const count = `${gaps.length} obligation${gaps.length === 1 ? " has" : "s have"} coverage gaps`;
+  return uncovered.length > 0 ? `${count}, ${uncovered.length} with no mapped control (${uncovered.join(", ")})` : count;
+}
+
 export function buildCroReport(
   period: Period = V8_ENGINE_DATA.config.currentPeriod,
   data: EngineData = V8_ENGINE_DATA,
@@ -523,8 +528,7 @@ export function buildCroReport(
     standing: buildWhatHasNotChanged(period, data),
     overdueTests: buildOverdueTests(data),
     evidenceWarnings: buildEvidenceWarnings(period, data),
-    metricRegister: rows,
-    majorGaps: buildMajorGaps(GRAPH.obligations, GRAPH.smfHolders),
+    gapSummary: summariseMajorGaps(buildMajorGaps(GRAPH.obligations, GRAPH.smfHolders)),
     rcsaNote: rcsaCycleNote(data.config),
     preparedBy: "Chief Risk Officer (SMF4)",
     nextReview: periodLongLabel(nextPeriod(period, data.config.reportingCadence === "quarterly" ? 3 : 1)),

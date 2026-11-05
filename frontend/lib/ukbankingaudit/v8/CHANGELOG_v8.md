@@ -54,6 +54,7 @@ v8 was rebuilt as an exact copy of v7 (as updated 26 Oct 2026), then changed in 
 - Added the top-line summary with cited ids. It uses a deterministic template because v8 has no LLM path and makes no outbound calls (12).
 - Capped Board View lists at 5 with a route to the rest (12).
 - Added the CRO Report route, print CSS and Download PDF (17).
+- Later cut to 5 pages. The metric register stays on the Risk Appetite tab and the gaps tracker on RCSA Coverage (17).
 
 ## Pass 13: Final QA
 - Fixed two hook-order bugs and 16 components defined during render.

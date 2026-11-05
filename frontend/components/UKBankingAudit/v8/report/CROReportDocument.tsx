@@ -4,7 +4,8 @@ import type { CroReportView, ReportHorizonRow } from "@/lib/ukbankingaudit/v8/cr
 
 /**
  * The CRO Report in UK board paper form: cover block, decisions first, the CRO's
- * overview, principal risks against appetite, emerging risks, then an appendix.
+ * overview, principal risks against appetite, controls, then emerging risks.
+ * Five pages, as the CRO feedback asked: fuller registers stay on the dashboard.
  *
  * Self-contained CSS. On screen the paper fills the window. In print and PDF each
  * section is one A4 sheet, and a sheet that overflows adds a page rather than clipping.
@@ -43,8 +44,6 @@ export const REPORT_CSS = `
 .cr-table { width: 100%; border-collapse: collapse; font-size: 8pt; line-height: 1.28; }
 .cr-table th { padding: 1.1mm 1.5mm; text-align: left; vertical-align: bottom; font-weight: 700; font-size: 7.25pt; color: #1b2a41; background: #f0f3f7; border-top: 0.3mm solid #1b2a41; border-bottom: 0.3mm solid #1b2a41; }
 .cr-table td { padding: 1.1mm 1.5mm; vertical-align: top; border-bottom: 0.15mm solid #d9dee4; }
-.cr-table.tight { font-size: 7.25pt; line-height: 1.15; }
-.cr-table.tight td { padding: 0.55mm 1.5mm; }
 .cr-table .num { text-align: right; white-space: nowrap; }
 .cr-table .nowrap { white-space: nowrap; }
 .cr-strong { font-weight: 700; color: #1f2933; }
@@ -65,7 +64,6 @@ export const REPORT_CSS = `
   .cr-doc { font-size: 10.5pt; }
   .cr-table { font-size: 9.5pt; }
   .cr-table th { font-size: 8.5pt; }
-  .cr-table.tight { font-size: 9pt; }
   .cr-kpi-value { font-size: 18pt; }
   .cr-kpi-note, .cr-kpi-label { font-size: 8.5pt; }
   .cr-cover { font-size: 10pt; }
@@ -84,7 +82,7 @@ export const REPORT_CSS = `
 `;
 
 const CLASSIFICATION = "Confidential";
-const TOTAL_PAGES = 7;
+const TOTAL_PAGES = 5;
 
 function Rag({ colour }: { colour: string }) {
   return <span className={`cr-rag ${colour}`}>{colour}</span>;
@@ -157,7 +155,6 @@ function basisOfRating(why: string, colour: string): string {
   return colour === "green" ? why.split(" · ")[0] : why;
 }
 
-const TREND_WORD = { worse: "Worsened", better: "Improved", flat: "Unchanged" };
 const SEVERITY = /^Sev(\d)$/;
 
 export function CROReportDocument({ report }: { report: CroReportView }) {
@@ -316,7 +313,7 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
         <p className="cr-lead">
           Of {report.appetiteTotals.total} risk appetite metrics, {report.appetiteTotals.green} are green,{" "}
           {report.appetiteTotals.amber} amber and {report.appetiteTotals.red} red. Metrics outside appetite follow, with the
-          proposed action for each; Appendix A lists all of them.
+          proposed action for each. The full register is on the Risk Appetite tab.
         </p>
         <table className="cr-table">
           <thead>
@@ -461,6 +458,9 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
               Test overdue: {test.id} {test.name}, {test.categoryLabel}, due {formatDate(test.dueDate)}.
             </li>
           ))}
+          <li>
+            RCSA: {report.gapSummary}, tracked in RCSA Coverage. {report.rcsaNote}.
+          </li>
         </ul>
       </Sheet>
 
@@ -472,90 +472,11 @@ export function CROReportDocument({ report }: { report: CroReportView }) {
         <HorizonTable rows={report.horizon.industry} showRelevance />
         <h3 className="cr-h2">Emerging risks</h3>
         <HorizonTable rows={report.horizon.emerging} />
-      </Sheet>
-
-      <Sheet report={report} page={6}>
-        <h2 className="cr-h1">Appendix A: Risk appetite metric register</h2>
-        <table className="cr-table tight">
-          <thead>
-            <tr>
-              <th style={{ width: "42%" }}>Metric</th>
-              <th style={{ width: "24%" }}>Category</th>
-              <th className="num">Value</th>
-              <th className="num">Limit</th>
-              <th className="num">Tolerance</th>
-              <th>Status</th>
-              <th>Trend</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.metricRegister.map((row) => (
-              <tr key={row.id}>
-                <td>{row.name}</td>
-                <td>{row.categoryLabel}</td>
-                <td className="num">{row.valueText}</td>
-                <td className="num">{row.limitText}</td>
-                <td className="num">{row.toleranceText}</td>
-                <td><Rag colour={row.status} /></td>
-                <td>{TREND_WORD[row.trend]}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Sheet>
-
-      <Sheet report={report} page={7}>
-        <h2 className="cr-h1">Appendix B: RCSA major gaps</h2>
-        <p className="cr-lead">{report.rcsaNote}.</p>
-        <table className="cr-table">
-          <thead>
-            <tr>
-              <th style={{ width: "13%" }}>Obligation</th>
-              <th style={{ width: "13%" }}>Coverage</th>
-              <th style={{ width: "15%" }}>Owner</th>
-              <th>Remediation action</th>
-              <th style={{ width: "11%" }}>Target close</th>
-              <th style={{ width: "10%" }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.majorGaps.map((row) => (
-              <tr key={row.obligationId}>
-                <td>
-                  <span className="cr-strong">{row.citation}</span>
-                  <div className="cr-muted cr-small">{row.regulator}</div>
-                </td>
-                <td>{row.coverage}</td>
-                <td>{row.owner}</td>
-                <td>{row.action ?? "No action recorded"}</td>
-                <td className="nowrap">{row.targetDate ? formatDate(row.targetDate) : "Not set"}</td>
-                <td>{row.status ?? "Not recorded"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <h2 className="cr-h1" style={{ marginTop: "7mm" }}>Governance notes</h2>
-        <table className="cr-cover">
-          <tbody>
-            <tr>
-              <th scope="row">Prepared by</th>
-              <td>{report.preparedBy}</td>
-              <th scope="row">Next review</th>
-              <td>{report.nextReview}</td>
-            </tr>
-          </tbody>
-        </table>
-        <p className="cr-lead">
-          <strong>Firm rating rule:</strong> {report.firmRule}.
-        </p>
-        <p className="cr-lead">
-          <strong>Category rating rule:</strong> {report.ratingRule}
-        </p>
-        <p className="cr-lead">
-          Ratings are calculated by rule from risk appetite metrics, control test results and incidents. Identifiers in
-          square brackets refer to the underlying records.
-        </p>
+        <div className="cr-note">
+          <strong>Basis of ratings.</strong> {report.ratingRule} Ratings are calculated by rule from risk appetite metrics,
+          control test results and incidents. Identifiers in square brackets refer to the underlying records. Next review:{" "}
+          {report.nextReview}.
+        </div>
       </Sheet>
     </div>
   );

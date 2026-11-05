@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { CROReportDocument } from "@/components/UKBankingAudit/v8/report/CROReportDocument";
 import { buildCategoryTiles, buildControlStrip, buildFirmBanner, buildIncidentStrip, buildRiskAppetiteStrip } from "./boardView";
 import { buildCroReport, buildTopLineSummary, buildTopLineTiles } from "./croReportView";
 import { getDerivation } from "./derivations";
@@ -182,9 +185,15 @@ describe("report stays in sync with the dashboard", () => {
     assert.deepEqual(current.whatChanged, buildWhatChanged(NOV, data));
     assert.deepEqual(current.standing, buildWhatHasNotChanged(NOV, data));
     assert.deepEqual(current.overdueTests, buildOverdueTests(data));
-    assert.deepEqual(current.metricRegister, buildRamRows(NOV, data));
-    assert.equal(current.metricRegister.length, 50);
-    assert.equal(current.majorGaps.length, 8);
+    assert.equal(current.appetiteTotals.total, buildRamRows(NOV, data).length);
+    assert.match(current.gapSummary, /^8 obligations have coverage gaps, 3 with no mapped control \(.*DISP 1\.6.*\)$/);
+  });
+
+  it("is five pages with no appendix", () => {
+    const html = renderToStaticMarkup(createElement(CROReportDocument, { report: report() }));
+    assert.equal(html.match(/class="cr-sheet"/g)?.length, 5);
+    assert.ok(html.includes("Page 5 of 5"));
+    assert.ok(!html.includes("Appendix"));
   });
 
   it("uses the Top line figures for its headline", () => {
