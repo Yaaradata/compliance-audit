@@ -25,6 +25,7 @@ export type V8Config = {
   periods: Period[];
   currentPeriod: Period;
   asOf: string;
+  rcsaCycle: { lastRefresh: string; nextRefresh: string };
 };
 
 /** Display labels that differ from the source domain names. */
@@ -64,6 +65,7 @@ export const V8_CONFIG: V8Config = {
   periods: ["2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11"],
   currentPeriod: "2026-11",
   asOf: "2026-11-05",
+  rcsaCycle: { lastRefresh: "2026-06-30", nextRefresh: "2026-12-31" },
 };
 
 /** Level-1 label for a category id. Falls back to the id if it is not in the taxonomy. */

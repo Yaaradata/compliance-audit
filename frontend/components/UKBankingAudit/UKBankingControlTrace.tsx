@@ -183,6 +183,7 @@ import { SMCRReasonableStepsWorkspaceV8 } from '@/components/UKBankingAudit/v8/s
 import { ObligationCoverageMapV8 } from '@/components/UKBankingAudit/v8/screens/ObligationCoverageMapV8';
 import { RiskAppetiteTabV8 } from '@/components/UKBankingAudit/v8/screens/RiskAppetiteTabV8';
 import { ControlsIncidentsTabV8 } from '@/components/UKBankingAudit/v8/screens/ControlsIncidentsTabV8';
+import { ObligationControlTests } from '@/components/UKBankingAudit/v8/coverage/ObligationControlTests';
 import { MLROWorkspaceV8 } from '@/components/UKBankingAudit/v8/screens/MLROWorkspaceV8';
 import { CRSACycleCockpitV8 } from '@/components/UKBankingAudit/v8/screens/CRSACycleCockpitV8';
 import { AIInsightExplorerV8 } from '@/components/UKBankingAudit/v8/screens/AIInsightExplorerV8';
@@ -813,6 +814,12 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
               {n.label}
             </button>
           ))}
+          {variant === "v8" && (
+            <button onClick={() => setActiveScreen("coverageMap")}
+              className={`ml-auto px-4 py-2 text-xs font-medium border-b-2 transition ${activeScreen === "coverageMap" ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500 hover:text-slate-900"}`}>
+              Reference ▸ RCSA Coverage
+            </button>
+          )}
         </nav>
       </header>
 
@@ -2549,6 +2556,7 @@ function DetailDrawer({ drawer, closeDrawer, drillFromDrawer, drillBack, setActi
           {entityType === "control" && <ControlDetailContent control={getControl(entityId)} drillFromDrawer={drillFromDrawer} />}
           {entityType === "obligation" && <ObligationDetailContent obligation={getObligation(entityId)} drillFromDrawer={drillFromDrawer} />}
           {entityType === "issue" && <IssueDetailContent issue={getIssue(entityId)} drillFromDrawer={drillFromDrawer} />}
+          {entityType === "obligation" && variant === "v8" && <ObligationControlTests controlIds={getObligation(entityId)?.linkedControlIds ?? []} />}
           {entityType === "evidence" && <EvidenceDetailContent entityId={entityId} />}
           {entityType === "smf" && <SMFDetailContent smf={getSMF(entityId)} setSelectedSMFId={setSelectedSMFId} setActiveScreen={setActiveScreen} closeDrawer={closeDrawer} />}
           {entityType === "auditPack" && <AuditPackDetailContent pack={getAuditPack(entityId)} setSelectedPackId={setSelectedPackId} setActiveScreen={setActiveScreen} closeDrawer={closeDrawer} />}

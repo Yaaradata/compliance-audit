@@ -49,10 +49,12 @@ const personas = (mockDataV6.personas || []).map(
 
 type NavItem = { id: string; label: string; screen: string; visibleForPersonas: string[] };
 
-const relabelledNavigation: NavItem[] = (mockDataV6.navigationItems || []).map((n: NavItem) => {
-  if (n.screen !== "mlroWorkspace") return n;
-  return { ...n, label: "Financial Crime Workspace" };
-});
+const relabelledNavigation: NavItem[] = (mockDataV6.navigationItems || [])
+  .filter((n: NavItem) => n.screen !== "coverageMap")
+  .map((n: NavItem) => {
+    if (n.screen !== "mlroWorkspace") return n;
+    return { ...n, label: "Financial Crime Workspace" };
+  });
 
 /** v8-only tabs, placed after each persona's own workspace. */
 const V8_TABS: NavItem[] = [
