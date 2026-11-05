@@ -19,7 +19,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 /** The few items that matter most this period, ranked by the rating engine. */
-export function RedSpotlight({ rows }: { rows: SpotlightRow[] }) {
+export function RedSpotlight({ rows, onOpenPath }: { rows: SpotlightRow[]; onOpenPath: (row: SpotlightRow) => void }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="mb-4 text-base font-bold text-slate-900">Red Spotlight</h2>
@@ -52,6 +52,15 @@ export function RedSpotlight({ rows }: { rows: SpotlightRow[] }) {
                 {row.secondLine ? <Fact label="2nd line">{row.secondLine}</Fact> : null}
                 {row.committee ? <Fact label="Committee">{row.committee}</Fact> : null}
               </dl>
+              {row.kind !== "ratingMove" ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenPath(row)}
+                  className="mt-2 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  {row.hasPath ? "Open path to green" : "Add path to green"}
+                </button>
+              ) : null}
             </li>
           ))}
         </ol>

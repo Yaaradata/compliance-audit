@@ -13,6 +13,7 @@ import { CONTROLS, CONTROL_TESTS } from "./data/controls";
 import { INCIDENTS, INCIDENT_CONTROL_LINKS } from "./data/incidents";
 import { RAMS, RAM_VALUES } from "./data/rams";
 import { PRECEDENTS } from "./precedentCorpus";
+import { getRiskState } from "./riskStore";
 
 export type DerivationKind = "RULE" | "LLM";
 
@@ -318,6 +319,24 @@ function kriBreach(domainId: string): DerivationRecord {
 /** Resolve a derivation id. Always returns a record — missing entries are flagged. */
 /** v8 risk records (incidents, control tests, metrics) shown as the basis of a board line. */
 function riskRecord(id: string): DerivationRecord | null {
+  const path = getRiskState().data.pathsToGreen.find((p) => p.id === id);
+  if (path) {
+    return {
+      kind: "RULE",
+      question: `Path to green for ${path.targetId}`,
+      method: "First line plan, second line view and committee decision, as recorded on this path to green.",
+      inputs: [
+        { label: "Cause", value: path.cause },
+        { label: "Owner", value: path.owner },
+        { label: "Target date", value: path.targetDate },
+        { label: "2nd line", value: path.secondLineVerdict },
+        { label: "Committee", value: `${path.committee}: ${path.committeeDecision.replace("_", " ")}` },
+      ],
+      output: path.actions.join(" ") || "No actions recorded.",
+      version: "path-to-green@1.0.0",
+      evaluatedAt: EVALUATED_AT,
+    };
+  }
   const incident = INCIDENTS.find((i) => i.id === id);
   if (incident) {
     return {

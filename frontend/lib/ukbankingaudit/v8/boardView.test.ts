@@ -94,6 +94,8 @@ describe("category tiles", () => {
       targetLabel: "Jan 2027",
       owner: "Head of Information Security",
       secondLine: "challenged",
+      targetType: "ram",
+      targetId: "RAM-CY-02",
     });
   });
 

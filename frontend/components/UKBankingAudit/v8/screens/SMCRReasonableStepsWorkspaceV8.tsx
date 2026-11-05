@@ -25,6 +25,7 @@ import type { SmcrTrailEvent } from '@/lib/ukbankingaudit/v8/smcrPrecedentAwaren
 import { useBoardRole } from '@/components/UKBankingAudit/v8/boardRoleContext';
 import { recordAcknowledgement } from '@/lib/ukbankingaudit/v8/dispositions';
 import { v8RefKind } from '@/lib/ukbankingaudit/v8/refRouter';
+import { useRiskState } from '@/components/UKBankingAudit/v8/useRiskStore';
 
 export function SMCRReasonableStepsWorkspaceV8({ variant = 'v2', selectedSMFId, setSelectedSMFId, smfTrails, pendingDecisionId, setPendingDecisionId, decisionRationale, setDecisionRationale, captureSMFDecision, openDrawer, setActiveScreen, setSelectedPackId }) {
   const ui = getUkAuditUi(variant === 'v4' || variant === 'v6' || variant === 'v8' ? 'v3' : variant);
@@ -33,9 +34,15 @@ export function SMCRReasonableStepsWorkspaceV8({ variant = 'v2', selectedSMFId, 
   const boardRole = useBoardRole();
   const live = smfTrails[selectedSMFId];
 
+  const { trail: riskTrail } = useRiskState();
+
   const mergedTrail = useMemo(
-    () => [...awarenessTrail, ...(live?.trail ?? [])],
-    [awarenessTrail, live?.trail],
+    () => [
+      ...riskTrail.filter((event) => event.smf === smf?.smfFunction),
+      ...awarenessTrail,
+      ...(live?.trail ?? []),
+    ],
+    [riskTrail, smf?.smfFunction, awarenessTrail, live?.trail],
   );
 
   const openEvidence = useCallback(

@@ -46,6 +46,9 @@ export type TilePathView = {
   targetLabel: string;
   owner: string;
   secondLine: PathToGreenRecord["secondLineVerdict"];
+  /** The path with the latest target, which the chip opens. */
+  targetType: PathToGreenRecord["targetType"];
+  targetId: string;
 };
 
 export type CategoryTileView = {
@@ -113,6 +116,8 @@ function tilePath(categoryId: string, data: EngineData): TilePathView | null {
     targetLabel: monthYear(latest.targetDate),
     owner: latest.owner,
     secondLine: weakest.secondLineVerdict,
+    targetType: latest.targetType,
+    targetId: latest.targetId,
   };
 }
 

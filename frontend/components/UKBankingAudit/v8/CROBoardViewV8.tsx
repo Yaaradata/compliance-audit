@@ -17,7 +17,9 @@ import { personas } from "@/components/UKBankingAudit/ukTraceRuntime";
 import { BoardRoleContext } from "./boardRoleContext";
 import { HorizonScanningPanel } from "./HorizonScanningPanel";
 import { FirmRiskPosturePanel } from "./cro/FirmRiskPosturePanel";
+import { PathToGreenDrawer, type PathTarget } from "./PathToGreenDrawer";
 import { RedSpotlight } from "./cro/RedSpotlight";
+import { useRiskState } from "./useRiskStore";
 import { RiskAtAGlance } from "./cro/RiskAtAGlance";
 import { RiskCategoriesPanel } from "./cro/RiskCategoriesPanel";
 import { JurisdictionContext } from "./jurisdictionContext";
@@ -27,17 +29,21 @@ import { v8RefKind } from "@/lib/ukbankingaudit/v8/refRouter";
 
 type Props = {
   openDrawer?: (entityType: string, entityId: string, sourceScreen: string) => void;
+  setActiveScreen?: (screen: string) => void;
 };
 
 /** v6 CRO board — 9-domain mockup (Categories + inline drill + What Changed). */
-export function CROBoardViewV8({ openDrawer }: Props) {
+export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const signals = runBoardDetectors("UK");
   const persona = personas.find((p: { id: string }) => p.id === "cro");
 
-  const appetiteStrip = buildRiskAppetiteStrip();
-  const controlStrip = buildControlStrip();
-  const incidentStrip = buildIncidentStrip();
+  const { data } = useRiskState();
+  const period = data.config.currentPeriod;
+  const [pathTarget, setPathTarget] = useState<PathTarget | null>(null);
+  const appetiteStrip = buildRiskAppetiteStrip(period, data);
+  const controlStrip = buildControlStrip(period, data);
+  const incidentStrip = buildIncidentStrip(period, data);
 
   const toggle = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
   const onOpenEvidence = (ref: string) => openDrawer?.(v8RefKind(ref), ref, "croBoard");
@@ -61,7 +67,7 @@ export function CROBoardViewV8({ openDrawer }: Props) {
             {persona?.label ?? "CRO (SMF4)"}
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            {boardSubtitle()}
+            {boardSubtitle(data)}
           </p>
         </div>
       </div>
@@ -69,7 +75,7 @@ export function CROBoardViewV8({ openDrawer }: Props) {
       <div className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-12 xl:gap-6">
         <div className="min-w-0 space-y-5 xl:col-span-8">
           <FirmRiskPosturePanel
-            banner={buildFirmBanner()}
+            banner={buildFirmBanner(period, data)}
             onOpenCategory={setExpandedId}
           />
           <RiskCategoriesPanel
@@ -93,16 +99,28 @@ export function CROBoardViewV8({ openDrawer }: Props) {
         appetite={appetiteStrip}
         controls={controlStrip}
         incidents={incidentStrip}
-        onOpenAppetite={() => setExpandedId(appetiteStrip.focusCategoryId)}
+        onOpenAppetite={() => setActiveScreen?.("riskAppetite")}
         onOpenControls={() => setExpandedId(controlStrip.worstCategoryId)}
         onOpenIncidents={() => setExpandedId(incidentStrip.topCategoryId)}
       />
 
-      <RedSpotlight rows={buildRedSpotlight()} />
+      <RedSpotlight
+        rows={buildRedSpotlight(period, 5, data)}
+        onOpenPath={(row) =>
+          setPathTarget({
+            targetType: row.kind === "ram" ? "ram" : row.kind === "control" ? "control" : "incident",
+            targetId: row.id,
+            label: row.name,
+            owner: row.owner,
+          })
+        }
+      />
 
-      <WhatChangedFromLastReview items={buildWhatChanged()} onOpenEvidence={onOpenEvidence} />
+      <WhatChangedFromLastReview items={buildWhatChanged(period, data)} onOpenEvidence={onOpenEvidence} />
 
-      <WhatHasNotChanged rows={buildWhatHasNotChanged()} />
+      <WhatHasNotChanged rows={buildWhatHasNotChanged(period, data)} />
+
+      {pathTarget ? <PathToGreenDrawer target={pathTarget} onClose={() => setPathTarget(null)} /> : null}
     </div>
     </JurisdictionContext.Provider>
     </BoardRoleContext.Provider>

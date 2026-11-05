@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { buildCategoryTiles, type CategoryTileView, type TilePathView } from "@/lib/ukbankingaudit/v8/boardView";
 import { DomainDrillPanel } from "./DomainDrillPanel";
+import { PathToGreenDrawer, type PathTarget } from "./PathToGreenDrawer";
 import { RagBadge } from "./FirmPostureSummary";
 import { RAG_STYLES } from "./ragTokens";
 import { RatingTrendChip } from "./RatingTrendChip";
 import type { RagStatus, RiskDomainV4 } from "./types";
+import { useRiskState } from "./useRiskStore";
 
 type Props = {
   domains: RiskDomainV4[];
@@ -22,7 +24,7 @@ const SECOND_LINE: Record<TilePathView["secondLine"], { icon: string; className:
   pending: { icon: "…", className: "bg-slate-200 text-slate-600", label: "2nd line review pending" },
 };
 
-function PathToGreenChip({ path }: { path: TilePathView | null }) {
+function PathToGreenChip({ path, onOpen }: { path: TilePathView | null; onOpen: (path: TilePathView) => void }) {
   if (!path) {
     return (
       <span className="mt-2 inline-flex self-start rounded border border-red-300 bg-white px-1.5 py-0.5 text-[10px] font-bold text-red-700">
@@ -32,7 +34,15 @@ function PathToGreenChip({ path }: { path: TilePathView | null }) {
   }
   const verdict = SECOND_LINE[path.secondLine];
   return (
-    <span className="mt-2 inline-flex items-center gap-1.5 self-start rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(path);
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
+      className="mt-2 inline-flex items-center gap-1.5 self-start rounded border border-slate-200 bg-white px-1.5 py-0.5 text-left text-[10px] font-semibold text-slate-700 hover:border-slate-400"
+    >
       <span>
         Path to green: {path.targetLabel} · {path.owner}
       </span>
@@ -43,17 +53,19 @@ function PathToGreenChip({ path }: { path: TilePathView | null }) {
       >
         {verdict.icon}
       </span>
-    </span>
+    </button>
   );
 }
 
 /** Nine-domain category grid. Every colour, count and sentence comes from the rating engine. */
 export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
   const drillRef = useRef<HTMLDivElement>(null);
+  const { data } = useRiskState();
+  const [pathTarget, setPathTarget] = useState<PathTarget | null>(null);
 
   const sorted = useMemo(() => {
     const domainById = new Map(domains.map((domain) => [domain.id, domain]));
-    return buildCategoryTiles()
+    return buildCategoryTiles(data.config.currentPeriod, data)
       .flatMap((tile) => {
         const domain = domainById.get(tile.categoryId);
         return domain ? [{ tile, domain }] : [];
@@ -62,7 +74,7 @@ export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
         (a, b) =>
           SORT_RANK[a.tile.colour] - SORT_RANK[b.tile.colour] || a.tile.label.localeCompare(b.tile.label),
       );
-  }, [domains]);
+  }, [domains, data]);
 
   useEffect(() => {
     if (expandedId && drillRef.current) {
@@ -125,7 +137,19 @@ export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
                     <dd className="font-semibold text-slate-800">{tile.sevOneTwo}</dd>
                   </div>
                 </dl>
-                {tile.colour !== "green" ? <PathToGreenChip path={tile.path} /> : null}
+                {tile.colour !== "green" ? (
+                  <PathToGreenChip
+                    path={tile.path}
+                    onOpen={(path) =>
+                      setPathTarget({
+                        targetType: path.targetType,
+                        targetId: path.targetId,
+                        label: `${tile.label}: ${path.targetId}`,
+                        owner: path.owner,
+                      })
+                    }
+                  />
+                ) : null}
               </div>
 
               {expanded ? (
@@ -140,6 +164,7 @@ export function CategoryTileGrid({ domains, expandedId, onToggle }: Props) {
           );
         })}
       </div>
+      {pathTarget ? <PathToGreenDrawer target={pathTarget} onClose={() => setPathTarget(null)} /> : null}
     </div>
   );
 }

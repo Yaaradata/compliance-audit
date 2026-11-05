@@ -47,12 +47,24 @@ const personas = (mockDataV6.personas || []).map(
   },
 );
 
-const navigationItems = (mockDataV6.navigationItems || []).map(
-  (n: { id: string; label: string; screen: string; visibleForPersonas: string[] }) => {
-    if (n.screen !== "mlroWorkspace") return n;
-    return { ...n, label: "Financial Crime Workspace" };
-  },
-);
+type NavItem = { id: string; label: string; screen: string; visibleForPersonas: string[] };
+
+const relabelledNavigation: NavItem[] = (mockDataV6.navigationItems || []).map((n: NavItem) => {
+  if (n.screen !== "mlroWorkspace") return n;
+  return { ...n, label: "Financial Crime Workspace" };
+});
+
+/** v8-only tabs, placed after each persona's own workspace. */
+const V8_TABS: NavItem[] = [
+  { id: "nav-risk-appetite", label: "Risk Appetite", screen: "riskAppetite", visibleForPersonas: ["cro", "smf16", "smf17"] },
+];
+
+const firstSharedTab = relabelledNavigation.findIndex((n) => n.screen === "monitoringReportBuilder");
+const navigationItems: NavItem[] = [
+  ...relabelledNavigation.slice(0, firstSharedTab),
+  ...V8_TABS,
+  ...relabelledNavigation.slice(firstSharedTab),
+];
 
 const amlAlertTiersByWeek = buildAmlAlertTiersByWeek(mockDataV6.amlAlertsByWeek);
 const sanctionsScreeningMetrics = buildSanctionsScreeningMetricsV8(

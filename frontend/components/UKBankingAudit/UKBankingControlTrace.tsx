@@ -181,6 +181,7 @@ import { runBoardDetectors as runBoardDetectorsV7 } from '@/lib/ukbankingaudit/v
 import { HeadOfERMWorkspaceV7 } from '@/components/UKBankingAudit/v7/screens/HeadOfERMWorkspaceV7';
 import { SMCRReasonableStepsWorkspaceV8 } from '@/components/UKBankingAudit/v8/screens/SMCRReasonableStepsWorkspaceV8';
 import { ObligationCoverageMapV8 } from '@/components/UKBankingAudit/v8/screens/ObligationCoverageMapV8';
+import { RiskAppetiteTabV8 } from '@/components/UKBankingAudit/v8/screens/RiskAppetiteTabV8';
 import { MLROWorkspaceV8 } from '@/components/UKBankingAudit/v8/screens/MLROWorkspaceV8';
 import { CRSACycleCockpitV8 } from '@/components/UKBankingAudit/v8/screens/CRSACycleCockpitV8';
 import { AIInsightExplorerV8 } from '@/components/UKBankingAudit/v8/screens/AIInsightExplorerV8';
@@ -819,8 +820,9 @@ export default function UKBankingControlTrace({ variant = 'v2' } = {}) {
         {/* Pass 7.1 — four SMF-aligned persona landings (stubs; Passes 7.2–7.4 fill them in). */}
         {/* Pass 7.2 — CROBoardView is now real (three-zone board view). */}
         {activeScreen === "croBoardView" && variant === "v8" && (
-          <CROBoardViewV8 openDrawer={openDrawer} />
+          <CROBoardViewV8 openDrawer={openDrawer} setActiveScreen={setActiveScreen} />
         )}
+        {activeScreen === "riskAppetite" && variant === "v8" && <RiskAppetiteTabV8 />}
         {activeScreen === "croBoardView" && variant === "v7" && (
           <CROBoardViewV7 openDrawer={openDrawer} />
         )}
