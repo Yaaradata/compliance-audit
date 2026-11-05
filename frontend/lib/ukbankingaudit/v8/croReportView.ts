@@ -25,7 +25,7 @@ import {
 } from "./engine";
 import { buildEnforcementNotices } from "./enforcementCoverage";
 import { buildRamRows } from "./riskAppetiteView";
-import type { Period } from "./types";
+import type { Period, RatingColour } from "./types";
 
 export type SummarySentence = { text: string; cites: string[] };
 
@@ -101,6 +101,114 @@ export function buildTopLineSummary(
     sentences.push({ text: `On the horizon: ${event.title} (${event.source}).`, cites: [event.id] });
   }
   return sentences;
+}
+
+export type TopLineTarget =
+  | { kind: "category"; categoryId: string }
+  | { kind: "screen"; screen: "riskAppetite" | "controlsIncidents" }
+  | { kind: "evidence"; ref: string };
+
+export type TopLineTile = {
+  id: "firm" | "appetite" | "controls" | "incidents" | "horizon";
+  label: string;
+  /** The one figure to read first. */
+  value: string;
+  /** One short line of context. */
+  note: string;
+  tone: RatingColour | "neutral";
+  /** Where a click on the tile goes. Each tile has exactly one destination. */
+  target: TopLineTarget;
+  /** The record behind the figure, shown as a reference. */
+  reference: string | null;
+  /** The full sentence, kept as a tooltip and screen reader text. */
+  detail: string;
+};
+
+/** The top line as five tiles, each answering one question with one figure. */
+export function buildTopLineTiles(
+  period: Period = V8_ENGINE_DATA.config.currentPeriod,
+  data: EngineData = V8_ENGINE_DATA,
+): TopLineTile[] {
+  const banner = buildFirmBanner(period, data);
+  const material = selectMaterialItems(period, 100, data);
+  const reds = material.filter((m) => m.kind === "ram");
+  const controls = buildControlStrip(period, data);
+  const moves = buildWhatMoved(period, data);
+  const incidents = buildIncidentStrip(period, data);
+  const event = HORIZON_ITEMS.filter((h) => h.type === "industry").sort((a, b) => b.date.localeCompare(a.date))[0];
+  const eventCount = HORIZON_ITEMS.filter((h) => h.type === "industry").length;
+  const sentences = buildTopLineSummary(period, data);
+  const sentence = (prefix: string) => sentences.find((s) => s.text.startsWith(prefix))?.text ?? "";
+  const { amberThreshold, redThreshold } = data.config.categoryRatingRule;
+
+  const prev = banner.trend.prevColour?.toUpperCase();
+  const firmMove = !prev
+    ? "First review"
+    : banner.trend.direction === "flat"
+      ? `Same as ${banner.trend.prevPeriodLabel}`
+      : `${banner.trend.direction === "worse" ? "Worse" : "Better"} than ${banner.trend.prevPeriodLabel}`;
+  const drivers = banner.drivingCategories;
+  const driverNote = drivers.length === 1 ? drivers[0].label : drivers.length > 1 ? `${drivers.length} categories` : "";
+
+  const controlMove =
+    controls.prevPct === null || controls.direction === "flat"
+      ? "No change"
+      : `${controls.direction === "down" ? "Down" : "Up"} from ${controls.prevPct}%`;
+
+  return [
+    {
+      id: "firm",
+      label: "Firm posture",
+      value: banner.colour.toUpperCase(),
+      note: driverNote ? `${firmMove} · ${driverNote}` : firmMove,
+      tone: banner.colour,
+      target: drivers[0]
+        ? { kind: "category", categoryId: drivers[0].categoryId }
+        : { kind: "screen", screen: "riskAppetite" },
+      reference: reds[0]?.id ?? null,
+      detail: sentence("Firm risk posture"),
+    },
+    {
+      id: "appetite",
+      label: "Out of tolerance",
+      value: pluralise(reds.length, "metric"),
+      note: reds[0] ? `Worst: ${reds[0].name}` : "All within tolerance",
+      tone: reds.length > 0 ? "red" : "green",
+      target: { kind: "screen", screen: "riskAppetite" },
+      reference: reds[0]?.id ?? null,
+      detail: sentences[1]?.text ?? "",
+    },
+    {
+      id: "controls",
+      label: "Critical controls",
+      value: `${controls.pct}%`,
+      note: controlMove,
+      tone: controls.pct < redThreshold ? "red" : controls.pct < amberThreshold ? "amber" : "green",
+      target: { kind: "screen", screen: "controlsIncidents" },
+      reference: moves[0]?.controlId ?? null,
+      detail: [sentence("Critical controls"), moves[0]?.text.replace(" — ", ". ") ?? ""].filter(Boolean).join(" "),
+    },
+    {
+      id: "incidents",
+      label: "Incidents",
+      value: `${incidents.sevOne} Sev-1 · ${incidents.sevTwo} Sev-2`,
+      note: incidents.topTitle ?? "None open or new",
+      tone: incidents.sevOne > 0 ? "red" : incidents.sevTwo > 0 ? "amber" : "green",
+      target: { kind: "screen", screen: "controlsIncidents" },
+      reference: incidents.topId,
+      detail: sentences.find((s) => /Sev-1/.test(s.text))?.text ?? "",
+    },
+    {
+      id: "horizon",
+      label: "On the horizon",
+      value: pluralise(eventCount, "industry event"),
+      note: event?.title ?? "Nothing new",
+      tone: "neutral",
+      target: event ? { kind: "evidence", ref: event.id } : { kind: "screen", screen: "riskAppetite" },
+      reference: event?.id ?? null,
+      detail: sentence("On the horizon"),
+    },
+  ];
 }
 
 export type ReportHorizonRow = { id: string; kind: string; title: string; source: string; date: string; summary: string };

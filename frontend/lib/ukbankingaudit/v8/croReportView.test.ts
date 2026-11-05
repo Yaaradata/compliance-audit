@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { buildCategoryTiles, buildControlStrip, buildFirmBanner, buildIncidentStrip, buildRiskAppetiteStrip } from "./boardView";
-import { buildCroReport, buildTopLineSummary } from "./croReportView";
+import { buildCroReport, buildTopLineSummary, buildTopLineTiles } from "./croReportView";
 import { getDerivation } from "./derivations";
 import { v8RefKind } from "./refRouter";
 import { getRiskState, linkIncidentToControl, resetRiskStore } from "./riskStore";
@@ -39,6 +39,52 @@ describe("top-line summary", () => {
     const text = buildTopLineSummary(NOV, getRiskState().data).map((s) => s.text).join(" ");
     assert.match(text, /93% effective/);
     assert.match(text, /Fraud & Financial Crime and Cyber|Cyber & Information Security and Fraud/);
+  });
+});
+
+describe("top-line tiles", () => {
+  const tiles = buildTopLineTiles(NOV);
+  const tile = (id: string) => {
+    const found = tiles.find((t) => t.id === id);
+    assert.ok(found, id);
+    return found;
+  };
+
+  it("shows one figure per tile, matching the Board View", () => {
+    assert.deepEqual(tiles.map((t) => t.value), ["RED", "2 metrics", "94%", "1 Sev-1 · 2 Sev-2", "2 industry events"]);
+    assert.equal(tile("firm").note, "Same as Oct · Cyber & Information Security");
+    assert.equal(tile("appetite").note, "Worst: Critical vulnerabilities open");
+    assert.equal(tile("controls").note, "Down from 96%");
+    assert.equal(tile("controls").value, `${buildControlStrip(NOV).pct}%`);
+  });
+
+  it("keeps each short line short", () => {
+    for (const t of tiles) assert.ok(t.note.length <= 60, `${t.id}: ${t.note}`);
+  });
+
+  it("gives each tile one destination and keeps the full sentence as detail", () => {
+    assert.deepEqual(tile("firm").target, { kind: "category", categoryId: "cyber" });
+    assert.deepEqual(tile("appetite").target, { kind: "screen", screen: "riskAppetite" });
+    assert.deepEqual(tile("controls").target, { kind: "screen", screen: "controlsIncidents" });
+    assert.deepEqual(tile("incidents").target, { kind: "screen", screen: "controlsIncidents" });
+    assert.deepEqual(tile("horizon").target, { kind: "evidence", ref: "HZ-IND-001" });
+    for (const t of tiles) assert.ok(t.detail.length > 0, t.id);
+    assert.match(tile("controls").detail, /Disposition control under capacity stress/);
+  });
+
+  it("carries the reference behind each figure", () => {
+    assert.deepEqual(tiles.map((t) => t.reference), ["RAM-CY-01", "RAM-CY-01", "AML-C002", "INC-2026-041", "HZ-IND-001"]);
+  });
+
+  it("uses status tones from the rating rules", () => {
+    assert.deepEqual(tiles.map((t) => t.tone), ["red", "red", "amber", "red", "neutral"]);
+  });
+
+  it("follows local re-rates", () => {
+    linkIncidentToControl({ incidentId: "INC-2026-040", controlId: "AML-C005", controlWorked: "failed" }, "2026-11-05T10:00:00.000Z");
+    const after = buildTopLineTiles(NOV, getRiskState().data);
+    assert.equal(after.find((t) => t.id === "controls")?.value, "93%");
+    assert.match(after.find((t) => t.id === "firm")?.note ?? "", /2 categories/);
   });
 });
 

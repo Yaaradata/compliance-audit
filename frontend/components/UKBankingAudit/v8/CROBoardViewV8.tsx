@@ -13,7 +13,7 @@ import {
   buildWhatHasNotChanged,
 } from "@/lib/ukbankingaudit/v8/boardView";
 import { RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
-import { buildTopLineSummary } from "@/lib/ukbankingaudit/v8/croReportView";
+import { buildTopLineTiles, type TopLineTile } from "@/lib/ukbankingaudit/v8/croReportView";
 import { runBoardDetectors } from "@/lib/ukbankingaudit/v8/detectors";
 import { personas } from "@/components/UKBankingAudit/ukTraceRuntime";
 import { BoardRoleContext } from "./boardRoleContext";
@@ -51,6 +51,11 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
 
   const toggle = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
   const onOpenEvidence = (ref: string) => openDrawer?.(v8RefKind(ref), ref, "croBoard");
+  const openTopLineTile = ({ target }: TopLineTile) => {
+    if (target.kind === "category") setExpandedId(target.categoryId);
+    if (target.kind === "screen") setActiveScreen?.(target.screen);
+    if (target.kind === "evidence") onOpenEvidence(target.ref);
+  };
 
   return (
     <BoardRoleContext.Provider value="second-line">
@@ -83,7 +88,7 @@ export function CROBoardViewV8({ openDrawer, setActiveScreen }: Props) {
         </button>
       </div>
 
-      <TopLineSummary sentences={buildTopLineSummary(period, data)} onOpenEvidence={onOpenEvidence} />
+      <TopLineSummary tiles={buildTopLineTiles(period, data)} onOpen={openTopLineTile} />
 
       <div className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-12 xl:gap-6">
         <div className="min-w-0 space-y-5 xl:col-span-8">
