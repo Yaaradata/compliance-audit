@@ -21,6 +21,9 @@ export const BOARD_SIGNAL_TITLES = [
   "Breach Without a Plan",
   "Accountability Orphan",
   "Deadline Without Evidence",
+  "Enforcement Notice",
+  "Industry Event",
+  "Emerging Risk",
 ] as const;
 
 export type BoardSignalTitle = (typeof BOARD_SIGNAL_TITLES)[number];

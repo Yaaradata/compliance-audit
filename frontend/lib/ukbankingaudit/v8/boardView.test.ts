@@ -13,6 +13,9 @@ import {
   buildWhatHasNotChanged,
 } from "./boardView";
 import { getDerivation } from "./derivations";
+import { HORIZON_ITEMS } from "./data/horizon";
+import { horizonItemToSignal } from "./horizonSignals";
+import { isBoardSignalValid } from "./validateBoardSignal";
 import { V8_ENGINE_DATA, type EngineData } from "./engine";
 import type { FirmAggregationRule } from "./config";
 
@@ -229,5 +232,24 @@ describe("what has not changed", () => {
     assert.equal(rows[0].committee, "Delay accepted by Board Risk Committee, 12 Oct 2026");
     assert.equal(rows[2].targetDate, "2026-11-13");
     assert.equal(rows[2].overdue, false);
+  });
+});
+
+describe("horizon scanning data", () => {
+  it("moves the Consumer Duty gap under the control strip", () => {
+    assert.deepEqual(buildControlStrip(NOV).evidenceWarnings, [
+      "Consumer Duty: GREEN with 0 evidence artefacts this cycle",
+    ]);
+  });
+
+  it("adapts industry, emerging and queue items to the investigation drawer", () => {
+    const industry = HORIZON_ITEMS.find((h) => h.type === "industry");
+    const emerging = HORIZON_ITEMS.find((h) => h.type === "emerging");
+    assert.ok(industry && emerging);
+    assert.equal(horizonItemToSignal(industry).title, "Industry Event");
+    assert.equal(horizonItemToSignal(emerging).title, "Emerging Risk");
+    for (const signal of [horizonItemToSignal(industry), horizonItemToSignal(emerging)]) {
+      assert.equal(isBoardSignalValid(signal), true);
+    }
   });
 });

@@ -15,7 +15,7 @@ import { RISK_DOMAINS_V4 } from "@/lib/ukbankingaudit/v8/riskDomainsV8";
 import { runBoardDetectors } from "@/lib/ukbankingaudit/v8/detectors";
 import { personas } from "@/components/UKBankingAudit/ukTraceRuntime";
 import { BoardRoleContext } from "./boardRoleContext";
-import { RegulatoryLandscapePanel } from "./RegulatoryLandscapePanel";
+import { HorizonScanningPanel } from "./HorizonScanningPanel";
 import { FirmRiskPosturePanel } from "./cro/FirmRiskPosturePanel";
 import { RedSpotlight } from "./cro/RedSpotlight";
 import { RiskAtAGlance } from "./cro/RiskAtAGlance";
@@ -80,7 +80,7 @@ export function CROBoardViewV8({ openDrawer }: Props) {
         </div>
         <div className="min-w-0 xl:relative xl:col-span-4">
           <div className="xl:absolute xl:inset-0">
-            <RegulatoryLandscapePanel
+            <HorizonScanningPanel
               signals={signals}
               expandedId={expandedId}
               onClearDomain={() => setExpandedId(null)}

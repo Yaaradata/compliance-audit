@@ -245,6 +245,8 @@ export type ControlStrip = {
   worstCategoryId: string;
   worstLabel: string;
   worstPct: number;
+  /** Green items with no evidence artefact this cycle. */
+  evidenceWarnings: string[];
 };
 
 function firmEffectivePct(period: Period, data: EngineData): number | null {
@@ -274,6 +276,12 @@ export function buildControlStrip(
     worstCategoryId: worst.id,
     worstLabel: worst.label,
     worstPct: worst.pct,
+    evidenceWarnings: DOMAIN_EVIDENCE.filter(
+      (e) =>
+        e.cadenceSource === "human-confirmed" &&
+        e.artefactId === null &&
+        computeCategoryRating(e.domainId, period, data).colour === "green",
+    ).map((e) => `${e.subCategory ?? categoryLabel(e.domainId, data.config)}: GREEN with 0 evidence artefacts this cycle`),
   };
 }
 
