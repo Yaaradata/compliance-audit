@@ -1,10 +1,10 @@
 /**
  * UK Banking Audit version routing — shared by the select-region card.
- * Keep in sync with app/UKBankingAudit/v{1..7}/page.tsx and UKBankingControlTrace variant.
+ * Keep in sync with app/UKBankingAudit/v{1..8}/page.tsx and UKBankingControlTrace variant.
  */
 export type UkBankingAuditVersion = "v1" | "v2" | "v3" | "v4" | "v5" | "v6" | "v7" | "v8";
 
-export const LATEST_UK_BANKING_VERSION: UkBankingAuditVersion = "v7";
+export const LATEST_UK_BANKING_VERSION: UkBankingAuditVersion = "v8";
 
 export const UK_BANKING_PATHS: Record<UkBankingAuditVersion, string> = {
   v1: "/UKBankingAudit/v1",
@@ -30,8 +30,8 @@ export const UK_BANKING_VERSION_ORDER: UkBankingAuditVersion[] = [
 ];
 
 export const UK_BANKING_VERSION_SELECT_LABELS: Record<UkBankingAuditVersion, string> = {
-  v8: "v8",
-  v7: "v7 — latest",
+  v8: "v8 — latest",
+  v7: "v7",
   v6: "v6",
   v5: "v5",
   v4: "v4",
