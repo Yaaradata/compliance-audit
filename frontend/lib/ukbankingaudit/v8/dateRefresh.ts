@@ -27,6 +27,8 @@ const PROSE: ReadonlyArray<readonly [RegExp, string]> = [
   [/30-May/g, "5-Dec"],
   [/\bFeb 2026\b/g, "Jun 2026"],
   [/\bafter May release\b/g, "after September release"],
+  // Not a date, but the same copy step: the v8 display label for the cyber category.
+  [/Cyber & Op Resilience/g, "Cyber & Information Security"],
 ];
 
 function shiftIso(iso: string): string {
