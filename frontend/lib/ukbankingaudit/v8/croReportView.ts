@@ -25,7 +25,7 @@ import {
 } from "./engine";
 import { buildEnforcementNotices } from "./enforcementCoverage";
 import { buildRamRows } from "./riskAppetiteView";
-import type { Period, RatingColour } from "./types";
+import type { PathToGreenRecord, Period, RatingColour } from "./types";
 
 export type SummarySentence = { text: string; cites: string[] };
 
@@ -211,24 +211,47 @@ export function buildTopLineTiles(
   ];
 }
 
-export type ReportHorizonRow = { id: string; kind: string; title: string; source: string; date: string; summary: string };
+export type ReportHorizonRow = { id: string; kind: string; title: string; source: string; sourceUrl: string; date: string; summary: string };
 
 export type CroReportView = {
   periodText: string;
+  /** "November 2026". */
+  periodLong: string;
   asOfText: string;
+  headlineTiles: TopLineTile[];
+  /** What the committee is asked to decide or note. */
+  matters: string[];
+  ratingRule: string;
   summary: SummarySentence[];
   firmColour: string;
   firmTrend: string;
   firmRule: string;
   drivers: string[];
   assurance: string;
-  ratings: { id: string; label: string; colour: string; trend: string; why: string; path: string | null }[];
+  ratings: {
+    id: string;
+    label: string;
+    colour: string;
+    trend: string;
+    /** Plain words: "Unchanged", "Improved", "Worsened". */
+    trendWord: string;
+    why: string;
+    path: string | null;
+    ramRed: number;
+    ramAmber: number;
+    criticalPct: number;
+    sevOneTwo: number;
+  }[];
   appetite: {
     id: string;
     name: string;
     categoryLabel: string;
     colour: string;
     measure: string;
+    value: string;
+    limit: string;
+    tolerance: string;
+    owner: string;
     cause: string;
     path: string;
     secondLine: string;
@@ -245,6 +268,36 @@ export type CroReportView = {
 };
 
 const SECOND_LINE = { accepted: "Accepted", challenged: "Challenged", pending: "Pending" };
+
+const FULL_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+const TREND_WORD = { worse: "Worsened", better: "Improved", flat: "Unchanged" };
+const COLOUR_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2 };
+const MAX_MATTERS = 5;
+
+function targetName(path: PathToGreenRecord, data: EngineData): string {
+  if (path.targetType === "ram") return data.rams.find((r) => r.id === path.targetId)?.name ?? path.targetId;
+  if (path.targetType === "control") return data.controls.find((c) => c.id === path.targetId)?.name ?? path.targetId;
+  return data.incidents.find((i) => i.id === path.targetId)?.title ?? path.targetId;
+}
+
+/** Overdue paths first, then plans sent back, then decisions pending at the Board Risk Committee. */
+function buildMatters(data: EngineData): string[] {
+  const overdue = data.pathsToGreen
+    .filter((p) => p.targetDate < data.config.asOf)
+    .map((p) => `Note: ${targetName(p, data)} is past its ${formatDate(p.targetDate)} target. ${committeeText(p, true)}.`);
+  const sentBack = data.pathsToGreen
+    .filter((p) => p.committeeDecision === "sent_back")
+    .map((p) => `Review: the plan for ${targetName(p, data)} was sent back${p.decisionDate ? ` on ${formatDate(p.decisionDate)}` : ""}.`);
+  const pending = data.pathsToGreen
+    .filter((p) => p.committeeDecision === "pending" && p.committee === "Board Risk Committee")
+    .sort((a, b) => a.targetDate.localeCompare(b.targetDate))
+    .map((p) => `Decide: the path to green for ${targetName(p, data)}, target ${formatDate(p.targetDate)}.`);
+  return [...overdue, ...sentBack, ...pending].slice(0, MAX_MATTERS);
+}
 
 function periodText(period: Period): string {
   return `${periodLabel(period)} ${period.slice(0, 4)}`;
@@ -263,6 +316,7 @@ function regulatoryRows(): ReportHorizonRow[] {
       kind: "Enforcement",
       title: n.precedent.respondent,
       source: n.regulatorBody,
+      sourceUrl: n.precedent.sourceUrl,
       date: formatDate(n.publishedDate),
       summary: `${n.ageDays} days not assessed. ${n.precedent.hook}`,
     }));
@@ -281,27 +335,39 @@ export function buildCroReport(
       kind: type === "industry" ? "Industry event" : "Emerging risk",
       title: h.title,
       source: h.source,
+      sourceUrl: h.sourceUrl,
       date: formatDate(h.date),
       summary: h.summary,
     }));
 
   return {
     periodText: periodText(period),
+    periodLong: `${FULL_MONTHS[Number(period.split("-")[1]) - 1]} ${period.slice(0, 4)}`,
     asOfText: formatDate(data.config.asOf),
+    headlineTiles: buildTopLineTiles(period, data),
+    matters: buildMatters(data),
+    ratingRule: data.config.categoryRatingRule.description,
     summary: buildTopLineSummary(period, data),
     firmColour: banner.colour,
     firmTrend: banner.trend.chipText,
     firmRule: banner.ruleDescription,
     drivers: banner.drivingCategories.map((c) => c.label),
     assurance: banner.assuranceText,
-    ratings: buildCategoryTiles(period, data).map((tile) => ({
-      id: tile.categoryId,
-      label: tile.label,
-      colour: tile.colour,
-      trend: tile.trend.tooltip,
-      why: tile.why,
-      path: tile.path ? `${tile.path.targetLabel} · ${tile.path.owner}` : null,
-    })),
+    ratings: buildCategoryTiles(period, data)
+      .map((tile) => ({
+        id: tile.categoryId,
+        label: tile.label,
+        colour: tile.colour,
+        trend: tile.trend.tooltip,
+        trendWord: TREND_WORD[tile.trend.direction],
+        why: tile.why,
+        path: tile.path ? `${tile.path.targetLabel} · ${tile.path.owner}` : null,
+        ramRed: tile.ramRed,
+        ramAmber: tile.ramAmber,
+        criticalPct: tile.criticalPct,
+        sevOneTwo: tile.sevOneTwo,
+      }))
+      .sort((a, b) => COLOUR_ORDER[a.colour] - COLOUR_ORDER[b.colour] || a.label.localeCompare(b.label)),
     appetite: rows
       .filter((row) => row.status !== "green")
       .map((row) => {
@@ -312,6 +378,10 @@ export function buildCroReport(
           categoryLabel: categoryLabel(row.categoryId, data.config),
           colour: row.status,
           measure: `${row.valueText} vs limit ${row.limitText}, tolerance ${row.toleranceText}`,
+          value: row.valueText,
+          limit: row.limitText,
+          tolerance: row.toleranceText,
+          owner: row.path?.owner ?? row.owner,
           cause: row.path?.cause ?? "No path to green",
           path: row.path ? `${formatDate(row.path.targetDate)}${overdue ? " (overdue)" : ""}` : "None",
           secondLine: row.path ? SECOND_LINE[row.path.secondLineVerdict] : "None",

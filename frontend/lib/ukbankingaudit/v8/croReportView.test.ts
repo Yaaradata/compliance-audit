@@ -122,7 +122,21 @@ describe("CRO report", () => {
     assert.equal(kyc?.committee, "Delay accepted by Board Risk Committee, 12 Oct 2026");
   });
 
+  it("states what the committee is asked to decide or note", () => {
+    assert.ok(report.matters.length > 0 && report.matters.length <= 5);
+    assert.match(report.matters[0], /^Note: KYC refresh backlog on high-risk relationships is past its 31 Oct 2026 target/);
+    assert.ok(report.matters.some((m) => m.startsWith("Review: the plan for Mean time to patch")));
+    assert.ok(report.matters.some((m) => m.startsWith("Decide: ")));
+  });
+
+  it("orders ratings red, then amber, then green", () => {
+    assert.deepEqual(report.ratings.slice(0, 2).map((r) => r.id), ["cyber", "fincrime"]);
+    assert.equal(report.ratings[0].trendWord, "Unchanged");
+    assert.equal(report.ratings.find((r) => r.id === "credit")?.trendWord, "Improved");
+  });
+
   it("has the reporting period and date for the footer", () => {
+    assert.equal(report.periodLong, "November 2026");
     assert.equal(report.periodText, "Nov 2026");
     assert.equal(report.asOfText, "5 Nov 2026");
   });
