@@ -10,11 +10,31 @@ import {
   buildFirmBanner,
   buildIncidentStrip,
   buildRedSpotlight,
+  buildWhatChanged,
+  buildWhatHasNotChanged,
   committeeText,
   formatDate,
+  type ChangeRow,
+  type SpotlightRow,
+  type StandingRow,
 } from "./boardView";
 import { categoryLabel } from "./config";
-import { buildCategoryEffectiveness, buildIncidentRows, buildWhatMoved } from "./controlsIncidentsView";
+import {
+  buildCategoryEffectiveness,
+  buildEvidenceWarnings,
+  buildIncidentRows,
+  buildOverdueTests,
+  buildWhatMoved,
+  type OverdueTest,
+} from "./controlsIncidentsView";
+import { runBoardDetectors } from "./detectors";
+import {
+  externalBoardSignals,
+  openEnforcementNotices,
+  readAcrossPrecedents,
+} from "./horizonSignals";
+import { buildMajorGaps, rcsaCycleNote, type MajorGapRow } from "./rcsaCoverageView";
+import { getRiskState, type RiskState } from "./riskStore";
 import { HORIZON_ITEMS } from "./data/horizon";
 import {
   boardIncidents,
@@ -23,8 +43,7 @@ import {
   V8_ENGINE_DATA,
   type EngineData,
 } from "./engine";
-import { buildEnforcementNotices } from "./enforcementCoverage";
-import { buildRamRows } from "./riskAppetiteView";
+import { buildRamRows, type RamRow } from "./riskAppetiteView";
 import type { PathToGreenRecord, Period, RatingColour } from "./types";
 
 export type SummarySentence = { text: string; cites: string[] };
@@ -211,7 +230,19 @@ export function buildTopLineTiles(
   ];
 }
 
-export type ReportHorizonRow = { id: string; kind: string; title: string; source: string; sourceUrl: string; date: string; summary: string };
+export type ReportHorizonRow = {
+  id: string;
+  kind: string;
+  title: string;
+  source: string;
+  sourceUrl: string;
+  date: string;
+  summary: string;
+  /** "Relevant to us?" answer, where the dashboard asks for one. */
+  relevance: string | null;
+  /** Latest decision recorded on the dashboard. */
+  decision: string | null;
+};
 
 export type CroReportView = {
   periodText: string;
@@ -258,12 +289,24 @@ export type CroReportView = {
     committee: string;
   }[];
   appetiteTotals: { green: number; amber: number; red: number; total: number };
+  /** Same rows as the Board View Red Spotlight. */
+  spotlight: SpotlightRow[];
+  whatChanged: ChangeRow[];
+  standing: StandingRow[];
+  overdueTests: OverdueTest[];
+  evidenceWarnings: string[];
+  /** Appendix A: every metric on the Risk Appetite tab. */
+  metricRegister: RamRow[];
+  /** Appendix B: the RCSA Coverage major gaps tracker. */
+  majorGaps: MajorGapRow[];
+  rcsaNote: string;
+  preparedBy: string;
+  nextReview: string;
   controlsPct: number;
   controlsPrevPct: number | null;
   controlCategories: { id: string; label: string; pct: number; prevPct: number | null }[];
   moves: string[];
   incidents: { id: string; date: string; severity: string; title: string; category: string; status: string; controls: string }[];
-  spotlightCount: number;
   horizon: { regulatory: ReportHorizonRow[]; industry: ReportHorizonRow[]; emerging: ReportHorizonRow[] };
 };
 
@@ -273,6 +316,15 @@ const FULL_MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+function periodLongLabel(period: Period): string {
+  return `${FULL_MONTHS[Number(period.split("-")[1]) - 1]} ${period.slice(0, 4)}`;
+}
+
+function nextPeriod(period: Period, months: number): Period {
+  const [year, month] = period.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1 + months, 1)).toISOString().slice(0, 7);
+}
 
 const TREND_WORD = { worse: "Worsened", better: "Improved", flat: "Unchanged" };
 const COLOUR_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2 };
@@ -303,28 +355,75 @@ function periodText(period: Period): string {
   return `${periodLabel(period)} ${period.slice(0, 4)}`;
 }
 
-/** Enforcement queue from the v8 mock graph, so the report needs no screen runtime. */
-function regulatoryRows(): ReportHorizonRow[] {
-  const { groupSetRequirements } = mockDataV8 as unknown as {
-    groupSetRequirements: Parameters<typeof buildEnforcementNotices>[0]["groupSetRequirements"];
-  };
-  return buildEnforcementNotices({ groupSetRequirements })
-    .filter((n) => n.applicabilityStatus === "not_assessed")
-    .sort((a, b) => b.ageDays - a.ageDays)
-    .map((n) => ({
+type MockGraph = {
+  groupSetRequirements: Parameters<typeof openEnforcementNotices>[0];
+  smfHolders: Parameters<typeof readAcrossPrecedents>[0] & Parameters<typeof buildMajorGaps>[1];
+  obligations: Parameters<typeof buildMajorGaps>[0];
+};
+const GRAPH = mockDataV8 as unknown as MockGraph;
+
+const DECISION_WORDS: Record<string, string> = {
+  accept: "Accepted",
+  reject: "Rejected",
+  escalate: "Escalated",
+  override: "Overridden",
+};
+
+function latestDecision(signalId: string, dispositions: RiskState["dispositions"]): string | null {
+  const entry = dispositions[signalId]?.at(-1);
+  return entry ? (DECISION_WORDS[entry.kind] ?? entry.kind) : null;
+}
+
+const MAX_BOARD_SIGNALS = 4;
+
+/** Exactly what the Regulatory tab of Horizon Scanning lists, in the same order. */
+function regulatoryRows(dispositions: RiskState["dispositions"], asOf: string): ReportHorizonRow[] {
+  const signals = externalBoardSignals(runBoardDetectors("UK")).slice(0, MAX_BOARD_SIGNALS);
+  const notices = openEnforcementNotices(GRAPH.groupSetRequirements);
+  const readAcross = readAcrossPrecedents(GRAPH.smfHolders, new Set(notices.map((n) => n.id)));
+  return [
+    ...signals.map((signal) => ({
+      id: signal.id,
+      kind: "Board signal",
+      title: signal.title,
+      source: "Rule-based detection",
+      sourceUrl: "",
+      date: formatDate(asOf),
+      summary: signal.soWhat,
+      relevance: null,
+      decision: latestDecision(signal.id, dispositions),
+    })),
+    ...notices.map((n) => ({
       id: n.id,
-      kind: "Enforcement",
+      kind: "Enforcement queue",
       title: n.precedent.respondent,
       source: n.regulatorBody,
       sourceUrl: n.precedent.sourceUrl,
       date: formatDate(n.publishedDate),
-      summary: `${n.ageDays} days not assessed. ${n.precedent.hook}`,
-    }));
+      summary: `${n.ageDays} days ${n.applicabilityStatus === "in_progress" ? "with assessment in progress" : "not assessed"}. ${n.precedent.hook}`,
+      relevance: null,
+      decision: latestDecision(`queue-${n.id}`, dispositions),
+    })),
+    ...readAcross.map((p) => ({
+      id: p.id,
+      kind: "Enforcement read-across",
+      title: p.respondent,
+      source: p.regulator,
+      sourceUrl: p.sourceUrl,
+      date: formatDate(p.noticeDate),
+      summary: p.hook,
+      relevance: null,
+      decision: latestDecision(`read-across-${p.id}`, dispositions),
+    })),
+  ];
 }
+
+const RELEVANCE_WORDS = { not_assessed: "Not assessed", yes: "Yes", no: "No" };
 
 export function buildCroReport(
   period: Period = V8_ENGINE_DATA.config.currentPeriod,
   data: EngineData = V8_ENGINE_DATA,
+  session: Pick<RiskState, "relevance" | "dispositions"> = getRiskState(),
 ): CroReportView {
   const banner = buildFirmBanner(period, data);
   const controls = buildControlStrip(period, data);
@@ -338,11 +437,13 @@ export function buildCroReport(
       sourceUrl: h.sourceUrl,
       date: formatDate(h.date),
       summary: h.summary,
+      relevance: type === "industry" ? RELEVANCE_WORDS[session.relevance[h.id] ?? h.relevance] : null,
+      decision: latestDecision(h.id, session.dispositions),
     }));
 
   return {
     periodText: periodText(period),
-    periodLong: `${FULL_MONTHS[Number(period.split("-")[1]) - 1]} ${period.slice(0, 4)}`,
+    periodLong: periodLongLabel(period),
     asOfText: formatDate(data.config.asOf),
     headlineTiles: buildTopLineTiles(period, data),
     matters: buildMatters(data),
@@ -414,7 +515,20 @@ export function buildCroReport(
         status: i.status,
         controls: i.links.map((l) => `${l.controlId}: ${l.worked}`).join(", "),
       })),
-    spotlightCount: buildRedSpotlight(period, 100, data).length,
-    horizon: { regulatory: regulatoryRows(), industry: horizonRow("industry"), emerging: horizonRow("emerging") },
+    spotlight: buildRedSpotlight(period, 5, data),
+    whatChanged: buildWhatChanged(period, data),
+    standing: buildWhatHasNotChanged(period, data),
+    overdueTests: buildOverdueTests(data),
+    evidenceWarnings: buildEvidenceWarnings(period, data),
+    metricRegister: rows,
+    majorGaps: buildMajorGaps(GRAPH.obligations, GRAPH.smfHolders),
+    rcsaNote: rcsaCycleNote(data.config),
+    preparedBy: "Chief Risk Officer (SMF4)",
+    nextReview: periodLongLabel(nextPeriod(period, data.config.reportingCadence === "quarterly" ? 3 : 1)),
+    horizon: {
+      regulatory: regulatoryRows(session.dispositions, data.config.asOf),
+      industry: horizonRow("industry"),
+      emerging: horizonRow("emerging"),
+    },
   };
 }

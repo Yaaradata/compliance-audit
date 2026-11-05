@@ -4,7 +4,8 @@
  * Local only: nothing is sent anywhere.
  */
 import { V8_ENGINE_DATA, type EngineData } from "./engine";
-import type { IncidentControlLink, PathToGreenRecord, SmfRef } from "./types";
+import type { AuditEntry } from "./dispositions";
+import type { HorizonItem, IncidentControlLink, PathToGreenRecord, SmfRef } from "./types";
 
 export type RiskTrailEvent = {
   timestamp: string;
@@ -18,15 +19,61 @@ export type RiskTrailEvent = {
 export type RiskState = {
   data: EngineData;
   trail: RiskTrailEvent[];
+  /** "Relevant to us?" answers on Horizon Scanning, by horizon item id. */
+  relevance: Record<string, HorizonItem["relevance"]>;
+  /** Investigation decisions recorded on Horizon Scanning, by signal id. */
+  dispositions: Record<string, AuditEntry[]>;
 };
 
-const INITIAL: RiskState = { data: V8_ENGINE_DATA, trail: [] };
+const INITIAL: RiskState = { data: V8_ENGINE_DATA, trail: [], relevance: {}, dispositions: {} };
 
-let state: RiskState = INITIAL;
+const STORAGE_KEY = "uk-banking-audit-v8-risk-state";
+
+/** The parts a user can change. Seed records are never stored. */
+type StoredState = Pick<RiskState, "trail" | "relevance" | "dispositions"> & {
+  pathsToGreen: EngineData["pathsToGreen"];
+  links: EngineData["links"];
+};
+
+function loadStored(): RiskState {
+  if (typeof window === "undefined") return INITIAL;
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return INITIAL;
+    const stored = JSON.parse(raw) as StoredState;
+    return {
+      data: { ...V8_ENGINE_DATA, pathsToGreen: stored.pathsToGreen, links: stored.links },
+      trail: stored.trail,
+      relevance: stored.relevance,
+      dispositions: stored.dispositions,
+    };
+  } catch {
+    return INITIAL;
+  }
+}
+
+function saveStored(next: RiskState): void {
+  if (typeof window === "undefined") return;
+  try {
+    const stored: StoredState = {
+      pathsToGreen: next.data.pathsToGreen,
+      links: next.data.links,
+      trail: next.trail,
+      relevance: next.relevance,
+      dispositions: next.dispositions,
+    };
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // Storage can be blocked. The session still works, it just will not survive a reload.
+  }
+}
+
+let state: RiskState = loadStored();
 const listeners = new Set<() => void>();
 
 function setState(next: RiskState): void {
   state = next;
+  saveStored(next);
   for (const listener of listeners) listener();
 }
 
@@ -99,6 +146,17 @@ export function trailEventsForSave(
   return events;
 }
 
+/** Record the "Relevant to us?" answer for a horizon item. */
+export function setHorizonRelevance(itemId: string, relevance: HorizonItem["relevance"]): void {
+  setState({ ...state, relevance: { ...state.relevance, [itemId]: relevance } });
+}
+
+/** Record an investigation decision against a signal. */
+export function addDisposition(entry: AuditEntry): void {
+  const existing = state.dispositions[entry.signalId] ?? [];
+  setState({ ...state, dispositions: { ...state.dispositions, [entry.signalId]: [...existing, entry] } });
+}
+
 /** Add or replace an incident's link to a control; the engine re-rates from it. */
 export function linkIncidentToControl(link: IncidentControlLink, now: string = new Date().toISOString()): void {
   const { data, trail } = state;
@@ -114,7 +172,7 @@ export function linkIncidentToControl(link: IncidentControlLink, now: string = n
     evidenceId: link.incidentId,
     smf,
   };
-  setState({ data: { ...data, links }, trail: [event, ...trail] });
+  setState({ ...state, data: { ...data, links }, trail: [event, ...trail] });
 }
 
 /** Add or replace a path to green, and record the save on the trail. */
@@ -125,5 +183,5 @@ export function savePathToGreen(record: PathToGreenRecord, now: string = new Dat
     ? data.pathsToGreen.map((p) => (p.id === record.id ? record : p))
     : [...data.pathsToGreen, record];
   const events = trailEventsForSave(previous, record, accountableSmf(record, data), now);
-  setState({ data: { ...data, pathsToGreen }, trail: [...events, ...trail] });
+  setState({ ...state, data: { ...data, pathsToGreen }, trail: [...events, ...trail] });
 }

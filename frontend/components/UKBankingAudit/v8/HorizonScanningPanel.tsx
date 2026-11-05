@@ -5,21 +5,24 @@ import { groupSetRequirements, smfHolders } from "@/components/UKBankingAudit/uk
 import { formatDate } from "@/lib/ukbankingaudit/v8/boardView";
 import { categoryLabel } from "@/lib/ukbankingaudit/v8/config";
 import { HORIZON_ITEMS } from "@/lib/ukbankingaudit/v8/data/horizon";
-import type { AuditEntry, DispositionKind } from "@/lib/ukbankingaudit/v8/dispositions";
-import { buildEnforcementNotices } from "@/lib/ukbankingaudit/v8/enforcementCoverage";
+import type { DispositionKind } from "@/lib/ukbankingaudit/v8/dispositions";
 import {
+  externalBoardSignals,
   horizonItemToSignal,
   noticeToSignal,
+  openEnforcementNotices,
   precedentToSignal,
   readAcrossPrecedents,
 } from "@/lib/ukbankingaudit/v8/horizonSignals";
 import { matchPrecedents, resolvePrecedent } from "@/lib/ukbankingaudit/v8/precedentCorpus";
+import { addDisposition, setHorizonRelevance } from "@/lib/ukbankingaudit/v8/riskStore";
 import type { BoardSignal, HorizonItem, Precedent } from "@/lib/ukbankingaudit/v8/types";
 import { CappedList } from "./CappedList";
 import { HorizonCard } from "./HorizonCard";
 import { useJurisdiction } from "./jurisdictionContext";
 import { RegulatoryLandscapeCard } from "./RegulatoryLandscapeCard";
 import { SignalInvestigationDrawer } from "./SignalInvestigationDrawer";
+import { useRiskState } from "./useRiskStore";
 
 type Props = {
   signals: BoardSignal[];
@@ -42,11 +45,6 @@ const RELEVANCE: { value: HorizonItem["relevance"]; label: string }[] = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
 ];
-
-/** A green-without-evidence result is a control testing gap, not an external event. */
-function isExternalSignal(signal: BoardSignal): boolean {
-  return signal.title !== "Green Without Evidence";
-}
 
 /**
  * Precedent for a card. When a domain is open, re-match via matchPrecedents for
@@ -71,22 +69,18 @@ export function HorizonScanningPanel({ signals, expandedId, onClearDomain }: Pro
   const jurisdiction = useJurisdiction();
   const [tab, setTab] = useState<TabId>("all");
   const [open, setOpen] = useState<{ signal: BoardSignal; action: DispositionKind | null } | null>(null);
-  const [log, setLog] = useState<Record<string, AuditEntry[]>>({});
-  const [relevance, setRelevance] = useState<Record<string, HorizonItem["relevance"]>>({});
+  const { relevance, dispositions } = useRiskState();
 
   const inScope = (domainId: string) => !expandedId || domainId === expandedId;
 
   const precedentSignals = useMemo(
-    () => signals.filter(isExternalSignal).filter((s) => !expandedId || s.domainId === expandedId).slice(0, 4),
+    () => externalBoardSignals(signals).filter((s) => !expandedId || s.domainId === expandedId).slice(0, 4),
     [signals, expandedId],
   );
   const firmLikelyId = precedentSignals.find((s) => s.severity === "S1")?.id ?? null;
 
   const notices = useMemo(
-    () =>
-      buildEnforcementNotices({ groupSetRequirements })
-        .filter((n) => n.applicabilityStatus !== "completed")
-        .sort((a, b) => b.ageDays - a.ageDays),
+    () => openEnforcementNotices(groupSetRequirements),
     [],
   );
   const queue = notices.filter((n) => inScope(n.precedent.domainScope[0] ?? "regulatory"));
@@ -106,9 +100,6 @@ export function HorizonScanningPanel({ signals, expandedId, onClearDomain }: Pro
     (!showEmerging || emerging.length === 0);
 
   const openDrawer = (signal: BoardSignal, action: DispositionKind | null) => setOpen({ signal, action });
-  const appendEntry = (entry: AuditEntry) => {
-    setLog((prev) => ({ ...prev, [entry.signalId]: [...(prev[entry.signalId] ?? []), entry] }));
-  };
 
   return (
     <div className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200/90 bg-white p-3 shadow-sm sm:p-4">
@@ -232,12 +223,7 @@ export function HorizonScanningPanel({ signals, expandedId, onClearDomain }: Pro
                       <select
                         id={selectId}
                         value={relevance[item.id] ?? item.relevance}
-                        onChange={(e) =>
-                          setRelevance((prev) => ({
-                            ...prev,
-                            [item.id]: e.target.value as HorizonItem["relevance"],
-                          }))
-                        }
+                        onChange={(e) => setHorizonRelevance(item.id, e.target.value as HorizonItem["relevance"])}
                         className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] text-slate-700"
                       >
                         {RELEVANCE.map((option) => (
@@ -280,9 +266,9 @@ export function HorizonScanningPanel({ signals, expandedId, onClearDomain }: Pro
         <SignalInvestigationDrawer
           signal={open.signal}
           precedent={precedentForSignal(jurisdiction, open.signal, expandedId)}
-          auditEntries={log[open.signal.id] ?? []}
+          auditEntries={dispositions[open.signal.id] ?? []}
           initialAction={open.action}
-          onRecord={appendEntry}
+          onRecord={addDisposition}
           onClose={() => setOpen(null)}
         />
       ) : null}

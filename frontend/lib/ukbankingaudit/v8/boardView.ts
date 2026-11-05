@@ -345,6 +345,8 @@ export type SpotlightRow = {
   /** Value vs tolerance, test result, or severity. */
   measure: string;
   cause: string | null;
+  /** First planned action on the path to green. */
+  response: string | null;
   owner: string | null;
   targetDate: string | null;
   overdue: boolean;
@@ -381,6 +383,7 @@ export function buildRedSpotlight(
       categoryLabel: categoryLabel(item.categoryId, data.config),
       measure: spotlightMeasure(item, period, data),
       cause: path?.cause ?? null,
+      response: path?.actions[0] ?? null,
       owner: path?.owner ?? item.owner,
       targetDate: path?.targetDate ?? null,
       overdue,

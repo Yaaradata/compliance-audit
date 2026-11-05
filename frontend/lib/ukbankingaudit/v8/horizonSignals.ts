@@ -3,7 +3,7 @@
  * same investigation drawer and disposition log as detected board signals.
  */
 import { categoryLabel, V8_CONFIG } from "./config";
-import type { EnforcementNoticeItem } from "./enforcementCoverage";
+import { buildEnforcementNotices, type EnforcementNoticeItem } from "./enforcementCoverage";
 import { getAccountability } from "./riskDomainsV8";
 import { precedentsSinceAttestation } from "./smcrPrecedentAwareness";
 import type { BoardSignal, HorizonItem, Precedent } from "./types";
@@ -67,6 +67,20 @@ export function horizonItemToSignal(item: HorizonItem): BoardSignal {
     precedent: null,
     trigger: `External ${type === "industry" ? "industry event" : "emerging risk"} added to the horizon scan`,
   });
+}
+
+/** A green-without-evidence result is a control testing gap, not an external event. */
+export function externalBoardSignals(signals: BoardSignal[]): BoardSignal[] {
+  return signals.filter((signal) => signal.title !== "Green Without Evidence");
+}
+
+/** Enforcement notices still open for assessment, oldest first. */
+export function openEnforcementNotices(
+  groupSetRequirements: Parameters<typeof buildEnforcementNotices>[0]["groupSetRequirements"],
+): EnforcementNoticeItem[] {
+  return buildEnforcementNotices({ groupSetRequirements })
+    .filter((notice) => notice.applicabilityStatus !== "completed")
+    .sort((a, b) => b.ageDays - a.ageDays);
 }
 
 export function precedentToSignal(precedent: Precedent): BoardSignal {

@@ -4,7 +4,18 @@ import { buildCategoryTiles, buildControlStrip, buildFirmBanner, buildIncidentSt
 import { buildCroReport, buildTopLineSummary, buildTopLineTiles } from "./croReportView";
 import { getDerivation } from "./derivations";
 import { v8RefKind } from "./refRouter";
-import { getRiskState, linkIncidentToControl, resetRiskStore } from "./riskStore";
+import {
+  addDisposition,
+  getRiskState,
+  linkIncidentToControl,
+  resetRiskStore,
+  savePathToGreen,
+  setHorizonRelevance,
+} from "./riskStore";
+import { buildRedSpotlight, buildWhatChanged, buildWhatHasNotChanged } from "./boardView";
+import { buildOverdueTests } from "./controlsIncidentsView";
+import { buildRamRows } from "./riskAppetiteView";
+import type { AuditEntry } from "./dispositions";
 
 const NOV = "2026-11";
 
@@ -142,10 +153,70 @@ describe("CRO report", () => {
   });
 
   it("shows all three horizon groups and no Sev-3 or unverified item", () => {
-    assert.equal(report.horizon.regulatory.length, 2);
+    assert.ok(report.horizon.regulatory.some((r) => r.title === "Barclays Bank PLC"));
+    assert.ok(report.horizon.regulatory.some((r) => r.title === "Monzo Bank Limited"));
+    assert.ok(!report.horizon.regulatory.some((r) => r.title === "Green Without Evidence"));
     assert.equal(report.horizon.industry.length, 2);
     assert.equal(report.horizon.emerging.length, 2);
     assert.ok(!report.incidents.some((i) => i.severity === "Sev3"));
     assert.doesNotMatch(JSON.stringify(report.horizon), /Metro/);
+  });
+});
+
+describe("report stays in sync with the dashboard", () => {
+  const session = () => {
+    const { data, relevance, dispositions } = getRiskState();
+    return { data, relevance, dispositions };
+  };
+  const report = () => {
+    const { data, relevance, dispositions } = session();
+    return buildCroReport(NOV, data, { relevance, dispositions });
+  };
+
+  it("carries every Board View section, row for row", () => {
+    const { data } = session();
+    const current = report();
+    assert.deepEqual(current.spotlight, buildRedSpotlight(NOV, 5, data));
+    assert.deepEqual(current.whatChanged, buildWhatChanged(NOV, data));
+    assert.deepEqual(current.standing, buildWhatHasNotChanged(NOV, data));
+    assert.deepEqual(current.overdueTests, buildOverdueTests(data));
+    assert.deepEqual(current.metricRegister, buildRamRows(NOV, data));
+    assert.equal(current.metricRegister.length, 50);
+    assert.equal(current.majorGaps.length, 8);
+  });
+
+  it("uses the Top line figures for its headline", () => {
+    const { data } = session();
+    assert.deepEqual(report().headlineTiles, buildTopLineTiles(NOV, data));
+  });
+
+  it("follows a saved path to green", () => {
+    const path = session().data.pathsToGreen.find((p) => p.targetId === "RAM-CY-02");
+    assert.ok(path);
+    savePathToGreen({ ...path, secondLineVerdict: "accepted", committeeDecision: "accepted" }, "2026-11-05T10:00:00.000Z");
+    const row = report().appetite.find((a) => a.id === "RAM-CY-02");
+    assert.equal(row?.secondLine, "Accepted");
+    assert.match(row?.committee ?? "", /^Accepted by/);
+    assert.ok(!report().matters.some((m) => m.startsWith("Review: the plan for Mean time to patch")));
+  });
+
+  it("follows an incident re-rate everywhere", () => {
+    linkIncidentToControl({ incidentId: "INC-2026-040", controlId: "AML-C005", controlWorked: "failed" }, "2026-11-05T10:00:00.000Z");
+    const current = report();
+    assert.equal(current.controlsPct, 93);
+    assert.equal(current.ratings.find((r) => r.id === "fincrime")?.colour, "red");
+    assert.ok(current.drivers.includes("Fraud & Financial Crime"));
+  });
+
+  it("follows Horizon Scanning answers and decisions", () => {
+    setHorizonRelevance("HZ-IND-001", "yes");
+    addDisposition({ signalId: "HZ-IND-001", kind: "accept" } as AuditEntry);
+    const row = report().horizon.industry.find((h) => h.id === "HZ-IND-001");
+    assert.equal(row?.relevance, "Yes");
+    assert.equal(row?.decision, "Accepted");
+  });
+
+  it("states the next review from the cadence", () => {
+    assert.equal(report().nextReview, "December 2026");
   });
 });

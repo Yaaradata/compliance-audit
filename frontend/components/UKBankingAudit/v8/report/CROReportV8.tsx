@@ -5,15 +5,15 @@ import { buildCroReport } from "@/lib/ukbankingaudit/v8/croReportView";
 import { useRiskState } from "../useRiskStore";
 import { CROReportDocument } from "./CROReportDocument";
 
-/** The report page: a small toolbar around the A4 paper. */
+/** The report page: a toolbar above the full-width paper. Reads the dashboard's live state. */
 export function CROReportV8() {
   const router = useRouter();
-  const { data } = useRiskState();
-  const report = buildCroReport(data.config.currentPeriod, data);
+  const { data, relevance, dispositions } = useRiskState();
+  const report = buildCroReport(data.config.currentPeriod, data, { relevance, dispositions });
 
   return (
-    <div className="report-root min-h-screen bg-slate-200 py-4">
-      <div className="report-no-print mx-auto flex w-[210mm] max-w-full flex-wrap items-center justify-between gap-2 px-2">
+    <div className="report-root min-h-screen bg-white">
+      <div className="report-no-print sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-2 sm:px-8">
         <button
           type="button"
           onClick={() => router.back()}
